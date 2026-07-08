@@ -8,6 +8,7 @@ import {
 
 import { LoginPage } from "./LoginPage" with { type: "ref" };
 import { SignupPage } from "./SignupPage" with { type: "ref" };
+import { PostAuthRedirectPage } from "./PostAuthRedirectPage" with { type: "ref" };
 import { EmailVerificationPage } from "./email-and-pass/EmailVerificationPage" with { type: "ref" };
 import { PasswordResetPage } from "./email-and-pass/PasswordResetPage" with { type: "ref" };
 import { RequestPasswordResetPage } from "./email-and-pass/RequestPasswordResetPage" with { type: "ref" };
@@ -27,8 +28,8 @@ import {
 
 const emailAuthMethod: NonNullable<AuthMethods["email"]> = {
   fromField: {
-    name: "Open SaaS App",
-    email: "me@example.com",
+    name: "CXSAT Abidjan",
+    email: "notifications@cxsat.ci",
   },
   emailVerification: {
     clientRoute: "EmailVerificationRoute",
@@ -80,12 +81,17 @@ export const authConfig: Auth = {
     // discord: discordAuthMethod,
   },
   onAuthFailedRedirectTo: "/login",
-  onAuthSucceededRedirectTo: "/demo-app",
+  // Ancienne valeur "/demo-app" : reliquat du template Open SaaS (démo IA)
+  // sans rapport avec CXSAT. On route désormais vers une page d'arbitrage
+  // qui envoie l'utilisateur vers /onboarding ou /dashboard selon qu'il a
+  // déjà configuré son entreprise/agence.
+  onAuthSucceededRedirectTo: "/apres-connexion",
 };
 
 export const authSpec: Spec = [
   route("LoginRoute", "/login", page(LoginPage)),
   route("SignupRoute", "/signup", page(SignupPage)),
+  route("PostAuthRedirectRoute", "/apres-connexion", page(PostAuthRedirectPage)),
   route(
     "RequestPasswordResetRoute",
     "/request-password-reset",

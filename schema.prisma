@@ -242,6 +242,18 @@ model TacheCorrective {
   responsable         User              @relation(fields: [id_responsable], references: [id])
 }
 
+// ============================================================================
+// ANTI-REJEU DES VOTES (CXSAT — Conformité ARTCI)
+// ============================================================================
+
+model VoteAntiRejeu {
+  id           BigInt   @id @default(autoincrement())
+  hachage_tel  String   @unique // SHA-256(sel + telephone) — anonymisé
+  date_vote    DateTime @default(now())
+
+  @@index([date_vote])
+}
+
 model StatistiquesMensuelles {
   id                  BigInt            @id @default(autoincrement())
   annee               Int

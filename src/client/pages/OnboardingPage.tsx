@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { completeOnboarding } from 'wasp/client/operations';
+import { useAuth } from 'wasp/client/auth';
 import { motion } from 'framer-motion';
 import { Building2, MapPin, Sparkles, ShieldCheck, AlertCircle } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
@@ -33,10 +35,21 @@ const HIGHLIGHTS = [
 ];
 
 export const OnboardingPage = () => {
+  const navigate = useNavigate();
+  const { data: user, isLoading: loadingUser } = useAuth();
   const [nomEntreprise, setNomEntreprise] = useState('');
   const [commune, setCommune] = useState('Marcory');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Un utilisateur dont l'entreprise/agence est déjà configurée n'a plus
+  // rien à faire ici : on l'envoie directement au tableau de bord pour
+  // éviter qu'il ne recrée une seconde agence par erreur.
+  useEffect(() => {
+    if (!loadingUser && user && (user as any).id_agence) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, loadingUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

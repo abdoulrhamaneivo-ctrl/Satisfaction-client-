@@ -15,4 +15,5 @@ export const demoNavigationitems: NavigationItem[] = [
   { name: "Personnel", to: "/admin/personnel" },
   { name: "Critères", to: "/criteres" },
   { name: "Avis clients", to: "/avis" },
+  { name: "Alertes & Tâches", to: "/alertes-taches" },
 ] as const;

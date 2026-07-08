@@ -1,10 +1,10 @@
 import React, { useRef } from 'react';
-import { useQuery, getReponses, getRadarStats, getAlertes, getTasks } from 'wasp/client/operations';
+import { useQuery, getReponses, getRadarStats, getAlertes, getTasks, getTendanceMensuelle, getStatsByAgent } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox } from 'lucide-react';
-import { HistogrammeSatisfaction, RadarQualite } from '../components/DashboardCharts';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users } from 'lucide-react';
+import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents } from '../components/DashboardCharts';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -21,10 +21,14 @@ export const DashboardPage = () => {
   const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
   const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
   const { data: tasks, isLoading: loadingTasks } = useQuery(getTasks);
+  const { data: tendance, isLoading: loadingTendance } = useQuery(getTendanceMensuelle);
+  const { data: statsByAgent, isLoading: loadingAgents } = useQuery(getStatsByAgent);
 
   const reponsesList: any[] = reponses || [];
   const alertesList: any[] = alertes || [];
   const tasksList: any[] = tasks || [];
+  const tendanceList: any[] = tendance || [];
+  const agentsList: any[] = statsByAgent || [];
 
   const isLoading = loadingReponses || loadingRadar || loadingAlertes || loadingTasks;
 
@@ -35,6 +39,8 @@ export const DashboardPage = () => {
     reponsesList.reduce<number>((acc, curr) => acc + curr.score_brut, 0) /
     (reponsesList.length || 1)
   ).toFixed(1);
+
+  const alertesNouvelles = alertesList.filter((a: any) => a.statut_alerte === 'NOUVELLE').length;
 
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -65,7 +71,7 @@ export const DashboardPage = () => {
 
         {user?.role === 'DIRECTION' && (
           <MotionCard interactive={false} className="border-primary/30 bg-primary/5 p-4 text-sm text-foreground">
-            Vue Entreprise : vous voyez les chiffres cumulés de l’ensemble du réseau.
+            Vue Entreprise : vous voyez les chiffres cumulés de l'ensemble du réseau.
           </MotionCard>
         )}
 
@@ -75,7 +81,8 @@ export const DashboardPage = () => {
           </MotionCard>
         )}
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {/* KPIs */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Satisfaction Globale"
             value={`${satisfaction}%`}
@@ -97,77 +104,112 @@ export const DashboardPage = () => {
             accent="secondary"
             index={2}
           />
+          <StatCard
+            title="Alertes nouvelles"
+            value={String(alertesNouvelles)}
+            icon={AlertTriangle}
+            accent={alertesNouvelles > 0 ? 'destructive' : 'success'}
+            index={3}
+          />
         </div>
 
-        <div className="mt-8 space-y-8">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {isLoading ? (
-              <>
-                <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
-                <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
-              </>
-            ) : (
-              <>
-                <HistogrammeSatisfaction data={reponsesList} />
-                <RadarQualite data={radarData || []} />
-              </>
-            )}
-          </div>
-
-          {!isLoading && (
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-title-sm font-bold text-foreground">Derniers avis</h2>
-                {reponsesList.length > 0 && (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    {reponsesList.length} avis
-                  </span>
-                )}
-              </div>
-
-              {reponsesList.length > 0 ? (
-                <DataTable headers={['Note', 'Guichet', 'Critère', 'Date']}>
-                  {reponsesList.slice(0, 5).map((rep: any) => (
-                    <tr key={rep.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                      <td className="px-6 py-4">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                            rep.score_brut <= 2
-                              ? 'bg-destructive/10 text-destructive'
-                              : 'bg-success/10 text-success'
-                          }`}
-                        >
-                          {rep.score_brut}/5
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-foreground">{rep.guichet?.nom_guichet || 'Guichet inconnu'}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{rep.critere?.libelle_critere || 'Critère inconnu'}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{new Date(rep.date_reponse).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </DataTable>
-              ) : (
-                <EmptyState
-                  icon={Inbox}
-                  title="Aucun avis pour le moment"
-                  description="Dès que vos clients laisseront un retour, il apparaîtra ici avec les indicateurs associés."
-                />
-              )}
-            </section>
+        {/* Graphiques principaux */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {isLoading ? (
+            <>
+              <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+              <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+            </>
+          ) : (
+            <>
+              <HistogrammeSatisfaction data={reponsesList} />
+              <RadarQualite data={radarData || []} />
+            </>
           )}
         </div>
 
-        <div className="hidden">
-          <RapportMensuelPrint
-            ref={printRef}
-            reponses={reponsesList}
-            radarData={radarData || []}
-            alertes={alertesList}
-            tasks={tasksList}
-            agenceName={user?.id_agence ? `Agence #${user.id_agence}` : 'Mon Agence'}
-            commune="Marcory"
-          />
-        </div>
+        {/* Tendance mensuelle */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <TrendingUp className="size-5 text-primary" />
+            <h2 className="text-title-sm font-bold text-foreground">Évolution mensuelle</h2>
+          </div>
+          {loadingTendance ? (
+            <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          ) : (
+            <TendanceMensuelle data={tendanceList} />
+          )}
+        </section>
+
+        {/* Comparaison par agent */}
+        {agentsList.length > 0 && (
+          <section>
+            <div className="mb-4 flex items-center gap-2">
+              <Users className="size-5 text-secondary" />
+              <h2 className="text-title-sm font-bold text-foreground">Performance par agent</h2>
+            </div>
+            {loadingAgents ? (
+              <div className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+            ) : (
+              <ComparaisonAgents data={agentsList} />
+            )}
+          </section>
+        )}
+
+        {/* Derniers avis */}
+        {!isLoading && (
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-title-sm font-bold text-foreground">Derniers avis</h2>
+              {reponsesList.length > 0 && (
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                  {reponsesList.length} avis
+                </span>
+              )}
+            </div>
+
+            {reponsesList.length > 0 ? (
+              <DataTable headers={['Note', 'Guichet', 'Critère', 'Date']}>
+                {reponsesList.slice(0, 5).map((rep: any) => (
+                  <tr key={rep.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <td className="px-6 py-4">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                          rep.score_brut <= 2
+                            ? 'bg-destructive/10 text-destructive'
+                            : 'bg-success/10 text-success'
+                        }`}
+                      >
+                        {rep.score_brut}/5
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-foreground">{rep.guichet?.nom_guichet || 'Guichet inconnu'}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{rep.critere?.libelle_critere || 'Critère inconnu'}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{new Date(rep.date_reponse).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </DataTable>
+            ) : (
+              <EmptyState
+                icon={Inbox}
+                title="Aucun avis pour le moment"
+                description="Dès que vos clients laisseront un retour, il apparaîtra ici avec les indicateurs associés."
+              />
+            )}
+          </section>
+        )}
+      </div>
+
+      <div className="hidden">
+        <RapportMensuelPrint
+          ref={printRef}
+          reponses={reponsesList}
+          radarData={radarData || []}
+          alertes={alertesList}
+          tasks={tasksList}
+          agenceName={user?.id_agence ? `Agence #${user.id_agence}` : 'Mon Agence'}
+          commune="Marcory"
+        />
       </div>
     </AmbientBackground>
   );

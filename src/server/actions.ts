@@ -2,6 +2,14 @@
 import { HttpError } from 'wasp/server';
 import { emailSender } from 'wasp/server/email';
 import crypto from 'node:crypto';
+import { envoyerAlerteSMS, envoyerAlerteWhatsApp } from './notifications/gateway';
+
+// Sel d'environnement pour le hachage des numéros de téléphone (ARTCI)
+const TELEPHONE_SALT = process.env.TELEPHONE_HASH_SALT || 'cxsat-default-salt-change-me';
+
+// ============================================================================
+// ONBOARDING
+// ============================================================================
 
 type OnboardingArgs = {
   nomEntreprise: string;
@@ -26,17 +34,14 @@ export const completeOnboarding = async (args: OnboardingArgs, context: any) => 
   }
 
   // --- GARDE DE SÉCURITÉ SaaS ---
-  // Vérification : l'utilisateur n'a-t-il déjà une agence configurée ?
   const user = await context.entities.User.findUnique({
     where: { id: context.user.id },
     include: { agence: true }
   });
 
-  // Si l'utilisateur a déjà un id_agence, on bloque la création
   if (user?.id_agence !== null && user?.id_agence !== undefined) {
     throw new HttpError(400, 'Votre compte est déjà configuré avec une entreprise.');
   }
-  // --------------------------------
 
   const updatedUser = await context.entities.User.update({
     where: { id: context.user.id },
@@ -62,6 +67,10 @@ export const completeOnboarding = async (args: OnboardingArgs, context: any) => 
   return updatedUser;
 };
 
+// ============================================================================
+// GUICHETS
+// ============================================================================
+
 export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
   if (!context.user) {
     throw new HttpError(401, 'Non authentifié');
@@ -83,25 +92,27 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
     throw new HttpError(403, 'Accès refusé.');
   }
 
-  // Utilisation d'une transaction pour créer le guichet ET l'affectation par défaut
   return await context.entities.Guichet.create({
     data: {
       nom_guichet: nomGuichet.trim(),
       type_guichet: typeGuichet || 'Physique',
       actif: true,
       agence: { connect: { id: id_agence } },
-      // On crée automatiquement l'affectation par défaut pour le Receveur lui-même
       affectations: {
         create: {
-          date_affectation: new Date(), // Aujourd'hui
+          date_affectation: new Date(),
           heure_debut: "08:00",
           heure_fin: "17:00",
-          id_agent: user.id // Le Receveur s'auto-affecte par défaut
+          id_agent: user.id
         }
       }
     }
   });
 };
+
+// ============================================================================
+// PLANNING
+// ============================================================================
 
 export const assignAgent = async (args: any, context: any) => {
   if (!context.user || context.user.role !== 'CHEF_AGENCE') {
@@ -123,8 +134,12 @@ export const assignAgent = async (args: any, context: any) => {
   });
 };
 
+// ============================================================================
+// COLLECTE D'AVIS (avec anti-rejeu + notifications)
+// ============================================================================
+
 export const soumettreAvis = async (args: any, context: any) => {
-  const { guichetId, score, critereId, canalId, commentaire } = args;
+  const { guichetId, score, critereId, canalId, commentaire, telephone } = args;
 
   if (!guichetId || score === undefined || score === null) {
     throw new HttpError(400, "Identifiant du guichet et score requis.");
@@ -134,6 +149,37 @@ export const soumettreAvis = async (args: any, context: any) => {
   if (!Number.isInteger(parsedScore) || parsedScore < 1 || parsedScore > 5) {
     throw new HttpError(400, "Le score doit être un entier compris entre 1 et 5.");
   }
+
+  // --- ANTI-REJEU : hachage SHA-256 du numéro de téléphone ---
+  if (telephone) {
+    const hachage = crypto
+      .createHash('sha256')
+      .update(TELEPHONE_SALT + telephone.replace(/\s+/g, ''))
+      .digest('hex');
+
+    const hier = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existant = await context.entities.VoteAntiRejeu.findFirst({
+      where: {
+        hachage_tel: hachage,
+        date_vote: { gte: hier },
+      },
+    });
+
+    if (existant) {
+      throw new HttpError(429, "Vous avez déjà soumis un avis depuis ce numéro ces dernières 24h.");
+    }
+
+    // Enregistrement du hachage
+    await context.entities.VoteAntiRejeu.create({
+      data: { hachage_tel: hachage },
+    });
+
+    // Nettoyage des hachages > 24h (purge légère)
+    await context.entities.VoteAntiRejeu.deleteMany({
+      where: { date_vote: { lt: hier } },
+    });
+  }
+  // -----------------------------------------------------------
 
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: Number(guichetId) },
@@ -159,20 +205,14 @@ export const soumettreAvis = async (args: any, context: any) => {
     const critere = await context.entities.Critere.findUnique({
       where: { id: Number(critereId) },
     });
-
-    if (!critere) {
-      throw new HttpError(404, "Critère introuvable.");
-    }
+    if (!critere) throw new HttpError(404, "Critère introuvable.");
   }
 
   if (canalId) {
     const canal = await context.entities.Canal.findUnique({
       where: { id: Number(canalId) },
     });
-
-    if (!canal) {
-      throw new HttpError(404, "Canal introuvable.");
-    }
+    if (!canal) throw new HttpError(404, "Canal introuvable.");
   }
 
   const reponse = await context.entities.Reponse.create({
@@ -188,6 +228,7 @@ export const soumettreAvis = async (args: any, context: any) => {
     }
   });
 
+  // --- ALERTE + NOTIFICATIONS si note critique ---
   if (parsedScore <= 2) {
     const destinataire = await context.entities.User.findFirst({
       where: {
@@ -207,11 +248,26 @@ export const soumettreAvis = async (args: any, context: any) => {
           id_guichet_concerne: guichet.id,
         }
       });
+
+      // Envoi SMS/WhatsApp (mode stub si clés non configurées)
+      if (destinataire.telephone) {
+        const msgAlerte = `⚠️ CXSAT ALERTE — Note critique ${parsedScore}/5 au guichet "${guichet.nom_guichet}". Vérifiez vos tâches correctives.`;
+        try {
+          await envoyerAlerteWhatsApp(destinataire.telephone, msgAlerte);
+        } catch {
+          await envoyerAlerteSMS(destinataire.telephone, msgAlerte);
+        }
+      }
     }
   }
 
   return reponse;
 };
+
+// ============================================================================
+// GESTION DU PERSONNEL
+// ============================================================================
+
 export const createAgent = async (
   args: { nom: string; prenom: string; email: string; telephone: string; id_agence?: number },
   context: any
@@ -383,6 +439,10 @@ export const inviteAgent = async (args: { email: string; nom: string; prenom: st
   return newUser;
 };
 
+// ============================================================================
+// CRITÈRES D'ÉVALUATION
+// ============================================================================
+
 export const toggleCritereAgence = async (
   args: { id_critere: number; id_agence?: number; active: boolean },
   context: any
@@ -447,7 +507,119 @@ export const createCritere = async (
   return critere;
 };
 
-// --- Tarification SaaS (montants en FCFA) : réservé aux admins CXSAT ---
+// ============================================================================
+// OBJECTIFS DE SATISFACTION (Module 1 — Planification)
+// ============================================================================
+
+export const upsertObjectif = async (
+  args: { id_agence?: number; id_critere: number; valeur_cible: number; date_debut: string; date_fin: string },
+  context: any
+) => {
+  if (!context.user) throw new HttpError(401, 'Non authentifié');
+
+  const isAuthorized = context.user.role === 'DIRECTION' || context.user.role === 'QUALITE';
+  if (!isAuthorized) throw new HttpError(403, 'Seuls la Direction et le service Qualité peuvent définir des objectifs.');
+
+  const idAgence = args.id_agence ?? context.user.id_agence;
+  if (!idAgence) throw new HttpError(400, "Agence requise.");
+
+  if (args.valeur_cible < 0 || args.valeur_cible > 100) {
+    throw new HttpError(400, "L'objectif doit être compris entre 0 et 100%.");
+  }
+
+  // Chercher un objectif actif existant pour ce couple agence/critère
+  const existing = await context.entities.Objectif.findFirst({
+    where: { id_agence: idAgence, id_critere: args.id_critere },
+  });
+
+  if (existing) {
+    return context.entities.Objectif.update({
+      where: { id: existing.id },
+      data: {
+        valeur_cible: args.valeur_cible,
+        date_debut: new Date(args.date_debut),
+        date_fin: new Date(args.date_fin),
+      },
+    });
+  }
+
+  return context.entities.Objectif.create({
+    data: {
+      id_agence: idAgence,
+      id_critere: args.id_critere,
+      valeur_cible: args.valeur_cible,
+      date_debut: new Date(args.date_debut),
+      date_fin: new Date(args.date_fin),
+    },
+  });
+};
+
+// ============================================================================
+// TÂCHES CORRECTIVES (Module 5 — Amélioration / Kanban)
+// ============================================================================
+
+export const createTacheCorrective = async (
+  args: { id_alerte: number; titre: string; description?: string; date_echeance: string; id_responsable: string },
+  context: any
+) => {
+  if (!context.user) throw new HttpError(401, 'Non authentifié');
+
+  const isAuthorized = ['DIRECTION', 'QUALITE', 'CHEF_AGENCE'].includes(context.user.role);
+  if (!isAuthorized) throw new HttpError(403, 'Accès refusé.');
+
+  if (!args.titre?.trim()) throw new HttpError(400, 'Le titre de la tâche est requis.');
+
+  return context.entities.TacheCorrective.create({
+    data: {
+      titre: args.titre.trim(),
+      description: args.description?.trim() || null,
+      statut_tache: 'A_FAIRE',
+      date_echeance: new Date(args.date_echeance),
+      id_alerte: BigInt(args.id_alerte),
+      id_responsable: args.id_responsable,
+    },
+  });
+};
+
+export const updateStatutTache = async (
+  args: { id: number; statut: 'A_FAIRE' | 'EN_COURS' | 'TERMINEE' },
+  context: any
+) => {
+  if (!context.user) throw new HttpError(401, 'Non authentifié');
+
+  const STATUTS_VALIDES = ['A_FAIRE', 'EN_COURS', 'TERMINEE'];
+  if (!STATUTS_VALIDES.includes(args.statut)) {
+    throw new HttpError(400, 'Statut invalide.');
+  }
+
+  const tache = await context.entities.TacheCorrective.findUnique({ where: { id: BigInt(args.id) } });
+  if (!tache) throw new HttpError(404, 'Tâche introuvable.');
+
+  return context.entities.TacheCorrective.update({
+    where: { id: BigInt(args.id) },
+    data: {
+      statut_tache: args.statut,
+      ...(args.statut === 'TERMINEE' ? { date_cloture: new Date() } : {}),
+    },
+  });
+};
+
+export const marquerAlerteTraitee = async (args: { id_alerte: number }, context: any) => {
+  if (!context.user) throw new HttpError(401, 'Non authentifié');
+
+  return context.entities.Alerte.update({
+    where: { id: BigInt(args.id_alerte) },
+    data: {
+      statut_alerte: 'TRAITEE',
+      date_traitement: new Date(),
+    },
+  });
+};
+
+// ============================================================================
+// TARIFICATION SaaS (montants en FCFA) — réservé aux admins CXSAT
+// ============================================================================
+
 export const updatePlanPricing = async (
   args: { planId: 'hobby' | 'pro' | 'credits10'; amountFcfa: number },
   context: any

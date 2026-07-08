@@ -1,105 +1,217 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, assignAgent, getGuichets, getAgents } from 'wasp/client/operations';
+import { useQuery, assignAgent, getGuichets, getAgents, getAffectationsDuJour } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
+import { CalendarClock, Store, UserCheck2, Clock } from 'lucide-react';
+import { AmbientBackground } from '../components/AmbientBackground';
+import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
+import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import { useToast } from '../hooks/use-toast';
 
 export const PlanningPage = () => {
   const { data: user } = useAuth();
-  const [selectedAgent, setSelectedAgent] = useState('');
+  const { toast } = useToast();
+  const [selectedAgent, setSelectedAgent] = useState<Record<number, string>>({});
   const [heureDebut, setHeureDebut] = useState('08:00');
   const [heureFin, setHeureFin] = useState('13:00');
+  const [assigningId, setAssigningId] = useState<number | null>(null);
+
   const userAgenceId = user?.id_agence;
-  const { data: guichets } = useQuery(getGuichets, { id_agence: userAgenceId || 0 });
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data: guichets, isLoading: loadingGuichets } = useQuery(getGuichets, { id_agence: userAgenceId || 0 });
   const { data: agents } = useQuery(getAgents, { id_agence: userAgenceId || 0 });
+  const { data: affectationsDuJour } = useQuery(
+    getAffectationsDuJour,
+    { id_agence: userAgenceId || 0, date: today },
+    { enabled: !!userAgenceId }
+  );
+
+  const todayLabel = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+  const getAffectationsForGuichet = (guichetId: number) =>
+    (affectationsDuJour || []).filter((a: any) => a.guichet?.id === guichetId);
 
   const handleAssign = async (guichetId: number) => {
-    if (!selectedAgent) {
-      alert('Veuillez sélectionner un agent.');
+    const agentId = selectedAgent[guichetId];
+    if (!agentId) {
+      toast({ variant: 'destructive', title: 'Agent manquant', description: 'Veuillez sélectionner un agent avant de valider.' });
+      return;
+    }
+    if (heureFin <= heureDebut) {
+      toast({ variant: 'destructive', title: 'Horaire invalide', description: "L'heure de fin doit être après l'heure de début." });
       return;
     }
 
+    setAssigningId(guichetId);
     try {
       await assignAgent({
         id_guichet: guichetId,
-        id_agent: Number(selectedAgent),
-        date: new Date().toISOString().split('T')[0],
+        id_agent: Number(agentId),
+        date: today,
         heure_debut: heureDebut,
         heure_fin: heureFin,
       });
-      alert('Agent affecté avec succès !');
-    } catch (err) {
-      alert("Erreur lors de l'affectation.");
+      const agentNom = agents?.find((a: any) => String(a.id) === agentId);
+      toast({
+        title: 'Agent affecté',
+        description: agentNom
+          ? `${agentNom.prenom} ${agentNom.nom} est planifié(e) de ${heureDebut} à ${heureFin}.`
+          : 'Affectation enregistrée avec succès.',
+      });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: "Erreur lors de l'affectation", description: err.message || 'Erreur inconnue' });
+    } finally {
+      setAssigningId(null);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen bg-background px-4 py-12"
-    >
-      <MotionCard className="mx-auto max-w-7xl p-8">
-        <h1 className="text-3xl font-bold text-foreground">Planning du jour</h1>
-        <div className="mt-8 overflow-hidden rounded-2xl border border-border">
-          <div className="grid gap-4 border-b border-border bg-muted/40 px-6 py-4 text-sm font-semibold text-foreground md:grid-cols-[250px_300px_120px]">
-            <span>Guichet</span>
-            <span>Affecter un Agent</span>
-            <span>Action</span>
-          </div>
-          <div className="divide-y divide-border">
-            {guichets?.map((g: any) => (
-              <div key={g.id} className="grid gap-4 px-6 py-5 text-sm md:grid-cols-[250px_300px_120px]">
-                <div>
-                  <div className="font-semibold text-foreground">{g.nom_guichet}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{g.type_guichet || 'Guichet'}</div>
-                </div>
+    <AmbientBackground>
+      <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
+        <PageHeader
+          icon={CalendarClock}
+          eyebrow="Affectations du jour"
+          title="Planning des guichets"
+          description={`Aujourd'hui, ${todayLabel} — affectez chaque agent à son poste et à son créneau horaire.`}
+        />
 
-                <div>
-                  <select
-                    value={selectedAgent}
-                    onChange={(e) => setSelectedAgent(e.target.value)}
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground"
-                  >
-                    <option value="">Sélectionner un agent...</option>
-                    {agents?.map((agent: any) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.prenom} {agent.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <input
-                      type="time"
-                      value={heureDebut}
-                      onChange={(e) => setHeureDebut(e.target.value)}
-                      className="border border-input bg-background rounded px-2 py-1 text-sm text-foreground"
-                      aria-label="Heure de début"
-                    />
-                    <input
-                      type="time"
-                      value={heureFin}
-                      onChange={(e) => setHeureFin(e.target.value)}
-                      className="border border-input bg-background rounded px-2 py-1 text-sm text-foreground"
-                      aria-label="Heure de fin"
-                    />
-                  </div>
-                  <motion.div whileTap={{ scale: 0.97 }}>
-                    <Button onClick={() => handleAssign(g.id)} className="w-full">
-                      Valider
-                    </Button>
-                  </motion.div>
-                </div>
-              </div>
-            ))}
+        {/* Créneau horaire par défaut */}
+        <MotionCard className="flex flex-wrap items-end gap-4 p-5">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="heure-debut" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Heure de début
+            </label>
+            <input
+              id="heure-debut"
+              type="time"
+              value={heureDebut}
+              onChange={(e) => setHeureDebut(e.target.value)}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+            />
           </div>
-        </div>
-      </MotionCard>
-    </motion.div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="heure-fin" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Heure de fin
+            </label>
+            <input
+              id="heure-fin"
+              type="time"
+              value={heureFin}
+              onChange={(e) => setHeureFin(e.target.value)}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Ce créneau s'appliquera à chaque validation ci-dessous. Modifiez-le avant de valider un guichet dont les
+            horaires diffèrent.
+          </p>
+        </MotionCard>
+
+        {/* Grille dynamique des guichets */}
+        {loadingGuichets ? (
+          <MotionCard className="p-10 text-center text-sm text-muted-foreground">Chargement du planning...</MotionCard>
+        ) : !guichets?.length ? (
+          <EmptyState
+            icon={Store}
+            title="Aucun guichet configuré"
+            description="Créez d'abord vos guichets dans l'onglet « Guichets » pour pouvoir y affecter des agents."
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {guichets.map((g: any, index: number) => {
+              const agentIdForGuichet = selectedAgent[g.id] ?? '';
+              const affectationsGuichet = getAffectationsForGuichet(g.id);
+
+              return (
+                <motion.div
+                  key={g.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: index * 0.04 }}
+                >
+                  <MotionCard className="flex h-full flex-col gap-4 p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Store className="size-4" />
+                          </span>
+                          <div className="font-semibold text-foreground">{g.nom_guichet}</div>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">{g.type_guichet || 'Guichet'}</div>
+                      </div>
+                      {agentIdForGuichet && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2.5 py-1 text-xs font-semibold text-secondary-muted-foreground">
+                          <UserCheck2 className="size-3.5" /> Prêt
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Affectations déjà enregistrées aujourd'hui */}
+                    {affectationsGuichet.length > 0 && (
+                      <div className="space-y-1.5 rounded-xl bg-muted/40 p-3">
+                        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          <Clock className="size-3" /> Aujourd'hui
+                        </p>
+                        {affectationsGuichet.map((aff: any) => (
+                          <div key={aff.id} className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-foreground">
+                              {aff.agent?.prenom} {aff.agent?.nom}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {aff.heure_debut} – {aff.heure_fin}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <Select
+                      value={agentIdForGuichet}
+                      onValueChange={(value) => setSelectedAgent((prev) => ({ ...prev, [g.id]: value }))}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Sélectionner un agent..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agents?.map((agent: any) => (
+                          <SelectItem key={agent.id} value={String(agent.id)}>
+                            {agent.prenom} {agent.nom}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <motion.div whileTap={{ scale: 0.97 }} className="mt-auto">
+                      <Button
+                        onClick={() => handleAssign(g.id)}
+                        disabled={assigningId === g.id}
+                        className="w-full"
+                      >
+                        {assigningId === g.id ? 'Affectation...' : `Valider ${heureDebut} – ${heureFin}`}
+                      </Button>
+                    </motion.div>
+                  </MotionCard>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </AmbientBackground>
   );
 };
