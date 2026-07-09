@@ -3,13 +3,15 @@ import { type EmailSender } from "@wasp.sh/spec";
 /**
  * Configuration de l'envoi d'emails via Brevo (ex Sendinblue).
  *
- * Variables d'environnement à configurer sur Railway :
+ * Variables d'environnement requises :
  *   SMTP_HOST=smtp-relay.brevo.com
  *   SMTP_PORT=587
- *   SMTP_USERNAME=<votre_email_brevo>
- *   SMTP_PASSWORD=<votre_api_key_brevo>
+ *   SMTP_USERNAME=<email_brevo>
+ *   SMTP_PASSWORD=<api_key_brevo>
  *
- * Pour obtenir l'API key : https://account.brevo.com/settings > SMTP & API
+ * Note: Wasp attend bien SMTP_USERNAME, pas SMTP_USER.
+ * L'adresse here doit être identique à celle de auth.wasp.ts -> fromField.email
+ * et être validée dans votre compte Brevo.
  */
 export const emailSender: EmailSender = {
   provider: "SMTP",
