@@ -15,6 +15,6 @@ export const emailSender: EmailSender = {
   provider: "SMTP",
   defaultFrom: {
     name: "CXSAT",
-    email: "notifications@cxsat.ci",
+    email: "abdoulrhamane.ivo@gmail.com",
   },
 };
