@@ -1,8 +1,7 @@
 node_modules/
 .wasp/out/
-.wasp/spec/node_modules/
-test.zip
-rte.zip
+.env.server
+.env.client
 .env.local
 .env.development
 .env.test
