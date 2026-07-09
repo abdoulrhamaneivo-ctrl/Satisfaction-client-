@@ -5,6 +5,7 @@ import { Hero } from "./components/Hero";
 import { QualityHighlight } from "./components/QualityHighlight";
 import { SchemaMarkup } from "./components/SchemaMarkup";
 import { Testimonials } from "./components/Testimonials";
+import { useRedirectIfLoggedIn } from "../auth/hooks/useRedirectIfLoggedIn";
 import {
   faqs,
   features,
@@ -13,6 +14,8 @@ import {
 } from "./contentSections";
 
 export function LandingPage() {
+  useRedirectIfLoggedIn();
+
   return (
     <div className="bg-background text-foreground">
       <SchemaMarkup />

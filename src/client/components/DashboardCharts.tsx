@@ -67,8 +67,8 @@ export const RadarQualite = ({ data }: { data: any[] }) => {
           <Radar
             name="Conformité"
             dataKey="A"
-            stroke="hsl(var(--primary))"
-            fill="hsl(var(--primary))"
+            stroke="#F97316"
+            fill="#F97316"
             fillOpacity={0.35}
           />
           <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }} />
@@ -98,8 +98,8 @@ export const TendanceMensuelle = ({ data }: { data: any[] }) => {
         <AreaChart data={data}>
           <defs>
             <linearGradient id="tendanceGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+              <stop offset="5%" stopColor="#F97316" stopOpacity={0.4}/>
+              <stop offset="95%" stopColor="#F97316" stopOpacity={0}/>
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
@@ -114,10 +114,10 @@ export const TendanceMensuelle = ({ data }: { data: any[] }) => {
             type="monotone"
             dataKey="score_moyen"
             name="Score moyen"
-            stroke="hsl(var(--primary))"
+            stroke="#F97316"
             strokeWidth={3}
             fill="url(#tendanceGrad)"
-            dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+            dot={{ fill: '#F97316', r: 4 }}
             activeDot={{ r: 6 }}
           />
         </AreaChart>

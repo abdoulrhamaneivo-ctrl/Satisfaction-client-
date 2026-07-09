@@ -16,7 +16,7 @@ interface RequireAuthProps {
 export function RequireAuth({ children }: RequireAuthProps) {
   const { data: user, isLoading } = useAuth();
 
-  if (isLoading) {
+  if (isLoading && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -27,7 +27,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
     );
   }
 
-  if (!user) {
+  if (!isLoading && !user) {
     return <Navigate to={routes.LoginRoute.to} replace />;
   }
 
