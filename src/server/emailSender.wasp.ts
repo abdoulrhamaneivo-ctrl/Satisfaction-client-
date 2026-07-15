@@ -14,7 +14,7 @@ import { type EmailSender } from "@wasp.sh/spec";
  * et être validée dans votre compte Brevo.
  */
 export const emailSender: EmailSender = {
-  provider: "SMTP",
+  provider: "SendGrid",
   defaultFrom: {
     name: "CXSAT",
     email: "abdoulrhamane.ivo@gmail.com",

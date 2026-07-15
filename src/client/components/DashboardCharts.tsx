@@ -127,6 +127,59 @@ export const TendanceMensuelle = ({ data }: { data: any[] }) => {
 };
 
 // ============================================================================
+// Classement des guichets (drill-down "où est le problème")
+// ============================================================================
+// Volontairement trié du pire score au meilleur (fait côté backend) : sur un
+// dashboard de pilotage, on doit repérer les points faibles en priorité.
+
+export const ClassementGuichets = ({ data }: { data: any[] }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-72 items-center justify-center rounded-2xl border border-border/70 bg-card p-5 text-sm text-muted-foreground">
+        Aucune donnée par guichet disponible.
+      </div>
+    );
+  }
+
+  const hauteur = Math.max(288, data.length * 40);
+
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-premium" style={{ height: hauteur }}>
+      <h3 className="mb-1 text-sm font-bold text-foreground">Classement des guichets</h3>
+      <p className="mb-3 text-xs text-muted-foreground">Du plus faible au plus performant</p>
+      <ResponsiveContainer width="100%" height="88%">
+        <BarChart data={data} layout="vertical">
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+          <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+          <YAxis type="category" dataKey="nom" width={120} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+          <Tooltip
+            contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
+            formatter={(value: any, _name: any, item: any) => [
+              `${value}/5 (${item?.payload?.nb_avis ?? 0} avis)`,
+              item?.payload?.agence || 'Score moyen',
+            ]}
+          />
+          <Bar dataKey="score_moyen" name="Score moyen" radius={[0, 6, 6, 0]}>
+            {data.map((entry, index) => (
+              <Cell
+                key={`guichet-${index}`}
+                fill={
+                  entry.score_moyen >= 4.0
+                    ? '#10B981'
+                    : entry.score_moyen >= 3.0
+                    ? '#F59E0B'
+                    : '#EF4444'
+                }
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+// ============================================================================
 // Comparaison agents (BarChart horizontal avec seuils de performance)
 // ============================================================================
 

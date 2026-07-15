@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from 'wasp/client/auth';
 import {
   useQuery,
-  createAgent,
   inviteAgent,
   updateAgent,
   deleteAgent,
+  reactivateAgent,
   getAgentsByAgence,
   getAgences,
 } from 'wasp/client/operations';
@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserPlus,
   Trash2,
+  RotateCcw,
   Mail,
   Phone,
   ShieldUser,
@@ -51,6 +52,24 @@ export const AdminPersonnelPage = () => {
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  // Règle métier : la direction ne constitue que l'encadrement (Chef d'Agence,
+  // Auditeur Qualité) ; c'est ensuite à chaque Chef d'Agence de recruter ses
+  // propres agents de guichet. Le formulaire ne doit donc jamais proposer un
+  // rôle que le backend (inviteAgent) refuserait de toute façon.
+  const roleOptions = user?.role === 'DIRECTION'
+    ? [
+        { value: 'CHEF_AGENCE', label: "Chef d’Agence" },
+        { value: 'QUALITE', label: 'Auditeur Qualité' },
+      ]
+    : [{ value: 'AGENT', label: 'Agent de guichet' }];
+
+  useEffect(() => {
+    if (roleOptions.length > 0 && !roleOptions.some(r => r.value === formData.role)) {
+      setFormData(prev => ({ ...prev, role: roleOptions[0].value }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -103,7 +122,17 @@ export const AdminPersonnelPage = () => {
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error) {
-      console.error("Erreur lors de la suppression de l'agent", error);
+      console.error("Erreur lors de la suspension de l'agent", error);
+    }
+  };
+
+  const handleReactivate = async (id: number) => {
+    try {
+      await reactivateAgent({ id });
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (error) {
+      console.error("Erreur lors de la réactivation de l'agent", error);
     }
   };
 
@@ -187,9 +216,9 @@ export const AdminPersonnelPage = () => {
                     <SelectValue placeholder="Rôle" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="AGENT">Agent de guichet</SelectItem>
-                    <SelectItem value="CHEF_AGENCE">Chef d’Agence</SelectItem>
-                    <SelectItem value="QUALITE">Auditeur Qualité</SelectItem>
+                    {roleOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -262,7 +291,14 @@ export const AdminPersonnelPage = () => {
                           <h3 className="font-bold text-slate-900 dark:text-white">
                             {agent.prenom} {agent.nom}
                           </h3>
-                          <p className="text-xs text-slate-500">{agent.role}</p>
+                          <p className="text-xs text-slate-500">
+                            {agent.role}
+                            {agent.actif === false && (
+                              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-600">
+                                Suspendu
+                              </span>
+                            )}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -276,14 +312,27 @@ export const AdminPersonnelPage = () => {
                         >
                           <ShieldUser className="size-4" />
                         </Button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(agent.id)}
-                          aria-label="Supprimer"
-                          className="text-slate-400 hover:text-red-500"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {agent.actif === false ? (
+                          <button
+                            type="button"
+                            onClick={() => handleReactivate(agent.id)}
+                            aria-label="Réactiver"
+                            title="Réactiver ce compte"
+                            className="text-slate-400 hover:text-emerald-500"
+                          >
+                            <RotateCcw size={18} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(agent.id)}
+                            aria-label="Suspendre"
+                            title="Suspendre ce compte"
+                            className="text-slate-400 hover:text-red-500"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </div>
                     </div>
 

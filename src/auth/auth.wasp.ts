@@ -30,7 +30,7 @@ const emailAuthMethod: NonNullable<AuthMethods["email"]> = {
   fromField: {
     name: "CXSAT Abidjan",
     email: "abdoulrhamane.ivo@gmail.com",
-},
+  },
   emailVerification: {
     clientRoute: "EmailVerificationRoute",
     getEmailContentFn: getVerificationEmailContent,
@@ -46,7 +46,7 @@ const emailAuthMethod: NonNullable<AuthMethods["email"]> = {
 // Do note that `email` and `usernameAndPassword` are mutually exclusive.
 // @ts-expect-error Demo purposes
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const usernameAndPasswordAuthMethod: NonNullable<
+const usernameAndPasswordAuthMethod: NonNullable <
   AuthMethods["usernameAndPassword"]
 > = {};
 // @ts-expect-error Demo purposes

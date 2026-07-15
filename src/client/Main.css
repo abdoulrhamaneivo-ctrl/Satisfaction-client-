@@ -340,9 +340,14 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    /* Bug corrigé : un fond blanc pur (100% de luminosité) juxtaposé à du
+       texte quasi noir produit un contraste très élevé qui "éblouit" sur
+       certains écrans/pages très remplies de texte. On adoucit légèrement
+       le fond (blanc cassé chaleureux, cohérent avec AmbientBackground) et
+       les cartes, sans perdre le côté "clair" du thème. */
+    --background: 40 20% 98.5%;
     --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
+    --card: 40 20% 99%;
     --card-foreground: 0 0% 3.9%;
     --card-accent: 0 0% 100%;
     --card-accent-foreground: 0 0% 3.9%;
@@ -357,7 +362,12 @@
     --secondary-muted: 32 75% 78%;
     --secondary-muted-foreground: 0 0% 3.9%;
     --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
+    /* Bug corrigé : 45.1% de luminosité pour le texte secondaire est trop
+       clair sur un fond quasi blanc (ratio de contraste proche de la limite
+       WCAG AA) — beaucoup de libellés, sous-titres et cellules de tableau
+       utilisent cette couleur et devenaient difficiles à lire en plein
+       jour / forte luminosité d'écran. Assombri pour un contraste plus sûr. */
+    --muted-foreground: 0 0% 38%;
     --accent: 33 74% 62%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
@@ -390,7 +400,11 @@
     --secondary-muted: 210 67% 94%;
     --secondary-muted-foreground: 0 0% 3.9%;
     --muted: 210 100% 13%;
-    --muted-foreground: 0 0% 63.9%;
+    /* Bug corrigé : 63.9% était un peu trop sombre sur le fond navy très
+       foncé (5% de luminosité) du thème sombre, rendant le texte secondaire
+       (sous-titres, légendes, dates) difficile à lire. Éclairci pour un
+       meilleur contraste. */
+    --muted-foreground: 0 0% 72%;
     --accent: 31 57% 93%;
     --accent-foreground: 210 100% 13%;
     --destructive: 0 62.8% 63%;
@@ -423,7 +437,11 @@
   }
 
   p {
-    @apply font-mono text-base leading-relaxed;
+    /* Bug corrigé : les paragraphes utilisaient `font-mono` (police à
+       chasse fixe, type code) au lieu de la police de marque "Satoshi" —
+       lisible pour un titre court, mais fatigante sur des paragraphes
+       entiers (descriptions, aides de formulaire, cellules de tableau). */
+    @apply font-satoshi font-normal text-base leading-relaxed;
   }
 }
 
@@ -469,6 +487,37 @@
 }
 .apexcharts-xaxistooltip-bottom:before {
   @apply dark:border-b-muted!;
+}
+
+/* ----------------------------------------------------------------------
+   Recharts (graphiques du tableau de bord CXSAT : histogramme, radar,
+   tendance, classements). Contrairement à Apexcharts ci-dessus, Recharts
+   dessine ses axes/texte/grille avec des couleurs par défaut codées en dur
+   (~#666 pour le texte, ~#ccc pour la grille) qui ne réagissent pas au
+   thème. Les classes Tailwind passées via `className` sur <XAxis>/<YAxis>
+   ne suffisent pas : Recharts pose aussi un attribut `fill`/`stroke` inline
+   sur les <text>/<line> internes, qui gagne sur la classe CSS. Résultat en
+   mode sombre : axes et grille en gris clair, quasi invisibles sur fond
+   sombre. On force donc les couleurs via les classes internes de Recharts,
+   avec !important pour gagner sur les attributs inline. ---------------- */
+.recharts-cartesian-axis-tick-value,
+.recharts-polar-angle-axis-tick-value,
+.recharts-text.recharts-label {
+  fill: hsl(var(--muted-foreground)) !important;
+}
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line,
+.recharts-polar-grid-concentric-polygon,
+.recharts-polar-grid-angle-line {
+  stroke: hsl(var(--border)) !important;
+}
+.recharts-legend-item-text {
+  color: hsl(var(--foreground)) !important;
+}
+.recharts-default-tooltip {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .navbar-maxwidth-transition {

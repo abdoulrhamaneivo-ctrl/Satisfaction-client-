@@ -31,9 +31,13 @@ export function App() {
     );
   }, [location]);
 
-  // Les routes CXSAT /admin/personnel et /admin/tarifs ne sont pas le dashboard
-  // admin Wasp — elles ont besoin de la NavBar normale.
-  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/tarifs'];
+  // Les routes CXSAT /admin/personnel, /admin/tarifs et /admin/agences ne
+  // sont pas le dashboard admin Wasp — elles ont besoin de la NavBar
+  // normale. Bug corrigé : /admin/agences avait été oublié dans cette
+  // liste, donc son chemin "/admin/agences" matchait startsWith("/admin")
+  // et la page était traitée comme le dashboard admin intégré de Wasp
+  // (rendu seul, sans NavBar ni barre de navigation d'aucune sorte).
+  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/tarifs', '/admin/agences'];
   const isAdminDashboard = useMemo(() => {
     return (
       location.pathname.startsWith(routes.AdminRoute.to) &&
@@ -70,12 +74,20 @@ export function App() {
 
   return (
     <>
-      <AnimatePresence mode="wait">
+      {/* Bug corrigé : le <motion.div> n'avait pas de `key` liée à la route,
+          donc AnimatePresence ne détectait jamais un changement de page —
+          combiné à mode="wait" (qui attend la fin de la sortie AVANT de
+          démarrer l'entrée) et une durée de 0.3s de chaque côté, certaines
+          navigations pouvaient sembler figées/lentes. On ajoute la clé,
+          on raccourcit la transition et on retire "wait" pour un fondu
+          croisé quasi instantané, beaucoup plus fluide au clic. */}
+      <AnimatePresence mode="popLayout" initial={false}>
         <motion.div
+          key={location.pathname}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
         >
           <div className="bg-background text-foreground min-h-screen">
             {isAdminDashboard ? (

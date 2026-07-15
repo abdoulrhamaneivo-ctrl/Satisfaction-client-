@@ -6,7 +6,7 @@ import {
   SubscriptionStatus,
 } from "../../payment/plans";
 
-type MockUserData = Omit<User, 'id' | 'nom' | 'prenom' | 'telephone' | 'role' | 'actif' | 'id_agence' | 'sendEmail'>;
+type MockUserData = Omit<User, 'id' | 'nom' | 'prenom' | 'telephone' | 'role' | 'actif' | 'id_agence' | 'id_entreprise' | 'sendEmail'>;
 
 /**
  * Cette fonction initialise la base de données PostgreSQL avec nos données métiers CXSAT,

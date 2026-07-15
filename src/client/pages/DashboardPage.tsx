@@ -1,10 +1,22 @@
 import React, { useRef } from 'react';
-import { useQuery, getReponses, getRadarStats, getAlertes, getTasks, getTendanceMensuelle, getStatsByAgent } from 'wasp/client/operations';
+import {
+  useQuery,
+  getReponses,
+  getRadarStats,
+  getAlertes,
+  getTachesCorrectives,
+  getTendanceMensuelle,
+  getStatsByAgent,
+  getStatsByGuichet,
+  getActionsPrioritaires,
+  getKPIsPeriode,
+  getObjectifs,
+} from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users } from 'lucide-react';
-import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents } from '../components/DashboardCharts';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store } from 'lucide-react';
+import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets } from '../components/DashboardCharts';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -14,6 +26,11 @@ import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
 import { RequireAuth } from '../components/RequireAuth';
 import { DataTable } from '../components/ui/DataTable';
+import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
+import { ObjectifsProgress } from '../components/ObjectifsProgress';
+
+const formatDelta = (value: number, suffix: string) =>
+  `${value > 0 ? '+' : ''}${value}${suffix}`;
 
 export const DashboardPage = () => {
   const { data: user } = useAuth();
@@ -21,33 +38,46 @@ export const DashboardPage = () => {
   const { data: reponses, isLoading: loadingReponses } = useQuery(getReponses);
   const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
   const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
-  const { data: tasks, isLoading: loadingTasks } = useQuery(getTasks);
+  const { data: taches, isLoading: loadingTaches } = useQuery(getTachesCorrectives);
   const { data: tendance, isLoading: loadingTendance } = useQuery(getTendanceMensuelle);
   const { data: statsByAgent, isLoading: loadingAgents } = useQuery(getStatsByAgent);
+  const { data: statsByGuichet, isLoading: loadingGuichets } = useQuery(getStatsByGuichet);
+  const { data: actionsPrioritaires, isLoading: loadingActions } = useQuery(getActionsPrioritaires);
+  const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode);
+  const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
 
   const reponsesList: any[] = reponses || [];
   const alertesList: any[] = alertes || [];
-  const tasksList: any[] = tasks || [];
+  const tachesList: any[] = taches || [];
   const tendanceList: any[] = tendance || [];
   const agentsList: any[] = statsByAgent || [];
+  const guichetsList: any[] = statsByGuichet || [];
+  const objectifsList: any[] = objectifs || [];
 
-  const isLoading = loadingReponses || loadingRadar || loadingAlertes || loadingTasks;
+  const isLoading = loadingReponses || loadingRadar || loadingAlertes || loadingTaches;
 
-  const satisfaction = reponsesList.length
-    ? ((reponsesList.filter((r: any) => r.score_brut >= 4).length / reponsesList.length) * 100).toFixed(0)
-    : '0';
-  const noteMoyenne = (
-    reponsesList.reduce<number>((acc, curr) => acc + curr.score_brut, 0) /
-    (reponsesList.length || 1)
-  ).toFixed(1);
+  // KPIs "30 derniers jours" : basés sur getKPIsPeriode (période glissante
+  // cohérente avec les deltas affichés). reponsesList (toutes périodes)
+  // sert uniquement au tableau "derniers avis" et à l'histogramme global.
+  const periodeActuelle = kpisPeriode?.periode_actuelle;
+  const satisfaction = periodeActuelle ? periodeActuelle.satisfaction.toFixed(0) : '0';
+  const noteMoyenne = periodeActuelle ? periodeActuelle.moyenne.toFixed(1) : '0.0';
+  const totalAvisPeriode = periodeActuelle ? periodeActuelle.nb : 0;
 
   const alertesNouvelles = alertesList.filter((a: any) => a.statut_alerte === 'NOUVELLE').length;
+
+  const deltaSatisfaction = kpisPeriode?.delta_satisfaction_pts ?? 0;
+  const deltaNote = kpisPeriode?.delta_note_pts ?? 0;
+  const deltaVolume = kpisPeriode?.delta_volume_pct ?? 0;
 
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Rapport-Mensuel-CXSAT-${user?.id_agence || 'Agence'}`,
   });
+
+  const totalActionsPrioritaires =
+    (actionsPrioritaires?.alertesNouvelles?.length ?? 0) + (actionsPrioritaires?.tachesEnRetard?.length ?? 0);
 
   return (
     <RequireAuth>
@@ -83,28 +113,43 @@ export const DashboardPage = () => {
           </MotionCard>
         )}
 
-        {/* KPIs */}
+        {/* NIVEAU 1 — Quoi faire aujourd'hui (priorité absolue, avant tout le reste) */}
+        <section>
+          <ActionsPrioritaires
+            alertesNouvelles={actionsPrioritaires?.alertesNouvelles ?? []}
+            tachesEnRetard={actionsPrioritaires?.tachesEnRetard ?? []}
+            isLoading={loadingActions}
+          />
+        </section>
+
+        {/* NIVEAU 2 — Où j'en suis : KPIs avec tendance vs période précédente */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Satisfaction Globale"
+            title="Satisfaction (30j)"
             value={`${satisfaction}%`}
             icon={Smile}
             accent="success"
             index={0}
+            trend={!loadingKpis ? formatDelta(deltaSatisfaction, ' pts') : undefined}
+            trendDirection={deltaSatisfaction >= 0 ? 'up' : 'down'}
           />
           <StatCard
-            title="Total Avis"
-            value={String(reponsesList.length)}
+            title="Total Avis (30j)"
+            value={String(totalAvisPeriode)}
             icon={MessageSquare}
             accent="primary"
             index={1}
+            trend={!loadingKpis ? formatDelta(deltaVolume, '%') : undefined}
+            trendDirection={deltaVolume >= 0 ? 'up' : 'down'}
           />
           <StatCard
-            title="Note Moyenne"
+            title="Note Moyenne (30j)"
             value={`${noteMoyenne} / 5`}
             icon={Star}
             accent="secondary"
             index={2}
+            trend={!loadingKpis ? formatDelta(deltaNote, ' pts') : undefined}
+            trendDirection={deltaNote >= 0 ? 'up' : 'down'}
           />
           <StatCard
             title="Alertes nouvelles"
@@ -115,7 +160,20 @@ export const DashboardPage = () => {
           />
         </div>
 
-        {/* Graphiques principaux */}
+        {/* NIVEAU 2bis — Suis-je sur la trajectoire de mes objectifs ? */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Target className="size-5 text-primary" />
+            <h2 className="text-title-sm font-bold text-foreground">Objectifs de satisfaction</h2>
+          </div>
+          {loadingObjectifs ? (
+            <div className="h-40 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          ) : (
+            <ObjectifsProgress data={objectifsList} />
+          )}
+        </section>
+
+        {/* NIVEAU 3 — Où est le problème : répartition globale + conformité + classement guichets */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {isLoading ? (
             <>
@@ -129,6 +187,18 @@ export const DashboardPage = () => {
             </>
           )}
         </div>
+
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Store className="size-5 text-secondary" />
+            <h2 className="text-title-sm font-bold text-foreground">Où se situe le problème</h2>
+          </div>
+          {loadingGuichets ? (
+            <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          ) : (
+            <ClassementGuichets data={guichetsList} />
+          )}
+        </section>
 
         {/* Tendance mensuelle */}
         <section>
@@ -208,7 +278,7 @@ export const DashboardPage = () => {
           reponses={reponsesList}
           radarData={radarData || []}
           alertes={alertesList}
-          tasks={tasksList}
+          taches={tachesList}
           agenceName={user?.id_agence ? `Agence #${user.id_agence}` : 'Mon Agence'}
           commune="Marcory"
         />

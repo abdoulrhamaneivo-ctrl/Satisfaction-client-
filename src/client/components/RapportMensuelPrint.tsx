@@ -5,13 +5,13 @@ interface RapportProps {
   reponses: any[];
   radarData: any[];
   alertes: any[];
-  tasks: any[];
+  taches: any[];
   agenceName: string;
   commune: string;
 }
 
 export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps>((props, ref) => {
-  const { reponses, radarData, alertes, tasks, agenceName, commune } = props;
+  const { reponses, radarData, alertes, taches, agenceName, commune } = props;
 
   const totalAvis = reponses.length;
   const noteMoyenne = totalAvis > 0 
@@ -104,7 +104,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
             <tbody className="divide-y divide-slate-100 text-slate-600">
               {alertes.length > 0 ? (
                 alertes.slice(0, 8).map((alerte: any) => {
-                  const linkedTask = tasks.find(t => t.alerteId === alerte.id);
+                  const linkedTache = taches.find(t => String(t.id_alerte) === String(alerte.id));
                   return (
                     <tr key={alerte.id}>
                       <td className="px-4 py-3 font-mono text-slate-500">
@@ -117,7 +117,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
                         </span>
                       </td>
                       <td className="px-4 py-3 italic">
-                        {linkedTask ? linkedTask.description : 'Aucune tâche requise'}
+                        {linkedTache ? linkedTache.titre : 'Aucune tâche requise'}
                       </td>
                     </tr>
                   );

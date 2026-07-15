@@ -1,11 +1,43 @@
 // src/server/actions.ts
 import { HttpError } from 'wasp/server';
 import { emailSender } from 'wasp/server/email';
+import {
+  createProviderId,
+  createUser,
+  sanitizeAndSerializeProviderData,
+} from 'wasp/server/auth';
 import crypto from 'node:crypto';
 import { envoyerAlerteSMS, envoyerAlerteWhatsApp } from './notifications/gateway';
+import {
+  requireAuth,
+  requireRole,
+  requireAdmin,
+  assertAgenceAccess,
+  resolveAgenceId,
+} from './middleware/rowLevelSecurity';
 
-// Sel d'environnement pour le hachage des numéros de téléphone (ARTCI)
+// Sel d'environnement pour le hachage des numéros de téléphone (ARTCI).
+// En production, un sel manquant compromettrait l'anti-rejeu (hachage
+// prévisible / attaquable par dictionnaire) : on refuse de démarrer plutôt
+// que de retomber silencieusement sur une valeur par défaut connue de tous.
+if (!process.env.TELEPHONE_HASH_SALT && process.env.NODE_ENV === 'production') {
+  throw new Error(
+    "TELEPHONE_HASH_SALT doit être défini en production (voir .env.server)."
+  );
+}
 const TELEPHONE_SALT = process.env.TELEPHONE_HASH_SALT || 'cxsat-default-salt-change-me';
+
+/** Résout l'id_agence auquel se rattache une Alerte (via son guichet ou sa réponse). */
+async function resolveAlerteAgenceId(entities: any, id_alerte: bigint): Promise<number> {
+  const alerte = await entities.Alerte.findUnique({
+    where: { id: id_alerte },
+    include: { guichet: true, reponse: true },
+  });
+  if (!alerte) throw new HttpError(404, 'Alerte introuvable.');
+  const idAgence = alerte.guichet?.id_agence ?? alerte.reponse?.id_agence;
+  if (!idAgence) throw new HttpError(400, "Impossible de déterminer l'agence de cette alerte.");
+  return idAgence;
+}
 
 // ============================================================================
 // ONBOARDING
@@ -20,16 +52,15 @@ type CreateGuichetArgs = {
   nomGuichet: string;
   typeGuichet: string;
   id_agence: number;
+  serviceIds?: number[];
 };
 
 export const completeOnboarding = async (args: OnboardingArgs, context: any) => {
-  if (!context.user) {
-    throw new HttpError(401, 'Non authentifié');
-  }
+  requireAuth(context);
 
   const { nomEntreprise, commune } = args;
 
-  if (!nomEntreprise || !commune) {
+  if (!nomEntreprise?.trim() || !commune?.trim()) {
     throw new HttpError(400, "Le nom de l'entreprise et la commune sont requis.");
   }
 
@@ -43,25 +74,33 @@ export const completeOnboarding = async (args: OnboardingArgs, context: any) => 
     throw new HttpError(400, 'Votre compte est déjà configuré avec une entreprise.');
   }
 
+  // On crée d'abord l'Entreprise (tenant) puis l'Agence-siège rattachée, afin
+  // de pouvoir rattacher explicitement l'utilisateur aux DEUX (id_agence ET
+  // id_entreprise) : id_entreprise est ce qui permet ensuite de scoper
+  // correctement DIRECTION/QUALITE à leur propre entreprise plutôt qu'à
+  // toute la plateforme (voir rowLevelSecurity.ts).
+  const entreprise = await context.entities.Entreprise.create({
+    data: { nom_entreprise: nomEntreprise.trim() },
+  });
+
+  const agence = await context.entities.Agence.create({
+    data: {
+      nom_agence: `Siège ${nomEntreprise.trim()}`,
+      commune: commune.trim(),
+      id_entreprise: entreprise.id,
+    },
+  });
+
   const updatedUser = await context.entities.User.update({
     where: { id: context.user.id },
     data: {
       role: 'DIRECTION',
-      agence: {
-        create: {
-          nom_agence: `Siège ${nomEntreprise}`,
-          commune,
-          entreprise: {
-            create: {
-              nom_entreprise: nomEntreprise,
-            }
-          }
-        }
-      }
+      id_agence: agence.id,
+      id_entreprise: entreprise.id,
     },
     include: {
-      agence: true
-    }
+      agence: true,
+    },
   });
 
   return updatedUser;
@@ -72,25 +111,21 @@ export const completeOnboarding = async (args: OnboardingArgs, context: any) => 
 // ============================================================================
 
 export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
-  if (!context.user) {
-    throw new HttpError(401, 'Non authentifié');
-  }
+  requireAuth(context);
+  requireRole(context, ['CHEF_AGENCE']);
 
-  const { nomGuichet, typeGuichet, id_agence } = args;
+  const { nomGuichet, typeGuichet, id_agence, serviceIds } = args;
 
   if (!nomGuichet?.trim() || !id_agence) {
     throw new HttpError(400, "Le nom du guichet et l'agence parente sont requis.");
   }
 
   const user = context.user;
-  const isAuthorized =
-    user.role === 'DIRECTION' ||
-    user.role === 'QUALITE' ||
-    user.id_agence === id_agence;
+  await assertAgenceAccess(context, context.entities, id_agence, 'agence');
 
-  if (!isAuthorized) {
-    throw new HttpError(403, 'Accès refusé.');
-  }
+  const servicesConnect = serviceIds && serviceIds.length > 0
+    ? { connect: serviceIds.map(id => ({ id })) }
+    : undefined;
 
   return await context.entities.Guichet.create({
     data: {
@@ -98,6 +133,7 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
       type_guichet: typeGuichet || 'Physique',
       actif: true,
       agence: { connect: { id: id_agence } },
+      services: servicesConnect,
       affectations: {
         create: {
           date_affectation: new Date(),
@@ -110,17 +146,59 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
   });
 };
 
+export const updateGuichetServices = async (
+  args: { id_guichet: number; serviceIds: number[] },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['CHEF_AGENCE']);
+
+  const guichet = await context.entities.Guichet.findUnique({
+    where: { id: args.id_guichet }
+  });
+
+  if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
+
+  await assertAgenceAccess(context, context.entities, guichet.id_agence, 'guichet');
+
+  return context.entities.Guichet.update({
+    where: { id: args.id_guichet },
+    data: {
+      services: {
+        set: args.serviceIds.map(id => ({ id }))
+      }
+    }
+  });
+};
+
 // ============================================================================
 // PLANNING
 // ============================================================================
 
 export const assignAgent = async (args: any, context: any) => {
-  if (!context.user || context.user.role !== 'CHEF_AGENCE') {
-    throw new HttpError(403, 'Accès refusé.');
-  }
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   if (!args.date || !args.heure_debut || !args.heure_fin || !args.id_guichet || !args.id_agent) {
     throw new HttpError(400, 'Tous les champs de planification sont requis.');
+  }
+
+  if (args.heure_fin <= args.heure_debut) {
+    throw new HttpError(400, "L'heure de fin doit être postérieure à l'heure de début.");
+  }
+
+  // Faille corrigée : on vérifie désormais que le guichet ET l'agent ciblés
+  // appartiennent bien au périmètre de l'appelant, sinon un CHEF_AGENCE
+  // pouvait planifier n'importe quel agent sur n'importe quel guichet d'une
+  // AUTRE agence.
+  const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
+  if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
+  await assertAgenceAccess(context, context.entities, guichet.id_agence, 'guichet');
+
+  const agent = await context.entities.User.findUnique({ where: { id: args.id_agent } });
+  if (!agent) throw new HttpError(404, 'Agent introuvable.');
+  if (agent.id_agence !== guichet.id_agence) {
+    throw new HttpError(400, "L'agent sélectionné n'appartient pas à l'agence de ce guichet.");
   }
 
   return context.entities.AffectationGuichet.create({
@@ -139,15 +217,10 @@ export const assignAgent = async (args: any, context: any) => {
 // ============================================================================
 
 export const soumettreAvis = async (args: any, context: any) => {
-  const { guichetId, score, critereId, canalId, commentaire, telephone } = args;
+  const { guichetId, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
 
-  if (!guichetId || score === undefined || score === null) {
-    throw new HttpError(400, "Identifiant du guichet et score requis.");
-  }
-
-  const parsedScore = Number(score);
-  if (!Number.isInteger(parsedScore) || parsedScore < 1 || parsedScore > 5) {
-    throw new HttpError(400, "Le score doit être un entier compris entre 1 et 5.");
+  if (!guichetId) {
+    throw new HttpError(400, "Identifiant du guichet requis.");
   }
 
   // --- ANTI-REJEU : hachage SHA-256 du numéro de téléphone ---
@@ -169,9 +242,13 @@ export const soumettreAvis = async (args: any, context: any) => {
       throw new HttpError(429, "Vous avez déjà soumis un avis depuis ce numéro ces dernières 24h.");
     }
 
-    // Enregistrement du hachage
-    await context.entities.VoteAntiRejeu.create({
-      data: { hachage_tel: hachage },
+    // Enregistrement du hachage (upsert : si une entrée existe déjà pour ce
+    // numéro, hors de la fenêtre de 24h, on rafraîchit sa date au lieu de
+    // planter sur la contrainte unique de hachage_tel).
+    await context.entities.VoteAntiRejeu.upsert({
+      where: { hachage_tel: hachage },
+      update: { date_vote: new Date() },
+      create: { hachage_tel: hachage },
     });
 
     // Nettoyage des hachages > 24h (purge légère)
@@ -189,6 +266,24 @@ export const soumettreAvis = async (args: any, context: any) => {
     throw new HttpError(404, "Guichet introuvable.");
   }
 
+  // Garantit que le canal existe, sans dépendre d'un seed : aucune action ni
+  // aucun seed ne crée jamais de ligne dans Canal, alors que le frontend
+  // envoie systématiquement un canalId (ex. 1 pour QR_WEB). Sans cet upsert,
+  // Reponse.create échouait en violation de clé étrangère sur id_canal dès
+  // qu'aucune donnée n'avait été insérée manuellement en base.
+  const CANAUX_CONNUS: Record<number, { type_canal: string; langue_utilisee: string }> = {
+    1: { type_canal: 'QR_WEB', langue_utilisee: 'fr' },
+    2: { type_canal: 'USSD', langue_utilisee: 'fr' },
+    3: { type_canal: 'IVR_VOCAL', langue_utilisee: 'fr' },
+  };
+  const idCanalResolved = canalId ? Number(canalId) : 1;
+  const canalDefaults = CANAUX_CONNUS[idCanalResolved] ?? CANAUX_CONNUS[1];
+  await context.entities.Canal.upsert({
+    where: { id: idCanalResolved },
+    update: {},
+    create: { id: idCanalResolved, ...canalDefaults },
+  });
+
   const now = new Date();
   const timeString = now.toTimeString().slice(0, 5);
 
@@ -201,49 +296,94 @@ export const soumettreAvis = async (args: any, context: any) => {
     }
   });
 
-  if (critereId) {
-    const critere = await context.entities.Critere.findUnique({
-      where: { id: Number(critereId) },
-    });
-    if (!critere) throw new HttpError(404, "Critère introuvable.");
+  const submissionId = args.id_soumission || crypto.randomUUID();
+
+  // Normalize responses list
+  let itemsToInsert: Array<{ critereId: number; score: number }> = [];
+  if (responses && Array.isArray(responses) && responses.length > 0) {
+    itemsToInsert = responses.map((r: any) => ({
+      critereId: Number(r.critereId),
+      score: Number(r.score)
+    }));
+  } else if (score !== undefined && score !== null && critereId !== undefined) {
+    itemsToInsert = [{
+      critereId: Number(critereId),
+      score: Number(score)
+    }];
+  } else {
+    throw new HttpError(400, "Données d'évaluation manquantes.");
   }
 
-  if (canalId) {
-    const canal = await context.entities.Canal.findUnique({
-      where: { id: Number(canalId) },
-    });
-    if (!canal) throw new HttpError(404, "Canal introuvable.");
-  }
-
-  const reponse = await context.entities.Reponse.create({
-    data: {
-      score_brut: parsedScore,
-      commentaire_texte: commentaire || "",
-      id_critere: critereId ? Number(critereId) : null,
-      id_canal: canalId ? Number(canalId) : null,
-      id_agence: guichet.id_agence,
-      id_guichet: guichet.id,
-      id_service: 1,
-      id_agent: affectation?.id_agent || null,
+  // Validate scores
+  for (const item of itemsToInsert) {
+    if (!Number.isInteger(item.score) || item.score < 1 || item.score > 5) {
+      throw new HttpError(400, "Le score doit être un entier compris entre 1 et 5.");
     }
+  }
+
+  // Bug corrigé : le formulaire client (CollectePage) utilise un critère de
+  // secours codé en dur (id: 1, "Satisfaction globale") quand ni le service
+  // ni l'agence n'ont de critères configurés. Si aucune ligne Critere #1
+  // n'existe réellement en base pour cette entreprise, l'insertion Reponse
+  // ci-dessous levait une violation de clé étrangère Prisma non interceptée
+  // → 500 brut renvoyé au client ("Request failed with status code 500"),
+  // sans message exploitable. On vérifie donc explicitement l'existence des
+  // critères avant d'insérer quoi que ce soit.
+  const critereIds = [...new Set(itemsToInsert.map((i) => i.critereId))];
+  const criteresExistants = await context.entities.Critere.findMany({
+    where: { id: { in: critereIds } },
+    select: { id: true },
   });
+  const idsExistants = new Set(criteresExistants.map((c: any) => c.id));
+  const idsManquants = critereIds.filter((id) => !idsExistants.has(id));
+  if (idsManquants.length > 0) {
+    throw new HttpError(
+      400,
+      "Ce guichet n'a aucun critère de notation configuré. Demandez à votre administrateur de configurer les critères de l'agence avant de collecter des avis."
+    );
+  }
+
+  const createdReponses: Array<{ id: number; [key: string]: any }> = [];
+  let worstScore = 5;
+
+  for (const item of itemsToInsert) {
+    if (item.score < worstScore) {
+      worstScore = item.score;
+    }
+
+    const rep: { id: number; [key: string]: any } = await context.entities.Reponse.create({
+      data: {
+        score_brut: item.score,
+        commentaire_texte: commentaire || "",
+        id_soumission: submissionId,
+        id_critere: item.critereId,
+        id_canal: idCanalResolved,
+        id_agence: guichet.id_agence,
+        id_guichet: guichet.id,
+        id_service: serviceId ? Number(serviceId) : null,
+        id_agent: affectation?.id_agent || null,
+      }
+    });
+    createdReponses.push(rep);
+  }
 
   // --- ALERTE + NOTIFICATIONS si note critique ---
-  if (parsedScore <= 2) {
+  if (worstScore <= 2) {
     const destinataire = await context.entities.User.findFirst({
       where: {
         id_agence: guichet.id_agence,
-        role: { in: ['CHEF_AGENCE', 'DIRECTION', 'QUALITE'] }
+        role: { in: ['CHEF_AGENCE', 'DIRECTION', 'QUALITE'] },
+        actif: true
       }
     });
 
     if (destinataire) {
       await context.entities.Alerte.create({
         data: {
-          message: `Note de ${parsedScore}/5 reçue au guichet "${guichet.nom_guichet}". Commentaire: "${commentaire || 'Aucun'}"`,
+          message: `Note de ${worstScore}/5 reçue au guichet "${guichet.nom_guichet}". Commentaire: "${commentaire || 'Aucun'}"`,
           type_alerte: "NOTE_CRITIQUE",
           statut_alerte: "NOUVELLE",
-          id_reponse: reponse.id,
+          id_reponse: createdReponses[0].id,
           id_destinataire: destinataire.id,
           id_guichet_concerne: guichet.id,
         }
@@ -251,7 +391,7 @@ export const soumettreAvis = async (args: any, context: any) => {
 
       // Envoi SMS/WhatsApp (mode stub si clés non configurées)
       if (destinataire.telephone) {
-        const msgAlerte = `⚠️ CXSAT ALERTE — Note critique ${parsedScore}/5 au guichet "${guichet.nom_guichet}". Vérifiez vos tâches correctives.`;
+        const msgAlerte = `⚠️ CXSAT ALERTE — Note critique ${worstScore}/5 au guichet "${guichet.nom_guichet}". Vérifiez vos tâches correctives.`;
         try {
           await envoyerAlerteWhatsApp(destinataire.telephone, msgAlerte);
         } catch {
@@ -261,58 +401,42 @@ export const soumettreAvis = async (args: any, context: any) => {
     }
   }
 
-  return reponse;
+  return createdReponses[0];
 };
 
 // ============================================================================
 // GESTION DU PERSONNEL
 // ============================================================================
 
-export const createAgent = async (
-  args: { nom: string; prenom: string; email: string; telephone: string; id_agence?: number },
-  context: any
-) => {
-  const isAuthorized = context.user?.role === 'DIRECTION' || context.user?.role === 'CHEF_AGENCE';
-
-  if (!isAuthorized) {
-    throw new HttpError(403, 'Accès refusé.');
-  }
-
-  const targetAgenceId = args.id_agence ?? context.user.id_agence;
-
-  if (context.user.role !== 'DIRECTION' && context.user.id_agence !== targetAgenceId) {
-    throw new HttpError(403, 'Accès refusé.');
-  }
-
-  return context.entities.User.create({
-    data: {
-      ...args,
-      role: 'AGENT',
-      id_agence: targetAgenceId,
-      password: 'passwordParDefaut123',
-      actif: true,
-    },
-  });
-};
+// NOTE : createAgent a été retiré. Cette action était morte côté UI (jamais
+// appelée depuis AdminPersonnelPage) et cassée côté serveur : elle écrivait
+// `password: 'passwordParDefaut123'` directement sur User.create(), un champ
+// qui n'existe pas dans le schéma (Wasp stocke les mots de passe hachés dans
+// Auth/AuthIdentity, jamais sur User). Tout appel provoquait une erreur
+// Prisma ("Unknown argument `password`"). Le flux correct et actif est
+// `inviteAgent`, qui utilise l'API d'authentification officielle de Wasp.
+// Pour créer un AGENT (sans email/connexion), utiliser inviteAgent sans
+// email — voir plus bas.
 
 export const updateAgent = async (
   args: { id: number; nom?: string; prenom?: string; email?: string; telephone?: string; id_agence?: number },
   context: any
 ) => {
-  const isAuthorized = context.user?.role === 'DIRECTION' || context.user?.role === 'CHEF_AGENCE';
-
-  if (!isAuthorized) {
-    throw new HttpError(403, 'Accès refusé.');
-  }
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
   }
+  if (existing.id_agence) {
+    await assertAgenceAccess(context, context.entities, existing.id_agence, 'agent');
+  }
 
-  const targetAgenceId = args.id_agence ?? existing.id_agence ?? context.user.id_agence;
-  if (context.user.role !== 'DIRECTION' && context.user.id_agence !== targetAgenceId) {
-    throw new HttpError(403, 'Accès refusé.');
+  // Si l'appelant tente de déplacer l'agent vers une autre agence, cette
+  // agence cible doit elle aussi être dans son périmètre.
+  if (args.id_agence) {
+    await assertAgenceAccess(context, context.entities, args.id_agence, 'agence de destination');
   }
 
   return context.entities.User.update({
@@ -328,18 +452,17 @@ export const updateAgent = async (
 };
 
 export const deleteAgent = async (args: { id: number }, context: any) => {
-  if (!context.user) {
-    throw new HttpError(403, 'Accès refusé.');
-  }
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
   }
-
-  if (context.user.role !== 'DIRECTION' && context.user.id_agence !== existing.id_agence) {
-    throw new HttpError(403, 'Accès refusé.');
+  if (!existing.id_agence) {
+    throw new HttpError(400, "Cet utilisateur n'est rattaché à aucune agence.");
   }
+  await assertAgenceAccess(context, context.entities, existing.id_agence, 'agent');
 
   return context.entities.User.update({
     where: { id: args.id },
@@ -347,41 +470,47 @@ export const deleteAgent = async (args: { id: number }, context: any) => {
   });
 };
 
-export const createChefAgence = async (args: { nom: string; prenom: string; email: string; id_agence: number }, context: any) => {
-  if (context.user?.role !== 'DIRECTION') {
-    throw new HttpError(403, "Seule la direction peut nommer un chef d'agence.");
+export const reactivateAgent = async (args: { id: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
+
+  const existing = await context.entities.User.findUnique({ where: { id: args.id } });
+  if (!existing) {
+    throw new HttpError(404, 'Agent introuvable.');
   }
-
-  const chefExistant = await context.entities.User.findFirst({
-    where: { id_agence: args.id_agence, role: 'CHEF_AGENCE', actif: true }
-  });
-
-  if (chefExistant) {
-    throw new HttpError(400, "Cette agence possède déjà un Chef d'agence actif.");
+  if (!existing.id_agence) {
+    throw new HttpError(400, "Cet utilisateur n'est rattaché à aucune agence.");
   }
+  await assertAgenceAccess(context, context.entities, existing.id_agence, 'agent');
 
-  return context.entities.User.create({
-    data: {
-      nom: args.nom,
-      prenom: args.prenom,
-      email: args.email,
-      role: 'CHEF_AGENCE',
-      id_agence: args.id_agence,
-      password: 'passwordParDefaut123',
-      actif: true,
-    },
+  return context.entities.User.update({
+    where: { id: args.id },
+    data: { actif: true },
   });
 };
 
+// NOTE : createChefAgence a été retiré pour la même raison que createAgent
+// (champ `password` inexistant sur User, mot de passe en dur). La nomination
+// d'un Chef d'Agence passe désormais exclusivement par inviteAgent(role:
+// 'CHEF_AGENCE'), qui applique déjà la règle "un seul chef actif par agence"
+// et crée un vrai compte via l'API d'auth officielle de Wasp.
+
 export const promouvoirAgent = async (args: { id_agent: string }, context: any) => {
-  if (context.user?.role !== 'DIRECTION') {
-    throw new HttpError(403, 'Accès refusé.');
-  }
+  requireAuth(context);
+  requireRole(context, ['DIRECTION']);
 
   const existing = await context.entities.User.findUnique({ where: { id: args.id_agent } });
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
   }
+  if (!existing.id_agence) {
+    throw new HttpError(400, "Cet utilisateur n'est rattaché à aucune agence.");
+  }
+
+  // Faille corrigée : la direction ne pouvait auparavant promouvoir QUE des
+  // agents de sa propre entreprise en théorie, mais rien ne le vérifiait —
+  // assertAgenceAccess applique désormais le scope entreprise réel.
+  await assertAgenceAccess(context, context.entities, existing.id_agence, 'agent');
 
   return context.entities.User.update({
     where: { id: args.id_agent },
@@ -389,18 +518,89 @@ export const promouvoirAgent = async (args: { id_agent: string }, context: any) 
   });
 };
 
+// ============================================================================
+// GESTION DES AGENCES
+// ============================================================================
+// L'onboarding (completeOnboarding) crée automatiquement une agence "Siège"
+// unique. createAgence permet ensuite au chef d'entreprise (DIRECTION)
+// d'ajouter les autres agences de son réseau (succursales), auxquelles il
+// pourra ensuite rattacher un Chef d'Agence via inviteAgent.
+
+export const createAgence = async (
+  args: {
+    nom_agence: string;
+    commune: string;
+    adresse?: string;
+    heure_ouverture?: string;
+    heure_fermeture?: string;
+  },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION']);
+
+  if (!args.nom_agence?.trim() || !args.commune?.trim()) {
+    throw new HttpError(400, "Le nom de l'agence et la commune sont requis.");
+  }
+
+  if (!context.user.id_entreprise) {
+    throw new HttpError(400, "Votre compte n'est rattaché à aucune entreprise.");
+  }
+
+  // Empêche les doublons évidents au sein de la même entreprise (même nom
+  // dans la même commune), sans bloquer deux agences homonymes dans des
+  // communes différentes.
+  const doublon = await context.entities.Agence.findFirst({
+    where: {
+      id_entreprise: context.user.id_entreprise,
+      nom_agence: args.nom_agence.trim(),
+      commune: args.commune.trim(),
+    },
+  });
+  if (doublon) {
+    throw new HttpError(400, 'Une agence avec ce nom existe déjà dans cette commune.');
+  }
+
+  return context.entities.Agence.create({
+    data: {
+      nom_agence: args.nom_agence.trim(),
+      commune: args.commune.trim(),
+      adresse: args.adresse?.trim() || null,
+      ...(args.heure_ouverture ? { heure_ouverture: args.heure_ouverture } : {}),
+      ...(args.heure_fermeture ? { heure_fermeture: args.heure_fermeture } : {}),
+      id_entreprise: context.user.id_entreprise,
+    },
+  });
+};
+
 export const inviteAgent = async (
   args: { email?: string; nom: string; prenom: string; id_agence: number; role: string; telephone?: string },
   context: any
 ) => {
-  if (context.user?.role !== 'DIRECTION' && context.user?.role !== 'CHEF_AGENCE') {
-    throw new HttpError(403, 'Accès refusé.');
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
+
+  // Règle métier : le chef d'entreprise structure le réseau (chefs d'agence,
+  // auditeurs qualité) ; c'est ensuite à chaque chef d'agence de constituer
+  // son équipe de terrain (agents de guichet) sur sa propre agence.
+  const ROLES_PAR_INVITEUR: Record<string, string[]> = {
+    DIRECTION: ['CHEF_AGENCE', 'QUALITE'],
+    CHEF_AGENCE: ['AGENT'],
+  };
+  const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role ?? ''] || [];
+  if (!rolesAutorises.includes(args.role)) {
+    throw new HttpError(
+      403,
+      context.user.role === 'DIRECTION'
+        ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence ou des Auditeurs Qualité."
+        : "En tant que Chef d'Agence, vous ne pouvez créer que des Agents de guichet."
+    );
   }
 
-  const targetAgenceId = args.id_agence ?? context.user.id_agence;
-  if (context.user.role !== 'DIRECTION' && context.user.id_agence !== targetAgenceId) {
-    throw new HttpError(403, 'Accès refusé.');
-  }
+  const targetAgenceId = await resolveAgenceId(context, context.entities, args.id_agence);
+
+  const targetAgence = await context.entities.Agence.findUnique({ where: { id: targetAgenceId } });
+  if (!targetAgence) throw new HttpError(404, 'Agence introuvable.');
 
   const normalizedEmail = args.email?.trim() ? args.email.trim() : null;
 
@@ -419,24 +619,50 @@ export const inviteAgent = async (
 
   const tempPassword = crypto.randomBytes(16).toString('hex');
 
-  const newUser = await context.entities.User.create({
-    data: {
+  const additionalUserData = {
+    nom: args.nom,
+    prenom: args.prenom,
+    role: args.role,
+    id_agence: targetAgenceId,
+    id_entreprise: targetAgence.id_entreprise,
+    telephone: args.telephone || null,
+    actif: true,
+  };
+
+  let newUser;
+  if (normalizedEmail) {
+    // Utilisateur avec email (ex: Chef d'Agence) : on crée un vrai compte
+    // avec une identité d'authentification pour qu'il puisse se connecter.
+    // Le mot de passe n'est PAS un champ du modèle User (Wasp le stocke dans
+    // Auth/AuthIdentity), d'où l'erreur "Unknown argument `id_agence`... /
+    // `password`" qu'on avait avant.
+    const providerId = createProviderId('email', normalizedEmail);
+    const providerData = await sanitizeAndSerializeProviderData<'email'>({
+      hashedPassword: tempPassword,
+      isEmailVerified: true,
+      emailVerificationSentAt: null,
+      passwordResetSentAt: null,
+    });
+    newUser = await createUser(providerId, providerData, {
       email: normalizedEmail,
-      nom: args.nom,
-      prenom: args.prenom,
-      role: args.role,
-      id_agence: targetAgenceId,
-      telephone: args.telephone || null,
-      password: tempPassword,
-      actif: true,
-    },
-  });
+      ...additionalUserData,
+    });
+  } else {
+    // Agent simple sans email : pas de compte de connexion nécessaire.
+    newUser = await context.entities.User.create({
+      data: {
+        email: null,
+        ...additionalUserData,
+      },
+    });
+  }
 
 
-  // ✉️ Email envoyé UNIQUEMENT au Chef d'agence
-  // Les agents simples (AGENT) n'ont pas besoin d'accès à l'application :
-  // ils sont référencés dans le planning et les avis, mais ne se connectent pas.
-  if (args.role === 'CHEF_AGENCE') {
+  // ✉️ Email envoyé au Chef d'agence ET à l'Auditeur Qualité (les deux ont un
+  // vrai compte de connexion). Les agents simples (AGENT) n'ont pas besoin
+  // d'accès à l'application : ils sont référencés dans le planning et les
+  // avis, mais ne se connectent pas.
+  if (args.role === 'CHEF_AGENCE' || args.role === 'QUALITE') {
     const frontendUrl = process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
 
     // Récupérer le nom de l'agence pour personnaliser l'email
@@ -446,10 +672,17 @@ export const inviteAgent = async (
     });
 
     const nomAgence = agence ? `${agence.nom_agence} — ${agence.commune}` : 'votre agence';
+    const roleLabel = args.role === 'CHEF_AGENCE' ? "Chef d'Agence" : 'Auditeur Qualité';
+    const roleMission = args.role === 'CHEF_AGENCE'
+      ? 'gérer les guichets, planifier les agents et suivre les alertes de satisfaction'
+      : "auditer la qualité de service, consulter les avis clients et suivre les indicateurs de conformité";
+    const stepTroisDesc = args.role === 'CHEF_AGENCE'
+      ? 'Planning, avis clients, alertes critiques — tout est centralisé.'
+      : 'Tableaux de bord qualité, avis clients et indicateurs — tout est centralisé.';
 
     await emailSender.send({
       to: normalizedEmail!,
-      subject: `🎉 Bienvenue sur CXSAT — Accès Chef d'Agence`,
+      subject: `🎉 Bienvenue sur CXSAT — Accès ${roleLabel}`,
       html: `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"></head>
@@ -463,16 +696,15 @@ export const inviteAgent = async (
         Bienvenue, ${args.prenom} !
       </h1>
       <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
-        Votre accès Chef d'Agence CXSAT est prêt
+        Votre accès ${roleLabel} CXSAT est prêt
       </p>
     </div>
 
     <!-- Corps -->
     <div style="padding: 32px 40px;">
       <p style="margin: 0 0 20px; color: #374151; font-size: 15px; line-height: 1.6;">
-        La direction vient de vous nommer <strong>Chef d'Agence</strong> pour
-        <strong>${nomAgence}</strong>. Votre rôle est de gérer les guichets, planifier
-        les agents et suivre les alertes de satisfaction.
+        La direction vient de vous nommer <strong>${roleLabel}</strong> pour
+        <strong>${nomAgence}</strong>. Votre rôle est de ${roleMission}.
       </p>
 
       <!-- Bloc identifiants -->
@@ -500,7 +732,7 @@ export const inviteAgent = async (
         ${[
           ['1', 'Définissez votre mot de passe', 'Cliquez sur le bouton ci-dessous pour sécuriser votre accès.'],
           ['2', 'Connectez-vous', `Rendez-vous sur ${frontendUrl}/login avec votre email.`],
-          ['3', 'Gérez vos guichets', 'Planning, avis clients, alertes critiques — tout est centralisé.'],
+          ['3', 'Explorez votre espace', stepTroisDesc],
         ].map(([num, titre, desc]) => `
         <div style="display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start;">
           <div style="
@@ -557,14 +789,14 @@ export const inviteAgent = async (
       text: [
         `Bienvenue ${args.prenom} ${args.nom} !`,
         ``,
-        `Vous avez été nommé(e) Chef d'Agence sur CXSAT pour : ${nomAgence}.`,
+        `Vous avez été nommé(e) ${roleLabel} sur CXSAT pour : ${nomAgence}.`,
         ``,
         `Email de connexion : ${args.email}`,
         ``,
         `Étapes :`,
         `1. Définissez votre mot de passe : ${frontendUrl}/request-password-reset`,
         `2. Connectez-vous sur : ${frontendUrl}/login`,
-        `3. Gérez vos guichets, planning et alertes depuis votre tableau de bord.`,
+        `3. Retrouvez votre espace CXSAT depuis votre tableau de bord.`,
         ``,
         `CXSAT — Plateforme de satisfaction client`,
       ].join('\n'),
@@ -589,19 +821,13 @@ export const toggleCritereAgence = async (
   args: { id_critere: number; id_agence?: number; active: boolean },
   context: any
 ) => {
-  if (!context.user) throw new HttpError(401, 'Non authentifié');
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
-  const user = context.user;
-  const isAuthorized = user.role === 'DIRECTION' || user.role === 'QUALITE' || user.role === 'CHEF_AGENCE';
-
-  if (!isAuthorized) {
-    throw new HttpError(403, 'Accès refusé. Vous devez être responsable ou directeur.');
-  }
-
-  const idAgence = args.id_agence ?? user.id_agence;
-  if (!idAgence) {
-    throw new HttpError(400, "Agence introuvable.");
-  }
+  // Faille corrigée : id_agence fourni par le client était auparavant utilisé
+  // tel quel (aucune vérification), permettant à un CHEF_AGENCE d'activer/
+  // désactiver des critères pour n'importe quelle agence du système.
+  const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
 
   if (args.active) {
     const existing = await context.entities.AgenceCritere.findFirst({
@@ -620,15 +846,44 @@ export const toggleCritereAgence = async (
   }
 };
 
-export const createCritere = async (
-  args: { libelle_critere: string; description?: string; type_reponse?: string; options_reponse?: string; id_agence?: number },
+export const createService = async (
+  args: { libelle_service: string },
   context: any
 ) => {
-  if (!context.user) throw new HttpError(401, 'Non authentifié');
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  if (!args.libelle_service?.trim()) {
+    throw new HttpError(400, "Le libellé de l'opération est requis.");
+  }
+
+  // Isolation demandée : une opération créée par une entreprise reste
+  // invisible aux autres entreprises (getServices filtre dessus), même
+  // principe que createCritere.
+  return context.entities.Service.create({
+    data: {
+      libelle_service: args.libelle_service.trim(),
+      id_entreprise: context.user.id_entreprise,
+    },
+  });
+};
+
+export const createCritere = async (
+  args: { libelle_critere: string; description?: string; type_reponse?: string; options_reponse?: string; id_agence?: number; serviceIds?: number[] },
+  context: any
+) => {
+  requireAuth(context);
+  // Faille corrigée : cette action n'exigeait auparavant AUCUN rôle
+  // particulier — n'importe quel utilisateur connecté (y compris un simple
+  // AGENT) pouvait créer des critères d'évaluation.
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   if (!args.libelle_critere?.trim()) {
     throw new HttpError(400, "Le libellé est requis.");
   }
+
+  // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
+  const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
 
   const critere = await context.entities.Critere.create({
     data: {
@@ -636,15 +891,23 @@ export const createCritere = async (
       description: args.description?.trim() || null,
       type_reponse: args.type_reponse || "SMILEY",
       options_reponse: args.options_reponse?.trim() || null,
+      // Isolation demandée : un critère créé par une entreprise reste
+      // invisible aux autres entreprises (getCriteres filtre dessus).
+      id_entreprise: context.user.id_entreprise,
+      // Rattachement optionnel à une ou plusieurs opérations (Service) :
+      // c'est ce qui permet au formulaire de collecte d'afficher une liste
+      // de questions différente selon l'opération choisie par le client
+      // (voir CollectePage.tsx / getFormDefinitionForGuichet). Sans ça, le
+      // critère n'apparaît que dans le fallback "critères de l'agence".
+      ...(args.serviceIds && args.serviceIds.length > 0
+        ? { services: { connect: args.serviceIds.map(id => ({ id })) } }
+        : {}),
     },
   });
 
-  const idAgence = args.id_agence ?? context.user.id_agence;
-  if (idAgence) {
-    await context.entities.AgenceCritere.create({
-      data: { id_agence: idAgence, id_critere: critere.id },
-    });
-  }
+  await context.entities.AgenceCritere.create({
+    data: { id_agence: idAgence, id_critere: critere.id },
+  });
 
   return critere;
 };
@@ -657,13 +920,11 @@ export const upsertObjectif = async (
   args: { id_agence?: number; id_critere: number; valeur_cible: number; date_debut: string; date_fin: string },
   context: any
 ) => {
-  if (!context.user) throw new HttpError(401, 'Non authentifié');
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE']);
 
-  const isAuthorized = context.user.role === 'DIRECTION' || context.user.role === 'QUALITE';
-  if (!isAuthorized) throw new HttpError(403, 'Seuls la Direction et le service Qualité peuvent définir des objectifs.');
-
-  const idAgence = args.id_agence ?? context.user.id_agence;
-  if (!idAgence) throw new HttpError(400, "Agence requise.");
+  // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
+  const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
 
   if (args.valeur_cible < 0 || args.valeur_cible > 100) {
     throw new HttpError(400, "L'objectif doit être compris entre 0 et 100%.");
@@ -704,12 +965,22 @@ export const createTacheCorrective = async (
   args: { id_alerte: number; titre: string; description?: string; date_echeance: string; id_responsable: string },
   context: any
 ) => {
-  if (!context.user) throw new HttpError(401, 'Non authentifié');
-
-  const isAuthorized = ['DIRECTION', 'QUALITE', 'CHEF_AGENCE'].includes(context.user.role);
-  if (!isAuthorized) throw new HttpError(403, 'Accès refusé.');
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   if (!args.titre?.trim()) throw new HttpError(400, 'Le titre de la tâche est requis.');
+
+  // Faille corrigée : l'alerte ciblée n'était jamais vérifiée — un
+  // CHEF_AGENCE pouvait créer une tâche corrective sur une alerte d'une
+  // AUTRE agence.
+  const idAgenceAlerte = await resolveAlerteAgenceId(context.entities, BigInt(args.id_alerte));
+  await assertAgenceAccess(context, context.entities, idAgenceAlerte, 'alerte');
+
+  const responsable = await context.entities.User.findUnique({ where: { id: args.id_responsable } });
+  if (!responsable) throw new HttpError(404, 'Responsable introuvable.');
+  if (responsable.id_agence !== idAgenceAlerte) {
+    throw new HttpError(400, "Le responsable désigné n'appartient pas à l'agence de cette alerte.");
+  }
 
   return context.entities.TacheCorrective.create({
     data: {
@@ -727,15 +998,27 @@ export const updateStatutTache = async (
   args: { id: number; statut: 'A_FAIRE' | 'EN_COURS' | 'TERMINEE' },
   context: any
 ) => {
-  if (!context.user) throw new HttpError(401, 'Non authentifié');
+  // Faille critique corrigée : cette action n'exigeait auparavant QUE d'être
+  // authentifié — n'importe quel utilisateur connecté, y compris un simple
+  // AGENT, pouvait modifier le statut de n'importe quelle tâche corrective
+  // de n'importe quelle agence (voire d'une autre entreprise).
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const STATUTS_VALIDES = ['A_FAIRE', 'EN_COURS', 'TERMINEE'];
   if (!STATUTS_VALIDES.includes(args.statut)) {
     throw new HttpError(400, 'Statut invalide.');
   }
 
-  const tache = await context.entities.TacheCorrective.findUnique({ where: { id: BigInt(args.id) } });
+  const tache = await context.entities.TacheCorrective.findUnique({
+    where: { id: BigInt(args.id) },
+    include: { alerte: { include: { guichet: true, reponse: true } } },
+  });
   if (!tache) throw new HttpError(404, 'Tâche introuvable.');
+
+  const idAgenceTache = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
+  if (!idAgenceTache) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");
+  await assertAgenceAccess(context, context.entities, idAgenceTache, 'tâche corrective');
 
   return context.entities.TacheCorrective.update({
     where: { id: BigInt(args.id) },
@@ -747,10 +1030,18 @@ export const updateStatutTache = async (
 };
 
 export const marquerAlerteTraitee = async (args: { id_alerte: number }, context: any) => {
-  if (!context.user) throw new HttpError(401, 'Non authentifié');
+  // Faille critique corrigée : aucun rôle ni aucune vérification d'agence
+  // n'étaient appliqués — n'importe quel compte connecté pouvait clôturer
+  // l'alerte de n'importe quelle agence.
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idAlerte = BigInt(args.id_alerte);
+  const idAgenceAlerte = await resolveAlerteAgenceId(context.entities, idAlerte);
+  await assertAgenceAccess(context, context.entities, idAgenceAlerte, 'alerte');
 
   return context.entities.Alerte.update({
-    where: { id: BigInt(args.id_alerte) },
+    where: { id: idAlerte },
     data: {
       statut_alerte: 'TRAITEE',
       date_traitement: new Date(),
@@ -766,9 +1057,7 @@ export const updatePlanPricing = async (
   args: { planId: 'hobby' | 'pro' | 'credits10'; amountFcfa: number },
   context: any
 ) => {
-  if (!context.user?.isAdmin) {
-    throw new HttpError(403, 'Accès réservé aux administrateurs CXSAT.');
-  }
+  requireAdmin(context);
 
   const { planId, amountFcfa } = args;
 

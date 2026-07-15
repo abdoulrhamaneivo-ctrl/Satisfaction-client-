@@ -33,6 +33,13 @@ model User {
   actif                         Boolean                  @default(true)
   id_agence                     Int?                     // Nullable pour l'onboarding SaaS (Siège créé après)
   agence                        Agence?                  @relation(fields: [id_agence], references: [id])
+
+  // Dénormalisé volontairement : permet de scoper DIRECTION/QUALITE à leur
+  // propre entreprise (tenant) sans avoir à recharger la relation agence.entreprise
+  // dans chaque query/action. Toujours tenu synchronisé avec agence.id_entreprise
+  // (voir src/server/middleware/rowLevelSecurity.ts).
+  id_entreprise                 Int?
+  entreprise                    Entreprise?              @relation(fields: [id_entreprise], references: [id])
   
   affectations                  AffectationGuichet[]
   alertes                       Alerte[]
@@ -40,9 +47,7 @@ model User {
   reponses                      Reponse[]                @relation("AgentResponses")
 
   // === RELATIONS PAR DÉFAUT D'OPEN SAAS ===
-  gptResponses                  GptResponse[]
   contactFormMessages           ContactFormMessage[]
-  tasks                         Task[]
   files                         File[]
 }
 
@@ -66,6 +71,9 @@ model Entreprise {
   date_creation_compte DateTime         @default(now())
   
   agences             Agence[]
+  utilisateurs        User[]
+  criteres            Critere[]
+  services            Service[]
 }
 
 model Agence {
@@ -101,6 +109,7 @@ model Guichet {
   reponses            Reponse[]
   alertes             Alerte[]
   statistiques        StatistiquesMensuelles[]
+  services            Service[]
 }
 
 model AffectationGuichet {
@@ -123,9 +132,17 @@ model AffectationGuichet {
 model Service {
   id                  Int               @id @default(autoincrement())
   libelle_service     String
-  
+
+  // NULL = service "socle" fourni par la plateforme (visible par toutes les
+  // entreprises, ex. seed initial). Une valeur = service propre à une
+  // entreprise, invisible aux autres. Voir Critere pour le même principe.
+  id_entreprise       Int?
+  entreprise          Entreprise?       @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+
   reponses            Reponse[]
   statistiques        StatistiquesMensuelles[]
+  guichets            Guichet[]
+  criteres            Critere[]
 }
 
 model Critere {
@@ -136,11 +153,20 @@ model Critere {
   // === NOUVEAUX CHAMPS DYNAMIQUES ===
   type_reponse        String            @default("SMILEY") // SMILEY, OUI_NON, QCM, TEXTE
   options_reponse     String?           // Choix séparés par des virgules pour le QCM
-  
+
+  // NULL = critère "socle" fourni par la plateforme (visible par toutes les
+  // entreprises, ex. les 3 critères FD X50-167 créés au seed). Une valeur =
+  // critère créé par une entreprise via createCritere, invisible aux autres
+  // entreprises (isolation demandée : chaque DIRECTION ne voit que le
+  // catalogue commun + les critères de sa propre entreprise).
+  id_entreprise       Int?
+  entreprise          Entreprise?       @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+
   objectifs           Objectif[]
   reponses            Reponse[]
   statistiques        StatistiquesMensuelles[]
   agencesCriteres     AgenceCritere[]
+  services            Service[]
 }
 
 model AgenceCritere {
@@ -183,6 +209,7 @@ model Reponse {
   score_brut          Int
   audio_url           String?
   commentaire_texte   String?
+  id_soumission       String?
   
   id_critere          Int
   critere             Critere           @relation(fields: [id_critere], references: [id])
@@ -196,8 +223,8 @@ model Reponse {
   id_guichet          Int
   guichet             Guichet           @relation(fields: [id_guichet], references: [id])
   
-  id_service          Int
-  service             Service           @relation(fields: [id_service], references: [id])
+  id_service          Int?
+  service             Service?          @relation(fields: [id_service], references: [id])
   
   id_agent            String?           // Adapté à l'identifiant String de User
   agent               User?             @relation("AgentResponses", fields: [id_agent], references: [id], onDelete: SetNull)
@@ -223,7 +250,6 @@ model Alerte {
   guichet             Guichet?  @relation(fields: [id_guichet_concerne], references: [id], onDelete: SetNull)
 
   taches              TacheCorrective[]
-  tasks               Task[]
 }
 
 model TacheCorrective {
@@ -278,27 +304,6 @@ model StatistiquesMensuelles {
 // ============================================================================
 // TABLES TECHNIQUES ET ANALYTICS REQUISES PAR LE TEMPLATE OPEN SAAS
 // ============================================================================
-
-model GptResponse {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String   // Adapté à l'identifiant String de User
-  content   String
-}
-
-model Task {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String   // Adapté à l'identifiant String de User
-  description String
-  isDone      Boolean  @default(false)
-  time        String   @default("1")
-
-  alerteId    BigInt?
-  alerte      Alerte?  @relation(fields: [alerteId], references: [id])
-}
 
 model ContactFormMessage {
   id        String   @id @default(uuid())

@@ -22,6 +22,11 @@ import { Announcement } from "./Announcement";
 export interface NavigationItem {
   name: string;
   to: string;
+  // Rôles CXSAT autorisés à voir ce lien. Si absent, visible par tout le
+  // monde. Permet de cacher les entrées de menu qui pointent vers des pages
+  // restreintes (ex. "Agences" réservé à DIRECTION) au lieu de laisser un
+  // CHEF_AGENCE cliquer dessus pour atterrir sur un écran "Accès refusé".
+  roles?: string[];
 }
 
 export function NavBar({
@@ -31,6 +36,11 @@ export function NavBar({
 }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const isLandingPage = useIsLandingPage();
+  const { data: currentUser } = useAuth();
+
+  const visibleNavigationItems = navigationItems.filter(
+    (item) => !item.roles || (currentUser && item.roles.includes((currentUser as any).role)),
+  );
 
   useEffect(() => {
     const throttledHandler = throttleWithTrailingInvocation(() => {
@@ -92,12 +102,12 @@ export function NavBar({
               </WaspRouterLink>
 
               <ul className="ml-4 hidden items-center gap-6 lg:flex">
-                {renderNavigationItems(navigationItems)}
+                {renderNavigationItems(visibleNavigationItems)}
               </ul>
             </div>
             <NavBarMobileMenu
               isScrolled={isScrolled}
-              navigationItems={navigationItems}
+              navigationItems={visibleNavigationItems}
             />
             <NavBarDesktopUserDropdown isScrolled={isScrolled} />
           </nav>

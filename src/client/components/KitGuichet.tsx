@@ -4,11 +4,13 @@ import { Download, Share2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { CXSATLogo } from './CXSATLogo';
+import { useToast } from '../hooks/use-toast';
 
 type FormatKey = 'A5' | 'A4' | 'BADGE';
 
 export const KitGuichet = ({ guichet }: { guichet: any }) => {
   const kitRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   // Utilise window.location.origin pour pointer automatiquement vers le bon hôte (dev, staging, production)
   const evalUrl = typeof window !== 'undefined'
@@ -96,27 +98,63 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
     };
   }, [evalUrl]);
 
-  const downloadKit = () => {
-    if (kitRef.current) {
-      toPng(kitRef.current, { 
-        pixelRatio: 2, 
+  const downloadKit = async () => {
+    if (!kitRef.current) return;
+
+    // Bug corrigé : si le QR n'a pas pu être pré-chargé (ex. coupure réseau
+    // vers l'API externe de génération de QR), qrDataUrl reste vide et le
+    // bouton devenait quand même cliquable (loadingQr passe à false même en
+    // cas d'échec du fetch) → toPng() capturait une image cassée et
+    // échouait silencieusement (l'erreur ne finissait que dans la console).
+    if (!qrDataUrl) {
+      toast({
+        variant: 'destructive',
+        title: 'QR Code non disponible',
+        description: "Le QR code n'a pas pu être généré. Vérifiez votre connexion puis réessayez.",
+      });
+      return;
+    }
+
+    // Laisse le navigateur peindre une frame avant la capture : juste après
+    // le chargement du QR, l'image peut être en mémoire mais pas encore
+    // effectivement rendue à l'écran, ce qui produisait parfois une affiche
+    // exportée avec un QR vide sans qu'aucune erreur ne soit levée.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    try {
+      const dataUrl = await toPng(kitRef.current, {
+        pixelRatio: 2,
         cacheBust: true,
+        // Bug corrigé : html-to-image tente par défaut d'inspecter et
+        // d'inliner TOUTES les règles @font-face de la page (y compris les
+        // polices Satoshi chargées globalement, hors de l'affiche) pour les
+        // ré-embarquer en base64. Sur certaines polices/feuilles de style,
+        // cette étape interne plante avec `TypeError: can't access property
+        // "trim", e is undefined` (bug connu de html-to-image, voir
+        // bubkoo/html-to-image#532), et toPng() rejette avant même de
+        // produire une image — d'où l'échec systématique du téléchargement.
+        // L'affiche n'a pas besoin des polices exactes du site (les classes
+        // Tailwind utilisent déjà des fallbacks système), donc on désactive
+        // entièrement l'embarquement de polices.
+        skipFonts: true,
         style: {
           transform: 'scale(1)',
-          transformOrigin: 'top left'
-        }
-      })
-        .then((dataUrl) => {
-          const link = document.createElement('a');
-          link.download = `affiche-cxsat-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
-          link.href = dataUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        })
-        .catch((err) => {
-          console.error("Erreur lors de la génération de l'affiche PNG:", err);
-        });
+          transformOrigin: 'top left',
+        },
+      });
+      const link = document.createElement('a');
+      link.download = `affiche-cxsat-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      console.error("Erreur lors de la génération de l'affiche PNG:", err);
+      toast({
+        variant: 'destructive',
+        title: "Échec de l'export de l'affiche",
+        description: err?.message || 'Réessayez, ou utilisez "Copier le lien" en alternative.',
+      });
     }
   };
 

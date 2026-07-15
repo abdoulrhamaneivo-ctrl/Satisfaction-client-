@@ -30,10 +30,13 @@ export const assertAgencyAccess = (user: any, requestedAgenceId?: number) => {
 // Nouveaux helpers RLS (étendus)
 // ─────────────────────────────────────────────
 
-/** Lève 401 si l'user n'est pas connecté */
+/** Lève 401 si l'user n'est pas connecté, 403 si son compte est suspendu */
 export function requireAuth(context: { user?: any }): void {
   if (!context.user) {
     throw new HttpError(401, 'Vous devez être connecté pour accéder à cette ressource.');
+  }
+  if (context.user.actif === false) {
+    throw new HttpError(403, 'Votre compte a été suspendu par la direction. Contactez votre administrateur.');
   }
 }
 

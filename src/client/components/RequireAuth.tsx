@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router';
-import { useAuth } from 'wasp/client/auth';
+import { logout, useAuth } from 'wasp/client/auth';
 import { routes } from 'wasp/client/router';
 
 interface RequireAuthProps {
@@ -10,11 +10,20 @@ interface RequireAuthProps {
 /**
  * Protège les pages de l'espace applicatif CXSAT.
  * - Si l'utilisateur n'est pas connecté → redirige vers /login
+ * - Si le compte a été suspendu/désactivé par la direction → déconnecte et
+ *   redirige vers /login (au lieu de laisser un accès fantôme).
  * - Pendant le chargement → spinner discret
- * - Connecté → affiche les enfants normalement
+ * - Connecté et actif → affiche les enfants normalement
  */
 export function RequireAuth({ children }: RequireAuthProps) {
   const { data: user, isLoading } = useAuth();
+  const isSuspended = Boolean(user) && (user as any).actif === false;
+
+  useEffect(() => {
+    if (isSuspended) {
+      logout();
+    }
+  }, [isSuspended]);
 
   if (isLoading && !user) {
     return (
@@ -27,7 +36,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
     );
   }
 
-  if (!isLoading && !user) {
+  if (!isLoading && (!user || isSuspended)) {
     return <Navigate to={routes.LoginRoute.to} replace />;
   }
 

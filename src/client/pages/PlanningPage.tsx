@@ -61,7 +61,7 @@ export const PlanningPage = () => {
     try {
       await assignAgent({
         id_guichet: guichetId,
-        id_agent: Number(agentId),
+        id_agent: agentId,
         date: today,
         heure_debut: heureDebut,
         heure_fin: heureFin,

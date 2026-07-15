@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, getCriteres, getAgenceCriteres, getAgences, toggleCritereAgence, createCritere } from 'wasp/client/operations';
+import { useQuery, getCriteres, getAgenceCriteres, getAgences, toggleCritereAgence, createCritere, getServices, createService } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
 import { MotionCard } from '../components/MotionCard';
 import { Button } from '../components/ui/button';
@@ -27,12 +27,16 @@ export const ConfigurationCriteresPage = () => {
   const { data: criteres, isLoading: loadingCriteres } = useQuery(getCriteres);
   const { data: agenceCriteresIds, isLoading: loadingActive } = useQuery(getAgenceCriteres, { id_agence: selectedAgenceId });
   const { data: agences } = useQuery(getAgences);
+  const { data: services } = useQuery(getServices);
 
   const [nouveauLibelle, setNomLibelle] = useState('');
   const [nouvelleDesc, setNouvelleDesc] = useState('');
   const [typeReponse, setTypeReponse] = useState('SMILEY');
   const [optionsReponse, setOptionsReponse] = useState('');
   const [loadingCreation, setLoadingCreation] = useState(false);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [creatingService, setCreatingService] = useState(false);
 
   const activeIds: number[] = agenceCriteresIds || [];
 
@@ -58,12 +62,14 @@ export const ConfigurationCriteresPage = () => {
         description: nouvelleDesc,
         type_reponse: typeReponse,
         options_reponse: typeReponse === 'QCM' ? optionsReponse : undefined,
-        id_agence: selectedAgenceId
+        id_agence: selectedAgenceId,
+        serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
       });
       setNomLibelle('');
       setNouvelleDesc('');
       setOptionsReponse('');
       setTypeReponse('SMILEY');
+      setSelectedServiceIds([]);
       toast({ title: 'Critère créé', description: `« ${nouveauLibelle} » a été ajouté avec succès.` });
     } catch (err: any) {
       toast({
@@ -73,6 +79,21 @@ export const ConfigurationCriteresPage = () => {
       });
     } finally {
       setLoadingCreation(false);
+    }
+  };
+
+  const handleCreateService = async () => {
+    if (!newServiceName.trim()) return;
+    setCreatingService(true);
+    try {
+      const created: any = await createService({ libelle_service: newServiceName.trim() });
+      setNewServiceName('');
+      setSelectedServiceIds((prev) => [...prev, created.id]);
+      toast({ title: 'Opération créée', description: `« ${created.libelle_service} » est disponible.` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Erreur inconnue' });
+    } finally {
+      setCreatingService(false);
     }
   };
 
@@ -217,6 +238,62 @@ export const ConfigurationCriteresPage = () => {
                     />
                   </motion.div>
                 )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase mb-1">
+                    Rattacher à une ou plusieurs opérations (optionnel)
+                  </label>
+                  <p className="text-[11px] text-muted-foreground mb-2">
+                    Si vous rattachez ce critère à une opération, il n'apparaîtra que quand le client
+                    choisit cette opération sur le formulaire de collecte. Sinon, il fait partie des
+                    critères par défaut de l'agence.
+                  </p>
+                  <div className="space-y-2 rounded-md border border-input p-3 bg-background/50">
+                    {services?.map((s: any) => (
+                      <label key={s.id} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedServiceIds.includes(s.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedServiceIds([...selectedServiceIds, s.id]);
+                            } else {
+                              setSelectedServiceIds(selectedServiceIds.filter((id) => id !== s.id));
+                            }
+                          }}
+                          className="rounded border-neutral-300 text-primary focus:ring-primary h-4 w-4"
+                        />
+                        {s.libelle_service}
+                      </label>
+                    ))}
+                    {(!services || services.length === 0) && (
+                      <p className="text-xs text-muted-foreground">Aucune opération créée pour le moment.</p>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <input
+                        value={newServiceName}
+                        onChange={(e) => setNewServiceName(e.target.value)}
+                        placeholder="Nouvelle opération"
+                        className="flex-1 px-2 py-1.5 border border-input bg-background rounded-md text-xs text-foreground focus:ring-1 focus:ring-ring"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleCreateService();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={creatingService || !newServiceName.trim()}
+                        onClick={handleCreateService}
+                        className="h-auto shrink-0 px-2 text-xs"
+                      >
+                        {creatingService ? '...' : '+ Ajouter'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
 
                 <motion.div whileTap={{ scale: 0.97 }}>
                   <Button type="submit" disabled={loadingCreation} className="w-full">
