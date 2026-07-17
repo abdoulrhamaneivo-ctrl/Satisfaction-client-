@@ -1,12 +1,6 @@
-import { routes } from "wasp/client/router";
 import type { NavigationItem } from "./NavBar";
 
-export const marketingNavigationItems: NavigationItem[] = [
-  { name: "Fonctionnalités", to: "/#features" },
-  { name: "Tarifs", to: routes.PricingPageRoute.to },
-] as const;
-
-// Espace applicatif (utilisateur connecté) : uniquement les pages réellement
+// Barre de navigation de l'application (utilisateur connecté) : uniquement les pages réellement
 // construites, dans l'ordre du parcours de gestion (dashboard -> terrain -> équipe).
 // `roles` : si présent, l'item n'est affiché que pour ces rôles CXSAT. Sans
 // cette liste, l'item était affiché à tout le monde (y compris CHEF_AGENCE),

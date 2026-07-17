@@ -3,7 +3,7 @@ import { action, app, page, query, route, job } from "@wasp.sh/spec";
 import { App } from "./src/client/App" with { type: "ref" };
 import { NotFoundPage } from "./src/client/components/NotFoundPage" with { type: "ref" };
 import { serverEnvValidationSchema } from "./src/env" with { type: "ref" };
-import { LandingPage } from "./src/landing-page/LandingPage" with { type: "ref" };
+import { LandingRedirectPage } from "./src/client/LandingRedirectPage" with { type: "ref" };
 import { seedMockUsers } from "./src/server/scripts/dbSeeds" with { type: "ref" };
 
 // === IMPORTS POUR L'ONBOARDING ET GUICHETS CXSAT ===
@@ -232,7 +232,7 @@ export default app({
   },
   emailSender,
   spec: [
-    route("LandingPageRoute", "/", page(LandingPage), { prerender: true }),
+    route("LandingPageRoute", "/", page(LandingRedirectPage)),
     route("NotFoundRoute", "*", page(NotFoundPage)),
     authSpec,
     userSpec,

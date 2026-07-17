@@ -4,26 +4,14 @@ import { routes } from "wasp/client/router";
 import { Toaster } from "../client/components/ui/toaster";
 import "./Main.css";
 import { NavBar } from "./components/NavBar/NavBar";
-import {
-  demoNavigationitems,
-  marketingNavigationItems,
-} from "./components/NavBar/constants";
+import { demoNavigationitems } from "./components/NavBar/constants";
 import { CookieConsentBanner } from "./components/cookie-consent/Banner";
 import { AnimatePresence, motion } from "framer-motion";
 import { BrandProvider } from "./context/BrandContext";
 
 export function App() {
   const location = useLocation();
-  const isMarketingPage = useMemo(() => {
-    return (
-      location.pathname === routes.LandingPageRoute.to ||
-      location.pathname === routes.PricingPageRoute.to
-    );
-  }, [location]);
-
-  const navigationItems = isMarketingPage
-    ? marketingNavigationItems
-    : demoNavigationitems;
+  const navigationItems = demoNavigationitems;
 
   const shouldDisplayAppNavBar = useMemo(() => {
     return (
@@ -32,13 +20,13 @@ export function App() {
     );
   }, [location]);
 
-  // Les routes CXSAT /admin/personnel, /admin/tarifs et /admin/agences ne
-  // sont pas le dashboard admin Wasp — elles ont besoin de la NavBar
-  // normale. Bug corrigé : /admin/agences avait été oublié dans cette
-  // liste, donc son chemin "/admin/agences" matchait startsWith("/admin")
-  // et la page était traitée comme le dashboard admin intégré de Wasp
-  // (rendu seul, sans NavBar ni barre de navigation d'aucune sorte).
-  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/tarifs', '/admin/agences', '/admin/marque'];
+  // Les routes CXSAT /admin/personnel et /admin/agences ne sont pas le
+  // dashboard admin Wasp — elles ont besoin de la NavBar normale. Bug
+  // corrigé : /admin/agences avait été oublié dans cette liste, donc son
+  // chemin "/admin/agences" matchait startsWith("/admin") et la page était
+  // traitée comme le dashboard admin intégré de Wasp (rendu seul, sans
+  // NavBar ni barre de navigation d'aucune sorte).
+  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences', '/admin/marque'];
   const isAdminDashboard = useMemo(() => {
     return (
       location.pathname.startsWith(routes.AdminRoute.to) &&

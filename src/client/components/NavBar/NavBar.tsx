@@ -25,12 +25,10 @@ import {
 import { throttleWithTrailingInvocation } from "../../../shared/utils";
 import { UserDropdown } from "../../../user/UserDropdown";
 import { UserMenuItems } from "../../../user/UserMenuItems";
-import { useIsLandingPage } from "../../hooks/useIsLandingPage";
 import { useNotificationBadge } from "../../hooks/useNotificationBadge";
 import { CXSATLogo } from '../CXSATLogo';
 import { cn } from "../../utils";
 import { DarkModeSwitcher } from "../DarkModeSwitcher";
-import { Announcement } from "./Announcement";
 import { useBrand } from "../../context/BrandContext";
 import { BrandLogo } from "../BrandLogo";
 
@@ -55,7 +53,6 @@ export function NavBar({
   navigationItems: NavigationItem[];
 }) {
   const [isScrolled, setIsScrolled] = useState(false);
-  const isLandingPage = useIsLandingPage();
   const { data: currentUser } = useAuth();
   const { brandConfig } = useBrand();
 
@@ -92,7 +89,6 @@ export function NavBar({
 
   return (
     <>
-      {isLandingPage && <Announcement />}
       <header
         className={cn(
           "sticky top-0 z-50 transition-all duration-300",
