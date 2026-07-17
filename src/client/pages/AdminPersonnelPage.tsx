@@ -73,13 +73,21 @@ export const AdminPersonnelPage = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  // Règle métier : la direction ne constitue que l'encadrement (Chef d'Agence,
-  // Auditeur Qualité) ; c'est ensuite à chaque Chef d'Agence de recruter ses
-  // propres agents de guichet. Le formulaire ne doit donc jamais proposer un
-  // rôle que le backend (inviteAgent) refuserait de toute façon.
+  // Règle métier : la direction constitue l'encadrement de tout le réseau
+  // (Chef d'Agence, Auditeur Qualité) sur n'importe quelle agence de
+  // l'entreprise. Chaque Chef d'Agence recrute ensuite l'équipe de sa
+  // propre agence : ses agents de guichet, ainsi que son propre Auditeur
+  // Qualité (inviteAgent l'autorise déjà côté serveur — ROLES_PAR_INVITEUR).
+  // Le formulaire ne doit donc jamais proposer un rôle que le backend
+  // refuserait de toute façon.
   const roleOptions = user?.role === 'DIRECTION'
     ? [
         { value: 'CHEF_AGENCE', label: "Chef d’Agence" },
+        { value: 'QUALITE', label: 'Auditeur Qualité' },
+      ]
+    : user?.role === 'CHEF_AGENCE'
+    ? [
+        { value: 'AGENT', label: 'Agent de guichet' },
         { value: 'QUALITE', label: 'Auditeur Qualité' },
       ]
     : [{ value: 'AGENT', label: 'Agent de guichet' }];
