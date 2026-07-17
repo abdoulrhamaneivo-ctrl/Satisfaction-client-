@@ -31,7 +31,13 @@ export const AdminTarifsPage = () => {
   }, [pricing]);
 
   if (isUserLoading || isPricingLoading) {
-    return <div className="p-10 text-center text-muted-foreground">Chargement...</div>;
+    return (
+      <div className="mx-auto max-w-3xl p-6 lg:p-10 space-y-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+        ))}
+      </div>
+    );
   }
 
   if (!user?.isAdmin) {

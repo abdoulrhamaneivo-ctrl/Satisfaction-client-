@@ -139,7 +139,14 @@ export const GestionAgencesPage = () => {
               {/* LISTE DES AGENCES */}
               <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {isLoading && (
-                  <p className="text-sm text-muted-foreground md:col-span-2">Chargement…</p>
+                  <>
+                    {[0, 1].map((i) => (
+                      <div
+                        key={i}
+                        className="h-[88px] animate-pulse rounded-3xl border border-border/70 bg-card-subtle/50"
+                      />
+                    ))}
+                  </>
                 )}
 
                 <AnimatePresence>

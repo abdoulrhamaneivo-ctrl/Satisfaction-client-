@@ -18,6 +18,7 @@ import { AvisPage } from "./src/client/pages/AvisPage" with { type: "ref" };
 import { ConfigurationCriteresPage } from "./src/client/pages/ConfigurationCriteresPage" with { type: "ref" };
 import { AdminTarifsPage } from "./src/client/pages/AdminTarifsPage" with { type: "ref" };
 import { AlertesTachesPage } from "./src/client/pages/AlertesTachesPage" with { type: "ref" };
+import { BrandConfigPage } from "./src/client/pages/BrandConfigPage" with { type: "ref" };
 
 // === ACTIONS ===
 import {
@@ -36,10 +37,15 @@ import {
   createService,
   updatePlanPricing,
   upsertObjectif,
+  deleteObjectif,
   createTacheCorrective,
   updateStatutTache,
   marquerAlerteTraitee,
   updateGuichetServices,
+  moveCritereToService,
+  removeCritereFromService,
+  reorderCriteresInService,
+  upsertBrandConfig,
 } from "./src/server/actions" with { type: "ref" };
 
 // === IMPORTS JOBS CRON CXSAT ===
@@ -55,6 +61,8 @@ import {
   getAgentsByAgence,
   getAgences,
   getReponses,
+  getAvisGroupes,
+  exportAvisGroupes,
   getAlertes,
   getCriteres,
   getAgenceCriteres,
@@ -63,13 +71,17 @@ import {
   getRadarStats,
   getPlanPricing,
   getObjectifs,
+  getObjectifsParAgence,
   getTachesCorrectives,
+  getTacheHistorique,
   getAffectationsDuJour,
   getTendanceMensuelle,
   getStatsByAgent,
   getStatsByGuichet,
   getActionsPrioritaires,
   getKPIsPeriode,
+  getCriteresParOperation,
+  getBrandConfig,
 } from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
@@ -93,6 +105,7 @@ const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/critere
 const adminTarifsRoute = route("AdminTarifsRoute", "/admin/tarifs", page(AdminTarifsPage));
 const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
+const brandConfigRoute = route("BrandConfigRoute", "/admin/marque", page(BrandConfigPage));
 
 // === ACTIONS ===
 const completeOnboardingAction = action(completeOnboarding, {
@@ -122,18 +135,25 @@ const updatePlanPricingAction = action(updatePlanPricing, { entities: ["PlanPric
 
 // Nouvelles actions (Module 1 — Objectifs)
 const upsertObjectifAction = action(upsertObjectif, { entities: ["Objectif", "Agence", "Critere", "User"] });
+const deleteObjectifAction = action(deleteObjectif, { entities: ["Objectif", "Agence", "User"] });
 
 // Nouvelles actions (Module 5 — Tâches correctives / Kanban)
 const createTacheCorrectiveAction = action(createTacheCorrective, {
-  entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"],
+  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"],
 });
 const updateStatutTacheAction = action(updateStatutTache, {
-  entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"],
+  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"],
 });
 const marquerAlerteTraiteeAction = action(marquerAlerteTraitee, {
   entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"],
 });
 const updateGuichetServicesAction = action(updateGuichetServices, { entities: ["Guichet", "Service", "User", "Agence"] });
+const moveCritereToServiceAction = action(moveCritereToService, { entities: ["CritereService", "Critere", "Service", "User"] });
+const removeCritereFromServiceAction = action(removeCritereFromService, { entities: ["CritereService", "Critere", "Service", "User"] });
+const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User"] });
+const upsertBrandConfigAction = action(upsertBrandConfig, {
+  entities: ["BrandConfig", "Entreprise", "User"],
+});
 
 // === QUERIES ===
 const getGuichetsQuery = query(getGuichets, {
@@ -148,6 +168,12 @@ const getReponsesQuery = query(getReponses, {
   entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"],
 });
 
+// Avis regroupés (1 formulaire soumis = 1 avis, même s'il contient plusieurs
+// critères) — voir docs/logique-avis-uniques.md pour le détail.
+const getAvisGroupesQuery = query(getAvisGroupes, {
+  entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"],
+});
+
 const getStatsFiltereesQuery = query(getStatsFiltrees, { entities: ["Reponse", "User", "Agence"] });
 const getAgentsByAgenceQuery = query(getAgentsByAgence, { entities: ["User", "Agence"] });
 const getAgencesQuery = query(getAgences, { entities: ["Agence", "User"] });
@@ -155,10 +181,13 @@ const getAlertesQuery = query(getAlertes, { entities: ["Alerte", "Guichet", "Rep
 const getCriteresQuery = query(getCriteres, { entities: ["Critere", "User"] });
 const getAgenceCriteresQuery = query(getAgenceCriteres, { entities: ["AgenceCritere", "User", "Agence"] });
 const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, {
-  entities: ["Guichet", "AgenceCritere", "Critere", "Service"],
+  entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise", "BrandConfig"],
 });
 const getServicesQuery = query(getServices, {
   entities: ["Service", "User"],
+});
+const getBrandConfigQuery = query(getBrandConfig, {
+  entities: ["BrandConfig", "Entreprise", "User"],
 });
 const getRadarStatsQuery = query(getRadarStats, {
   entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence"],
@@ -167,8 +196,15 @@ const getPlanPricingQuery = query(getPlanPricing, { entities: ["PlanPricing"] })
 
 // Nouvelles queries
 const getObjectifsQuery = query(getObjectifs, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse"] });
+const getObjectifsParAgenceQuery = query(getObjectifsParAgence, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse"] });
 const getTachesCorrectivesQuery = query(getTachesCorrectives, {
   entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"],
+});
+const getTacheHistoriqueQuery = query(getTacheHistorique, {
+  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"],
+});
+const exportAvisGroupesQuery = query(exportAvisGroupes, {
+  entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"],
 });
 const getAffectationsDuJourQuery = query(getAffectationsDuJour, {
   entities: ["AffectationGuichet", "Guichet", "User", "Agence"],
@@ -180,6 +216,9 @@ const getActionsPrioritairesQuery = query(getActionsPrioritaires, {
   entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "Critere", "User", "Agence"],
 });
 const getKPIsPeriodeQuery = query(getKPIsPeriode, { entities: ["Reponse", "User", "Agence"] });
+const getCriteresParOperationQuery = query(getCriteresParOperation, {
+  entities: ["Service", "Critere", "CritereService", "AgenceCritere", "User", "Agence"],
+});
 
 export default app({
   name: "CXSAT",
@@ -220,6 +259,7 @@ export default app({
     adminTarifsRoute,
     collecteRoute,
     alertesTachesRoute,
+    brandConfigRoute,
     // Actions existantes
     completeOnboardingAction,
     createGuichetAction,
@@ -237,10 +277,15 @@ export default app({
     updatePlanPricingAction,
     // Nouvelles actions
     upsertObjectifAction,
+    deleteObjectifAction,
     createTacheCorrectiveAction,
     updateStatutTacheAction,
     marquerAlerteTraiteeAction,
     updateGuichetServicesAction,
+    moveCritereToServiceAction,
+    removeCritereFromServiceAction,
+    reorderCriteresInServiceAction,
+    upsertBrandConfigAction,
     // Queries existantes
     getPlanPricingQuery,
     getStatsFiltereesQuery,
@@ -249,6 +294,7 @@ export default app({
     getGuichetsQuery,
     getAgentsQuery,
     getReponsesQuery,
+    getAvisGroupesQuery,
     getAlertesQuery,
     getCriteresQuery,
     getAgenceCriteresQuery,
@@ -257,14 +303,18 @@ export default app({
     getRadarStatsQuery,
     // Nouvelles queries
     getObjectifsQuery,
+    getObjectifsParAgenceQuery,
     getTachesCorrectivesQuery,
+    getTacheHistoriqueQuery,
     getAffectationsDuJourQuery,
     getTendanceMensuelleQuery,
     getStatsByAgentQuery,
     getStatsByGuichetQuery,
     getActionsPrioritairesQuery,
     getKPIsPeriodeQuery,
-    // === JOBS CRON CXSAT ===
+    getCriteresParOperationQuery,
+    exportAvisGroupesQuery,
+    getBrandConfigQuery,
     job(detecterAlertesSilence, {
       executor: "PgBoss",
       entities: ["Alerte", "Guichet", "AffectationGuichet", "Reponse", "User"],

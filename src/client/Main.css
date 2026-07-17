@@ -423,8 +423,53 @@
   * {
     @apply border-border;
   }
+  html {
+    /* Verrou anti-défilement horizontal parasite : si un composant quelque
+       part déborde de quelques pixels (carte trop large, image non
+       contrainte, marge négative mal calculée...), ce défilement horizontal
+       fantôme est coupé net ici au lieu de laisser une zone vide/scrollable
+       à droite de l'écran. C'est un filet de sécurité global, pas un
+       substitut à la correction du composant fautif s'il y en a un.
+       Sur `html` (et non un wrapper interne) : le scroller racine du
+       document reste la fenêtre elle-même, donc `position: sticky` (menu,
+       en-têtes de tableau...) continue de fonctionner normalement. */
+    overflow-x: hidden;
+    /* Harmonise la couleur visible pendant l'effet de rebond ("overscroll")
+       sur mobile (iOS/Android) avec le thème actif (clair/sombre/marque
+       personnalisée) au lieu d'un flash blanc qui casse l'illusion. */
+    background-color: hsl(var(--background));
+  }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  /* Utilitaire à poser sur toute zone de défilement interne (modale longue,
+     rangée de colonnes horizontale...) : rétablit un défilement inertiel
+     fluide ("momentum scrolling") sur iOS au lieu d'un arrêt sec dès que le
+     doigt quitte l'écran. */
+  .momentum-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Affordance de défilement horizontal ("il reste du contenu à droite") :
+     estompe visuellement les bords gauche/droit d'une rangée qui défile,
+     sans dépendre d'une flèche ou d'un texte d'aide. À poser en plus de
+     `overflow-x-auto` sur le conteneur. */
+  .scroll-fade-x {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 24px,
+      black calc(100% - 24px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 24px,
+      black calc(100% - 24px),
+      transparent
+    );
   }
   /* Global typography styles */
   h1,

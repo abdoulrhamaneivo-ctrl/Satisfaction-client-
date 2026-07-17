@@ -1,5 +1,6 @@
 import React from 'react';
 import { HistogrammeSatisfaction, RadarQualite } from './DashboardCharts';
+import { regrouperAvisParSoumission } from '../utils';
 
 interface RapportProps {
   reponses: any[];
@@ -13,13 +14,18 @@ interface RapportProps {
 export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps>((props, ref) => {
   const { reponses, radarData, alertes, taches, agenceName, commune } = props;
 
-  const totalAvis = reponses.length;
-  const noteMoyenne = totalAvis > 0 
-    ? (reponses.reduce((acc, curr) => acc + curr.score_brut, 0) / totalAvis).toFixed(2)
+  // Un avis = une soumission (id_soumission), pas une ligne Reponse. Un
+  // formulaire à plusieurs critères ne doit pas gonfler le total du rapport
+  // ni fausser la note moyenne / le taux de satisfaction affichés au chef
+  // d'entreprise.
+  const avisGroupes = regrouperAvisParSoumission(reponses);
+  const totalAvis = avisGroupes.length;
+  const noteMoyenne = totalAvis > 0
+    ? (avisGroupes.reduce((acc, a) => acc + a.score_moyen, 0) / totalAvis).toFixed(2)
     : '0.00';
 
   const tauxSatisfaction = totalAvis > 0
-    ? ((reponses.filter(r => r.score_brut >= 4).length / totalAvis) * 100).toFixed(0)
+    ? ((avisGroupes.filter(a => a.score_moyen >= 4).length / totalAvis) * 100).toFixed(0)
     : '0';
 
   const dateGeneration = new Date().toLocaleDateString('fr-FR', {

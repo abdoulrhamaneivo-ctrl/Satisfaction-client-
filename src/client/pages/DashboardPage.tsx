@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   useQuery,
   getReponses,
@@ -15,7 +15,7 @@ import {
 import { useAuth } from 'wasp/client/auth';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store } from 'lucide-react';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets } from '../components/DashboardCharts';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
 import { AmbientBackground } from '../components/AmbientBackground';
@@ -28,6 +28,8 @@ import { RequireAuth } from '../components/RequireAuth';
 import { DataTable } from '../components/ui/DataTable';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
 import { ObjectifsProgress } from '../components/ObjectifsProgress';
+import { regrouperAvisParSoumission } from '../utils';
+import { exportToXLSX } from '../utils/exportData';
 
 const formatDelta = (value: number, suffix: string) =>
   `${value > 0 ? '+' : ''}${value}${suffix}`;
@@ -47,6 +49,9 @@ export const DashboardPage = () => {
   const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
 
   const reponsesList: any[] = reponses || [];
+  // "Derniers avis" / badges de comptage : un avis = une soumission, pas une
+  // ligne Reponse (un formulaire à N critères ne doit pas compter N fois).
+  const avisGroupes = regrouperAvisParSoumission(reponsesList);
   const alertesList: any[] = alertes || [];
   const tachesList: any[] = taches || [];
   const tendanceList: any[] = tendance || [];
@@ -76,6 +81,63 @@ export const DashboardPage = () => {
     documentTitle: `Rapport-Mensuel-CXSAT-${user?.id_agence || 'Agence'}`,
   });
 
+  const [exportingXLSX, setExportingXLSX] = useState(false);
+  const handleExportXLSX = useCallback(async () => {
+    setExportingXLSX(true);
+    try {
+      await exportToXLSX(
+        [
+          {
+            name: 'Avis clients',
+            data: avisGroupes.map((a) => ({
+              Date: new Date(a.reponses[0]?.date_reponse).toLocaleString('fr-FR'),
+              Guichet: a.reponses[0]?.guichet?.nom_guichet || '',
+              'Note moyenne': a.score_moyen,
+              Criteres: a.reponses.map((r: any) => `${r.critere?.libelle_critere}:${r.score_brut}`).join(' | '),
+              Commentaire: a.reponses[0]?.commentaire_texte || '',
+            })),
+          },
+          {
+            name: 'Alertes',
+            data: alertesList.map((a: any) => ({
+              Date: new Date(a.date_creation).toLocaleString('fr-FR'),
+              Type: a.type_alerte,
+              Statut: a.statut_alerte,
+              Guichet: a.guichet?.nom_guichet || '',
+              'Date traitement': a.date_traitement ? new Date(a.date_traitement).toLocaleString('fr-FR') : '',
+            })),
+          },
+          {
+            name: 'Taches correctives',
+            data: tachesList.map((t: any) => ({
+              Titre: t.titre,
+              Statut: t.statut_tache,
+              'Date echéance': new Date(t.date_echeance).toLocaleString('fr-FR'),
+              'Date clôture': t.date_cloture ? new Date(t.date_cloture).toLocaleString('fr-FR') : '',
+              Responsable: t.responsable ? `${t.responsable.prenom || ''} ${t.responsable.nom || ''}`.trim() : '',
+            })),
+          },
+          {
+            name: 'KPIs 30j',
+            data: kpisPeriode ? [{
+              'Satisfaction (%)': periodeActuelle?.satisfaction ?? 0,
+              'Note moyenne (/5)': periodeActuelle?.moyenne ?? 0,
+              'Volume avis': periodeActuelle?.nb ?? 0,
+              'Delta satisfaction (pts)': kpisPeriode.delta_satisfaction_pts ?? 0,
+              'Delta note (pts)': kpisPeriode.delta_note_pts ?? 0,
+              'Delta volume (%)': kpisPeriode.delta_volume_pct ?? 0,
+            }] : [],
+          },
+        ],
+        `CXSAT_Rapport_${new Date().toISOString().split('T')[0]}`
+      );
+    } catch (err: any) {
+      console.error('Erreur export XLSX', err);
+    } finally {
+      setExportingXLSX(false);
+    }
+  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle]);
+
   const totalActionsPrioritaires =
     (actionsPrioritaires?.alertesNouvelles?.length ?? 0) + (actionsPrioritaires?.tachesEnRetard?.length ?? 0);
 
@@ -93,11 +155,23 @@ export const DashboardPage = () => {
               : `Vue agence : données de ${(user as any)?.agence?.nom_agence || 'votre agence'} en temps réel.`
           }
           actions={
-            <motion.div whileTap={{ scale: 0.97 }}>
-              <Button variant="outline" onClick={() => handlePrint()} disabled={isLoading}>
-                <Printer className="size-4" /> Exporter le rapport (PDF)
-              </Button>
-            </motion.div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button variant="outline" onClick={() => handlePrint()} disabled={isLoading}>
+                  <Printer className="size-4" /> Exporter le rapport (PDF)
+                </Button>
+              </motion.div>
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button variant="outline" onClick={handleExportXLSX} disabled={isLoading || exportingXLSX}>
+                  {exportingXLSX ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="size-4" />
+                  )}
+                  Exporter XLSX
+                </Button>
+              </motion.div>
+            </div>
           }
         />
 
@@ -233,33 +307,38 @@ export const DashboardPage = () => {
           <section>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-title-sm font-bold text-foreground">Derniers avis</h2>
-              {reponsesList.length > 0 && (
+              {avisGroupes.length > 0 && (
                 <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                  {reponsesList.length} avis
+                  {avisGroupes.length} avis
                 </span>
               )}
             </div>
 
-            {reponsesList.length > 0 ? (
-              <DataTable headers={['Note', 'Guichet', 'Critère', 'Date']}>
-                {reponsesList.slice(0, 5).map((rep: any) => (
-                  <tr key={rep.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                    <td className="px-6 py-4">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                          rep.score_brut <= 2
-                            ? 'bg-destructive/10 text-destructive'
-                            : 'bg-success/10 text-success'
-                        }`}
-                      >
-                        {rep.score_brut}/5
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-foreground">{rep.guichet?.nom_guichet || 'Guichet inconnu'}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{rep.critere?.libelle_critere || 'Critère inconnu'}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{new Date(rep.date_reponse).toLocaleDateString()}</td>
-                  </tr>
-                ))}
+            {avisGroupes.length > 0 ? (
+              <DataTable headers={['Note moyenne', 'Guichet', 'Critères', 'Date']}>
+                {avisGroupes.slice(0, 5).map((avis) => {
+                  const premiere = avis.reponses[0];
+                  return (
+                    <tr key={avis.id_soumission ?? premiere.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                      <td className="px-6 py-4">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            avis.score_moyen <= 2
+                              ? 'bg-destructive/10 text-destructive'
+                              : 'bg-success/10 text-success'
+                          }`}
+                        >
+                          {avis.score_moyen}/5
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-foreground">{premiere.guichet?.nom_guichet || 'Guichet inconnu'}</td>
+                      <td className="px-6 py-4 text-muted-foreground">
+                        {avis.reponses.map((r: any) => r.critere?.libelle_critere).filter(Boolean).join(', ') || 'Critère inconnu'}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">{new Date(premiere.date_reponse).toLocaleDateString()}</td>
+                    </tr>
+                  );
+                })}
               </DataTable>
             ) : (
               <EmptyState

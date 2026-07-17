@@ -3,16 +3,17 @@ import { toPng } from 'html-to-image';
 import { Download, Share2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
-import { CXSATLogo } from './CXSATLogo';
 import { useToast } from '../hooks/use-toast';
+import { useBrand } from '../context/BrandContext';
+import { BrandLogo } from './BrandLogo';
 
 type FormatKey = 'A5' | 'A4' | 'BADGE';
 
 export const KitGuichet = ({ guichet }: { guichet: any }) => {
   const kitRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { brandConfig } = useBrand();
   
-  // Utilise window.location.origin pour pointer automatiquement vers le bon hôte (dev, staging, production)
   const evalUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/q/${guichet.id}`
     : `https://cxsat.ci/q/${guichet.id}`;
@@ -23,7 +24,6 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
   const [loadingQr, setLoadingQr] = useState<boolean>(true);
   const [selectedFormat, setSelectedFormat] = useState<FormatKey>('A5');
 
-  // Config des styles en fonction du format d'affiche choisi par l'utilisateur
   const formatConfigs = {
     A5: {
       containerStyle: { width: '420px', minHeight: '594px', padding: '32px' },
@@ -32,7 +32,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       titleClass: "text-2xl mb-1",
       subtitleClass: "text-base mb-5",
       logoSize: 32,
-      logoClass: "size-8",
+      logoClass: "h-8 max-w-[120px]",
       scanTextClass: "text-xl mb-1",
       scanDescClass: "text-sm mb-4",
       ussdPaddingClass: "py-3 px-4 mt-4",
@@ -45,7 +45,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       titleClass: "text-3xl font-black mb-2",
       subtitleClass: "text-lg mb-6",
       logoSize: 40,
-      logoClass: "size-10",
+      logoClass: "h-10 max-w-[160px]",
       scanTextClass: "text-2xl mb-2",
       scanDescClass: "text-base mb-6",
       ussdPaddingClass: "py-4 px-6 mt-6",
@@ -58,7 +58,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       titleClass: "text-lg mb-0.5",
       subtitleClass: "text-xs mb-3",
       logoSize: 24,
-      logoClass: "size-6",
+      logoClass: "h-6 max-w-[80px]",
       scanTextClass: "text-xs font-bold mb-0.5",
       scanDescClass: "text-[10px] leading-tight mb-2",
       ussdPaddingClass: "py-2 px-3 mt-2",
@@ -101,11 +101,6 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
   const downloadKit = async () => {
     if (!kitRef.current) return;
 
-    // Bug corrigé : si le QR n'a pas pu être pré-chargé (ex. coupure réseau
-    // vers l'API externe de génération de QR), qrDataUrl reste vide et le
-    // bouton devenait quand même cliquable (loadingQr passe à false même en
-    // cas d'échec du fetch) → toPng() capturait une image cassée et
-    // échouait silencieusement (l'erreur ne finissait que dans la console).
     if (!qrDataUrl) {
       toast({
         variant: 'destructive',
@@ -115,27 +110,12 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       return;
     }
 
-    // Laisse le navigateur peindre une frame avant la capture : juste après
-    // le chargement du QR, l'image peut être en mémoire mais pas encore
-    // effectivement rendue à l'écran, ce qui produisait parfois une affiche
-    // exportée avec un QR vide sans qu'aucune erreur ne soit levée.
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     try {
       const dataUrl = await toPng(kitRef.current, {
         pixelRatio: 2,
         cacheBust: true,
-        // Bug corrigé : html-to-image tente par défaut d'inspecter et
-        // d'inliner TOUTES les règles @font-face de la page (y compris les
-        // polices Satoshi chargées globalement, hors de l'affiche) pour les
-        // ré-embarquer en base64. Sur certaines polices/feuilles de style,
-        // cette étape interne plante avec `TypeError: can't access property
-        // "trim", e is undefined` (bug connu de html-to-image, voir
-        // bubkoo/html-to-image#532), et toPng() rejette avant même de
-        // produire une image — d'où l'échec systématique du téléchargement.
-        // L'affiche n'a pas besoin des polices exactes du site (les classes
-        // Tailwind utilisent déjà des fallbacks système), donc on désactive
-        // entièrement l'embarquement de polices.
         skipFonts: true,
         style: {
           transform: 'scale(1)',
@@ -143,7 +123,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
         },
       });
       const link = document.createElement('a');
-      link.download = `affiche-cxsat-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
+      link.download = `affiche-${(brandConfig?.platform_name || "cxsat").toLowerCase()}-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
@@ -157,6 +137,8 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       });
     }
   };
+
+  const primaryColorStyle = brandConfig ? { borderColor: `hsl(${brandConfig.color_primary})` } : {};
 
   return (
     <div className="space-y-6">
@@ -178,21 +160,21 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       </div>
 
       {/* Wrapper responsive avec scroll horizontal pour éviter de casser la grille sur mobile */}
-      <div className="w-full overflow-x-auto p-4 flex justify-center bg-neutral-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-border/80">
+      <div className="w-full overflow-x-auto momentum-scroll scroll-fade-x p-4 bg-neutral-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-border/80">
         <div
           ref={kitRef}
-          style={currentConfig.containerStyle}
-          className="kit-affiche shrink-0 rounded-2xl border-4 border-foreground bg-white text-center shadow-xl print:rounded-none print:border-black print:shadow-none"
+          style={{ ...currentConfig.containerStyle, ...primaryColorStyle }}
+          className="kit-affiche mx-auto rounded-2xl border-4 bg-white text-center shadow-xl print:rounded-none print:border-black print:shadow-none"
         >
           <div className="mb-4 flex items-center justify-center gap-2">
-            <CXSATLogo className={`${currentConfig.logoClass} text-foreground`} width={currentConfig.logoSize} height={currentConfig.logoSize} />
+            <BrandLogo className={currentConfig.logoClass} height={currentConfig.logoSize} />
             <span className="text-sm font-bold uppercase tracking-widest text-neutral-500">
-              CXSAT
+              {brandConfig?.platform_name || "CXSAT"}
             </span>
           </div>
 
           <h2 className={`${currentConfig.titleClass} font-extrabold leading-tight text-neutral-900`}>
-            Votre avis compte !
+            {brandConfig?.form_title || "Votre avis compte !"}
           </h2>
           <p className={`${currentConfig.subtitleClass} font-semibold text-neutral-600`}>
             {guichet.nom_guichet}
@@ -221,7 +203,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
           </div>
 
           <p className={`${currentConfig.scanTextClass} font-extrabold uppercase tracking-wide text-neutral-900`}>
-            Scannez ce QR Code
+            {brandConfig?.qr_slogan || "Scannez ce QR Code"}
           </p>
           <p className={`${currentConfig.scanDescClass} font-medium text-neutral-600`}>
             Notez-nous en 10 secondes, après votre passage à ce guichet
@@ -229,7 +211,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
 
           <div className={`rounded-xl bg-neutral-100 px-4 ${currentConfig.ussdPaddingClass} print:border print:border-neutral-400 print:bg-white`}>
             <p className="text-xs font-semibold text-neutral-700">
-              Pas de connexion internet ?
+              {brandConfig?.ussd_help_text || "Pas de connexion internet ?"}
             </p>
             <p className="text-sm font-bold tracking-wide text-neutral-900 mt-1">
               Composez <span className="font-extrabold text-primary">{ussdCode}</span>

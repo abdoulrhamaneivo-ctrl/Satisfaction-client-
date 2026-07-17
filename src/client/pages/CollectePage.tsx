@@ -6,6 +6,7 @@ import { MotionCard } from '../components/MotionCard';
 import { Button } from '../components/ui/button';
 import confetti from 'canvas-confetti';
 import { ChevronRight, MessageSquare, Phone, ArrowLeft, Loader2 } from 'lucide-react';
+import { useBrand } from '../context/BrandContext';
 
 type ServiceType = {
   id: number;
@@ -18,6 +19,7 @@ export const CollectePage = () => {
   const idGuichetNum = Number(guichetId);
 
   const { data: formDef, isLoading } = useQuery(getFormDefinitionForGuichet, { id_guichet: idGuichetNum });
+  const { setLocalOverload, brandConfig } = useBrand();
 
   const [step, setStep] = useState<'SERVICE_SELECT' | 'QUESTIONS' | 'COMMENT_STEP' | 'SUCCESS'>('SERVICE_SELECT');
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
@@ -28,6 +30,17 @@ export const CollectePage = () => {
   const [telephone, setTelephone] = useState('');
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+
+  // Appliquer la configuration de marque du guichet de façon locale
+  useEffect(() => {
+    const brand = (formDef as any)?.brandConfig;
+    if (brand) {
+      setLocalOverload(brand);
+    }
+    return () => {
+      setLocalOverload(null);
+    };
+  }, [formDef, setLocalOverload]);
 
   // Initialize step based on number of services
   useEffect(() => {
@@ -161,9 +174,17 @@ export const CollectePage = () => {
           </button>
         )}
         <div className="text-right ml-auto">
-          <span className="text-xs font-bold uppercase tracking-widest text-primary">
-            CXSAT
-          </span>
+          {brandConfig?.logo_url ? (
+            <img 
+              src={brandConfig.logo_url} 
+              alt={brandConfig.platform_name} 
+              className="h-8 max-w-[120px] object-contain"
+            />
+          ) : (
+            <span className="text-xs font-bold uppercase tracking-widest text-primary">
+              {brandConfig?.platform_name || "CXSAT"}
+            </span>
+          )}
         </div>
       </div>
 
@@ -181,13 +202,13 @@ export const CollectePage = () => {
               <MotionCard className="w-full p-6 text-center space-y-6 shadow-premium-lg border-border/80">
                 <div>
                   <h1 className="text-2xl font-extrabold tracking-tight text-neutral-900 dark:text-white">
-                    Bienvenue au guichet
+                    {brandConfig?.form_title || "Bienvenue au guichet"}
                   </h1>
                   <p className="text-base font-bold text-primary mt-1">
                     {formDef.guichetName}
                   </p>
                   <p className="text-sm text-neutral-500 dark:text-slate-400 mt-2">
-                    Quelle opération venez-vous d'effectuer ?
+                    {brandConfig?.form_subtitle || "Quelle opération venez-vous d'effectuer ?"}
                   </p>
                 </div>
 
@@ -417,7 +438,7 @@ export const CollectePage = () => {
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-2xl font-extrabold text-neutral-900 dark:text-white">
-                    Merci pour votre avis !
+                    {brandConfig?.form_thank_you || "Merci pour votre avis !"}
                   </h2>
                   <p className="text-sm text-neutral-500 dark:text-slate-400 max-w-[280px] mx-auto">
                     Votre retour précieux nous aide à améliorer constamment votre expérience au guichet.
@@ -433,11 +454,13 @@ export const CollectePage = () => {
       </div>
 
       {/* Footer Branding */}
-      <div className="py-4 text-center">
-        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-widest">
-          Propulsé par CXSAT
-        </p>
-      </div>
+      {!brandConfig?.hide_cxsat_branding && (
+        <div className="py-4 text-center">
+          <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-widest">
+            Propulsé par {brandConfig?.platform_name || "CXSAT"}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

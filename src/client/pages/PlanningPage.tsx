@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, assignAgent, getGuichets, getAgents, getAffectationsDuJour } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
-import { CalendarClock, Store, UserCheck2, Clock } from 'lucide-react';
+import { CalendarClock, Store, UserCheck2, Clock, AlertTriangle } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
@@ -125,7 +125,15 @@ export const PlanningPage = () => {
 
         {/* Grille dynamique des guichets */}
         {loadingGuichets ? (
-          <MotionCard className="p-10 text-center text-sm text-muted-foreground">Chargement du planning...</MotionCard>
+          // Correctif : un skeleton qui reprend la même grille (mêmes
+          // colonnes, même hauteur approx. de carte) que le vrai contenu,
+          // au lieu d'un simple texte centré — évite le "saut" de mise en
+          // page (layout shift) quand les données arrivent.
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-40 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+            ))}
+          </div>
         ) : !guichets?.length ? (
           <EmptyState
             icon={Store}
@@ -156,11 +164,21 @@ export const PlanningPage = () => {
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">{g.type_guichet || 'Guichet'}</div>
                       </div>
-                      {agentIdForGuichet && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2.5 py-1 text-xs font-semibold text-secondary-muted-foreground">
-                          <UserCheck2 className="size-3.5" /> Prêt
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {affectationsGuichet.length === 0 && (
+                          <span
+                            title="Aucun agent affecté aujourd'hui"
+                            className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-bold text-destructive"
+                          >
+                            <AlertTriangle className="size-3" /> Sans agent
+                          </span>
+                        )}
+                        {agentIdForGuichet && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2.5 py-1 text-xs font-semibold text-secondary-muted-foreground">
+                            <UserCheck2 className="size-3.5" /> Prêt
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Affectations déjà enregistrées aujourd'hui */}

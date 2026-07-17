@@ -10,6 +10,7 @@ import {
 } from "./components/NavBar/constants";
 import { CookieConsentBanner } from "./components/cookie-consent/Banner";
 import { AnimatePresence, motion } from "framer-motion";
+import { BrandProvider } from "./context/BrandContext";
 
 export function App() {
   const location = useLocation();
@@ -37,7 +38,7 @@ export function App() {
   // liste, donc son chemin "/admin/agences" matchait startsWith("/admin")
   // et la page était traitée comme le dashboard admin intégré de Wasp
   // (rendu seul, sans NavBar ni barre de navigation d'aucune sorte).
-  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/tarifs', '/admin/agences'];
+  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/tarifs', '/admin/agences', '/admin/marque'];
   const isAdminDashboard = useMemo(() => {
     return (
       location.pathname.startsWith(routes.AdminRoute.to) &&
@@ -61,9 +62,19 @@ export function App() {
         });
         resizeObserverRef.current.observe(element);
       }
-    } else if (location.pathname === "/") {
+    } else {
+      // Correctif : ce reset ne s'appliquait qu'à la landing page ("/").
+      // Sur toutes les autres routes, React Router ne réinitialise PAS le
+      // défilement lors d'une navigation interne (ce n'est pas un rechargement
+      // de page) : en arrivant sur "Tableau de bord" ou "Planning" après avoir
+      // scrollé une page précédente, la nouvelle page s'affichait déjà
+      // scrollée à la même position — son titre se retrouvait à moitié
+      // caché sous la barre de navigation "sticky", et l'utilisateur avait
+      // l'impression d'atterrir "au milieu de nulle part". On remonte donc
+      // en haut à CHAQUE changement de page (sans hash), pas seulement sur
+      // la landing page.
       if (window.scrollY > 0) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo(0, 0);
       }
     }
 
@@ -73,7 +84,7 @@ export function App() {
   }, [location]);
 
   return (
-    <>
+    <BrandProvider>
       {/* Bug corrigé : le <motion.div> n'avait pas de `key` liée à la route,
           donc AnimatePresence ne détectait jamais un changement de page —
           combiné à mode="wait" (qui attend la fin de la sortie AVANT de
@@ -107,6 +118,6 @@ export function App() {
       </AnimatePresence>
       <Toaster position="bottom-right" />
       <CookieConsentBanner />
-    </>
+    </BrandProvider>
   );
 }

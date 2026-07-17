@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, useAction } from 'wasp/client/operations';
 import { getObjectifs, getCriteres, getAgenceCriteres, getAgences } from 'wasp/client/operations';
-import { upsertObjectif } from 'wasp/client/operations';
+import { upsertObjectif, deleteObjectif } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
-import { Target, TrendingUp, Save } from 'lucide-react';
+import { Target, TrendingUp, Save, Trash2 } from 'lucide-react';
 import { MotionCard } from './MotionCard';
 import { Button } from './ui/button';
 import { useToast } from '../hooks/use-toast';
@@ -20,9 +20,11 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
   const { data: critereIdsActifs } = useQuery(getAgenceCriteres, { id_agence: selectedAgenceId });
   const { data: objectifs, refetch } = useQuery(getObjectifs, { id_agence: selectedAgenceId });
   const saveObjectif = useAction(upsertObjectif);
+  const supprimerObjectif = useAction(deleteObjectif);
 
   const [editMap, setEditMap] = useState<Record<number, { valeur: string; debut: string; fin: string }>>({});
   const [saving, setSaving] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const activeIds: number[] = critereIdsActifs || [];
   const objectifsList: any[] = objectifs || [];
@@ -66,6 +68,21 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     } finally {
       setSaving(null);
+    }
+  };
+
+  const handleDelete = async (idCritere: number) => {
+    const objectifActuel = getObjectifForCritere(idCritere);
+    if (!objectifActuel) return;
+    if (!window.confirm(`Supprimer l\'objectif pour « ${objectifActuel.critere?.libelle_critere || 'ce critère'} » ?`)) return;
+    setDeleting(idCritere);
+    try {
+      await supprimerObjectif({ id: objectifActuel.id });
+      toast({ title: 'Objectif supprimé', description: 'L\'objectif a été supprimé avec succès.' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: err.message });
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -172,10 +189,22 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
                 </div>
               </div>
 
-              <motion.div whileTap={{ scale: 0.97 }}>
+              <motion.div whileTap={{ scale: 0.97 }} className="flex gap-2">
+                {objectifActuel && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-none border-destructive/40 text-destructive hover:bg-destructive/10"
+                    disabled={deleting === critere.id}
+                    onClick={() => handleDelete(critere.id)}
+                    title="Supprimer l'objectif"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
                 <Button
                   size="sm"
-                  className="w-full"
+                  className="flex-1"
                   disabled={saving === critere.id}
                   onClick={() => handleSave(critere.id)}
                 >

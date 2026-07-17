@@ -4,7 +4,7 @@ import { useQuery, createGuichet, getGuichets, getServices, updateGuichetService
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
-import { Printer, Store, PlusCircle, AlertCircle, Inbox, ArrowRight, Settings2, Check, X, Loader2 } from 'lucide-react';
+import { Printer, Store, PlusCircle, AlertCircle, Inbox, ArrowRight, Settings2, Check, X, Loader2, QrCode } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
@@ -15,12 +15,64 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { RequireAuth } from '../components/RequireAuth';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+
+// Aperçu compact et cliquable du kit QR/USSD d'un guichet.
+// Avant ce correctif, le KitGuichet complet (jusqu'à 595x842px, format
+// "affiche A4") était rendu directement dans la liste : sur desktop comme
+// sur mobile, ça créait un énorme bloc à côté d'un simple titre, avec des
+// zones vides très visibles autour. Le kit complet (QR + USSD + export)
+// s'ouvre maintenant dans une fenêtre modale, au clic.
+const GuichetQrPreview = ({ guichet }: { guichet: any }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group flex shrink-0 items-center gap-3 rounded-2xl border border-dashed border-border/70 bg-neutral-100 px-4 py-3 text-left transition-all hover:border-primary/50 hover:bg-neutral-200/70 dark:bg-slate-900/40 dark:hover:bg-slate-900/60"
+        aria-label={`Afficher le QR code du guichet ${guichet.nom_guichet}`}
+      >
+        <span className="flex size-11 items-center justify-center rounded-xl bg-neutral-300/70 text-neutral-500 grayscale transition-all group-hover:bg-primary/10 group-hover:text-primary group-hover:grayscale-0 dark:bg-slate-700/60 dark:text-slate-400">
+          <QrCode className="size-6" />
+        </span>
+        <span>
+          <span className="block text-xs font-bold uppercase tracking-wide text-neutral-500 group-hover:text-primary">
+            Voir le kit QR
+          </span>
+          <span className="block text-[11px] text-neutral-400">
+            QR Code, USSD & affiches
+          </span>
+        </span>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto momentum-scroll sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Kit de collecte — {guichet.nom_guichet}</DialogTitle>
+            <DialogDescription>
+              QR Code, code USSD et affiches téléchargeables pour ce guichet.
+            </DialogDescription>
+          </DialogHeader>
+          <KitGuichet guichet={guichet} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
 
 const TYPES_GUICHET = [
   { value: 'Caisse', label: 'Caisse de paiement' },
@@ -348,7 +400,7 @@ export const GuichetsPage = () => {
                             {g.nom_guichet}
                           </h3>
                         </div>
-                        <KitGuichet guichet={g} />
+                        <GuichetQrPreview guichet={g} />
                       </div>
 
                       {/* Operations Configuration Section */}

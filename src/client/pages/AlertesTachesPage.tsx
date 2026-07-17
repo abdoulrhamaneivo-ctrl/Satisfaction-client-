@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useAction } from 'wasp/client/operations';
-import { getAlertes, getTachesCorrectives } from 'wasp/client/operations';
+import { getAlertes, getTachesCorrectives, getAgentsByAgence, getTacheHistorique } from 'wasp/client/operations';
 import { createTacheCorrective, updateStatutTache, marquerAlerteTraitee } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -13,6 +13,8 @@ import {
   Bell,
   Inbox,
   ChevronRight,
+  History,
+  ArrowRight,
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -62,7 +64,10 @@ export const AlertesTachesPage = () => {
   const updateStatut = useAction(updateStatutTache);
   const marquerTraitee = useAction(marquerAlerteTraitee);
 
-  const [modal, setModal] = useState<{ alerteId: number | null }>({ alerteId: null });
+  const [modal, setModal] = useState<{ alerteId: number | null; idAgence: number | null }>({
+    alerteId: null,
+    idAgence: null,
+  });
   const [formTache, setFormTache] = useState<ModalData>({
     id_alerte: 0,
     titre: '',
@@ -72,6 +77,22 @@ export const AlertesTachesPage = () => {
   });
   const [saving, setSaving] = useState(false);
   const [movingId, setMovingId] = useState<number | null>(null);
+  // ID de la tâche dont on affiche le panneau historique (null = fermé)
+  const [historiqueOpenId, setHistoriqueOpenId] = useState<number | null>(null);
+
+  // Liste des responsables potentiels, scopée à l'agence de l'alerte
+  // sélectionnée : corrige un vrai bug de logique — le formulaire exigeait
+  // auparavant de connaître et taper à la main l'identifiant technique
+  // (UUID) de l'agent, un champ que personne ne peut remplir de tête et qui
+  // ne validait rien avant l'envoi au serveur.
+  const { data: responsablesBruts } = useQuery(
+    getAgentsByAgence,
+    { id_agence: modal.idAgence ?? 0 },
+    { enabled: modal.idAgence !== null }
+  );
+  // On ne propose que des agents actifs : assigner une tâche corrective à
+  // un compte suspendu la rendrait de fait impossible à traiter.
+  const responsablesPossibles = (responsablesBruts || []).filter((a: any) => a.actif !== false);
 
   const alertesList: any[] = alertes || [];
   const tachesList: any[] = taches || [];
@@ -79,6 +100,12 @@ export const AlertesTachesPage = () => {
   const alertesNouvelles = alertesList.filter((a) => a.statut_alerte === 'NOUVELLE');
 
   const handleCreerTache = (alerte: any) => {
+    // L'agence de l'alerte se déduit soit de son guichet, soit — pour une
+    // alerte de type SILENCE_EVALUATION sans guichet précis — de la
+    // réponse associée. Sans cette agence, impossible de proposer la bonne
+    // liste de responsables (et le serveur rejetterait de toute façon un
+    // responsable extérieur à cette agence).
+    const idAgence = alerte.guichet?.id_agence ?? alerte.reponse?.id_agence ?? null;
     setFormTache({
       id_alerte: Number(alerte.id),
       titre: `Tâche — ${alerte.message?.slice(0, 50)}...`,
@@ -86,7 +113,7 @@ export const AlertesTachesPage = () => {
       date_echeance: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
       id_responsable: '',
     });
-    setModal({ alerteId: Number(alerte.id) });
+    setModal({ alerteId: Number(alerte.id), idAgence });
   };
 
   const handleSoumettreCreation = async (e: React.FormEvent) => {
@@ -100,7 +127,7 @@ export const AlertesTachesPage = () => {
         date_echeance: formTache.date_echeance,
         id_responsable: formTache.id_responsable,
       });
-      setModal({ alerteId: null });
+      setModal({ alerteId: null, idAgence: null });
       toast({ title: 'Tâche créée', description: 'La tâche corrective a bien été enregistrée.' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Erreur inconnue' });
@@ -255,8 +282,8 @@ export const AlertesTachesPage = () => {
                                     Guichet: {tache.alerte.guichet.nom_guichet}
                                   </p>
                                 )}
-                                {/* Boutons de transition */}
-                                <div className="flex gap-2 pt-1">
+                                {/* Boutons de transition + historique */}
+                                <div className="flex gap-2 pt-1 flex-wrap">
                                   {col.statut !== 'A_FAIRE' && (
                                     <button
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'EN_COURS' ? 'A_FAIRE' : 'EN_COURS')}
@@ -266,6 +293,13 @@ export const AlertesTachesPage = () => {
                                       ← Reculer
                                     </button>
                                   )}
+                                  <button
+                                    onClick={() => setHistoriqueOpenId(historiqueOpenId === tacheIdNum ? null : tacheIdNum)}
+                                    className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted/60 transition-colors"
+                                    title="Voir l'historique d'audit"
+                                  >
+                                    <History className="size-3" /> Historique
+                                  </button>
                                   {col.statut !== 'TERMINEE' && (
                                     <button
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'A_FAIRE' ? 'EN_COURS' : 'TERMINEE')}
@@ -276,6 +310,13 @@ export const AlertesTachesPage = () => {
                                     </button>
                                   )}
                                 </div>
+
+                                {/* Timeline d'audit — s'affiche sous la carte */}
+                                <AnimatePresence>
+                                  {historiqueOpenId === tacheIdNum && (
+                                    <TacheHistoriquePanel idTache={tacheIdNum} />
+                                  )}
+                                </AnimatePresence>
                               </MotionCard>
                             </motion.div>
                           );
@@ -301,7 +342,7 @@ export const AlertesTachesPage = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && setModal({ alerteId: null })}
+            onClick={(e) => e.target === e.currentTarget && setModal({ alerteId: null, idAgence: null })}
           >
             <motion.div
               initial={{ scale: 0.93, opacity: 0 }}
@@ -311,7 +352,7 @@ export const AlertesTachesPage = () => {
             >
               <div className="mb-5 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-foreground">Nouvelle tâche corrective</h3>
-                <button onClick={() => setModal({ alerteId: null })} className="text-muted-foreground hover:text-foreground">
+                <button onClick={() => setModal({ alerteId: null, idAgence: null })} className="text-muted-foreground hover:text-foreground">
                   <X className="size-5" />
                 </button>
               </div>
@@ -347,17 +388,26 @@ export const AlertesTachesPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">ID Responsable *</label>
-                  <Input
+                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Responsable *</label>
+                  <select
                     required
                     value={formTache.id_responsable}
                     onChange={(e) => setFormTache((p) => ({ ...p, id_responsable: e.target.value }))}
-                    placeholder="ID de l'agent responsable"
-                    className="h-11"
-                  />
+                    className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground focus:ring-1 focus:ring-ring disabled:opacity-60"
+                    disabled={responsablesPossibles.length === 0}
+                  >
+                    <option value="">
+                      {responsablesPossibles.length > 0 ? 'Sélectionner un responsable...' : 'Aucun agent disponible dans cette agence'}
+                    </option>
+                    {responsablesPossibles.map((agent: any) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.prenom} {agent.nom} — {agent.role}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="outline" className="flex-1" onClick={() => setModal({ alerteId: null })}>
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setModal({ alerteId: null, idAgence: null })}>
                     Annuler
                   </Button>
                   <Button type="submit" className="flex-1" disabled={saving}>
@@ -373,3 +423,77 @@ export const AlertesTachesPage = () => {
     </RequireAuth>
   );
 };
+
+// ============================================================================
+// SOUS-COMPOSANT — Timeline d'audit pour une tâche
+// Chargé à la demande via useQuery (lazy via 'enabled' sur l'idTache)
+// ============================================================================
+
+const STATUT_LABEL: Record<string, string> = {
+  CREATION: 'Création',
+  A_FAIRE: 'À faire',
+  EN_COURS: 'En cours',
+  TERMINEE: 'Terminée',
+};
+
+const STATUT_COLOR: Record<string, string> = {
+  CREATION: 'bg-muted text-muted-foreground',
+  A_FAIRE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  EN_COURS: 'bg-primary/10 text-primary',
+  TERMINEE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+};
+
+function TacheHistoriquePanel({ idTache }: { idTache: number }) {
+  const { data: historique, isLoading } = useQuery(getTacheHistorique, { id_tache: idTache });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.25 }}
+      className="overflow-hidden"
+    >
+      <div className="mt-3 rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+          <History className="size-3" /> Historique d'audit
+        </p>
+
+        {isLoading && (
+          <p className="text-xs text-muted-foreground italic">Chargement...</p>
+        )}
+
+        {!isLoading && (!historique || historique.length === 0) && (
+          <p className="text-xs text-muted-foreground italic">Aucun historique disponible.</p>
+        )}
+
+        {!isLoading && historique && historique.length > 0 && (
+          <ol className="relative ml-2 border-l border-border/50 pl-4 space-y-2.5">
+            {(historique as any[]).map((h, i) => (
+              <li key={h.id} className="relative">
+                <span className="absolute -left-[1.15rem] top-0.5 flex size-3 items-center justify-center">
+                  <span className="size-2 rounded-full bg-primary/60" />
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${STATUT_COLOR[h.ancien_statut] || 'bg-muted text-muted-foreground'}`}>
+                    {STATUT_LABEL[h.ancien_statut] || h.ancien_statut}
+                  </span>
+                  <ArrowRight className="size-2.5 text-muted-foreground" />
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${STATUT_COLOR[h.nouveau_statut] || 'bg-muted text-muted-foreground'}`}>
+                    {STATUT_LABEL[h.nouveau_statut] || h.nouveau_statut}
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {new Date(h.date_action).toLocaleString('fr-FR')} — {h.auteur?.prenom || ''} {h.auteur?.nom || h.auteur?.email || ''}
+                </p>
+                {h.commentaire && (
+                  <p className="text-[10px] italic text-muted-foreground">{h.commentaire}</p>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </motion.div>
+  );
+}

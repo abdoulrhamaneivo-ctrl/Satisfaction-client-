@@ -1,5 +1,6 @@
 // src/server/actions.ts
 import { HttpError } from 'wasp/server';
+import { prisma } from 'wasp/server';
 import { emailSender } from 'wasp/server/email';
 import {
   createProviderId,
@@ -201,6 +202,27 @@ export const assignAgent = async (args: any, context: any) => {
     throw new HttpError(400, "L'agent sélectionné n'appartient pas à l'agence de ce guichet.");
   }
 
+  // Détection de chevauchement horaire pour le même agent à la même date.
+  // Un chevauchement est défini par : deux créneaux [D1,F1] et [D2,F2] se
+  // chevauchent si D1 < F2 ET F1 > D2. On utilise la comparaison alphabétique
+  // des chaînes HH:MM (valide car format fixe avec zéro-padding).
+  const chevauchement = await context.entities.AffectationGuichet.findFirst({
+    where: {
+      id_agent: args.id_agent,
+      date_affectation: new Date(args.date),
+      heure_debut: { lt: args.heure_fin },
+      heure_fin: { gt: args.heure_debut },
+    },
+    include: { guichet: { select: { nom_guichet: true } } },
+  });
+
+  if (chevauchement) {
+    throw new HttpError(
+      409,
+      `Cet agent est déjà affecté au guichet « ${chevauchement.guichet?.nom_guichet || 'inconnu'} » de ${chevauchement.heure_debut} à ${chevauchement.heure_fin}. Les créneaux ne peuvent pas se chevaucher.`
+    );
+  }
+
   return context.entities.AffectationGuichet.create({
     data: {
       date_affectation: new Date(args.date),
@@ -290,7 +312,7 @@ export const soumettreAvis = async (args: any, context: any) => {
   const affectation = await context.entities.AffectationGuichet.findFirst({
     where: {
       id_guichet: guichet.id,
-      date_affectation: new Date().toISOString().split('T')[0],
+      date_affectation: new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z'),
       heure_debut: { lte: timeString },
       heure_fin: { gte: timeString }
     }
@@ -878,38 +900,264 @@ export const createCritere = async (
   // AGENT) pouvait créer des critères d'évaluation.
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
-  if (!args.libelle_critere?.trim()) {
+  const libelle = args.libelle_critere?.trim();
+  if (!libelle) {
     throw new HttpError(400, "Le libellé est requis.");
+  }
+  // Garde-fou de taille raisonnable : évite qu'un champ texte libre ne
+  // devienne un vecteur de saturation de la base ou d'affichage cassé
+  // dans l'UI (carte qui explose en hauteur, PNG d'affiche illisible...).
+  if (libelle.length > 300) {
+    throw new HttpError(400, 'Le libellé ne doit pas dépasser 300 caractères.');
+  }
+  const description = args.description?.trim() || null;
+  if (description && description.length > 1000) {
+    throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
+  }
+
+  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE'];
+  const typeReponse = args.type_reponse && typesValides.includes(args.type_reponse) ? args.type_reponse : 'SMILEY';
+  if (typeReponse === 'QCM' && !args.options_reponse?.trim()) {
+    throw new HttpError(400, 'Les choix (QCM) sont requis pour ce type de réponse.');
   }
 
   // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
 
-  const critere = await context.entities.Critere.create({
-    data: {
-      libelle_critere: args.libelle_critere.trim(),
-      description: args.description?.trim() || null,
-      type_reponse: args.type_reponse || "SMILEY",
-      options_reponse: args.options_reponse?.trim() || null,
-      // Isolation demandée : un critère créé par une entreprise reste
-      // invisible aux autres entreprises (getCriteres filtre dessus).
-      id_entreprise: context.user.id_entreprise,
-      // Rattachement optionnel à une ou plusieurs opérations (Service) :
-      // c'est ce qui permet au formulaire de collecte d'afficher une liste
-      // de questions différente selon l'opération choisie par le client
-      // (voir CollectePage.tsx / getFormDefinitionForGuichet). Sans ça, le
-      // critère n'apparaît que dans le fallback "critères de l'agence".
-      ...(args.serviceIds && args.serviceIds.length > 0
-        ? { services: { connect: args.serviceIds.map(id => ({ id })) } }
-        : {}),
-    },
-  });
+  // Dédoublonnage défensif : un id de service envoyé deux fois par erreur
+  // (double-clic, état client désynchronisé) ne doit pas produire un
+  // critère rattaché en double à la même opération.
+  const serviceIds = args.serviceIds ? Array.from(new Set(args.serviceIds)) : [];
+  if (serviceIds.length > 0) {
+    for (const idService of serviceIds) {
+      await assertServiceAccessible(context, idService);
+    }
+  }
 
-  await context.entities.AgenceCritere.create({
-    data: { id_agence: idAgence, id_critere: critere.id },
+  // Transaction atomique : Critere + AgenceCritere + rattachements
+  // CritereService doivent réussir ensemble ou pas du tout. Avant ce
+  // correctif, une erreur en cours de boucle (ex. coupure DB) pouvait
+  // laisser un critère "orphelin" — créé, mais sans AgenceCritere (donc
+  // invisible dans le catalogue actif) ni tous ses rattachements demandés.
+  const critere = await prisma.$transaction(async (tx) => {
+    const created = await tx.critere.create({
+      data: {
+        libelle_critere: libelle,
+        description,
+        type_reponse: typeReponse,
+        options_reponse: typeReponse === 'QCM' ? args.options_reponse?.trim() || null : null,
+        // Isolation demandée : un critère créé par une entreprise reste
+        // invisible aux autres entreprises (getCriteres filtre dessus).
+        id_entreprise: context.user.id_entreprise,
+      },
+    });
+
+    await tx.agenceCritere.create({
+      data: { id_agence: idAgence, id_critere: created.id },
+    });
+
+    // Rattachement optionnel à une ou plusieurs opérations (Service) : c'est
+    // ce qui permet au formulaire de collecte d'afficher une liste de
+    // questions différente selon l'opération choisie par le client (voir
+    // CollectePage.tsx / getFormDefinitionForGuichet). Sans ça, le critère
+    // n'apparaît que dans le fallback "critères de l'agence". On l'ajoute à
+    // la fin de chaque opération choisie (ordre = nombre de critères déjà
+    // présents dans cette opération, calculé DANS la transaction pour
+    // éviter qu'une création concurrente ne fausse le compte).
+    for (const idService of serviceIds) {
+      const nbExistants = await tx.critereService.count({ where: { id_service: idService } });
+      await tx.critereService.create({
+        data: { id_critere: created.id, id_service: idService, ordre: nbExistants },
+      });
+    }
+
+    return created;
   });
 
   return critere;
+};
+
+// ============================================================================
+// GLISSER-DÉPOSER DES QUESTIONS SUR LES OPÉRATIONS (type "todo")
+// ============================================================================
+// Permet à la DIRECTION / QUALITE / CHEF_AGENCE de déplacer une question
+// (Critere) vers une opération (Service), de la retirer, et de réordonner
+// librement les questions au sein d'une opération, comme une liste de tâches.
+
+/** Vérifie qu'un critère est bien visible/gérable par l'entreprise de l'utilisateur courant. */
+async function assertCritereAccessible(context: any, idCritere: number) {
+  const critere = await context.entities.Critere.findUnique({ where: { id: idCritere } });
+  if (!critere) throw new HttpError(404, 'Critère introuvable.');
+  if (critere.id_entreprise !== null && critere.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, 'Ce critère ne fait pas partie de votre entreprise.');
+  }
+  return critere;
+}
+
+/** Vérifie qu'une opération est bien visible/gérable par l'entreprise de l'utilisateur courant. */
+async function assertServiceAccessible(context: any, idService: number) {
+  const service = await context.entities.Service.findUnique({ where: { id: idService } });
+  if (!service) throw new HttpError(404, 'Opération introuvable.');
+  if (service.id_entreprise !== null && service.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Cette opération ne fait pas partie de votre entreprise.");
+  }
+  return service;
+}
+
+/**
+ * Déplace une question (critère) vers une opération, à une position donnée
+ * (glisser-déposer depuis le vivier "non assignées" vers une colonne
+ * d'opération, ou d'une opération vers une autre). Si la question était déjà
+ * rattachée à une autre opération, elle en est retirée (une question ne
+ * peut être active que dans les opérations où elle est explicitement
+ * placée). `ordre` est la position cible dans la colonne de destination ;
+ * les autres questions de cette colonne sont décalées en conséquence.
+ */
+export const moveCritereToService = async (
+  args: { id_critere: number; id_service: number; ordre: number },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idCritere = Number(args.id_critere);
+  const idService = Number(args.id_service);
+  const ordreDemande = Number(args.ordre);
+  if (!Number.isInteger(idCritere) || !Number.isInteger(idService)) {
+    throw new HttpError(400, 'Identifiants invalides.');
+  }
+  if (!Number.isFinite(ordreDemande)) {
+    throw new HttpError(400, 'Position invalide.');
+  }
+
+  await assertCritereAccessible(context, idCritere);
+  await assertServiceAccessible(context, idService);
+
+  // Transaction atomique : lecture de l'ordre actuel + suppression des
+  // autres rattachements + réécriture complète de l'ordre de la colonne
+  // de destination doivent former une seule opération indivisible. Sans
+  // transaction, une erreur en cours de route (ex. la question est
+  // retirée des autres opérations mais l'upsert échoue) pouvait faire
+  // disparaître une question de partout — perte de donnée silencieuse.
+  await prisma.$transaction(async (tx) => {
+    const existants = await tx.critereService.findMany({
+      where: { id_service: idService },
+      orderBy: { ordre: 'asc' },
+    });
+
+    // On retire la question si elle était déjà dans cette colonne, puis on
+    // la réinsère à la position demandée (permet aussi bien un simple
+    // réordonnancement au sein d'une même opération qu'un déplacement
+    // depuis une autre opération).
+    const sansLaQuestion = existants.filter((cs) => cs.id_critere !== idCritere);
+    const position = Math.max(0, Math.min(Math.round(ordreDemande), sansLaQuestion.length));
+    const idsOrdonnes = [
+      ...sansLaQuestion.slice(0, position).map((cs) => cs.id_critere),
+      idCritere,
+      ...sansLaQuestion.slice(position).map((cs) => cs.id_critere),
+    ];
+
+    await tx.critereService.deleteMany({
+      where: { id_critere: idCritere, id_service: { not: idService } },
+    });
+
+    // Écritures séquentielles (et non en parallèle) À DESSEIN à l'intérieur
+    // de la transaction : des upserts concurrents sur les mêmes lignes
+    // peuvent se verrouiller mutuellement (deadlock Postgres) si deux
+    // requêtes similaires s'exécutent en même temps. Le nombre de questions
+    // par opération reste faible (quelques dizaines au plus), le coût de la
+    // séquentialité est négligeable face au gain de fiabilité.
+    for (let index = 0; index < idsOrdonnes.length; index++) {
+      const idCritereCourant = idsOrdonnes[index];
+      await tx.critereService.upsert({
+        where: { id_critere_id_service: { id_critere: idCritereCourant, id_service: idService } },
+        create: { id_critere: idCritereCourant, id_service: idService, ordre: index },
+        update: { ordre: index },
+      });
+    }
+  });
+
+  return { success: true };
+};
+
+/** Retire une question d'une opération (retour dans le vivier "non assignées"). */
+export const removeCritereFromService = async (
+  args: { id_critere: number; id_service: number },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idCritere = Number(args.id_critere);
+  const idService = Number(args.id_service);
+  if (!Number.isInteger(idCritere) || !Number.isInteger(idService)) {
+    throw new HttpError(400, 'Identifiants invalides.');
+  }
+
+  await assertCritereAccessible(context, idCritere);
+  await assertServiceAccessible(context, idService);
+
+  await context.entities.CritereService.deleteMany({
+    where: { id_critere: idCritere, id_service: idService },
+  });
+
+  return { success: true };
+};
+
+/**
+ * Réordonnancement en masse d'une opération : reçoit la liste complète des
+ * ids de critères dans le nouvel ordre souhaité (résultat d'un drag & drop
+ * réordonnant plusieurs cartes à la fois côté client).
+ */
+export const reorderCriteresInService = async (
+  args: { id_service: number; orderedCritereIds: number[] },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idService = Number(args.id_service);
+  if (!Number.isInteger(idService)) {
+    throw new HttpError(400, 'Identifiant d\'opération invalide.');
+  }
+  if (!Array.isArray(args.orderedCritereIds) || args.orderedCritereIds.length === 0) {
+    throw new HttpError(400, 'La liste des questions à réordonner est requise.');
+  }
+  const orderedIds = args.orderedCritereIds.map(Number);
+  if (orderedIds.some((id) => !Number.isInteger(id))) {
+    throw new HttpError(400, 'Liste de critères invalide.');
+  }
+  // Garde-fou : des ids en double dans la liste indiqueraient un état
+  // client corrompu (deux cartes avec le même id affichées à la fois) —
+  // mieux vaut refuser explicitement que réordonnancer sur une base fausse.
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    throw new HttpError(400, 'La liste contient des doublons.');
+  }
+
+  await assertServiceAccessible(context, idService);
+
+  // Vérifie que TOUS les critères fournis appartiennent bien déjà à cette
+  // opération avant d'écrire quoi que ce soit : évite qu'un client
+  // désynchronisé (onglet resté ouvert, état obsolète) ne fasse passer
+  // silencieusement un ordre partiel ou incorrect.
+  const rattaches = await context.entities.CritereService.findMany({
+    where: { id_service: idService, id_critere: { in: orderedIds } },
+    select: { id_critere: true },
+  });
+  if (rattaches.length !== orderedIds.length) {
+    throw new HttpError(409, "La liste fournie ne correspond plus à l'état actuel de cette opération. Rechargez la page.");
+  }
+
+  await prisma.$transaction(
+    orderedIds.map((idCritere, index) =>
+      prisma.critereService.updateMany({
+        where: { id_critere: idCritere, id_service: idService },
+        data: { ordre: index },
+      })
+    )
+  );
+
+  return { success: true };
 };
 
 // ============================================================================
@@ -982,7 +1230,7 @@ export const createTacheCorrective = async (
     throw new HttpError(400, "Le responsable désigné n'appartient pas à l'agence de cette alerte.");
   }
 
-  return context.entities.TacheCorrective.create({
+  const tache = await context.entities.TacheCorrective.create({
     data: {
       titre: args.titre.trim(),
       description: args.description?.trim() || null,
@@ -992,6 +1240,19 @@ export const createTacheCorrective = async (
       id_responsable: args.id_responsable,
     },
   });
+
+  // Enregistrement de la création dans l'historique d'audit
+  await context.entities.TacheCorrectiveHistorique.create({
+    data: {
+      id_tache: tache.id,
+      ancien_statut: 'CREATION',
+      nouveau_statut: 'A_FAIRE',
+      commentaire: `Tâche créée par ${(context.user as any).email || context.user.id}`,
+      id_auteur: context.user.id,
+    },
+  });
+
+  return tache;
 };
 
 export const updateStatutTache = async (
@@ -1020,13 +1281,28 @@ export const updateStatutTache = async (
   if (!idAgenceTache) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");
   await assertAgenceAccess(context, context.entities, idAgenceTache, 'tâche corrective');
 
-  return context.entities.TacheCorrective.update({
+  const ancienStatut = tache.statut_tache;
+
+  const updated = await context.entities.TacheCorrective.update({
     where: { id: BigInt(args.id) },
     data: {
       statut_tache: args.statut,
       ...(args.statut === 'TERMINEE' ? { date_cloture: new Date() } : {}),
     },
   });
+
+  // Enregistrement du changement de statut dans l'historique d'audit
+  await context.entities.TacheCorrectiveHistorique.create({
+    data: {
+      id_tache: BigInt(args.id),
+      ancien_statut: ancienStatut,
+      nouveau_statut: args.statut,
+      commentaire: args.statut === 'TERMINEE' ? 'Tâche clôturée' : null,
+      id_auteur: context.user.id,
+    },
+  });
+
+  return updated;
 };
 
 export const marquerAlerteTraitee = async (args: { id_alerte: number }, context: any) => {
@@ -1073,5 +1349,266 @@ export const updatePlanPricing = async (
     where: { id: planId },
     update: { amountFcfa },
     create: { id: planId, amountFcfa },
+  });
+};
+
+// ============================================================================
+// SUPPRESSION D'OBJECTIF (Module 5 — Planification)
+// ============================================================================
+
+export const deleteObjectif = async (args: { id: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE']);
+
+  const objectif = await context.entities.Objectif.findUnique({
+    where: { id: args.id },
+  });
+  if (!objectif) throw new HttpError(404, 'Objectif introuvable.');
+
+  // Vérifier que l'objectif appartient bien à une agence de l'entreprise
+  // de l'utilisateur courant (isolation multi-tenant).
+  await assertAgenceAccess(context, context.entities, objectif.id_agence, 'objectif');
+
+  return context.entities.Objectif.delete({ where: { id: args.id } });
+};
+
+type UpsertBrandConfigArgs = {
+  platform_name: string;
+  platform_description?: string;
+  logo_url?: string | null;
+  logo_dark_url?: string | null;
+  favicon_url?: string | null;
+  color_background: string;
+  color_foreground: string;
+  color_card: string;
+  color_card_foreground: string;
+  color_popover: string;
+  color_popover_foreground: string;
+  color_primary: string;
+  color_primary_foreground: string;
+  color_secondary: string;
+  color_secondary_foreground: string;
+  color_accent: string;
+  color_accent_foreground: string;
+  color_muted: string;
+  color_muted_foreground: string;
+  color_destructive: string;
+  color_destructive_foreground: string;
+  color_success: string;
+  color_success_foreground: string;
+  color_warning: string;
+  color_warning_foreground: string;
+  color_border: string;
+  color_input: string;
+  color_ring: string;
+  border_radius: string;
+  shadow_style: 'NONE' | 'DEFAULT' | 'SHARP' | 'GLOW';
+  font_family: string;
+  font_url?: string | null;
+  form_title: string;
+  form_subtitle: string;
+  form_thank_you: string;
+  qr_slogan: string;
+  ussd_help_text: string;
+  hide_cxsat_branding: boolean;
+};
+
+export const upsertBrandConfig = async (args: UpsertBrandConfigArgs, context: any) => {
+  requireAuth(context);
+  // Faille corrigée : la charte graphique (BrandConfig) est une ressource
+  // au niveau ENTREPRISE (une seule ligne par id_entreprise, appliquée à
+  // TOUTES les agences du réseau — voir BrandContext.tsx côté client). Un
+  // CHEF_AGENCE ne gère qu'une seule agence et ne doit pas pouvoir changer
+  // les couleurs, le logo, les textes du formulaire ou la police pour
+  // l'ensemble des autres agences de l'entreprise. Seuls les rôles à portée
+  // entreprise (DIRECTION/QUALITE) peuvent modifier la marque.
+  requireRole(context, ['DIRECTION', 'QUALITE']);
+
+  const idEntreprise = context.user.id_entreprise;
+  if (!idEntreprise) {
+    throw new HttpError(403, "L'utilisateur n'est rattaché à aucune entreprise.");
+  }
+
+  // Validation basique des formats HSL (regex simple : "H S% L%")
+  const isHslFormat = (val: string) => /^\d+\s+\d+%\s+\d+(\.\d+)?%$/.test(val.trim());
+  const colorsToValidate = [
+    args.color_background, args.color_foreground,
+    args.color_card, args.color_card_foreground,
+    args.color_popover, args.color_popover_foreground,
+    args.color_primary, args.color_primary_foreground,
+    args.color_secondary, args.color_secondary_foreground,
+    args.color_accent, args.color_accent_foreground,
+    args.color_muted, args.color_muted_foreground,
+    args.color_destructive, args.color_destructive_foreground,
+    args.color_success, args.color_success_foreground,
+    args.color_warning, args.color_warning_foreground,
+    args.color_border, args.color_input, args.color_ring
+  ];
+
+  for (const col of colorsToValidate) {
+    if (!isHslFormat(col)) {
+      throw new HttpError(400, `La couleur "${col}" n'est pas au format HSL attendu ("H S% L%").`);
+    }
+  }
+
+  // Garde-fous de taille raisonnable sur les champs texte libres : évite
+  // qu'un titre ou un slogan démesuré ne casse la mise en page du
+  // formulaire public de collecte (CollectePage), consultable par tous les
+  // clients scannant un QR code.
+  const textFields: Array<[string, string | undefined, number]> = [
+    ['platform_name', args.platform_name, 80],
+    ['platform_description', args.platform_description, 200],
+    ['form_title', args.form_title, 150],
+    ['form_subtitle', args.form_subtitle, 200],
+    ['form_thank_you', args.form_thank_you, 200],
+    ['qr_slogan', args.qr_slogan, 100],
+    ['ussd_help_text', args.ussd_help_text, 150],
+  ];
+  for (const [label, value, max] of textFields) {
+    if (value && value.length > max) {
+      throw new HttpError(400, `Le champ "${label}" ne doit pas dépasser ${max} caractères.`);
+    }
+  }
+  if (!args.platform_name?.trim()) {
+    throw new HttpError(400, 'Le nom de la plateforme est requis.');
+  }
+
+  // Garde-fou : les logos/favicon sont envoyés en base64 (data URL) depuis
+  // le client, plafonnés à 150 Ko côté formulaire — mais un appel API
+  // direct pourrait contourner cette limite client. On la revérifie ici
+  // (150 Ko encodés ≈ 200 000 caractères en base64) pour éviter qu'une
+  // charte graphique ne fasse exploser la taille de chaque page de la
+  // plateforme (chargée sur CHAQUE page vue par CHAQUE utilisateur/client).
+  const MAX_DATA_URL_LENGTH = 205_000;
+  for (const [label, value] of [
+    ['logo_url', args.logo_url],
+    ['logo_dark_url', args.logo_dark_url],
+    ['favicon_url', args.favicon_url],
+  ] as const) {
+    if (value && value.length > MAX_DATA_URL_LENGTH) {
+      throw new HttpError(400, `L'image "${label}" est trop volumineuse (max ~150 Ko).`);
+    }
+  }
+
+  // Faille corrigée : font_url était injecté tel quel dans une règle CSS
+  // `@import url('${font_url}')` côté client (BrandContext.tsx). Une valeur
+  // contenant un guillemet simple aurait permis d'injecter du CSS arbitraire
+  // sur TOUTES les pages de l'entreprise (et donc, via CollectePage, sur le
+  // formulaire vu par les clients finaux non-authentifiés). On restreint
+  // désormais font_url à une URL https vers une feuille de style de police,
+  // sans caractères permettant de sortir du contexte `url('...')`.
+  if (args.font_url) {
+    const url = args.font_url.trim();
+    const isSafeHttpsCssUrl = /^https:\/\/[a-zA-Z0-9.\-]+\/[^\s'"()]*$/.test(url) && url.length <= 500;
+    if (!isSafeHttpsCssUrl) {
+      throw new HttpError(400, "L'URL de police doit être une URL https valide (sans guillemets ni espaces).");
+    }
+  }
+
+  // Le type TS de shadow_style n'est qu'une contrainte de compilation :
+  // un appel API direct (hors UI) pourrait envoyer n'importe quelle chaîne.
+  // On revalide donc l'énumération à l'exécution.
+  const SHADOW_STYLES_VALIDES = ['NONE', 'DEFAULT', 'SHARP', 'GLOW'];
+  if (!SHADOW_STYLES_VALIDES.includes(args.shadow_style)) {
+    throw new HttpError(400, "Style d'ombre invalide.");
+  }
+
+  // Les logos/favicon doivent rester des data-URLs d'image (upload direct,
+  // voir handleLogoUpload côté client) — jamais un schéma exotique
+  // (javascript:, vbscript:...) qui n'a rien à faire dans un `<img src>`
+  // ou un `<link href>` injecté sur chaque page de la plateforme.
+  for (const [label, value] of [
+    ['logo_url', args.logo_url],
+    ['logo_dark_url', args.logo_dark_url],
+    ['favicon_url', args.favicon_url],
+  ] as const) {
+    if (value && !/^data:image\/(png|jpe?g|svg\+xml|webp|gif|x-icon);base64,/.test(value)) {
+      throw new HttpError(400, `L'image "${label}" doit être un fichier uploadé valide.`);
+    }
+  }
+
+  return context.entities.BrandConfig.upsert({
+    where: { id_entreprise: idEntreprise },
+    update: {
+      platform_name: args.platform_name,
+      platform_description: args.platform_description ?? "Plateforme de satisfaction client",
+      logo_url: args.logo_url,
+      logo_dark_url: args.logo_dark_url,
+      favicon_url: args.favicon_url,
+      color_background: args.color_background,
+      color_foreground: args.color_foreground,
+      color_card: args.color_card,
+      color_card_foreground: args.color_card_foreground,
+      color_popover: args.color_popover,
+      color_popover_foreground: args.color_popover_foreground,
+      color_primary: args.color_primary,
+      color_primary_foreground: args.color_primary_foreground,
+      color_secondary: args.color_secondary,
+      color_secondary_foreground: args.color_secondary_foreground,
+      color_accent: args.color_accent,
+      color_accent_foreground: args.color_accent_foreground,
+      color_muted: args.color_muted,
+      color_muted_foreground: args.color_muted_foreground,
+      color_destructive: args.color_destructive,
+      color_destructive_foreground: args.color_destructive_foreground,
+      color_success: args.color_success,
+      color_success_foreground: args.color_success_foreground,
+      color_warning: args.color_warning,
+      color_warning_foreground: args.color_warning_foreground,
+      color_border: args.color_border,
+      color_input: args.color_input,
+      color_ring: args.color_ring,
+      border_radius: args.border_radius,
+      shadow_style: args.shadow_style,
+      font_family: args.font_family,
+      font_url: args.font_url,
+      form_title: args.form_title,
+      form_subtitle: args.form_subtitle,
+      form_thank_you: args.form_thank_you,
+      qr_slogan: args.qr_slogan,
+      ussd_help_text: args.ussd_help_text,
+      hide_cxsat_branding: args.hide_cxsat_branding,
+    },
+    create: {
+      id_entreprise: idEntreprise,
+      platform_name: args.platform_name,
+      platform_description: args.platform_description ?? "Plateforme de satisfaction client",
+      logo_url: args.logo_url,
+      logo_dark_url: args.logo_dark_url,
+      favicon_url: args.favicon_url,
+      color_background: args.color_background,
+      color_foreground: args.color_foreground,
+      color_card: args.color_card,
+      color_card_foreground: args.color_card_foreground,
+      color_popover: args.color_popover,
+      color_popover_foreground: args.color_popover_foreground,
+      color_primary: args.color_primary,
+      color_primary_foreground: args.color_primary_foreground,
+      color_secondary: args.color_secondary,
+      color_secondary_foreground: args.color_secondary_foreground,
+      color_accent: args.color_accent,
+      color_accent_foreground: args.color_accent_foreground,
+      color_muted: args.color_muted,
+      color_muted_foreground: args.color_muted_foreground,
+      color_destructive: args.color_destructive,
+      color_destructive_foreground: args.color_destructive_foreground,
+      color_success: args.color_success,
+      color_success_foreground: args.color_success_foreground,
+      color_warning: args.color_warning,
+      color_warning_foreground: args.color_warning_foreground,
+      color_border: args.color_border,
+      color_input: args.color_input,
+      color_ring: args.color_ring,
+      border_radius: args.border_radius,
+      shadow_style: args.shadow_style,
+      font_family: args.font_family,
+      font_url: args.font_url,
+      form_title: args.form_title,
+      form_subtitle: args.form_subtitle,
+      form_thank_you: args.form_thank_you,
+      qr_slogan: args.qr_slogan,
+      ussd_help_text: args.ussd_help_text,
+      hide_cxsat_branding: args.hide_cxsat_branding,
+    },
   });
 };

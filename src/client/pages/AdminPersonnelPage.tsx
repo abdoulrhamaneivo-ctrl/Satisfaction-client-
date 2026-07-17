@@ -33,16 +33,36 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
+import { useToast } from '../hooks/use-toast';
 
 export const AdminPersonnelPage = () => {
   const { data: user } = useAuth();
-  const [selectedAgenceId, setSelectedAgenceId] = useState<number>(
-    user?.id_agence ?? 1,
+  const { toast } = useToast();
+  // Correctif : "?? 1" était un identifiant d'agence codé en dur. Pour une
+  // DIRECTION dont l'utilisateur n'a pas d'id_agence propre, ça pointait
+  // vers l'agence #1 — potentiellement une agence d'une AUTRE entreprise
+  // sur la plateforme — avant même que la liste réelle des agences ne soit
+  // chargée. On démarre désormais sans sélection tant qu'on ne connaît pas
+  // une agence légitime, et on la déduit dès qu'elle est disponible.
+  const [selectedAgenceId, setSelectedAgenceId] = useState<number | null>(
+    user?.id_agence ?? null,
   );
-  const { data: agents } = useQuery(getAgentsByAgence, {
-    id_agence: selectedAgenceId,
-  });
-  const { data: agences } = useQuery(getAgences);
+  const { data: agences } = useQuery(getAgences, { enabled: user?.role === 'DIRECTION' });
+
+  useEffect(() => {
+    if (selectedAgenceId !== null) return;
+    if (user?.id_agence) {
+      setSelectedAgenceId(user.id_agence);
+    } else if (agences && agences.length > 0) {
+      setSelectedAgenceId(agences[0].id);
+    }
+  }, [user?.id_agence, agences, selectedAgenceId]);
+
+  const { data: agents } = useQuery(
+    getAgentsByAgence,
+    { id_agence: selectedAgenceId ?? 0 },
+    { enabled: selectedAgenceId !== null }
+  );
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -78,9 +98,14 @@ export const AdminPersonnelPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedAgenceId) {
+      toast({ variant: 'destructive', title: 'Agence requise', description: "Sélectionnez d'abord une agence." });
+      return;
+    }
     try {
       if (editingId) {
         await updateAgent({ id: editingId, ...formData, id_agence: selectedAgenceId });
+        toast({ title: 'Agent mis à jour', description: `${formData.prenom} ${formData.nom} a bien été modifié(e).` });
       } else {
         await inviteAgent({
           email: formData.email,
@@ -90,13 +115,26 @@ export const AdminPersonnelPage = () => {
           role: formData.role,
           telephone: formData.telephone,
         });
+        toast({
+          title: formData.role === 'CHEF_AGENCE' ? 'Invitation envoyée' : 'Agent créé',
+          description: `${formData.prenom} ${formData.nom} a bien été ajouté(e).`,
+        });
       }
       setFormData({ nom: '', prenom: '', email: '', telephone: '', role: 'AGENT' });
       setEditingId(null);
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
-    } catch (error) {
-      console.error("Erreur lors de la création ou de la mise à jour de l'agent", error);
+    } catch (error: any) {
+      // Correctif : cette erreur (ex. email déjà utilisé, champ requis
+      // manquant, agence invalide) n'était auparavant visible que dans la
+      // console développeur — l'utilisateur du formulaire ne voyait RIEN se
+      // passer et pouvait légitimement croire que sa saisie avait été prise
+      // en compte alors qu'elle avait échoué silencieusement.
+      toast({
+        variant: 'destructive',
+        title: "Erreur",
+        description: error?.message || "Une erreur est survenue lors de l'enregistrement de l'agent.",
+      });
     }
   };
 
@@ -119,20 +157,22 @@ export const AdminPersonnelPage = () => {
   const handleDelete = async (id: number) => {
     try {
       await deleteAgent({ id });
+      toast({ title: 'Agent suspendu', description: "Le compte a été désactivé et ne peut plus se connecter." });
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
-    } catch (error) {
-      console.error("Erreur lors de la suspension de l'agent", error);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de suspendre cet agent." });
     }
   };
 
   const handleReactivate = async (id: number) => {
     try {
       await reactivateAgent({ id });
+      toast({ title: 'Agent réactivé', description: 'Le compte peut à nouveau se connecter.' });
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
-    } catch (error) {
-      console.error("Erreur lors de la réactivation de l'agent", error);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de réactiver cet agent." });
     }
   };
 
@@ -151,7 +191,7 @@ export const AdminPersonnelPage = () => {
             actions={
               user?.role === 'DIRECTION' && agences ? (
                 <Select
-                  value={String(selectedAgenceId)}
+                  value={selectedAgenceId !== null ? String(selectedAgenceId) : undefined}
                   onValueChange={(v) => setSelectedAgenceId(Number(v))}
                 >
                   <SelectTrigger className="h-10 min-w-56">

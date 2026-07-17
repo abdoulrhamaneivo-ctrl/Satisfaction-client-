@@ -10,6 +10,7 @@ import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { Settings2 } from 'lucide-react';
 import { ObjectifsPanel } from '../components/ObjectifsPanel';
+import { QuestionsParOperation } from '../components/QuestionsParOperation';
 import {
   Select,
   SelectContent,
@@ -22,12 +23,38 @@ import { RequireAuth } from '../components/RequireAuth';
 export const ConfigurationCriteresPage = () => {
   const { data: user } = useAuth();
   const { toast } = useToast();
-  const [selectedAgenceId, setSelectedAgenceId] = useState<number>(user?.id_agence ?? 1);
+  const [selectedAgenceId, setSelectedAgenceId] = useState<number | undefined>(user?.id_agence || undefined);
 
   const { data: criteres, isLoading: loadingCriteres } = useQuery(getCriteres);
-  const { data: agenceCriteresIds, isLoading: loadingActive } = useQuery(getAgenceCriteres, { id_agence: selectedAgenceId });
+  const { data: agenceCriteresIds, isLoading: loadingActive } = useQuery(
+    getAgenceCriteres,
+    { id_agence: selectedAgenceId },
+    { enabled: selectedAgenceId !== undefined }
+  );
   const { data: agences } = useQuery(getAgences);
   const { data: services } = useQuery(getServices);
+
+  React.useEffect(() => {
+    if (agences && agences.length > 0) {
+      const isValide = agences.some((ag: any) => ag.id === selectedAgenceId);
+      if (!isValide) {
+        setSelectedAgenceId(agences[0].id);
+      }
+    }
+  }, [agences, selectedAgenceId]);
+
+  // Filet de sécurité : si l'utilisateur connecté change (changement de
+  // compte dans le même onglet, sans rechargement complet de la page), on
+  // resynchronise l'agence sélectionnée sur celle du nouvel utilisateur.
+  // Sans ça, un id_agence appartenant à l'ancien compte pouvait rester en
+  // mémoire dans le state React et être envoyé au serveur pour le nouveau
+  // compte, provoquant un rejet légitime mais déroutant ("cette ressource
+  // appartient à une autre entreprise") côté RLS.
+  const currentUserId = user?.id;
+  React.useEffect(() => {
+    setSelectedAgenceId(user?.id_agence || undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
 
   const [nouveauLibelle, setNomLibelle] = useState('');
   const [nouvelleDesc, setNouvelleDesc] = useState('');
@@ -41,6 +68,7 @@ export const ConfigurationCriteresPage = () => {
   const activeIds: number[] = agenceCriteresIds || [];
 
   const handleToggle = async (idCritere: number, checked: boolean) => {
+    if (selectedAgenceId === undefined) return;
     try {
       await toggleCritereAgence({ id_critere: idCritere, id_agence: selectedAgenceId, active: checked });
     } catch (err: any) {
@@ -54,7 +82,7 @@ export const ConfigurationCriteresPage = () => {
 
   const handleCreateCustom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nouveauLibelle.trim()) return;
+    if (!nouveauLibelle.trim() || selectedAgenceId === undefined) return;
     setLoadingCreation(true);
     try {
       await createCritere({
@@ -131,6 +159,22 @@ export const ConfigurationCriteresPage = () => {
             ) : undefined
           }
         />
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Organiser vos questions par opération</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Glissez-déposez une question vers une opération (ex. Retrait, Dépôt...) pour l'y rattacher,
+              réordonnez-les comme une liste de tâches, ou utilisez le bouton <strong>+</strong> de chaque
+              colonne pour en ajouter une directement.
+            </p>
+          </div>
+          {selectedAgenceId !== undefined ? (
+            <QuestionsParOperation selectedAgenceId={selectedAgenceId} />
+          ) : (
+            <div className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          )}
+        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Colonne principale : liste des critères */}
@@ -304,7 +348,9 @@ export const ConfigurationCriteresPage = () => {
             </MotionCard>
 
             {/* Panneau Objectifs (Module 1 — visible pour DIRECTION et QUALITE) */}
-            <ObjectifsPanel selectedAgenceId={selectedAgenceId} />
+            {selectedAgenceId !== undefined && (
+              <ObjectifsPanel selectedAgenceId={selectedAgenceId} />
+            )}
           </div>
         </div>
       </motion.div>

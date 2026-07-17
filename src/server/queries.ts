@@ -2,11 +2,13 @@
 import { HttpError } from 'wasp/server';
 import {
   requireAuth,
+  requireRole,
   buildAgenceFilter,
   assertAgenceAccess,
   resolveAgenceId,
   resolveAgenceScope,
 } from './middleware/rowLevelSecurity';
+import { regrouperParSoumission, compterAvis, scoreMoyenParAvis } from './soumissions';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
 // PAS validé au runtime par Wasp. On le vérifie explicitement partout où on
@@ -117,11 +119,18 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
     if (args.endDate) {
       whereClause.date_reponse.lte = new Date(args.endDate);
     }
+  } else {
+    // Par défaut, limiter aux 90 derniers jours pour protéger le dashboard
+    // contre les timeouts sur une base mature.
+    const debut90j = new Date();
+    debut90j.setDate(debut90j.getDate() - 90);
+    whereClause.date_reponse = { gte: debut90j };
   }
 
   return context.entities.Reponse.findMany({
     where: whereClause,
     orderBy: { date_reponse: 'desc' },
+    take: 500, // sécurité : plafond pour la carte dashboard
     include: {
       guichet: true,
       critere: true,
@@ -140,6 +149,163 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
       },
     },
   });
+};
+
+// ============================================================================
+// AVIS REGROUPÉS PAR SOUMISSION — VERSION PAGINÉE (take/skip)
+// ============================================================================
+// La pagination est appliquée après regroupement côté mémoire sur la fenêtre
+// chargée. Retourne { avis, total, hasMore, page, pageSize }.
+// ============================================================================
+
+type GetAvisGroupesArgs = GetReponsesArgs & {
+  page?: number;      // 1-indexed, défaut 1
+  pageSize?: number;  // défaut 20, max 100
+};
+
+export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => {
+  requireAuth(context);
+
+  const page = Math.max(1, Number(args.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(args.pageSize) || 20));
+
+  let scopeFilter: any;
+  if (args.id_agence !== undefined) {
+    const idAgence = requireNumber(args.id_agence, 'id_agence');
+    await assertAgenceAccess(context, context.entities, idAgence, 'agence');
+    scopeFilter = { id_agence: idAgence };
+  } else {
+    scopeFilter = await buildAgenceFilter(context, context.entities);
+  }
+
+  const whereClause: any = {
+    ...scopeFilter,
+    ...(args.id_guichet ? { id_guichet: args.id_guichet } : {}),
+    ...(args.id_service ? { id_service: args.id_service } : {}),
+  };
+
+  if (args.startDate || args.endDate) {
+    whereClause.date_reponse = {};
+    if (args.startDate) whereClause.date_reponse.gte = new Date(args.startDate);
+    if (args.endDate) whereClause.date_reponse.lte = new Date(args.endDate);
+  }
+
+  // Fenêtre glissante : on charge page * pageSize * 4 lignes pour compenser
+  // le regroupement (formulaire à 4 critères = 4 lignes pour 1 avis).
+  const windowSize = page * pageSize * 4;
+
+  const brutes = await context.entities.Reponse.findMany({
+    where: whereClause,
+    orderBy: { date_reponse: 'desc' },
+    take: windowSize,
+    include: {
+      guichet: true,
+      critere: true,
+      service: true,
+      agence: { select: { id: true, nom_agence: true, commune: true } },
+      agent: { select: { id: true, username: true, email: true, nom: true, prenom: true } },
+    },
+  });
+
+  const groupes = regrouperParSoumission(brutes).map((g) => {
+    const premiere = g.reponses[0];
+    const scores = g.reponses.map((r: any) => r.score_brut);
+    const scoreMin = Math.min(...scores);
+    const scoreMoyen = parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2));
+
+    return {
+      id_soumission: g.id_soumission ?? g.cle,
+      date_reponse: premiere.date_reponse,
+      commentaire_texte: premiere.commentaire_texte,
+      id_canal: premiere.id_canal,
+      guichet: premiere.guichet,
+      service: premiere.service,
+      agence: premiere.agence,
+      agent: premiere.agent,
+      score_min: scoreMin,
+      score_moyen: scoreMoyen,
+      reponses: g.reponses.map((r: any) => ({
+        id: r.id,
+        score_brut: r.score_brut,
+        critere: r.critere,
+      })),
+    };
+  });
+
+  const filtered = args.score
+    ? groupes.filter((g) => g.reponses.some((r) => r.score_brut === Number(args.score)))
+    : groupes;
+
+  const sorted = filtered.sort(
+    (a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime()
+  );
+
+  const start = (page - 1) * pageSize;
+  const paginated = sorted.slice(start, start + pageSize);
+  const hasMore = sorted.length > start + pageSize;
+
+  return { avis: paginated, total: sorted.length, hasMore, page, pageSize };
+};
+
+// ============================================================================
+// EXPORT AVIS COMPLET (pour CSV — sans pagination, limité à 20 000 lignes)
+// ============================================================================
+
+export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => {
+  requireAuth(context);
+
+  let scopeFilter: any;
+  if (args.id_agence !== undefined) {
+    const idAgence = requireNumber(args.id_agence, 'id_agence');
+    await assertAgenceAccess(context, context.entities, idAgence, 'agence');
+    scopeFilter = { id_agence: idAgence };
+  } else {
+    scopeFilter = await buildAgenceFilter(context, context.entities);
+  }
+
+  const whereClause: any = {
+    ...scopeFilter,
+    ...(args.id_guichet ? { id_guichet: args.id_guichet } : {}),
+    ...(args.id_service ? { id_service: args.id_service } : {}),
+  };
+
+  if (args.startDate || args.endDate) {
+    whereClause.date_reponse = {};
+    if (args.startDate) whereClause.date_reponse.gte = new Date(args.startDate);
+    if (args.endDate) whereClause.date_reponse.lte = new Date(args.endDate);
+  }
+
+  const brutes = await context.entities.Reponse.findMany({
+    where: whereClause,
+    orderBy: { date_reponse: 'desc' },
+    take: 20000,
+    include: {
+      guichet: true,
+      critere: true,
+      service: true,
+      agence: { select: { id: true, nom_agence: true, commune: true } },
+      agent: { select: { id: true, nom: true, prenom: true } },
+    },
+  });
+
+  return regrouperParSoumission(brutes)
+    .map((g) => {
+      const premiere = g.reponses[0];
+      const scores = g.reponses.map((r: any) => r.score_brut);
+      const scoreMoyen = parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2));
+      return {
+        id_soumission: g.id_soumission ?? g.cle,
+        date_reponse: premiere.date_reponse,
+        guichet: premiere.guichet?.nom_guichet || '',
+        agence: premiere.agence?.nom_agence || '',
+        service: premiere.service?.libelle_service || '',
+        agent: premiere.agent ? `${premiere.agent.prenom || ''} ${premiere.agent.nom || ''}`.trim() : '',
+        score_moyen: scoreMoyen,
+        commentaire: premiere.commentaire_texte || '',
+        criteres: g.reponses.map((r: any) => `${r.critere?.libelle_critere || 'Critère'}:${r.score_brut}`).join(' | '),
+      };
+    })
+    .sort((a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime());
 };
 
 export const getAgentsByAgence = async (args: { id_agence: number }, context: any) => {
@@ -244,13 +410,19 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
     include: {
       services: {
         include: {
-          criteres: {
-            orderBy: { id: 'asc' },
+          criteresServices: {
+            include: { critere: true },
+            orderBy: { ordre: 'asc' },
           },
         },
       },
       agence: {
         include: {
+          entreprise: {
+            include: {
+              brandConfig: true,
+            },
+          },
           agencesCriteres: {
             include: {
               critere: true,
@@ -272,9 +444,71 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
     services: guichet.services.map((s: any) => ({
       id: s.id,
       libelle_service: s.libelle_service,
-      criteres: s.criteres,
+      criteres: s.criteresServices.map((cs: any) => cs.critere),
     })),
     agencyCriteres: agencyCriteres,
+    brandConfig: guichet.agence.entreprise.brandConfig,
+  };
+};
+
+// ============================================================================
+// Vue "todo" des questions par opération (glisser-déposer)
+// ============================================================================
+// Alimente le tableau de type Kanban de ConfigurationCriteresPage : une
+// colonne par opération (avec ses questions déjà rattachées, triées par
+// `ordre`), plus le vivier des questions encore "non assignées" à aucune
+// opération.
+export const getCriteresParOperation = async (args: { id_agence?: number }, context: any) => {
+  requireAuth(context);
+  const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
+
+  const entrepriseFilter = {
+    OR: [
+      { id_entreprise: null },
+      { id_entreprise: context.user.id_entreprise ?? -1 },
+    ],
+  };
+
+  const [services, criteres, agenceCriteres] = await Promise.all([
+    context.entities.Service.findMany({
+      where: entrepriseFilter,
+      include: {
+        criteresServices: {
+          include: { critere: true },
+          orderBy: { ordre: 'asc' },
+        },
+      },
+      orderBy: { id: 'asc' },
+    }),
+    context.entities.Critere.findMany({
+      where: entrepriseFilter,
+      orderBy: { id: 'asc' },
+    }),
+    context.entities.AgenceCritere.findMany({
+      where: { id_agence: idAgence },
+      select: { id_critere: true },
+    }),
+  ]);
+
+  const activeIds = new Set(agenceCriteres.map((ac: any) => ac.id_critere));
+  const assignedIds = new Set(
+    services.flatMap((s: any) => s.criteresServices.map((cs: any) => cs.id_critere))
+  );
+
+  return {
+    operations: services.map((s: any) => ({
+      id: s.id,
+      libelle_service: s.libelle_service,
+      criteres: s.criteresServices.map((cs: any) => ({
+        ...cs.critere,
+        actif: activeIds.has(cs.critere.id),
+      })),
+    })),
+    // Questions encore rattachées à aucune opération : le vivier de gauche
+    // dans lequel on pioche pour glisser une question vers une colonne.
+    nonAssignees: criteres
+      .filter((c: any) => !assignedIds.has(c.id))
+      .map((c: any) => ({ ...c, actif: activeIds.has(c.id) })),
   };
 };
 
@@ -301,12 +535,16 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
     ? Math.round((uniquePlannedGuichets / totalGuichetsCount) * 100)
     : 100;
 
-  const totalReponses = await context.entities.Reponse.count({
+  // "Mesurage" = nombre d'AVIS reçus (pas de lignes Reponse : un formulaire à
+  // plusieurs critères ne doit pas gonfler artificiellement ce score).
+  const reponsesPourComptage = await context.entities.Reponse.findMany({
     where: { id_agence: idAgence },
+    select: { id: true, id_soumission: true },
   });
+  const totalAvis = compterAvis(reponsesPourComptage);
   const targetReponses = totalGuichetsCount * 15;
   const mesurageScore = targetReponses > 0
-    ? Math.min(100, Math.round((totalReponses / targetReponses) * 100))
+    ? Math.min(100, Math.round((totalAvis / targetReponses) * 100))
     : 100;
 
   const totalAlertes = await context.entities.Alerte.count({
@@ -510,29 +748,36 @@ export const getTendanceMensuelle = async (args: { id_agence?: number }, context
       date_reponse: { gte: debut },
     },
     select: {
+      id: true,
+      id_soumission: true,
       score_brut: true,
       date_reponse: true,
     },
     orderBy: { date_reponse: 'asc' },
   });
 
-  const moisMap = new Map<string, { total: number; count: number }>();
-
+  // Regroupement par mois, puis par avis (soumission) à l'intérieur de
+  // chaque mois : un avis à 5 critères ne doit pas peser 5x plus qu'un avis
+  // à 1 critère dans le score moyen mensuel, et nb_avis doit compter des
+  // clients, pas des lignes.
+  const moisMap = new Map<string, typeof reponses>();
   for (const r of reponses) {
     const d = new Date(r.date_reponse);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (!moisMap.has(key)) moisMap.set(key, { total: 0, count: 0 });
-    const entry = moisMap.get(key)!;
-    entry.total += r.score_brut;
-    entry.count++;
+    if (!moisMap.has(key)) moisMap.set(key, []);
+    moisMap.get(key)!.push(r);
   }
 
-  return Array.from(moisMap.entries()).map(([key, val]) => {
+  return Array.from(moisMap.entries()).map(([key, reponsesDuMois]) => {
     const [annee, mois] = key.split('-');
+    const scoresParAvis = scoreMoyenParAvis(reponsesDuMois as any);
+    const scoreMoyen = scoresParAvis.length > 0
+      ? scoresParAvis.reduce((s, v) => s + v, 0) / scoresParAvis.length
+      : 0;
     return {
       mois: new Date(Number(annee), Number(mois) - 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
-      score_moyen: parseFloat((val.total / val.count).toFixed(2)),
-      nb_reponses: val.count,
+      score_moyen: parseFloat(scoreMoyen.toFixed(2)),
+      nb_avis: scoresParAvis.length,
     };
   });
 };
@@ -551,23 +796,35 @@ export const getStatsByAgent = async (args: { id_agence?: number }, context: any
     select: { id: true, nom: true, prenom: true },
   });
 
-  const stats = await Promise.all(
-    agents.map(async (agent: any) => {
-      const reponses = await context.entities.Reponse.findMany({
-        where: { id_agent: agent.id },
-        select: { score_brut: true },
-      });
-      const nb = reponses.length;
-      const scoreMoyen = nb > 0
-        ? parseFloat((reponses.reduce((s: number, r: any) => s + r.score_brut, 0) / nb).toFixed(2))
-        : 0;
-      return {
-        nom: `${agent.prenom} ${agent.nom}`,
-        score_moyen: scoreMoyen,
-        nb_avis: nb,
-      };
-    })
-  );
+  // Correctif performance : l'ancienne version lançait une requête
+  // findMany séparée PAR AGENT (N+1) — sur une agence à 30 agents, ça
+  // faisait 30 allers-retours base de données rien que pour cette carte du
+  // dashboard. On récupère maintenant toutes les réponses de l'agence en
+  // UNE seule requête, puis on les regroupe en mémoire par agent.
+  const reponses = await context.entities.Reponse.findMany({
+    where: { id_agence: idAgence, id_agent: { in: agents.map((a: any) => a.id) } },
+    select: { id: true, id_soumission: true, score_brut: true, id_agent: true },
+  });
+
+  const reponsesParAgent = new Map<string, any[]>();
+  for (const r of reponses) {
+    if (!r.id_agent) continue;
+    if (!reponsesParAgent.has(r.id_agent)) reponsesParAgent.set(r.id_agent, []);
+    reponsesParAgent.get(r.id_agent)!.push(r);
+  }
+
+  const stats = agents.map((agent: any) => {
+    const reponsesAgent = reponsesParAgent.get(agent.id) || [];
+    const nb = compterAvis(reponsesAgent);
+    const scoreMoyen = reponsesAgent.length > 0
+      ? parseFloat((reponsesAgent.reduce((s: number, r: any) => s + r.score_brut, 0) / reponsesAgent.length).toFixed(2))
+      : 0;
+    return {
+      nom: `${agent.prenom} ${agent.nom}`,
+      score_moyen: scoreMoyen,
+      nb_avis: nb,
+    };
+  });
 
   return stats.filter((s: any) => s.nb_avis > 0).sort((a: any, b: any) => b.score_moyen - a.score_moyen);
 };
@@ -592,25 +849,34 @@ export const getStatsByGuichet = async (args: { id_agence?: number }, context: a
     },
   });
 
-  const stats = await Promise.all(
-    guichets.map(async (g: any) => {
-      const reponses = await context.entities.Reponse.findMany({
-        where: { id_guichet: g.id },
-        select: { score_brut: true },
-      });
-      const nb = reponses.length;
-      const scoreMoyen = nb > 0
-        ? parseFloat((reponses.reduce((s: number, r: any) => s + r.score_brut, 0) / nb).toFixed(2))
-        : 0;
-      return {
-        id: g.id,
-        nom: g.nom_guichet,
-        agence: g.agence?.nom_agence ?? null,
-        score_moyen: scoreMoyen,
-        nb_avis: nb,
-      };
-    })
-  );
+  // Même correctif que getStatsByAgent : une seule requête pour TOUS les
+  // guichets de l'agence plutôt qu'une requête par guichet (N+1). Le gain
+  // devient significatif dès qu'une agence dépasse une poignée de caisses.
+  const reponses = await context.entities.Reponse.findMany({
+    where: { id_guichet: { in: guichets.map((g: any) => g.id) } },
+    select: { id: true, id_soumission: true, score_brut: true, id_guichet: true },
+  });
+
+  const reponsesParGuichet = new Map<number, any[]>();
+  for (const r of reponses) {
+    if (!reponsesParGuichet.has(r.id_guichet)) reponsesParGuichet.set(r.id_guichet, []);
+    reponsesParGuichet.get(r.id_guichet)!.push(r);
+  }
+
+  const stats = guichets.map((g: any) => {
+    const reponsesGuichet = reponsesParGuichet.get(g.id) || [];
+    const nb = compterAvis(reponsesGuichet);
+    const scoreMoyen = reponsesGuichet.length > 0
+      ? parseFloat((reponsesGuichet.reduce((s: number, r: any) => s + r.score_brut, 0) / reponsesGuichet.length).toFixed(2))
+      : 0;
+    return {
+      id: g.id,
+      nom: g.nom_guichet,
+      agence: g.agence?.nom_agence ?? null,
+      score_moyen: scoreMoyen,
+      nb_avis: nb,
+    };
+  });
 
   return stats.filter((s: any) => s.nb_avis > 0).sort((a: any, b: any) => a.score_moyen - b.score_moyen);
 };
@@ -706,18 +972,23 @@ export const getKPIsPeriode = async (_args: void, context: any) => {
   const [actuelles, precedentes] = await Promise.all([
     context.entities.Reponse.findMany({
       where: { ...filter, date_reponse: { gte: debutActuel, lte: now } },
-      select: { score_brut: true },
+      select: { id: true, id_soumission: true, score_brut: true },
     }),
     context.entities.Reponse.findMany({
       where: { ...filter, date_reponse: { gte: debutPrecedent, lt: debutActuel } },
-      select: { score_brut: true },
+      select: { id: true, id_soumission: true, score_brut: true },
     }),
   ]);
 
+  // "nb" = nombre d'avis (soumissions), pas de lignes Reponse. La moyenne et
+  // le taux de satisfaction sont calculés sur le score moyen PAR AVIS (une
+  // soumission à N critères compte 1 fois, avec la moyenne de ses N scores),
+  // pas sur chaque ligne individuellement.
   const calc = (list: any[]) => {
-    const nb = list.length;
-    const moyenne = nb > 0 ? list.reduce((s, r) => s + r.score_brut, 0) / nb : 0;
-    const satisfaction = nb > 0 ? (list.filter((r) => r.score_brut >= 4).length / nb) * 100 : 0;
+    const scoresParAvis = scoreMoyenParAvis(list);
+    const nb = scoresParAvis.length;
+    const moyenne = nb > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nb : 0;
+    const satisfaction = nb > 0 ? (scoresParAvis.filter((v) => v >= 4).length / nb) * 100 : 0;
     return {
       nb,
       moyenne: parseFloat(moyenne.toFixed(2)),
@@ -743,3 +1014,187 @@ export const getKPIsPeriode = async (_args: void, context: any) => {
     delta_volume_pct: deltaVolumePct,
   };
 };
+
+// ============================================================================
+// HISTORIQUE D'AUDIT DES TÂCHES CORRECTIVES (Module 4)
+// Retourne l'historique complet des changements de statut d'une tâche.
+// Utilisé par la timeline dans le Kanban pour la traçabilité ARTCI.
+// ============================================================================
+
+export const getTacheHistorique = async (args: { id_tache: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idTache = requireNumber(args.id_tache, 'id_tache');
+
+  // Vérifier que la tâche appartient bien à l'agence de l'appelant
+  const tache = await context.entities.TacheCorrective.findUnique({
+    where: { id: BigInt(idTache) },
+    include: { alerte: { include: { guichet: true, reponse: true } } },
+  });
+  if (!tache) throw new HttpError(404, 'Tâche introuvable.');
+
+  const idAgence = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
+  if (!idAgence) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");
+  await assertAgenceAccess(context, context.entities, idAgence, 'tâche');
+
+  const historique = await context.entities.TacheCorrectiveHistorique.findMany({
+    where: { id_tache: BigInt(idTache) },
+    orderBy: { date_action: 'asc' },
+    include: {
+      auteur: { select: { id: true, nom: true, prenom: true, email: true, role: true } },
+    },
+  });
+
+  return historique.map((h: any) => ({
+    id: h.id.toString(),
+    date_action: h.date_action,
+    ancien_statut: h.ancien_statut,
+    nouveau_statut: h.nouveau_statut,
+    commentaire: h.commentaire,
+    auteur: h.auteur,
+  }));
+};
+
+// ============================================================================
+// OBJECTIFS PAR AGENCE — Vue consolidée DIRECTION (Module 5)
+// Retourne les objectifs de TOUTES les agences de l'entreprise, groupés par
+// agence. Réservé à DIRECTION : permet de comparer les objectifs d'un coup d'œil.
+// ============================================================================
+
+export const getObjectifsParAgence = async (_args: void, context: any) => {
+  requireAuth(context);
+
+  if (context.user.role !== 'DIRECTION') {
+    throw new HttpError(403, 'Cette vue est réservée à la Direction.');
+  }
+
+  if (!context.user.id_entreprise) {
+    throw new HttpError(400, "Compte non rattaché à une entreprise.");
+  }
+
+  const agences = await context.entities.Agence.findMany({
+    where: { id_entreprise: context.user.id_entreprise },
+    select: { id: true, nom_agence: true, commune: true },
+    orderBy: { id: 'asc' },
+  });
+
+  const now = new Date();
+
+  return Promise.all(
+    agences.map(async (agence: any) => {
+      const objectifs = await context.entities.Objectif.findMany({
+        where: { id_agence: agence.id },
+        include: { critere: true },
+        orderBy: { id_critere: 'asc' },
+      });
+
+      const objectifsAvecStatut = await Promise.all(
+        objectifs.map(async (obj: any) => {
+          const dateFinEffective = obj.date_fin < now ? obj.date_fin : now;
+          const reponses = await context.entities.Reponse.findMany({
+            where: {
+              id_critere: obj.id_critere,
+              id_agence: agence.id,
+              date_reponse: { gte: obj.date_debut, lte: dateFinEffective },
+            },
+            select: { score_brut: true },
+          });
+
+          const nb = reponses.length;
+          const cible_pct = parseFloat(Number(obj.valeur_cible).toFixed(1));
+          let realise_pct: number | null = null;
+          let ecart: number | null = null;
+          let statut: 'ATTEINT' | 'EN_RETARD' | 'PAS_DE_DONNEES' = 'PAS_DE_DONNEES';
+
+          if (nb > 0) {
+            const moyenne = reponses.reduce((s: number, r: any) => s + r.score_brut, 0) / nb;
+            realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
+            ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
+            statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
+          }
+
+          return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
+        })
+      );
+
+      return {
+        agence,
+        objectifs: objectifsAvecStatut,
+      };
+    })
+  );
+};
+
+// Correctif : cette query acceptait auparavant un `id_guichet` et un
+// `id_entreprise` fournis librement par le client pour aller chercher la
+// marque de N'IMPORTE QUELLE entreprise (query volontairement publique,
+// sans authRequired, pour le formulaire de collecte). Aucun appelant du
+// code (ni BrandConfigPage, ni BrandContext, ni aucune page publique) ne
+// s'en servait réellement — le formulaire public récupère déjà la marque
+// via `getFormDefinitionForGuichet` (incluse dans sa réponse). Le param
+// `id_guichet` était même cassé à l'exécution : l'entité `Guichet` n'est
+// pas déclarée dans les entities de cette opération dans main.wasp.ts.
+// On supprime cette surface d'attaque inutile (énumération d'entreprises
+// par id) et on ne résout plus la marque que pour l'utilisateur connecté.
+export const getBrandConfig = async (_args: void, context: any) => {
+  const idEntreprise: number | null = context.user?.id_entreprise ?? null;
+
+  if (!idEntreprise) {
+    return null;
+  }
+
+  let config = await context.entities.BrandConfig.findUnique({
+    where: { id_entreprise: idEntreprise },
+  });
+
+  if (!config) {
+    config = {
+      id: 0,
+      id_entreprise: idEntreprise,
+      platform_name: "CXSAT",
+      platform_description: "Plateforme de satisfaction client",
+      logo_url: null,
+      logo_dark_url: null,
+      favicon_url: null,
+      color_background: "40 20% 98.5%",
+      color_foreground: "0 0% 3.9%",
+      color_card: "40 20% 99%",
+      color_card_foreground: "0 0% 3.9%",
+      color_popover: "0 0% 100%",
+      color_popover_foreground: "0 0% 3.9%",
+      color_primary: "210 100% 13%",
+      color_primary_foreground: "0 0% 98%",
+      color_secondary: "32 100% 37%",
+      color_secondary_foreground: "0 0% 9%",
+      color_accent: "33 74% 62%",
+      color_accent_foreground: "0 0% 98%",
+      color_muted: "0 0% 96.1%",
+      color_muted_foreground: "0 0% 38%",
+      color_destructive: "0 84.2% 60.2%",
+      color_destructive_foreground: "0 0% 98%",
+      color_success: "141 71% 48%",
+      color_success_foreground: "0 0% 98%",
+      color_warning: "36 100% 50%",
+      color_warning_foreground: "0 0% 98%",
+      color_border: "0 0% 89.8%",
+      color_input: "0 0% 89.8%",
+      color_ring: "0 0% 3.9%",
+      border_radius: "0.5rem",
+      shadow_style: "DEFAULT",
+      font_family: "Satoshi",
+      font_url: null,
+      form_title: "Votre avis compte !",
+      form_subtitle: "Notez-nous en 10 secondes après votre passage",
+      form_thank_you: "Merci pour votre avis !",
+      qr_slogan: "Scannez ce QR Code",
+      ussd_help_text: "Pas de connexion internet ?",
+      hide_cxsat_branding: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  return config;
+};
+
