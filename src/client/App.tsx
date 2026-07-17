@@ -14,10 +14,7 @@ export function App() {
   const navigationItems = demoNavigationitems;
 
   const shouldDisplayAppNavBar = useMemo(() => {
-    return (
-      location.pathname !== routes.LoginRoute.build() &&
-      location.pathname !== routes.SignupRoute.build()
-    );
+    return location.pathname !== routes.LoginRoute.build();
   }, [location]);
 
   // Les routes CXSAT /admin/personnel et /admin/agences ne sont pas le

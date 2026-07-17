@@ -118,7 +118,7 @@ export async function getEntrepriseAgenceIds(context: WaspContext, entities: any
   requireAuth(context);
   const { id_entreprise } = context.user!;
   if (!id_entreprise) {
-    throw new HttpError(400, "Votre compte n'est rattaché à aucune entreprise. Finalisez l'onboarding.");
+    throw new HttpError(400, "Votre compte n'est rattaché à aucune entreprise. Contactez l'administrateur technique de CXSAT.");
   }
   const agences = await entities.Agence.findMany({
     where: { id_entreprise },
@@ -137,7 +137,7 @@ export function requireAgence(context: WaspContext): number {
   requireAuth(context);
   const { id_agence } = context.user!;
   if (!id_agence) {
-    throw new HttpError(400, "Votre compte n'est pas rattaché à une agence. Finalisez l'onboarding.");
+    throw new HttpError(400, "Votre compte n'est pas rattaché à une agence. Contactez votre Chef d'Agence ou l'administrateur technique de CXSAT.");
   }
   return id_agence;
 }

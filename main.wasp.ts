@@ -4,10 +4,9 @@ import { App } from "./src/client/App" with { type: "ref" };
 import { NotFoundPage } from "./src/client/components/NotFoundPage" with { type: "ref" };
 import { serverEnvValidationSchema } from "./src/env" with { type: "ref" };
 import { LandingRedirectPage } from "./src/client/LandingRedirectPage" with { type: "ref" };
-import { seedMockUsers } from "./src/server/scripts/dbSeeds" with { type: "ref" };
+import { seedEntrepriseUnique } from "./src/server/scripts/dbSeeds" with { type: "ref" };
 
-// === IMPORTS POUR L'ONBOARDING ET GUICHETS CXSAT ===
-import { OnboardingPage } from "./src/client/pages/OnboardingPage" with { type: "ref" };
+// === IMPORTS POUR LES GUICHETS CXSAT ===
 import { GuichetsPage } from "./src/client/pages/GuichetsPage" with { type: "ref" };
 import { PlanningPage } from "./src/client/pages/PlanningPage" with { type: "ref" };
 import { CollectePage } from "./src/client/pages/CollectePage" with { type: "ref" };
@@ -21,7 +20,6 @@ import { BrandConfigPage } from "./src/client/pages/BrandConfigPage" with { type
 
 // === ACTIONS ===
 import {
-  completeOnboarding,
   createGuichet,
   assignAgent,
   soumettreAvis,
@@ -90,7 +88,6 @@ import { emailSender } from "./src/server/emailSender.wasp";
 import { userSpec } from "./src/user/user.wasp";
 
 // === ROUTES ===
-const onboardingRoute = route("OnboardingRoute", "/onboarding", page(OnboardingPage));
 const guichetsRoute = route("GuichetsRoute", "/guichets", page(GuichetsPage));
 const planningRoute = route("PlanningRoute", "/planning", page(PlanningPage));
 const dashboardRoute = route("DashboardRoute", "/dashboard", page(DashboardPage));
@@ -103,10 +100,6 @@ const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(A
 const brandConfigRoute = route("BrandConfigRoute", "/admin/marque", page(BrandConfigPage));
 
 // === ACTIONS ===
-const completeOnboardingAction = action(completeOnboarding, {
-  entities: ["User", "Entreprise", "Agence"],
-});
-
 const createGuichetAction = action(createGuichet, {
   entities: ["Guichet", "User", "Service", "AffectationGuichet", "Agence"],
 });
@@ -221,7 +214,7 @@ export default app({
   auth: authConfig,
   db: {
     seeds: [
-      seedMockUsers,
+      seedEntrepriseUnique,
     ],
   },
   client: {
@@ -240,7 +233,6 @@ export default app({
     analyticsSpec,
     adminSpec,
     // Routes CXSAT
-    onboardingRoute,
     guichetsRoute,
     planningRoute,
     dashboardRoute,
@@ -252,7 +244,6 @@ export default app({
     alertesTachesRoute,
     brandConfigRoute,
     // Actions existantes
-    completeOnboardingAction,
     createGuichetAction,
     assignAgentAction,
     soumettreAvisAction,

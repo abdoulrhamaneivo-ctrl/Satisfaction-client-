@@ -4,7 +4,7 @@ import { useQuery, createGuichet, getGuichets, getServices, updateGuichetService
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
-import { Printer, Store, PlusCircle, AlertCircle, Inbox, ArrowRight, Settings2, Check, X, Loader2, QrCode } from 'lucide-react';
+import { Printer, Store, PlusCircle, AlertCircle, Inbox, Settings2, Check, X, Loader2, QrCode } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
@@ -179,17 +179,13 @@ export const GuichetsPage = () => {
               <AlertCircle className="size-6" />
             </span>
             <p className="mb-2 text-title-xsm font-bold text-foreground">
-              Configuration requise
+              Compte non rattaché à une agence
             </p>
             <p className="mb-6 text-sm text-muted-foreground">
-              Veuillez d'abord finaliser la configuration de votre entreprise via la
-              page d'onboarding.
+              Votre compte n'est rattaché à aucune agence. Contactez votre
+              Chef d'Agence ou l'administrateur technique de CXSAT pour
+              régulariser votre accès.
             </p>
-            <Button asChild className="w-full">
-              <a href="/onboarding">
-                Aller vers l'onboarding <ArrowRight className="size-4" />
-              </a>
-            </Button>
           </MotionCard>
         </AmbientBackground>
       </RequireAuth>

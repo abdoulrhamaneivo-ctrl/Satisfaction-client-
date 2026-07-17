@@ -36,8 +36,8 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login({ email, password });
-      // La redirection définitive (onboarding vs tableau de bord) est
-      // ensuite arbitrée par useRedirectIfLoggedIn / les pages elles-mêmes.
+      // La redirection définitive vers le tableau de bord est ensuite
+      // arbitrée par PostAuthRedirectPage.
       navigate("/apres-connexion");
     } catch (err: any) {
       setError(
@@ -57,13 +57,6 @@ export function LoginPage() {
       subtitle="Retrouvez votre tableau de bord de satisfaction client et suivez vos agences en temps réel."
       footer={
         <>
-          <span>
-            Pas encore de compte ?{" "}
-            <WaspRouterLink to={routes.SignupRoute.to} className="font-semibold text-primary underline">
-              Créer un compte
-            </WaspRouterLink>
-          </span>
-          <br />
           <span>
             Mot de passe oublié ?{" "}
             <WaspRouterLink

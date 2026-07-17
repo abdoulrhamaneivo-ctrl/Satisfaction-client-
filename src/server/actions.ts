@@ -39,71 +39,11 @@ async function resolveAlerteAgenceId(entities: any, id_alerte: bigint): Promise<
   return idAgence;
 }
 
-// ============================================================================
-// ONBOARDING
-// ============================================================================
-
-type OnboardingArgs = {
-  nomEntreprise: string;
-  commune: string;
-};
-
 type CreateGuichetArgs = {
   nomGuichet: string;
   typeGuichet: string;
   id_agence: number;
   serviceIds?: number[];
-};
-
-export const completeOnboarding = async (args: OnboardingArgs, context: any) => {
-  requireAuth(context);
-
-  const { nomEntreprise, commune } = args;
-
-  if (!nomEntreprise?.trim() || !commune?.trim()) {
-    throw new HttpError(400, "Le nom de l'entreprise et la commune sont requis.");
-  }
-
-  // --- GARDE DE SÉCURITÉ SaaS ---
-  const user = await context.entities.User.findUnique({
-    where: { id: context.user.id },
-    include: { agence: true }
-  });
-
-  if (user?.id_agence !== null && user?.id_agence !== undefined) {
-    throw new HttpError(400, 'Votre compte est déjà configuré avec une entreprise.');
-  }
-
-  // On crée d'abord l'Entreprise (tenant) puis l'Agence-siège rattachée, afin
-  // de pouvoir rattacher explicitement l'utilisateur aux DEUX (id_agence ET
-  // id_entreprise) : id_entreprise est ce qui permet ensuite de scoper
-  // correctement DIRECTION/QUALITE à leur propre entreprise plutôt qu'à
-  // toute la plateforme (voir rowLevelSecurity.ts).
-  const entreprise = await context.entities.Entreprise.create({
-    data: { nom_entreprise: nomEntreprise.trim() },
-  });
-
-  const agence = await context.entities.Agence.create({
-    data: {
-      nom_agence: `Siège ${nomEntreprise.trim()}`,
-      commune: commune.trim(),
-      id_entreprise: entreprise.id,
-    },
-  });
-
-  const updatedUser = await context.entities.User.update({
-    where: { id: context.user.id },
-    data: {
-      role: 'DIRECTION',
-      id_agence: agence.id,
-      id_entreprise: entreprise.id,
-    },
-    include: {
-      agence: true,
-    },
-  });
-
-  return updatedUser;
 };
 
 // ============================================================================
@@ -542,10 +482,11 @@ export const promouvoirAgent = async (args: { id_agent: string }, context: any) 
 // ============================================================================
 // GESTION DES AGENCES
 // ============================================================================
-// L'onboarding (completeOnboarding) crée automatiquement une agence "Siège"
-// unique. createAgence permet ensuite au chef d'entreprise (DIRECTION)
-// d'ajouter les autres agences de son réseau (succursales), auxquelles il
-// pourra ensuite rattacher un Chef d'Agence via inviteAgent.
+// Le seed unique (src/server/scripts/dbSeeds.ts) crée l'Entreprise et
+// l'Agence unique au démarrage. createAgence reste disponible dans le code
+// pour un agrandissement futur (ajout d'une 2ᵉ agence par le chef
+// d'entreprise, rôle DIRECTION) mais n'est pas exposé dans l'UI tant que le
+// déploiement reste mono-agence (voir décision produit associée).
 
 export const createAgence = async (
   args: {

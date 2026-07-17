@@ -19,10 +19,9 @@ interface AuthPageLayoutProps {
 }
 
 /**
- * Habillage commun des pages d'authentification (connexion, inscription,
- * mot de passe oublié, réinitialisation, vérification e-mail).
- * Reprend l'identité visuelle de la page d'onboarding (panneau de marque
- * + panneau de formulaire) pour une expérience cohérente sur toute la
+ * Habillage commun des pages d'authentification (connexion, mot de passe
+ * oublié, réinitialisation, vérification e-mail) — panneau de marque +
+ * panneau de formulaire — pour une expérience cohérente sur toute la
  * plateforme CXSAT.
  */
 export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: AuthPageLayoutProps) {

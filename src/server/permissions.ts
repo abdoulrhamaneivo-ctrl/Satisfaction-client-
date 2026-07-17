@@ -53,7 +53,7 @@ export function resolveAgenceId(context: { user?: any }, overrideIdAgence?: numb
   requireAuth(context);
   const { role, id_agence } = context.user;
   if (overrideIdAgence !== undefined && role === 'DIRECTION') return overrideIdAgence;
-  if (!id_agence) throw new HttpError(400, "Agence introuvable. Finalisez l'onboarding.");
+  if (!id_agence) throw new HttpError(400, "Agence introuvable. Contactez l'administrateur technique de CXSAT.");
   return id_agence;
 }
 

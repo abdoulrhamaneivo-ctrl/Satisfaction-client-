@@ -15,15 +15,7 @@ import {
   getPasswordResetEmailContent,
   getVerificationEmailContent,
 } from "./email-and-pass/emails" with { type: "ref" };
-import {
-  getDiscordAuthConfig,
-  getDiscordUserFields,
-  getEmailUserFields,
-  getGitHubAuthConfig,
-  getGitHubUserFields,
-  getGoogleAuthConfig,
-  getGoogleUserFields,
-} from "./userSignupFields" with { type: "ref" };
+import { getEmailUserFields } from "./userSignupFields" with { type: "ref" };
 
 const emailAuthMethod: NonNullable<AuthMethods["email"]> = {
   fromField: {
@@ -41,31 +33,9 @@ const emailAuthMethod: NonNullable<AuthMethods["email"]> = {
   userSignupFields: getEmailUserFields,
 };
 
-// Plug the following authentication methods in the `authConfig` below to enable them.
-// Do note that `email` and `usernameAndPassword` are mutually exclusive.
-// @ts-expect-error Demo purposes
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const usernameAndPasswordAuthMethod: NonNullable <
-  AuthMethods["usernameAndPassword"]
-> = {};
-// @ts-expect-error Demo purposes
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const googleAuthMethod: NonNullable<AuthMethods["google"]> = {
-  userSignupFields: getGoogleUserFields,
-  configFn: getGoogleAuthConfig,
-};
-// @ts-expect-error Demo purposes
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const gitGubAuthMethod: NonNullable<AuthMethods["gitHub"]> = {
-  userSignupFields: getGitHubUserFields,
-  configFn: getGitHubAuthConfig,
-};
-// @ts-expect-error Demo purposes
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const discordAuthMethod: NonNullable<AuthMethods["discord"]> = {
-  userSignupFields: getDiscordUserFields,
-  configFn: getDiscordAuthConfig,
-};
+// Seule l'authentification par e-mail/mot de passe est activée. Les comptes
+// sont créés exclusivement par invitation (action inviteAgent) — il n'y a
+// pas d'inscription publique.
 
 // 🔐 Auth out of the box! https://wasp.sh/docs/auth/overview
 export const authConfig: Auth = {
@@ -82,8 +52,9 @@ export const authConfig: Auth = {
   onAuthFailedRedirectTo: "/login",
   // Ancienne valeur "/demo-app" : reliquat du template Open SaaS (démo IA)
   // sans rapport avec CXSAT. On route désormais vers une page d'arbitrage
-  // qui envoie l'utilisateur vers /onboarding ou /dashboard selon qu'il a
-  // déjà configuré son entreprise/agence.
+  // qui envoie l'utilisateur vers /dashboard (tous les comptes, y compris
+  // le compte CHEF_AGENCE créé par le seed initial, sont déjà rattachés à
+  // une agence dès leur création — il n'y a plus d'onboarding à faire).
   onAuthSucceededRedirectTo: "/apres-connexion",
 };
 

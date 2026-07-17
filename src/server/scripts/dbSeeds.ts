@@ -1,49 +1,63 @@
 import type { PrismaClient } from "@prisma/client";
+import crypto from "node:crypto";
 import {
   createProviderId,
   createUser,
   sanitizeAndSerializeProviderData,
 } from 'wasp/server/auth';
 
-// Constantes de configuration pour le seed mono-agence
+// Constantes de configuration pour le seed mono-agence.
+// `NOM_ENTREPRISE` n'est utilisé QUE lors de la toute première exécution
+// (quand aucune Entreprise n'existe encore en base) : le modifier après coup
+// ne renomme pas l'entreprise existante, voir la garde anti-doublon ci-dessous.
 const NOM_ENTREPRISE = "Mon Entreprise";
 const NOM_AGENCE = "Agence Centrale";
 const COMMUNE_AGENCE = "Plateau";
 const EMAIL_CHEF = "chef@cxsat.local";
-const MOT_DE_PASSE_CHEF = "chefpassword123";
 
 /**
  * Seeding unique pour l'outil interne mono-agence de CXSAT.
  * Crée l'Entreprise, l'Agence et le compte CHEF_AGENCE par défaut.
+ * Idempotent : peut être relancé sans effet de bord (aucune donnée dupliquée).
  *
- * Pour créer manuellement un compte admin de maintenance technique :
- * 1. Créez un compte via inviteAgent (ou insérez dans la base)
- * 2. Mettez à jour le champ `isAdmin` de l'utilisateur à `true` :
- *    UPDATE "User" SET "isAdmin" = true WHERE "email" = 'admin@cxsat.local';
+ * Pour créer manuellement un second compte réservé à la maintenance
+ * technique (accès `isAdmin`, indépendant des rôles métier CHEF_AGENCE /
+ * QUALITE / AGENT) :
+ * 1. Invitez normalement ce compte via l'action `inviteAgent` (rôle
+ *    QUALITE ou CHEF_AGENCE selon le besoin métier réel de la personne) —
+ *    il n'y a pas d'inscription publique, seule l'invitation existe.
+ * 2. Élevez ensuite ce compte au statut d'admin technique en base :
+ *    UPDATE "User" SET "isAdmin" = true WHERE "email" = '...';
+ * Ce compte n'est volontairement PAS créé automatiquement par ce seed,
+ * pour éviter un compte admin par défaut avec un mot de passe prévisible.
  */
-export async function seedMockUsers(prismaClient: PrismaClient) {
+export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
   console.log("Début du seeding mono-agence...");
 
-  // 1. Création de l'Entreprise unique
-  let entreprise = await prismaClient.entreprise.findFirst({
-    where: { nom_entreprise: NOM_ENTREPRISE }
-  });
+  // 1. Création de l'Entreprise unique.
+  // Garde anti-doublon stricte : si une Entreprise existe déjà (quel que
+  // soit son nom), on la réutilise systématiquement au lieu d'en créer une
+  // seconde — y compris si NOM_ENTREPRISE a été modifié entre-temps.
+  const entrepriseCount = await prismaClient.entreprise.count();
+  let entreprise;
 
-  if (!entreprise) {
+  if (entrepriseCount === 0) {
     console.log(`Création de l'entreprise : ${NOM_ENTREPRISE}...`);
     entreprise = await prismaClient.entreprise.create({
-      data: {
-        nom_entreprise: NOM_ENTREPRISE
-      }
+      data: { nom_entreprise: NOM_ENTREPRISE },
     });
   } else {
-    console.log(`L'entreprise "${NOM_ENTREPRISE}" existe déjà (ID: ${entreprise.id}).`);
-  }
-
-  // Garde-fou supplémentaire : on s'assure qu'on n'a pas plusieurs entreprises
-  const totalEntreprises = await prismaClient.entreprise.count();
-  if (totalEntreprises > 1) {
-    console.warn("ATTENTION : Plusieurs entreprises détectées en base de données.");
+    entreprise = await prismaClient.entreprise.findFirstOrThrow({
+      orderBy: { id: "asc" },
+    });
+    console.log(`Entreprise existante réutilisée : "${entreprise.nom_entreprise}" (ID: ${entreprise.id}).`);
+    if (entrepriseCount > 1) {
+      console.warn(
+        `ATTENTION : ${entrepriseCount} entreprises détectées en base de données ` +
+        `(déploiement mono-agence attendu : une seule). Vérifiez qu'aucune ` +
+        `création manuelle erronée n'a eu lieu.`
+      );
+    }
   }
 
   // 2. Création de l'Agence unique
@@ -134,15 +148,21 @@ export async function seedMockUsers(prismaClient: PrismaClient) {
 
   if (!userExistant) {
     console.log(`Création du compte CHEF_AGENCE : ${EMAIL_CHEF}...`);
+
+    // Mot de passe généré aléatoirement (jamais codé en dur / versionné) et
+    // affiché une seule fois en console au moment du seed : à communiquer
+    // à la personne concernée puis à changer dès la première connexion.
+    const motDePasseInitial = crypto.randomBytes(9).toString('base64url');
+
     const providerId = createProviderId('email', EMAIL_CHEF);
     const providerData = await sanitizeAndSerializeProviderData<'email'>({
-      hashedPassword: MOT_DE_PASSE_CHEF,
+      hashedPassword: motDePasseInitial,
       isEmailVerified: true,
       emailVerificationSentAt: null,
       passwordResetSentAt: null,
     });
 
-    const chefUser = await createUser(providerId, providerData, {
+    await createUser(providerId, providerData, {
       email: EMAIL_CHEF,
       nom: "Responsable",
       prenom: "Agence",
@@ -155,9 +175,9 @@ export async function seedMockUsers(prismaClient: PrismaClient) {
     });
 
     console.log(`Compte CHEF_AGENCE créé avec succès.`);
-    console.log(`Identifiants par défaut :`);
+    console.log(`Identifiants de première connexion (à noter et à changer ensuite) :`);
     console.log(`  E-mail   : ${EMAIL_CHEF}`);
-    console.log(`  Password : ${MOT_DE_PASSE_CHEF}`);
+    console.log(`  Password : ${motDePasseInitial}`);
   } else {
     console.log(`Le compte CHEF_AGENCE (${EMAIL_CHEF}) existe déjà.`);
   }

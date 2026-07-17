@@ -5,10 +5,12 @@ import { AmbientBackground } from "../client/components/AmbientBackground";
 import { LoadingSpinner } from "../admin/layout/LoadingSpinner";
 
 /**
- * Page technique (invisible pour l'utilisateur) qui arbitre la
- * destination après connexion :
- *  - Utilisateur sans agence rattachée  -> /onboarding (configuration initiale)
- *  - Utilisateur déjà configuré         -> /dashboard (tableau de bord)
+ * Page technique (invisible pour l'utilisateur) qui arbitre la destination
+ * après connexion. En déploiement mono-agence, tout compte est déjà
+ * rattaché à une agence dès sa création (compte CHEF_AGENCE créé par le
+ * seed initial, ou compte AGENT/QUALITE créé par inviteAgent) : il n'y a
+ * plus d'écran d'onboarding à traverser, on va directement au tableau de
+ * bord.
  *
  * Corrige le comportement précédent qui redirigeait systématiquement
  * vers /demo-app (page de démonstration IA héritée du modèle Open SaaS,
@@ -26,8 +28,7 @@ export function PostAuthRedirectPage() {
       return;
     }
 
-    const aDejaUneAgence = Boolean((user as any).id_agence);
-    navigate(aDejaUneAgence ? "/dashboard" : "/onboarding", { replace: true });
+    navigate("/dashboard", { replace: true });
   }, [user, isLoading, navigate]);
 
   return (
