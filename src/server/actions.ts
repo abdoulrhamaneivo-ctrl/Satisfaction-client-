@@ -607,7 +607,7 @@ export const inviteAgent = async (
   // son équipe de terrain (agents de guichet) sur sa propre agence.
   const ROLES_PAR_INVITEUR: Record<string, string[]> = {
     DIRECTION: ['CHEF_AGENCE', 'QUALITE'],
-    CHEF_AGENCE: ['AGENT'],
+    CHEF_AGENCE: ['AGENT', 'QUALITE'],
   };
   const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role ?? ''] || [];
   if (!rolesAutorises.includes(args.role)) {
@@ -615,7 +615,7 @@ export const inviteAgent = async (
       403,
       context.user.role === 'DIRECTION'
         ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence ou des Auditeurs Qualité."
-        : "En tant que Chef d'Agence, vous ne pouvez créer que des Agents de guichet."
+        : "En tant que Chef d'Agence, vous ne pouvez créer que des Agents de guichet ou des Auditeurs Qualité."
     );
   }
 
@@ -1169,7 +1169,7 @@ export const upsertObjectif = async (
   context: any
 ) => {
   requireAuth(context);
-  requireRole(context, ['DIRECTION', 'QUALITE']);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
@@ -1358,7 +1358,7 @@ export const updatePlanPricing = async (
 
 export const deleteObjectif = async (args: { id: number }, context: any) => {
   requireAuth(context);
-  requireRole(context, ['DIRECTION', 'QUALITE']);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const objectif = await context.entities.Objectif.findUnique({
     where: { id: args.id },
@@ -1372,28 +1372,11 @@ export const deleteObjectif = async (args: { id: number }, context: any) => {
   return context.entities.Objectif.delete({ where: { id: args.id } });
 };
 
-type UpsertBrandConfigArgs = {
-  platform_name: string;
-  platform_description?: string;
-  logo_url?: string | null;
-  logo_dark_url?: string | null;
-  favicon_url?: string | null;
-  color_background: string;
-  color_foreground: string;
-  color_card: string;
-  color_card_foreground: string;
-  color_popover: string;
-  color_popover_foreground: string;
-  color_primary: string;
-  color_primary_foreground: string;
-  color_secondary: string;
-  color_secondary_foreground: string;
-  color_accent: string;
-  color_accent_foreground: string;
-  color_muted: string;
-  color_muted_foreground: string;
-  color_destructive: string;
-  color_destructive_foreground: string;
+// upsertBrandConfig supprimé — BrandConfig n'existe plus (outil interne).
+// La marque est figée dans src/shared/branding.ts.
+export const upsertBrandConfig = async (_args: any, _context: any): Promise<void> => {
+  throw new HttpError(410, "La personnalisation de marque a été désactivée dans cette version.");
+};
   color_success: string;
   color_success_foreground: string;
   color_warning: string;

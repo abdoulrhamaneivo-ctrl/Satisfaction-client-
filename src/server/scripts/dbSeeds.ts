@@ -1,44 +1,123 @@
-import { faker } from "@faker-js/faker";
 import type { PrismaClient } from "@prisma/client";
-import { type User } from "wasp/entities";
 import {
-  getSubscriptionPaymentPlanIds,
-  SubscriptionStatus,
-} from "../../payment/plans";
+  createProviderId,
+  createUser,
+  sanitizeAndSerializeProviderData,
+} from 'wasp/server/auth';
 
-type MockUserData = Omit<User, 'id' | 'nom' | 'prenom' | 'telephone' | 'role' | 'actif' | 'id_agence' | 'id_entreprise' | 'sendEmail'>;
+// Constantes de configuration pour le seed mono-agence
+const NOM_ENTREPRISE = "Mon Entreprise";
+const NOM_AGENCE = "Agence Centrale";
+const COMMUNE_AGENCE = "Plateau";
+const EMAIL_CHEF = "chef@cxsat.local";
+const MOT_DE_PASSE_CHEF = "chefpassword123";
 
 /**
- * Cette fonction initialise la base de données PostgreSQL avec nos données métiers CXSAT,
- * puis génère les utilisateurs de démonstration d'Open SaaS en arrière-plan.
+ * Seeding unique pour l'outil interne mono-agence de CXSAT.
+ * Crée l'Entreprise, l'Agence et le compte CHEF_AGENCE par défaut.
+ *
+ * Pour créer manuellement un compte admin de maintenance technique :
+ * 1. Créez un compte via inviteAgent (ou insérez dans la base)
+ * 2. Mettez à jour le champ `isAdmin` de l'utilisateur à `true` :
+ *    UPDATE "User" SET "isAdmin" = true WHERE "email" = 'admin@cxsat.local';
  */
 export async function seedMockUsers(prismaClient: PrismaClient) {
-  
-  // ==========================================================================
-  // 1. SEEDING DES DONNÉES DE BASE CXSAT ABIDJAN (NOTRE PROJET)
-  // ==========================================================================
-  
-  console.log('Création des critères d\'évaluation de base (Norme FD X50-167)...');
+  console.log("Début du seeding mono-agence...");
+
+  // 1. Création de l'Entreprise unique
+  let entreprise = await prismaClient.entreprise.findFirst({
+    where: { nom_entreprise: NOM_ENTREPRISE }
+  });
+
+  if (!entreprise) {
+    console.log(`Création de l'entreprise : ${NOM_ENTREPRISE}...`);
+    entreprise = await prismaClient.entreprise.create({
+      data: {
+        nom_entreprise: NOM_ENTREPRISE
+      }
+    });
+  } else {
+    console.log(`L'entreprise "${NOM_ENTREPRISE}" existe déjà (ID: ${entreprise.id}).`);
+  }
+
+  // Garde-fou supplémentaire : on s'assure qu'on n'a pas plusieurs entreprises
+  const totalEntreprises = await prismaClient.entreprise.count();
+  if (totalEntreprises > 1) {
+    console.warn("ATTENTION : Plusieurs entreprises détectées en base de données.");
+  }
+
+  // 2. Création de l'Agence unique
+  let agence = await prismaClient.agence.findFirst({
+    where: { nom_agence: NOM_AGENCE, id_entreprise: entreprise.id }
+  });
+
+  if (!agence) {
+    console.log(`Création de l'agence : ${NOM_AGENCE}...`);
+    agence = await prismaClient.agence.create({
+      data: {
+        nom_agence: NOM_AGENCE,
+        commune: COMMUNE_AGENCE,
+        jours_ouvres: "1,2,3,4,5,6",
+        id_entreprise: entreprise.id
+      }
+    });
+  } else {
+    console.log(`L'agence "${NOM_AGENCE}" existe déjà (ID: ${agence.id}).`);
+  }
+
+  // 3. Création des critères d'évaluation de base (Norme FD X50-167)
+  console.log("Création des critères d'évaluation...");
   await prismaClient.critere.createMany({
     data: [
-      { id: 1, libelle_critere: "Temps d'attente", description: "Temps mis avant d'être servi au guichet" },
-      { id: 2, libelle_critere: "Accueil guichetier", description: "Politesse et amabilité de l'agent" },
-      { id: 3, libelle_critere: "Clarté des informations", description: "Clarté des explications fournies" }
+      { id: 1, libelle_critere: "Temps d'attente", description: "Temps mis avant d'être servi au guichet", id_entreprise: entreprise.id },
+      { id: 2, libelle_critere: "Accueil guichetier", description: "Politesse et amabilité de l'agent", id_entreprise: entreprise.id },
+      { id: 3, libelle_critere: "Clarté des informations", description: "Clarté des explications fournies", id_entreprise: entreprise.id }
     ],
     skipDuplicates: true,
   });
 
-  console.log('Création des types de services de base d\'Abidjan...');
+  // 4. Création des types de services de base
+  console.log("Création des types de services...");
   await prismaClient.service.createMany({
     data: [
-      { id: 1, libelle_service: "Retrait d'argent / Mobile Money" },
-      { id: 2, libelle_service: "Envoi ou réception de colis" },
-      { id: 3, libelle_service: "Opération Épargne / Dépôt" }
+      { id: 1, libelle_service: "Retrait d'argent / Mobile Money", id_entreprise: entreprise.id },
+      { id: 2, libelle_service: "Envoi ou réception de colis", id_entreprise: entreprise.id },
+      { id: 3, libelle_service: "Opération Épargne / Dépôt", id_entreprise: entreprise.id }
     ],
     skipDuplicates: true,
   });
 
-  console.log('Création des canaux de communication inclusifs...');
+  // Associer par défaut les critères aux services dans CritereService si pas déjà fait
+  console.log("Liaison par défaut des critères aux services...");
+  for (const sId of [1, 2, 3]) {
+    for (const cId of [1, 2, 3]) {
+      await prismaClient.critereService.upsert({
+        where: { id_critere_id_service: { id_critere: cId, id_service: sId } },
+        update: {},
+        create: {
+          id_critere: cId,
+          id_service: sId,
+          ordre: cId
+        }
+      });
+    }
+  }
+
+  // Activer aussi tous les critères pour cette agence unique
+  console.log("Activation des critères pour l'agence unique...");
+  for (const cId of [1, 2, 3]) {
+    await prismaClient.agenceCritere.upsert({
+      where: { id_agence_id_critere: { id_agence: agence.id, id_critere: cId } },
+      update: {},
+      create: {
+        id_agence: agence.id,
+        id_critere: cId
+      }
+    });
+  }
+
+  // 5. Création des canaux de communication inclusifs
+  console.log("Création des canaux de communication...");
   await prismaClient.canal.createMany({
     data: [
       { id: 1, type_canal: "QR_WEB", langue_utilisee: "Français" },
@@ -48,57 +127,40 @@ export async function seedMockUsers(prismaClient: PrismaClient) {
     skipDuplicates: true,
   });
 
-  console.log("Pré-remplissage CXSAT Abidjan terminé avec succès !");
+  // 6. Création du compte CHEF_AGENCE unique
+  const userExistant = await prismaClient.user.findFirst({
+    where: { email: EMAIL_CHEF }
+  });
 
-  // ==========================================================================
-  // 2. SEEDING DES UTILISATEURS DE TEST PAR DÉFAUT D'OPEN SAAS
-  // ==========================================================================
-  
-  console.log('Génération des utilisateurs de test Open SaaS en cours...');
-  await Promise.all(
-    generateMockUsersData(50).map((data) => prismaClient.user.create({ data })),
-  );
-  
-  console.log('Seeding global terminé !');
-}
+  if (!userExistant) {
+    console.log(`Création du compte CHEF_AGENCE : ${EMAIL_CHEF}...`);
+    const providerId = createProviderId('email', EMAIL_CHEF);
+    const providerData = await sanitizeAndSerializeProviderData<'email'>({
+      hashedPassword: MOT_DE_PASSE_CHEF,
+      isEmailVerified: true,
+      emailVerificationSentAt: null,
+      passwordResetSentAt: null,
+    });
 
-// === GÉNÉRATEURS DE DONNÉES FICTIVES D'ORIGINE D'OPEN SAAS (Laissés intacts) ===
+    const chefUser = await createUser(providerId, providerData, {
+      email: EMAIL_CHEF,
+      nom: "Responsable",
+      prenom: "Agence",
+      role: "CHEF_AGENCE",
+      id_agence: agence.id,
+      id_entreprise: entreprise.id,
+      telephone: "0102030405",
+      actif: true,
+      isAdmin: false,
+    });
 
-function generateMockUsersData(numOfUsers: number): MockUserData[] {
-  return faker.helpers.multiple(generateMockUserData, { count: numOfUsers });
-}
+    console.log(`Compte CHEF_AGENCE créé avec succès.`);
+    console.log(`Identifiants par défaut :`);
+    console.log(`  E-mail   : ${EMAIL_CHEF}`);
+    console.log(`  Password : ${MOT_DE_PASSE_CHEF}`);
+  } else {
+    console.log(`Le compte CHEF_AGENCE (${EMAIL_CHEF}) existe déjà.`);
+  }
 
-function generateMockUserData(): MockUserData {
-  const firstName = faker.person.firstName();
-  const lastName = faker.person.lastName();
-  const subscriptionStatus =
-    faker.helpers.arrayElement<SubscriptionStatus | null>([
-      ...Object.values(SubscriptionStatus),
-      null,
-    ]);
-  const now = new Date();
-  const createdAt = faker.date.past({ refDate: now });
-  const timePaid = faker.date.between({ from: createdAt, to: now });
-  const credits = subscriptionStatus
-    ? 0
-    : faker.number.int({ min: 0, max: 10 });
-  const hasUserPaidOnStripe = !!subscriptionStatus || credits > 3;
-  return {
-    email: faker.internet.email({ firstName, lastName }),
-    username: faker.internet.userName({ firstName, lastName }),
-    createdAt,
-    isAdmin: false,
-    credits,
-    subscriptionStatus,
-    lemonSqueezyCustomerPortalUrl: null,
-    paymentProcessorUserId: hasUserPaidOnStripe
-      ? `cus_test_${faker.string.uuid()}`
-      : null,
-    datePaid: hasUserPaidOnStripe
-      ? faker.date.between({ from: createdAt, to: timePaid })
-      : null,
-    subscriptionPlan: subscriptionStatus
-      ? faker.helpers.arrayElement(getSubscriptionPaymentPlanIds())
-      : null,
-  };
+  console.log("Seeding mono-agence terminé avec succès !");
 }

@@ -17,13 +17,7 @@ model User {
   username                      String?                  @unique
   createdAt                     DateTime                 @default(now())
   isAdmin                       Boolean                  @default(false)
-  paymentProcessorUserId        String?                  @unique
-  lemonSqueezyCustomerPortalUrl String?
-  subscriptionPlan              String?
-  subscriptionStatus            String?
   sendEmail                     Boolean                  @default(false)
-  datePaid                      DateTime?
-  credits                       Int                      @default(3)
   
   // === CHAMPS COMPLÉMENTAIRES CXSAT AJOUTÉS (Optionnels pour éviter les erreurs de compilation) ===
   nom                           String?                  @default("")
@@ -50,16 +44,6 @@ model User {
   // === RELATIONS PAR DÉFAUT D'OPEN SAAS ===
   contactFormMessages           ContactFormMessage[]
   files                         File[]
-}
-
-// ============================================================================
-// TARIFICATION SAAS (montants en FCFA, modifiables par un admin CXSAT)
-// ============================================================================
-
-model PlanPricing {
-  id          String   @id // correspond à PaymentPlanId : "hobby", "pro", "credits10"
-  amountFcfa  Int      // montant en Francs CFA
-  updatedAt   DateTime @updatedAt
 }
 
 // ============================================================================
@@ -443,36 +427,9 @@ model File {
   url       String?
 }
 
-model DailyStats {
-  id                        Int              @id @default(autoincrement())
-  date                      DateTime         @default(now()) @unique
-  totalViews                Int              @default(0)
-  prevDayViewsChangePercent String           @default("0")
-  userCount                 Int              @default(0)
-  paidUserCount             Int              @default(0)
-  userDelta                 Int              @default(0)
-  paidUserDelta             Int              @default(0)
-  totalRevenue              Float            @default(0)
-  
-  sources                   PageViewSource[] // Corrigé : renommé de pageViewSources à sources
-  logs                      Logs[]
-}
-
-model PageViewSource {
-  name         String
-  date         DateTime    @default(now())
-  visitors     Int
-  dailyStatsId Int?        // Corrigé : renommé de id_dailyStats à dailyStatsId
-  dailyStats   DailyStats? @relation(fields: [dailyStatsId], references: [id])
-
-  @@id([date, name])
-}
-
 model Logs {
   id           Int         @id @default(autoincrement())
   createdAt    DateTime    @default(now())
   message      String
   level        String
-  dailyStatsId Int?        // Corrigé : renommé de id_dailyStats à dailyStatsId
-  dailyStats   DailyStats? @relation(fields: [dailyStatsId], references: [id])
 }

@@ -7,7 +7,6 @@ import {
 } from "@wasp.sh/spec";
 
 import { LoginPage } from "./LoginPage" with { type: "ref" };
-import { SignupPage } from "./SignupPage" with { type: "ref" };
 import { PostAuthRedirectPage } from "./PostAuthRedirectPage" with { type: "ref" };
 import { EmailVerificationPage } from "./email-and-pass/EmailVerificationPage" with { type: "ref" };
 import { PasswordResetPage } from "./email-and-pass/PasswordResetPage" with { type: "ref" };
@@ -90,7 +89,6 @@ export const authConfig: Auth = {
 
 export const authSpec: Spec = [
   route("LoginRoute", "/login", page(LoginPage)),
-  route("SignupRoute", "/signup", page(SignupPage)),
   route("PostAuthRedirectRoute", "/apres-connexion", page(PostAuthRedirectPage)),
   route(
     "RequestPasswordResetRoute",

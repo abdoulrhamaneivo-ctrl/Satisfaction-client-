@@ -9,6 +9,7 @@ import {
   resolveAgenceScope,
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis } from './soumissions';
+import { BRANDING } from '../shared/branding';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
 // PAS validé au runtime par Wasp. On le vérifie explicitement partout où on
@@ -418,11 +419,6 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
       },
       agence: {
         include: {
-          entreprise: {
-            include: {
-              brandConfig: true,
-            },
-          },
           agencesCriteres: {
             include: {
               critere: true,
@@ -447,7 +443,7 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
       criteres: s.criteresServices.map((cs: any) => cs.critere),
     })),
     agencyCriteres: agencyCriteres,
-    brandConfig: guichet.agence.entreprise.brandConfig,
+    brandConfig: BRANDING,
   };
 };
 
@@ -1126,75 +1122,9 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
   );
 };
 
-// Correctif : cette query acceptait auparavant un `id_guichet` et un
-// `id_entreprise` fournis librement par le client pour aller chercher la
-// marque de N'IMPORTE QUELLE entreprise (query volontairement publique,
-// sans authRequired, pour le formulaire de collecte). Aucun appelant du
-// code (ni BrandConfigPage, ni BrandContext, ni aucune page publique) ne
-// s'en servait réellement — le formulaire public récupère déjà la marque
-// via `getFormDefinitionForGuichet` (incluse dans sa réponse). Le param
-// `id_guichet` était même cassé à l'exécution : l'entité `Guichet` n'est
-// pas déclarée dans les entities de cette opération dans main.wasp.ts.
-// On supprime cette surface d'attaque inutile (énumération d'entreprises
-// par id) et on ne résout plus la marque que pour l'utilisateur connecté.
-export const getBrandConfig = async (_args: void, context: any) => {
-  const idEntreprise: number | null = context.user?.id_entreprise ?? null;
-
-  if (!idEntreprise) {
-    return null;
-  }
-
-  let config = await context.entities.BrandConfig.findUnique({
-    where: { id_entreprise: idEntreprise },
-  });
-
-  if (!config) {
-    config = {
-      id: 0,
-      id_entreprise: idEntreprise,
-      platform_name: "CXSAT",
-      platform_description: "Plateforme de satisfaction client",
-      logo_url: null,
-      logo_dark_url: null,
-      favicon_url: null,
-      color_background: "40 20% 98.5%",
-      color_foreground: "0 0% 3.9%",
-      color_card: "40 20% 99%",
-      color_card_foreground: "0 0% 3.9%",
-      color_popover: "0 0% 100%",
-      color_popover_foreground: "0 0% 3.9%",
-      color_primary: "210 100% 13%",
-      color_primary_foreground: "0 0% 98%",
-      color_secondary: "32 100% 37%",
-      color_secondary_foreground: "0 0% 9%",
-      color_accent: "33 74% 62%",
-      color_accent_foreground: "0 0% 98%",
-      color_muted: "0 0% 96.1%",
-      color_muted_foreground: "0 0% 38%",
-      color_destructive: "0 84.2% 60.2%",
-      color_destructive_foreground: "0 0% 98%",
-      color_success: "141 71% 48%",
-      color_success_foreground: "0 0% 98%",
-      color_warning: "36 100% 50%",
-      color_warning_foreground: "0 0% 98%",
-      color_border: "0 0% 89.8%",
-      color_input: "0 0% 89.8%",
-      color_ring: "0 0% 3.9%",
-      border_radius: "0.5rem",
-      shadow_style: "DEFAULT",
-      font_family: "Satoshi",
-      font_url: null,
-      form_title: "Votre avis compte !",
-      form_subtitle: "Notez-nous en 10 secondes après votre passage",
-      form_thank_you: "Merci pour votre avis !",
-      qr_slogan: "Scannez ce QR Code",
-      ussd_help_text: "Pas de connexion internet ?",
-      hide_cxsat_branding: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-  }
-
-  return config;
+// BrandConfig a été supprimé (outil interne mono-agence).
+// La configuration de marque est désormais statique dans src/shared/branding.ts.
+export const getBrandConfig = async (_args: void, _context: any) => {
+  return BRANDING;
 };
 

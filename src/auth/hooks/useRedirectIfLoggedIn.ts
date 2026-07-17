@@ -18,7 +18,6 @@ export function useRedirectIfLoggedIn() {
 
   useEffect(() => {
     if (!user) return;
-    const aDejaUneAgence = Boolean((user as any).id_agence);
-    navigate(aDejaUneAgence ? "/dashboard" : "/onboarding");
+    navigate("/dashboard");
   }, [user, navigate]);
 }
