@@ -16,7 +16,6 @@ import { AdminPersonnelPage } from "./src/client/pages/AdminPersonnelPage" with 
 import { GestionAgencesPage } from "./src/client/pages/GestionAgencesPage" with { type: "ref" };
 import { AvisPage } from "./src/client/pages/AvisPage" with { type: "ref" };
 import { ConfigurationCriteresPage } from "./src/client/pages/ConfigurationCriteresPage" with { type: "ref" };
-import { AdminTarifsPage } from "./src/client/pages/AdminTarifsPage" with { type: "ref" };
 import { AlertesTachesPage } from "./src/client/pages/AlertesTachesPage" with { type: "ref" };
 import { BrandConfigPage } from "./src/client/pages/BrandConfigPage" with { type: "ref" };
 
@@ -35,7 +34,6 @@ import {
   toggleCritereAgence,
   createCritere,
   createService,
-  updatePlanPricing,
   upsertObjectif,
   deleteObjectif,
   createTacheCorrective,
@@ -69,7 +67,6 @@ import {
   getFormDefinitionForGuichet,
   getServices,
   getRadarStats,
-  getPlanPricing,
   getObjectifs,
   getObjectifsParAgence,
   getTachesCorrectives,
@@ -89,7 +86,6 @@ import { analyticsSpec } from "./src/analytics/analytics.wasp";
 import { authConfig, authSpec } from "./src/auth/auth.wasp";
 import { head } from "./src/client/head.wasp";
 import { fileUploadSpec } from "./src/file-upload/file-upload.wasp";
-import { paymentSpec } from "./src/payment/payment.wasp";
 import { emailSender } from "./src/server/emailSender.wasp";
 import { userSpec } from "./src/user/user.wasp";
 
@@ -102,7 +98,6 @@ const adminPersonnelRoute = route("AdminPersonnelRoute", "/admin/personnel", pag
 const gestionAgencesRoute = route("GestionAgencesRoute", "/admin/agences", page(GestionAgencesPage));
 const avisRoute = route("AvisRoute", "/avis", page(AvisPage));
 const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/criteres", page(ConfigurationCriteresPage));
-const adminTarifsRoute = route("AdminTarifsRoute", "/admin/tarifs", page(AdminTarifsPage));
 const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
 const brandConfigRoute = route("BrandConfigRoute", "/admin/marque", page(BrandConfigPage));
@@ -131,7 +126,6 @@ const inviteAgentAction = action(inviteAgent, { entities: ["User", "Agence"] });
 const toggleCritereAgenceAction = action(toggleCritereAgence, { entities: ["AgenceCritere", "User", "Agence"] });
 const createCritereAction = action(createCritere, { entities: ["Critere", "AgenceCritere", "User", "Agence", "Service"] });
 const createServiceAction = action(createService, { entities: ["Service", "User"] });
-const updatePlanPricingAction = action(updatePlanPricing, { entities: ["PlanPricing", "User"] });
 
 // Nouvelles actions (Module 1 — Objectifs)
 const upsertObjectifAction = action(upsertObjectif, { entities: ["Objectif", "Agence", "Critere", "User"] });
@@ -192,7 +186,6 @@ const getBrandConfigQuery = query(getBrandConfig, {
 const getRadarStatsQuery = query(getRadarStats, {
   entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence"],
 });
-const getPlanPricingQuery = query(getPlanPricing, { entities: ["PlanPricing"] });
 
 // Nouvelles queries
 const getObjectifsQuery = query(getObjectifs, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse"] });
@@ -243,7 +236,6 @@ export default app({
     route("NotFoundRoute", "*", page(NotFoundPage)),
     authSpec,
     userSpec,
-    paymentSpec,
     fileUploadSpec,
     analyticsSpec,
     adminSpec,
@@ -256,7 +248,6 @@ export default app({
     gestionAgencesRoute,
     avisRoute,
     configurationCriteresRoute,
-    adminTarifsRoute,
     collecteRoute,
     alertesTachesRoute,
     brandConfigRoute,
@@ -274,7 +265,6 @@ export default app({
     toggleCritereAgenceAction,
     createCritereAction,
     createServiceAction,
-    updatePlanPricingAction,
     // Nouvelles actions
     upsertObjectifAction,
     deleteObjectifAction,
@@ -287,7 +277,6 @@ export default app({
     reorderCriteresInServiceAction,
     upsertBrandConfigAction,
     // Queries existantes
-    getPlanPricingQuery,
     getStatsFiltereesQuery,
     getAgentsByAgenceQuery,
     getAgencesQuery,

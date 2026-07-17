@@ -599,20 +599,6 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
   ];
 };
 
-// Lecture publique volontaire (page tarifs visible avant connexion).
-export const getPlanPricing = async (_args: void, context: any) => {
-  const defaults: Record<string, number> = { hobby: 15000, pro: 35000, credits10: 5000 };
-
-  const rows = await context.entities.PlanPricing.findMany();
-
-  const pricing = { ...defaults };
-  for (const row of rows) {
-    pricing[row.id] = row.amountFcfa;
-  }
-
-  return pricing;
-};
-
 // ============================================================================
 // OBJECTIFS DE SATISFACTION (Module 1 — Planification)
 // ============================================================================

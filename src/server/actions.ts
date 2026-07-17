@@ -12,7 +12,6 @@ import { envoyerAlerteSMS, envoyerAlerteWhatsApp } from './notifications/gateway
 import {
   requireAuth,
   requireRole,
-  requireAdmin,
   assertAgenceAccess,
   resolveAgenceId,
 } from './middleware/rowLevelSecurity';
@@ -1322,33 +1321,6 @@ export const marquerAlerteTraitee = async (args: { id_alerte: number }, context:
       statut_alerte: 'TRAITEE',
       date_traitement: new Date(),
     },
-  });
-};
-
-// ============================================================================
-// TARIFICATION SaaS (montants en FCFA) — réservé aux admins CXSAT
-// ============================================================================
-
-export const updatePlanPricing = async (
-  args: { planId: 'hobby' | 'pro' | 'credits10'; amountFcfa: number },
-  context: any
-) => {
-  requireAdmin(context);
-
-  const { planId, amountFcfa } = args;
-
-  if (!['hobby', 'pro', 'credits10'].includes(planId)) {
-    throw new HttpError(400, 'Identifiant de plan invalide.');
-  }
-
-  if (!Number.isInteger(amountFcfa) || amountFcfa < 0) {
-    throw new HttpError(400, 'Le montant doit être un entier positif en FCFA.');
-  }
-
-  return context.entities.PlanPricing.upsert({
-    where: { id: planId },
-    update: { amountFcfa },
-    create: { id: planId, amountFcfa },
   });
 };
 

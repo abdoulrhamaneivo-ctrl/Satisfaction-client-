@@ -6,7 +6,6 @@ import {
   type UpdateIsUserAdminById,
 } from "wasp/server/operations";
 import * as z from "zod";
-import { SubscriptionStatus } from "../payment/plans";
 import { ensureArgsSchemaOrThrowHttpError } from "../server/validation";
 
 const updateUserAdminByIdInputSchema = z.object({
@@ -46,15 +45,7 @@ export const updateIsUserAdminById: UpdateIsUserAdminById<
 };
 
 type GetPaginatedUsersOutput = {
-  users: Pick<
-    User,
-    | "id"
-    | "email"
-    | "username"
-    | "subscriptionStatus"
-    | "paymentProcessorUserId"
-    | "isAdmin"
-  >[];
+  users: Pick<User, "id" | "email" | "username" | "role" | "isAdmin">[];
   totalPages: number;
 };
 
@@ -63,9 +54,6 @@ const getPaginatorArgsSchema = z.object({
   filter: z.object({
     emailContains: z.string().nonempty().optional(),
     isAdmin: z.boolean().optional(),
-    subscriptionStatusIn: z
-      .array(z.nativeEnum(SubscriptionStatus).nullable())
-      .optional(),
   }),
 });
 
@@ -91,19 +79,8 @@ export const getPaginatedUsers: GetPaginatedUsers<
 
   const {
     skipPages,
-    filter: {
-      subscriptionStatusIn: subscriptionStatus,
-      emailContains,
-      isAdmin,
-    },
+    filter: { emailContains, isAdmin },
   } = ensureArgsSchemaOrThrowHttpError(getPaginatorArgsSchema, rawArgs);
-
-  const includeUnsubscribedUsers = !!subscriptionStatus?.some(
-    (status) => status === null,
-  );
-  const desiredSubscriptionStatuses = subscriptionStatus?.filter(
-    (status) => status !== null,
-  );
 
   const pageSize = 10;
 
@@ -111,35 +88,18 @@ export const getPaginatedUsers: GetPaginatedUsers<
     skip: skipPages * pageSize,
     take: pageSize,
     where: {
-      AND: [
-        {
-          email: {
-            contains: emailContains,
-            mode: "insensitive",
-          },
-          isAdmin,
-        },
-        {
-          OR: [
-            {
-              subscriptionStatus: {
-                in: desiredSubscriptionStatuses,
-              },
-            },
-            {
-              subscriptionStatus: includeUnsubscribedUsers ? null : undefined,
-            },
-          ],
-        },
-      ],
+      email: {
+        contains: emailContains,
+        mode: "insensitive",
+      },
+      isAdmin,
     },
     select: {
       id: true,
       email: true,
       username: true,
       isAdmin: true,
-      subscriptionStatus: true,
-      paymentProcessorUserId: true,
+      role: true,
     },
     orderBy: {
       username: "asc",
