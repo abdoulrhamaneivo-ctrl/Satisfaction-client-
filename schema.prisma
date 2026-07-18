@@ -42,7 +42,6 @@ model User {
   historiquesTaches             TacheCorrectiveHistorique[] @relation("HistoriqueAuteur")
 
   // === RELATIONS PAR DÉFAUT D'OPEN SAAS ===
-  contactFormMessages           ContactFormMessage[]
   files                         File[]
 }
 
@@ -405,16 +404,6 @@ model StatistiquesMensuelles {
 // ============================================================================
 // TABLES TECHNIQUES ET ANALYTICS REQUISES PAR LE TEMPLATE OPEN SAAS
 // ============================================================================
-
-model ContactFormMessage {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String   // Adapté à l'identifiant String de User
-  subject   String
-  message   String
-  isRead    Boolean  @default(false)
-}
 
 model File {
   id        String   @id @default(uuid())
