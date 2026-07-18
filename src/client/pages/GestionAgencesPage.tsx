@@ -164,10 +164,10 @@ export const GestionAgencesPage = () => {
                           <Building2 className="size-5" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900 dark:text-white">
+                          <h3 className="font-bold text-foreground">
                             {agence.nom_agence}
                           </h3>
-                          <p className="flex items-center gap-1 text-xs text-slate-500">
+                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
                             <MapPin className="size-3" /> {agence.commune}
                           </p>
                         </div>
@@ -183,11 +183,11 @@ export const GestionAgencesPage = () => {
                     className="md:col-span-2"
                   >
                     <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border/50 bg-card/50 p-10 text-center">
-                      <Building2 className="mb-3 size-10 text-slate-400" />
-                      <p className="font-semibold text-slate-900 dark:text-white">
+                      <Building2 className="mb-3 size-10 text-muted-foreground" />
+                      <p className="font-semibold text-foreground">
                         Aucune agence pour l'instant
                       </p>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         Créez votre première agence via le formulaire pour commencer à structurer votre réseau.
                       </p>
                     </div>

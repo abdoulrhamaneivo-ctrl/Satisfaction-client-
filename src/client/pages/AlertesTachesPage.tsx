@@ -438,9 +438,9 @@ const STATUT_LABEL: Record<string, string> = {
 
 const STATUT_COLOR: Record<string, string> = {
   CREATION: 'bg-muted text-muted-foreground',
-  A_FAIRE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  A_FAIRE: 'bg-warning/15 text-warning',
   EN_COURS: 'bg-primary/10 text-primary',
-  TERMINEE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  TERMINEE: 'bg-success/15 text-success',
 };
 
 function TacheHistoriquePanel({ idTache }: { idTache: number }) {

@@ -44,17 +44,17 @@ const GuichetQrPreview = ({ guichet }: { guichet: any }) => {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex shrink-0 items-center gap-3 rounded-2xl border border-dashed border-border/70 bg-neutral-100 px-4 py-3 text-left transition-all hover:border-primary/50 hover:bg-neutral-200/70 dark:bg-slate-900/40 dark:hover:bg-slate-900/60"
+        className="group flex shrink-0 items-center gap-3 rounded-2xl border border-dashed border-border/70 bg-muted px-4 py-3 text-left transition-all hover:border-primary/50 hover:bg-muted/70"
         aria-label={`Afficher le QR code du guichet ${guichet.nom_guichet}`}
       >
-        <span className="flex size-11 items-center justify-center rounded-xl bg-neutral-300/70 text-neutral-500 grayscale transition-all group-hover:bg-primary/10 group-hover:text-primary group-hover:grayscale-0 dark:bg-slate-700/60 dark:text-slate-400">
+        <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground grayscale transition-all group-hover:bg-primary/10 group-hover:text-primary group-hover:grayscale-0">
           <QrCode className="size-6" />
         </span>
         <span>
-          <span className="block text-xs font-bold uppercase tracking-wide text-neutral-500 group-hover:text-primary">
+          <span className="block text-xs font-bold uppercase tracking-wide text-muted-foreground group-hover:text-primary">
             Voir le kit QR
           </span>
-          <span className="block text-[11px] text-neutral-400">
+          <span className="block text-[11px] text-muted-foreground">
             QR Code, USSD & affiches
           </span>
         </span>
@@ -275,9 +275,9 @@ export const GuichetsPage = () => {
                     liées à cette opération s'affichent. Sans opération sélectionnée, ce sont les
                     critères par défaut de l'agence qui s'appliquent.
                   </p>
-                  <div className="space-y-2 rounded-xl border border-border/70 p-3 bg-neutral-50/50 dark:bg-slate-900/10">
+                  <div className="space-y-2 rounded-xl border border-border/70 p-3 bg-muted/40">
                     {allServices?.map((s: any) => (
-                      <label key={s.id} className="flex items-center gap-2.5 text-sm font-semibold text-neutral-600 dark:text-slate-300 cursor-pointer">
+                      <label key={s.id} className="flex items-center gap-2.5 text-sm font-semibold text-foreground cursor-pointer">
                         <input
                           type="checkbox"
                           checked={selectedServiceIds.includes(s.id)}
@@ -288,7 +288,7 @@ export const GuichetsPage = () => {
                               setSelectedServiceIds(selectedServiceIds.filter(id => id !== s.id));
                             }
                           }}
-                          className="rounded border-neutral-300 text-primary focus:ring-primary h-4 w-4"
+                          className="rounded border-input text-primary focus:ring-primary h-4 w-4"
                         />
                         {s.libelle_service}
                       </label>
@@ -406,15 +406,15 @@ export const GuichetsPage = () => {
                       </div>
 
                       {/* Operations Configuration Section */}
-                      <div className="bg-neutral-50/50 dark:bg-slate-900/10 p-4 rounded-xl border border-dashed border-border/60">
+                      <div className="bg-muted/40 p-4 rounded-xl border border-dashed border-border/60">
                         {editingGuichetId === g.id ? (
                           <div className="space-y-3">
-                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                               <Settings2 size={14} /> Configurer les opérations du guichet
                             </h4>
                             <div className="grid grid-cols-2 gap-2 py-1">
                               {allServices?.map((s: any) => (
-                                <label key={s.id} className="flex items-center gap-2 text-sm font-semibold text-neutral-600 dark:text-slate-300 cursor-pointer">
+                                <label key={s.id} className="flex items-center gap-2 text-sm font-semibold text-foreground cursor-pointer">
                                   <input
                                     type="checkbox"
                                     checked={editServiceIds.includes(s.id)}
@@ -425,7 +425,7 @@ export const GuichetsPage = () => {
                                         setEditServiceIds(editServiceIds.filter(id => id !== s.id));
                                       }
                                     }}
-                                    className="rounded border-neutral-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                                    className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5"
                                   />
                                   {s.libelle_service}
                                 </label>
@@ -444,7 +444,7 @@ export const GuichetsPage = () => {
                                 size="sm" 
                                 onClick={() => handleSaveServices(g.id)}
                                 disabled={updatingServices}
-                                className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                className="h-8 text-xs gap-1 bg-success hover:bg-success/90 text-success-foreground"
                               >
                                 {updatingServices ? (
                                   <Loader2 size={12} className="animate-spin" />
@@ -458,18 +458,18 @@ export const GuichetsPage = () => {
                         ) : (
                           <div className="flex items-center justify-between gap-4">
                             <div>
-                              <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
+                              <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
                                 Opérations gérées
                               </h4>
                               <div className="flex flex-wrap gap-1 mt-1.5">
                                 {g.services && g.services.length > 0 ? (
                                   g.services.map((s: any) => (
-                                    <span key={s.id} className="bg-white dark:bg-slate-900 border border-neutral-200/80 dark:border-slate-800 text-[11px] font-bold text-neutral-700 dark:text-slate-300 px-2 py-0.5 rounded-md">
+                                    <span key={s.id} className="bg-card border border-border text-[11px] font-bold text-foreground px-2 py-0.5 rounded-md">
                                       {s.libelle_service}
                                     </span>
                                   ))
                                 ) : (
-                                  <span className="text-xs text-neutral-500 italic">
+                                  <span className="text-xs text-muted-foreground italic">
                                     Aucune opération (Par défaut : critères de l'agence)
                                   </span>
                                 )}

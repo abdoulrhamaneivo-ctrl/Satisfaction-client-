@@ -145,9 +145,9 @@ export const AvisPage = () => {
   };
 
   const getScoreColorClass = (score: number) => {
-    if (score <= 2) return 'bg-rose-50 dark:bg-rose-950/20 text-rose-600 border border-rose-100 dark:border-rose-900/30';
-    if (score === 3) return 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 border border-amber-100 dark:border-amber-900/30';
-    return 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 border border-emerald-100 dark:border-emerald-900/30';
+    if (score <= 2) return 'bg-destructive/10 text-destructive border border-destructive/20';
+    if (score === 3) return 'bg-warning/10 text-warning border border-warning/20';
+    return 'bg-success/10 text-success border border-success/20';
   };
 
   return (
@@ -187,12 +187,12 @@ export const AvisPage = () => {
           {/* Filters Dashboard Panel */}
           <MotionCard interactive={false} className="p-6">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-neutral-500 flex items-center gap-2">
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Filter size={16} /> Filtres de recherche
               </h2>
               <button
                 onClick={handleResetFilters}
-                className="text-xs font-semibold text-neutral-400 hover:text-primary transition-all flex items-center gap-1"
+                className="text-xs font-semibold text-muted-foreground hover:text-primary transition-all flex items-center gap-1"
               >
                 <RotateCcw size={12} /> Réinitialiser
               </button>
@@ -202,7 +202,7 @@ export const AvisPage = () => {
               {/* Agency Filter (DIRECTION only) */}
               {isDirection && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                     <Building size={12} /> Agence
                   </label>
                   <select
@@ -223,7 +223,7 @@ export const AvisPage = () => {
 
               {/* Guichet Filter */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Store size={12} /> Guichet / Caisse
                 </label>
                 <select
@@ -241,7 +241,7 @@ export const AvisPage = () => {
 
               {/* Service Filter */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Layers size={12} /> Opération / Service
                 </label>
                 <select
@@ -258,7 +258,7 @@ export const AvisPage = () => {
 
               {/* Score Filter */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <HelpCircle size={12} /> Évaluation (Note)
                 </label>
                 <select
@@ -277,7 +277,7 @@ export const AvisPage = () => {
 
               {/* Start Date Filter */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Calendar size={12} /> Date Début
                 </label>
                 <Input
@@ -290,7 +290,7 @@ export const AvisPage = () => {
 
               {/* End Date Filter */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Calendar size={12} /> Date Fin
                 </label>
                 <Input
@@ -348,7 +348,7 @@ export const AvisPage = () => {
                             {rep.reponses?.map((r: any) => (
                               <span
                                 key={r.id.toString()}
-                                className="flex items-center gap-1 text-xs font-bold text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-slate-900/50 border border-border/40 rounded-md px-2 py-0.5"
+                                className="flex items-center gap-1 text-xs font-bold text-muted-foreground bg-muted border border-border/40 rounded-md px-2 py-0.5"
                                 title={r.critere?.libelle_critere}
                               >
                                 {getScoreEmoji(r.score_brut)} {r.critere?.libelle_critere || 'Critère'} ({r.score_brut}/5)
@@ -357,19 +357,19 @@ export const AvisPage = () => {
                           </div>
 
                           {/* Comment text */}
-                          <p className="text-sm md:text-base font-medium text-neutral-800 dark:text-neutral-200 pl-1 leading-relaxed">
+                          <p className="text-sm md:text-base font-medium text-foreground pl-1 leading-relaxed">
                             {rep.commentaire_texte ? (
                               <span>"{rep.commentaire_texte}"</span>
                             ) : (
-                              <span className="text-neutral-400 italic text-xs font-normal">Aucun commentaire écrit</span>
+                              <span className="text-muted-foreground italic text-xs font-normal">Aucun commentaire écrit</span>
                             )}
                           </p>
 
                           {rep.agent && (
-                            <div className="flex items-center gap-1.5 text-xs text-neutral-500 dark:text-slate-400 bg-neutral-50 dark:bg-slate-900/50 w-fit px-2.5 py-1 rounded-lg border border-border/40">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted w-fit px-2.5 py-1 rounded-lg border border-border/40">
                               <UserIcon size={12} className="text-primary" />
-                              <span className="font-semibold text-neutral-400">Agent en service :</span>
-                              <span className="font-bold text-neutral-700 dark:text-neutral-300">
+                              <span className="font-semibold text-muted-foreground">Agent en service :</span>
+                              <span className="font-bold text-foreground">
                                 {[rep.agent.prenom, rep.agent.nom].filter(Boolean).join(' ') || rep.agent.username}
                               </span>
                             </div>
@@ -377,13 +377,13 @@ export const AvisPage = () => {
                         </div>
 
                         {/* Metadata column */}
-                        <div className="shrink-0 flex md:flex-col justify-between items-center md:items-end text-xs text-neutral-400 dark:text-slate-500 border-t md:border-t-0 border-border/50 pt-3 md:pt-0">
+                        <div className="shrink-0 flex md:flex-col justify-between items-center md:items-end text-xs text-muted-foreground border-t md:border-t-0 border-border/50 pt-3 md:pt-0">
                           <div className="text-left md:text-right">
-                            <p className="font-extrabold text-neutral-700 dark:text-neutral-300 flex items-center md:justify-end gap-1">
+                            <p className="font-extrabold text-foreground flex items-center md:justify-end gap-1">
                               <Store size={12} /> {rep.guichet?.nom_guichet || 'Guichet'}
                             </p>
                             {isDirection && rep.agence && (
-                              <p className="text-[10px] font-semibold text-neutral-500">
+                              <p className="text-[10px] font-semibold text-muted-foreground">
                                 {rep.agence.nom_agence}
                               </p>
                             )}

@@ -305,7 +305,7 @@ export const ConfigurationCriteresPage = () => {
                               setSelectedServiceIds(selectedServiceIds.filter((id) => id !== s.id));
                             }
                           }}
-                          className="rounded border-neutral-300 text-primary focus:ring-primary h-4 w-4"
+                          className="rounded border-input text-primary focus:ring-primary h-4 w-4"
                         />
                         {s.libelle_service}
                       </label>

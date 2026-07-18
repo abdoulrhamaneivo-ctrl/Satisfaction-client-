@@ -378,10 +378,10 @@ export const AdminPersonnelPage = () => {
                           {agent.prenom?.[0]}{agent.nom?.[0]}
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900 dark:text-white">
+                          <h3 className="font-bold text-foreground">
                             {agent.prenom} {agent.nom}
                           </h3>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             {agent.role}
                             {agent.actif === false && (
                               <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-600">
@@ -408,7 +408,7 @@ export const AdminPersonnelPage = () => {
                             onClick={() => handleReactivate(agent.id)}
                             aria-label="Réactiver"
                             title="Réactiver ce compte"
-                            className="text-slate-400 hover:text-emerald-500"
+                            className="text-muted-foreground hover:text-success"
                           >
                             <RotateCcw size={18} />
                           </button>
@@ -418,7 +418,7 @@ export const AdminPersonnelPage = () => {
                             onClick={() => setAgentAConfirmerSuppression({ id: agent.id, nom: agent.nom, prenom: agent.prenom })}
                             aria-label="Suspendre"
                             title="Suspendre ce compte"
-                            className="text-slate-400 hover:text-red-500"
+                            className="text-muted-foreground hover:text-destructive"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -426,7 +426,7 @@ export const AdminPersonnelPage = () => {
                       </div>
                     </div>
 
-                    <div className="mt-6 flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <div className="mt-6 flex flex-col gap-2 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <Mail size={14} /> {agent.email}
                       </div>
@@ -445,9 +445,9 @@ export const AdminPersonnelPage = () => {
                   className="md:col-span-2"
                 >
                   <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border/50 bg-card/50 p-10 text-center">
-                    <UsersRound className="mb-3 size-10 text-slate-400" />
-                    <p className="font-semibold text-slate-900 dark:text-white">Aucun agent enregistré</p>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <UsersRound className="mb-3 size-10 text-muted-foreground" />
+                    <p className="font-semibold text-foreground">Aucun agent enregistré</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Ajoutez votre premier agent via le formulaire pour commencer à suivre votre équipe.
                     </p>
                   </div>
