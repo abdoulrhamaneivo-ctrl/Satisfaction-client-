@@ -24,7 +24,7 @@ export const AmbientBackground = ({
       className={cn(
         'bg-app-shell relative min-h-screen overflow-hidden',
         // Mode clair : fond très légèrement crème pour différencier du blanc pur
-        'bg-[hsl(32,40%,98%)] dark:bg-transparent',
+        'bg-[hsl(20,35%,98%)] dark:bg-transparent',
         className,
       )}
     >

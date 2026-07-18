@@ -12,8 +12,8 @@ export function CXSATLogo({ className = "size-8", width = 32, height = 32 }: { c
     >
       <defs>
         <linearGradient id="cxsatLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(32 100% 37%)" /> {/* orange chaleureux */}
-          <stop offset="100%" stopColor="hsl(33 74% 62%)" /> {/* accent */}
+          <stop offset="0%" stopColor="hsl(20 90% 46%)" /> {/* orange postal */}
+          <stop offset="100%" stopColor="hsl(152 62% 32%)" /> {/* vert */}
         </linearGradient>
       </defs>
       <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" className="text-muted-foreground opacity-30" />

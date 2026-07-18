@@ -355,12 +355,15 @@
     --card-subtle-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 210 100% 13%;
+    /* Identité La Poste de Côte d'Ivoire : orange postal en primaire, vert
+       (drapeau ivoirien) en secondaire — remplace l'ancien bleu marine
+       générique du template. */
+    --primary: 20 90% 46%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 32 100% 37%;
-    --secondary-foreground: 0 0% 9%;
-    --secondary-muted: 32 75% 78%;
-    --secondary-muted-foreground: 0 0% 3.9%;
+    --secondary: 152 62% 27%;
+    --secondary-foreground: 0 0% 98%;
+    --secondary-muted: 152 45% 90%;
+    --secondary-muted-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
     /* Bug corrigé : 45.1% de luminosité pour le texte secondaire est trop
        clair sur un fond quasi blanc (ratio de contraste proche de la limite
@@ -368,8 +371,8 @@
        utilisent cette couleur et devenaient difficiles à lire en plein
        jour / forte luminosité d'écran. Assombri pour un contraste plus sûr. */
     --muted-foreground: 0 0% 38%;
-    --accent: 33 74% 62%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 28 88% 58%;
+    --accent-foreground: 0 0% 9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --success: 141 71% 48%;
@@ -378,35 +381,35 @@
     --warning-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --ring: 20 90% 46%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 210 50% 5%;
+    --background: 155 30% 5%;
     --foreground: 0 0% 98%;
-    --card: 210 50% 5%;
+    --card: 155 30% 5%;
     --card-foreground: 0 0% 98%;
     --card-accent: 31 57% 93%;
     --card-accent-foreground: 0 0% 3.9%;
-    --card-subtle: 233 24% 15%;
+    --card-subtle: 155 24% 13%;
     --card-subtle-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 31 57% 93%;
+    --primary: 24 92% 58%;
     --primary-foreground: 0 0% 9%;
-    --secondary: 209 91% 61%;
-    --secondary-foreground: 0 0% 98%;
-    --secondary-muted: 210 67% 94%;
-    --secondary-muted-foreground: 0 0% 3.9%;
-    --muted: 210 100% 13%;
-    /* Bug corrigé : 63.9% était un peu trop sombre sur le fond navy très
-       foncé (5% de luminosité) du thème sombre, rendant le texte secondaire
+    --secondary: 150 55% 45%;
+    --secondary-foreground: 0 0% 9%;
+    --secondary-muted: 152 40% 90%;
+    --secondary-muted-foreground: 0 0% 9%;
+    --muted: 155 25% 12%;
+    /* Bug corrigé : 63.9% était un peu trop sombre sur le fond très foncé
+       (5% de luminosité) du thème sombre, rendant le texte secondaire
        (sous-titres, légendes, dates) difficile à lire. Éclairci pour un
        meilleur contraste. */
     --muted-foreground: 0 0% 72%;
-    --accent: 31 57% 93%;
-    --accent-foreground: 210 100% 13%;
+    --accent: 28 90% 65%;
+    --accent-foreground: 0 0% 9%;
     --destructive: 0 62.8% 63%;
     --destructive-foreground: 0 0% 98%;
     --success: 141 71% 48%;
@@ -415,7 +418,7 @@
     --warning-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --ring: 24 92% 58%;
   }
 }
 
