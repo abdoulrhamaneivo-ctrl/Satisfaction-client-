@@ -23,7 +23,7 @@ export const demoNavigationitems: NavigationItem[] = [
     to: "/criteres",
     children: [
       { name: "Critères", to: "/criteres" },
-      { name: "Personnel", to: "/admin/personnel" },
+      { name: "Personnel", to: "/admin/personnel", roles: ["DIRECTION", "CHEF_AGENCE"] },
       // NOTE : "Tarifs" (/admin/tarifs) n'a volontairement PAS été ajouté
       // ici. Correctif d'une erreur que j'avais moi-même introduite : cette
       // page est protégée par `user?.isAdmin` (indicateur réservé aux

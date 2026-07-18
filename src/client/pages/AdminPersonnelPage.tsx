@@ -17,6 +17,7 @@ import {
   Mail,
   Phone,
   ShieldUser,
+  ShieldAlert,
   Users,
   CheckCircle2,
   UsersRound,
@@ -185,6 +186,29 @@ export const AdminPersonnelPage = () => {
   };
 
   const agentCount = agents?.length ?? 0;
+
+  // Défense en profondeur : les actions serveur (inviteAgent, updateAgent,
+  // deleteAgent, reactivateAgent) refusent déjà AGENT/QUALITE, mais sans ce
+  // garde ils voyaient quand même tout le formulaire de gestion d'équipe
+  // avant que leur clic n'échoue côté serveur — cohérent avec le même
+  // correctif déjà appliqué sur GestionAgencesPage.
+  if (user && user.role !== 'DIRECTION' && user.role !== 'CHEF_AGENCE') {
+    return (
+      <RequireAuth>
+        <AmbientBackground>
+          <div className="flex min-h-screen items-center justify-center p-8">
+            <div className="flex max-w-md flex-col items-center gap-3 rounded-3xl border border-border/70 bg-card p-10 text-center shadow-premium">
+              <ShieldAlert className="size-10 text-warning" />
+              <h1 className="text-lg font-bold">Accès réservé</h1>
+              <p className="text-sm text-muted-foreground">
+                Seuls le chef d'entreprise et le Chef d'Agence peuvent gérer le personnel.
+              </p>
+            </div>
+          </div>
+        </AmbientBackground>
+      </RequireAuth>
+    );
+  }
 
   return (
     <RequireAuth>
