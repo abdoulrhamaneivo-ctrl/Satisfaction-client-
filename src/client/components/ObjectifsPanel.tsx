@@ -7,6 +7,16 @@ import { motion } from 'framer-motion';
 import { Target, TrendingUp, Save, Trash2 } from 'lucide-react';
 import { MotionCard } from './MotionCard';
 import { Button } from './ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { useToast } from '../hooks/use-toast';
 
 type Props = {
@@ -25,6 +35,9 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
   const [editMap, setEditMap] = useState<Record<number, { valeur: string; debut: string; fin: string }>>({});
   const [saving, setSaving] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  // Remplace l'ancien window.confirm() natif (audit UX 2.2) par une
+  // confirmation cohérente avec le reste du design system.
+  const [objectifAConfirmer, setObjectifAConfirmer] = useState<{ idCritere: number; libelle: string } | null>(null);
 
   const activeIds: number[] = critereIdsActifs || [];
   const objectifsList: any[] = objectifs || [];
@@ -74,7 +87,6 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
   const handleDelete = async (idCritere: number) => {
     const objectifActuel = getObjectifForCritere(idCritere);
     if (!objectifActuel) return;
-    if (!window.confirm(`Supprimer l\'objectif pour « ${objectifActuel.critere?.libelle_critere || 'ce critère'} » ?`)) return;
     setDeleting(idCritere);
     try {
       await supprimerObjectif({ id: objectifActuel.id });
@@ -83,6 +95,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     } finally {
       setDeleting(null);
+      setObjectifAConfirmer(null);
     }
   };
 
@@ -196,8 +209,9 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
                     variant="outline"
                     className="flex-none border-destructive/40 text-destructive hover:bg-destructive/10"
                     disabled={deleting === critere.id}
-                    onClick={() => handleDelete(critere.id)}
+                    onClick={() => setObjectifAConfirmer({ idCritere: critere.id, libelle: critere.libelle_critere })}
                     title="Supprimer l'objectif"
+                    aria-label="Supprimer l'objectif"
                   >
                     <Trash2 className="size-3.5" />
                   </Button>
@@ -216,6 +230,30 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
           );
         })}
       </div>
+
+      <AlertDialog
+        open={objectifAConfirmer !== null}
+        onOpenChange={(open) => !open && setObjectifAConfirmer(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet objectif ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'objectif défini pour « {objectifAConfirmer?.libelle || 'ce critère'} » sera
+              définitivement supprimé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => objectifAConfirmer && handleDelete(objectifAConfirmer.idCritere)}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MotionCard>
   );
 };

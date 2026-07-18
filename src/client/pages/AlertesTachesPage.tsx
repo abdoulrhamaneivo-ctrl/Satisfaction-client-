@@ -352,7 +352,7 @@ export const AlertesTachesPage = () => {
             >
               <div className="mb-5 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-foreground">Nouvelle tâche corrective</h3>
-                <button onClick={() => setModal({ alerteId: null, idAgence: null })} className="text-muted-foreground hover:text-foreground">
+                <button onClick={() => setModal({ alerteId: null, idAgence: null })} className="text-muted-foreground hover:text-foreground" aria-label="Fermer">
                   <X className="size-5" />
                 </button>
               </div>

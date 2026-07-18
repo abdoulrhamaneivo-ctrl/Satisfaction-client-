@@ -34,6 +34,16 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { useToast } from '../hooks/use-toast';
 
 export const AdminPersonnelPage = () => {
@@ -73,6 +83,12 @@ export const AdminPersonnelPage = () => {
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  // Agent en attente de confirmation de suspension (audit UX 2.1 : cette
+  // action désactivait l'accès du compte au premier clic, sans aucune
+  // confirmation, alors qu'elle est placée juste à côté du bouton "réactiver").
+  const [agentAConfirmerSuppression, setAgentAConfirmerSuppression] = useState<
+    { id: number; nom: string; prenom: string } | null
+  >(null);
 
   // Règle métier : la direction constitue l'encadrement de tout le réseau
   // (Chef d'Agence, Auditeur Qualité) sur n'importe quelle agence de
@@ -166,11 +182,13 @@ export const AdminPersonnelPage = () => {
   const handleDelete = async (id: number) => {
     try {
       await deleteAgent({ id });
-      toast({ title: 'Agent suspendu', description: "Le compte a été désactivé et ne peut plus se connecter." });
+      toast({ title: 'Agent suspendu', description: "Le compte a été désactivé et ne peut plus se connecter. Il peut être réactivé à tout moment." });
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de suspendre cet agent." });
+    } finally {
+      setAgentAConfirmerSuppression(null);
     }
   };
 
@@ -397,7 +415,7 @@ export const AdminPersonnelPage = () => {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => handleDelete(agent.id)}
+                            onClick={() => setAgentAConfirmerSuppression({ id: agent.id, nom: agent.nom, prenom: agent.prenom })}
                             aria-label="Suspendre"
                             title="Suspendre ce compte"
                             className="text-slate-400 hover:text-red-500"
@@ -439,6 +457,35 @@ export const AdminPersonnelPage = () => {
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={agentAConfirmerSuppression !== null}
+        onOpenChange={(open) => !open && setAgentAConfirmerSuppression(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Suspendre ce compte ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {agentAConfirmerSuppression && (
+                <>
+                  <strong className="text-foreground">{agentAConfirmerSuppression.prenom} {agentAConfirmerSuppression.nom}</strong>{" "}
+                  ne pourra plus se connecter. Ce compte pourra être réactivé à
+                  tout moment depuis cette même page.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => agentAConfirmerSuppression && handleDelete(agentAConfirmerSuppression.id)}
+            >
+              Suspendre le compte
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AmbientBackground>
     </RequireAuth>
   );

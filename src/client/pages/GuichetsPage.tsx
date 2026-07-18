@@ -14,6 +14,7 @@ import { KitGuichet } from '../components/KitGuichet';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { RequireAuth } from '../components/RequireAuth';
+import { useToast } from '../hooks/use-toast';
 import {
   Dialog,
   DialogContent,
@@ -83,6 +84,7 @@ const TYPES_GUICHET = [
 
 export const GuichetsPage = () => {
   const { data: user } = useAuth();
+  const { toast } = useToast();
 
   const [nomGuichet, setNomGuichet] = useState('');
   const [typeGuichet, setTypeGuichet] = useState('Caisse');
@@ -164,7 +166,11 @@ export const GuichetsPage = () => {
       await updateGuichetServices({ id_guichet: guichetId, serviceIds: editServiceIds });
       setEditingGuichetId(null);
     } catch (err: any) {
-      alert("Erreur lors de la mise à jour des opérations : " + err.message);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: "Erreur lors de la mise à jour des opérations : " + err.message,
+      });
     } finally {
       setUpdatingServices(false);
     }
