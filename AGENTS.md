@@ -1,16 +1,32 @@
-# Open SaaS
+# CXSAT — outil interne
 
-This is SaaS boilerplate starter kit built on top of Wasp, a batteries-included framework for building full-stack web apps with React, Node.js, and Prisma.
+CXSAT est un outil interne de collecte et de pilotage de la satisfaction
+client (formulaires accessibles via QR code sur des guichets physiques).
+C'est un déploiement **mono-agence** : une seule entreprise, une seule
+agence pour l'instant, sans facturation ni inscription publique.
 
-## Documentation
+Construit avec [Wasp](https://wasp.sh) (React + Node.js + Prisma), à partir
+du template Open SaaS — dont toute la partie produit commercial (paiement,
+landing page marketing, inscription publique, analytics marketing,
+personnalisation multi-tenant) a été retirée. Ne pas réintroduire ces
+éléments sans une décision produit explicite.
 
-### Open SaaS
+## Repères du projet
 
-Always fetch and verify your knowledge against the Open SaaS documentation before taking on tasks, answering questions, or doing any development work in this project:
+- `main.wasp.ts` : point d'entrée Wasp (routes, actions, queries, jobs).
+- `schema.prisma` : modèle de données. Hiérarchie `Entreprise → Agence →
+  Guichet/User`. Le modèle `Entreprise → Agence` est volontairement gardé
+  en base (même en mono-agence) pour permettre un agrandissement futur.
+- `src/server/permissions.ts` a été supprimé : le seul module de
+  permissions/RLS canonique est `src/server/middleware/rowLevelSecurity.ts`.
+- `src/server/scripts/dbSeeds.ts` : seed unique (Entreprise, Agence, compte
+  `CHEF_AGENCE`) — remplace l'ancien onboarding multi-tenant.
+- `src/shared/branding.ts` : charte graphique figée en dur (plus de
+  `BrandConfig` en base ni d'écran de configuration).
+- Comptes créés uniquement par invitation (action `inviteAgent`), jamais par
+  inscription publique.
 
-1. Fetch the Open SaaS documentation map from the [LLMs.txt index](https://docs.opensaas.sh/llms.txt). The map contains raw markdown file GitHub URLs of all documentation sections.
-2. Fetch the guides relevant to the current task or query from those raw.githubusercontent.com URLs directly - do NOT use HTML page URLs.
+## Documentation Wasp
 
-### Wasp
-
-Remember, this template is built on the Wasp framework. If, at any time, the Open SaaS docs fail to provide enough information about a certain feature, make sure to check out the Wasp docs [LLMs.txt index](https://wasp.sh/llms.txt).
+Si les docs internes ne suffisent pas pour une question de framework,
+consulter l'index [LLMs.txt de Wasp](https://wasp.sh/llms.txt).
