@@ -5,7 +5,6 @@ import { Toaster } from "../client/components/ui/toaster";
 import "./Main.css";
 import { NavBar } from "./components/NavBar/NavBar";
 import { demoNavigationitems } from "./components/NavBar/constants";
-import { CookieConsentBanner } from "./components/cookie-consent/Banner";
 import { AnimatePresence, motion } from "framer-motion";
 import { BrandProvider } from "./context/BrandContext";
 
@@ -102,7 +101,6 @@ export function App() {
         </motion.div>
       </AnimatePresence>
       <Toaster position="bottom-right" />
-      <CookieConsentBanner />
     </BrandProvider>
   );
 }

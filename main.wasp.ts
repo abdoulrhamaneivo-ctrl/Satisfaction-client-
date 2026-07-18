@@ -80,7 +80,6 @@ import {
 } from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
-import { analyticsSpec } from "./src/analytics/analytics.wasp";
 import { authConfig, authSpec } from "./src/auth/auth.wasp";
 import { head } from "./src/client/head.wasp";
 import { fileUploadSpec } from "./src/file-upload/file-upload.wasp";
@@ -230,7 +229,6 @@ export default app({
     authSpec,
     userSpec,
     fileUploadSpec,
-    analyticsSpec,
     adminSpec,
     // Routes CXSAT
     guichetsRoute,
