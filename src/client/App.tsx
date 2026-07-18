@@ -22,7 +22,7 @@ export function App() {
   // chemin "/admin/agences" matchait startsWith("/admin") et la page était
   // traitée comme le dashboard admin intégré de Wasp (rendu seul, sans
   // NavBar ni barre de navigation d'aucune sorte).
-  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences', '/admin/marque'];
+  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences'];
   const isAdminDashboard = useMemo(() => {
     return (
       location.pathname.startsWith(routes.AdminRoute.to) &&

@@ -19,7 +19,7 @@ export const CollectePage = () => {
   const idGuichetNum = Number(guichetId);
 
   const { data: formDef, isLoading } = useQuery(getFormDefinitionForGuichet, { id_guichet: idGuichetNum });
-  const { setLocalOverload, brandConfig } = useBrand();
+  const { brandConfig } = useBrand();
 
   const [step, setStep] = useState<'SERVICE_SELECT' | 'QUESTIONS' | 'COMMENT_STEP' | 'SUCCESS'>('SERVICE_SELECT');
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
@@ -30,17 +30,6 @@ export const CollectePage = () => {
   const [telephone, setTelephone] = useState('');
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-
-  // Appliquer la configuration de marque du guichet de façon locale
-  useEffect(() => {
-    const brand = (formDef as any)?.brandConfig;
-    if (brand) {
-      setLocalOverload(brand);
-    }
-    return () => {
-      setLocalOverload(null);
-    };
-  }, [formDef, setLocalOverload]);
 
   // Initialize step based on number of services
   useEffect(() => {

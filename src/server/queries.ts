@@ -1107,10 +1107,3 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
     })
   );
 };
-
-// BrandConfig a été supprimé (outil interne mono-agence).
-// La configuration de marque est désormais statique dans src/shared/branding.ts.
-export const getBrandConfig = async (_args: void, _context: any) => {
-  return BRANDING;
-};
-

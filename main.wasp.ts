@@ -16,7 +16,6 @@ import { GestionAgencesPage } from "./src/client/pages/GestionAgencesPage" with 
 import { AvisPage } from "./src/client/pages/AvisPage" with { type: "ref" };
 import { ConfigurationCriteresPage } from "./src/client/pages/ConfigurationCriteresPage" with { type: "ref" };
 import { AlertesTachesPage } from "./src/client/pages/AlertesTachesPage" with { type: "ref" };
-import { BrandConfigPage } from "./src/client/pages/BrandConfigPage" with { type: "ref" };
 
 // === ACTIONS ===
 import {
@@ -41,7 +40,6 @@ import {
   moveCritereToService,
   removeCritereFromService,
   reorderCriteresInService,
-  upsertBrandConfig,
 } from "./src/server/actions" with { type: "ref" };
 
 // === IMPORTS JOBS CRON CXSAT ===
@@ -76,7 +74,6 @@ import {
   getActionsPrioritaires,
   getKPIsPeriode,
   getCriteresParOperation,
-  getBrandConfig,
 } from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
@@ -96,7 +93,6 @@ const avisRoute = route("AvisRoute", "/avis", page(AvisPage));
 const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/criteres", page(ConfigurationCriteresPage));
 const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
-const brandConfigRoute = route("BrandConfigRoute", "/admin/marque", page(BrandConfigPage));
 
 // === ACTIONS ===
 const createGuichetAction = action(createGuichet, {
@@ -137,10 +133,6 @@ const updateGuichetServicesAction = action(updateGuichetServices, { entities: ["
 const moveCritereToServiceAction = action(moveCritereToService, { entities: ["CritereService", "Critere", "Service", "User"] });
 const removeCritereFromServiceAction = action(removeCritereFromService, { entities: ["CritereService", "Critere", "Service", "User"] });
 const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User"] });
-const upsertBrandConfigAction = action(upsertBrandConfig, {
-  entities: ["BrandConfig", "Entreprise", "User"],
-});
-
 // === QUERIES ===
 const getGuichetsQuery = query(getGuichets, {
   entities: ["Guichet", "User", "Service", "Agence"],
@@ -167,13 +159,10 @@ const getAlertesQuery = query(getAlertes, { entities: ["Alerte", "Guichet", "Rep
 const getCriteresQuery = query(getCriteres, { entities: ["Critere", "User"] });
 const getAgenceCriteresQuery = query(getAgenceCriteres, { entities: ["AgenceCritere", "User", "Agence"] });
 const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, {
-  entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise", "BrandConfig"],
+  entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise"],
 });
 const getServicesQuery = query(getServices, {
   entities: ["Service", "User"],
-});
-const getBrandConfigQuery = query(getBrandConfig, {
-  entities: ["BrandConfig", "Entreprise", "User"],
 });
 const getRadarStatsQuery = query(getRadarStats, {
   entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence"],
@@ -240,7 +229,6 @@ export default app({
     configurationCriteresRoute,
     collecteRoute,
     alertesTachesRoute,
-    brandConfigRoute,
     // Actions existantes
     createGuichetAction,
     assignAgentAction,
@@ -264,7 +252,6 @@ export default app({
     moveCritereToServiceAction,
     removeCritereFromServiceAction,
     reorderCriteresInServiceAction,
-    upsertBrandConfigAction,
     // Queries existantes
     getStatsFiltereesQuery,
     getAgentsByAgenceQuery,
@@ -292,7 +279,6 @@ export default app({
     getKPIsPeriodeQuery,
     getCriteresParOperationQuery,
     exportAvisGroupesQuery,
-    getBrandConfigQuery,
     job(detecterAlertesSilence, {
       executor: "PgBoss",
       entities: ["Alerte", "Guichet", "AffectationGuichet", "Reponse", "User"],

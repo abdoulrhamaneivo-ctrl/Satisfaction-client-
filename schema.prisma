@@ -58,70 +58,7 @@ model Entreprise {
   utilisateurs        User[]
   criteres            Critere[]
   services            Service[]
-  brandConfig         BrandConfig?
 }
-
-model BrandConfig {
-  id                   Int        @id @default(autoincrement())
-  id_entreprise        Int        @unique
-  entreprise           Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
-
-  // --- NOM DE LA PLATEFORME ---
-  platform_name        String     @default("CXSAT")
-  platform_description String     @default("Plateforme de pilotage de la satisfaction client")
-
-  // --- LOGOS & FAVICON ---
-  logo_url             String?
-  logo_dark_url        String?
-  favicon_url          String?
-
-  // --- DESIGN SYSTEM COMPLET (Couleurs en HSL) ---
-  color_background     String     @default("40 20% 98.5%")
-  color_foreground     String     @default("0 0% 3.9%")
-  
-  color_card           String     @default("40 20% 99%")
-  color_card_foreground String    @default("0 0% 3.9%")
-  color_popover        String     @default("0 0% 100%")
-  color_popover_foreground String @default("0 0% 3.9%")
-  
-  color_primary        String     @default("210 100% 13%")
-  color_primary_foreground String  @default("0 0% 98%")
-  color_secondary      String     @default("32 100% 37%")
-  color_secondary_foreground String @default("0 0% 9%")
-  color_accent         String     @default("33 74% 62%")
-  color_accent_foreground String  @default("0 0% 98%")
-  
-  color_muted          String     @default("0 0% 96.1%")
-  color_muted_foreground String    @default("0 0% 38%")
-  color_destructive    String     @default("0 84.2% 60.2%")
-  color_destructive_foreground String @default("0 0% 98%")
-  color_success        String     @default("141 71% 48%")
-  color_success_foreground String  @default("0 0% 98%")
-  color_warning        String     @default("36 100% 50%")
-  color_warning_foreground String  @default("0 0% 98%")
-
-  color_border         String     @default("0 0% 89.8%")
-  color_input          String     @default("0 0% 89.8%")
-  color_ring           String     @default("0 0% 3.9%")
-
-  // --- STYLE ET EFFETS ---
-  border_radius        String     @default("0.5rem")
-  shadow_style         String     @default("DEFAULT") // NONE, DEFAULT, SHARP, GLOW
-  font_family          String     @default("Satoshi")
-  font_url             String?
-
-  // --- TEXTES ET SLOGANS PERSONNALISÉS (FORMULAIRES PUBLIC / AFFICHES) ---
-  form_title           String     @default("Votre avis compte !")
-  form_subtitle        String     @default("Notez-nous en 10 secondes apres votre passage")
-  form_thank_you       String     @default("Merci pour votre avis !")
-  qr_slogan            String     @default("Scannez ce QR Code")
-  ussd_help_text       String     @default("Pas de connexion internet ?")
-  hide_cxsat_branding  Boolean    @default(false)
-
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
-}
-
 
 model Agence {
   id                  Int               @id @default(autoincrement())

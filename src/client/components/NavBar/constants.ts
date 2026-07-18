@@ -20,14 +20,8 @@ export const demoNavigationitems: NavigationItem[] = [
   // "paramètres" dédié — au milieu des pages de travail quotidien).
   {
     name: "Paramètres",
-    to: "/admin/marque",
+    to: "/criteres",
     children: [
-      // Correctif : la charte graphique s'applique à TOUTE l'entreprise (une
-      // seule config par id_entreprise, visible par toutes les agences), donc
-      // seuls les rôles à portée entreprise peuvent la modifier — voir
-      // upsertBrandConfig dans actions.ts. Un CHEF_AGENCE ne doit pas voir ce
-      // lien, sinon il atterrit sur un écran qu'il n'a plus le droit d'utiliser.
-      { name: "Charte graphique", to: "/admin/marque", roles: ["DIRECTION", "QUALITE"] },
       { name: "Critères", to: "/criteres" },
       { name: "Personnel", to: "/admin/personnel" },
       // NOTE : "Tarifs" (/admin/tarifs) n'a volontairement PAS été ajouté

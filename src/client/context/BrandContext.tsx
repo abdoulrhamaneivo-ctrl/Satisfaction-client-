@@ -4,13 +4,11 @@ import { BRANDING, type BrandConfigType } from '../../shared/branding';
 type BrandContextType = {
   brandConfig: BrandConfigType;
   isLoading: boolean;
-  setLocalOverload: (config: BrandConfigType | null) => void;
 };
 
 const BrandContext = createContext<BrandContextType>({
   brandConfig: BRANDING,
   isLoading: false,
-  setLocalOverload: () => {},
 });
 
 export const useBrand = () => useContext(BrandContext);
@@ -119,7 +117,7 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <BrandContext.Provider value={{ brandConfig: BRANDING, isLoading: false, setLocalOverload: () => {} }}>
+    <BrandContext.Provider value={{ brandConfig: BRANDING, isLoading: false }}>
       {children}
     </BrandContext.Provider>
   );
