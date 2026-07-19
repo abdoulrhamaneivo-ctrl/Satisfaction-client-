@@ -33,3 +33,4 @@ Déploiement conteneurisé via `Dockerfile` / `railway.json` (Railway) :
 Pour toute question de maintenance (accès `isAdmin`, incidents, évolutions),
 contacter le responsable technique de la plateforme CXSAT au sein de
 l'entreprise.
+# Satisfaction-client-
