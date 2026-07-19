@@ -3,6 +3,7 @@ export const BRANDING = {
   platform_description: "Plateforme de pilotage de la satisfaction client",
   logo_url: "/yeba-logo.svg",
   logo_dark_url: null,
+  
   favicon_url: null,
   color_background: "40 20% 98.5%",
   color_foreground: "0 0% 3.9%",
