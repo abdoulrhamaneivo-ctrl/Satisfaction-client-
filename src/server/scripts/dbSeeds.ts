@@ -13,10 +13,10 @@ import {
 const NOM_ENTREPRISE = "Mon Entreprise";
 const NOM_AGENCE = "Agence Centrale";
 const COMMUNE_AGENCE = "Plateau";
-const EMAIL_CHEF = "chef@cxsat.local";
+const EMAIL_CHEF = "chef@yeba.local";
 
 /**
- * Seeding unique pour l'outil interne mono-agence de CXSAT.
+ * Seeding unique pour l'outil interne mono-agence de Yeba.
  * Crée l'Entreprise, l'Agence et le compte CHEF_AGENCE par défaut.
  * Idempotent : peut être relancé sans effet de bord (aucune donnée dupliquée).
  *
@@ -167,8 +167,12 @@ export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
       nom: "Responsable",
       prenom: "Agence",
       role: "CHEF_AGENCE",
-      id_agence: agence.id,
-      id_entreprise: entreprise.id,
+      // Ce compte est le seul dont le mot de passe généré automatiquement
+      // est directement utilisable pour se connecter (affiché en console).
+      // On force son changement dès la première connexion.
+      mustChangePassword: true,
+      agence: { connect: { id: agence.id } },
+      entreprise: { connect: { id: entreprise.id } },
       telephone: "0102030405",
       actif: true,
       isAdmin: false,
@@ -181,6 +185,20 @@ export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
   } else {
     console.log(`Le compte CHEF_AGENCE (${EMAIL_CHEF}) existe déjà.`);
   }
+
+  // Resynchronisation des séquences PostgreSQL : les createMany ci-dessus
+  // insèrent des lignes avec un `id` explicite (1, 2, 3...) pour Critere,
+  // Service et Canal. PostgreSQL ne fait PAS avancer automatiquement le
+  // compteur auto-incrémenté dans ce cas — il reste bloqué à sa valeur de
+  // départ. Sans cette resynchronisation, la première création dynamique
+  // (ex. createCritere, createService) retente l'ID 1 déjà pris et échoue
+  // avec `Unique constraint failed on the fields: (id)`.
+  for (const table of ["Critere", "Service", "Canal"]) {
+    await prismaClient.$executeRawUnsafe(
+      `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE((SELECT MAX(id) FROM "${table}"), 1));`
+    );
+  }
+  console.log("Séquences PostgreSQL resynchronisées (Critere, Service, Canal).");
 
   console.log("Seeding mono-agence terminé avec succès !");
 }

@@ -29,6 +29,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 // Aperçu compact et cliquable du kit QR/USSD d'un guichet.
 // Avant ce correctif, le KitGuichet complet (jusqu'à 595x842px, format
@@ -97,6 +107,11 @@ export const GuichetsPage = () => {
   const [updatingServices, setUpdatingServices] = useState(false);
   const [newServiceName, setNewServiceName] = useState('');
   const [creatingService, setCreatingService] = useState(false);
+  // Ce réglage change immédiatement les questions posées aux clients sur ce
+  // guichet (formulaire live) — un clic malencontreux sur "Enregistrer" ne
+  // doit pas pouvoir l'appliquer sans un dernier geste de confirmation,
+  // comme pour la suspension d'un agent.
+  const [guichetAConfirmer, setGuichetAConfirmer] = useState<{ id: number; nom: string } | null>(null);
 
   const userAgenceId = user?.id_agence;
 
@@ -104,6 +119,7 @@ export const GuichetsPage = () => {
     data: guichets,
     isLoading,
     error: queryError,
+    refetch: refetchGuichets,
   } = useQuery(
     getGuichets,
     { id_agence: userAgenceId || 0 },
@@ -115,7 +131,7 @@ export const GuichetsPage = () => {
   const componentRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: 'Kit-Evaluation-CXSAT',
+    documentTitle: 'Kit-Evaluation-Yeba',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -189,7 +205,7 @@ export const GuichetsPage = () => {
             </p>
             <p className="mb-6 text-sm text-muted-foreground">
               Votre compte n'est rattaché à aucune agence. Contactez votre
-              Chef d'Agence ou l'administrateur technique de CXSAT pour
+              Chef d'Agence ou l'administrateur technique de Yeba pour
               régulariser votre accès.
             </p>
           </MotionCard>
@@ -364,8 +380,17 @@ export const GuichetsPage = () => {
                 </div>
               )}
               {queryError && (
-                <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-                  Erreur de chargement.
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                  <span>Impossible de charger vos guichets. Vérifiez votre connexion.</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => refetchGuichets()}
+                    className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  >
+                    Réessayer
+                  </Button>
                 </div>
               )}
 
@@ -412,7 +437,7 @@ export const GuichetsPage = () => {
                             <h4 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                               <Settings2 size={14} /> Configurer les opérations du guichet
                             </h4>
-                            <div className="grid grid-cols-2 gap-2 py-1">
+                            <div className="grid grid-cols-1 gap-2 py-1 sm:grid-cols-2">
                               {allServices?.map((s: any) => (
                                 <label key={s.id} className="flex items-center gap-2 text-sm font-semibold text-foreground cursor-pointer">
                                   <input
@@ -442,7 +467,7 @@ export const GuichetsPage = () => {
                               </Button>
                               <Button 
                                 size="sm" 
-                                onClick={() => handleSaveServices(g.id)}
+                                onClick={() => setGuichetAConfirmer({ id: g.id, nom: g.nom_guichet })}
                                 disabled={updatingServices}
                                 className="h-8 text-xs gap-1 bg-success hover:bg-success/90 text-success-foreground"
                               >
@@ -511,6 +536,37 @@ export const GuichetsPage = () => {
           </div>
         </div>
       </AmbientBackground>
+
+      <AlertDialog
+        open={guichetAConfirmer !== null}
+        onOpenChange={(open) => !open && setGuichetAConfirmer(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Appliquer ces opérations ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {guichetAConfirmer && (
+                <>
+                  Les questions posées aux clients sur{' '}
+                  <strong className="text-foreground">{guichetAConfirmer.nom}</strong> changeront
+                  immédiatement, y compris pour les évaluations en cours de saisie.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (guichetAConfirmer) handleSaveServices(guichetAConfirmer.id);
+                setGuichetAConfirmer(null);
+              }}
+            >
+              Appliquer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </RequireAuth>
   );
 };

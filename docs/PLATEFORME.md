@@ -1,6 +1,6 @@
-# CXSAT — Comment fonctionne la plateforme
+# Yeba — Comment fonctionne la plateforme
 
-Ce document explique l'architecture métier de CXSAT : qui peut faire quoi, comment les
+Ce document explique l'architecture métier de Yeba : qui peut faire quoi, comment les
 données sont cloisonnées entre clients du SaaS, et comment un avis client se transforme
 en KPI puis en action corrective. Il a été rédigé après un audit complet du code
 (`src/server/actions.ts`, `src/server/queries.ts`, `src/server/middleware/rowLevelSecurity.ts`,

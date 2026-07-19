@@ -35,7 +35,7 @@ export function EmailVerificationPage() {
     <AuthPageLayout
       eyebrow="Vérification e-mail"
       title="Vérification de votre e-mail"
-      subtitle="Cette étape confirme votre adresse e-mail et sécurise votre compte CXSAT."
+      subtitle="Cette étape confirme votre adresse e-mail et sécurise votre compte Yeba."
       footer={
         <WaspRouterLink to={routes.LoginRoute.to} className="font-semibold text-primary underline">
           Aller à la connexion

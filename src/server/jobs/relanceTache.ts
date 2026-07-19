@@ -4,6 +4,13 @@
 // Déclenché tous les jours à 08:00.
 // Si une tâche est en statut A_FAIRE ou EN_COURS et n'a pas été mise à jour
 // depuis 48h, un email de relance est envoyé au responsable.
+//
+// VALEUR AJOUTÉE (et non spam) : un responsable avec plusieurs tâches en
+// retard recevait auparavant UN EMAIL ET UN SMS PAR TÂCHE (5 tâches en
+// retard = 5 emails + 5 SMS le même matin). On envoie désormais un seul
+// email récapitulatif (toutes les tâches du responsable, triées par
+// urgence) et, s'il y a au moins une tâche réellement en retard, un seul
+// SMS résumant le nombre de tâches et la plus urgente d'entre elles.
 // ============================================================================
 
 import { emailSender } from 'wasp/server/email';
@@ -20,38 +27,66 @@ export const relancerTachesEnRetard = async (_args: unknown, _context: any) => {
   const maintenant = new Date();
   const il_y_a_48h = new Date(maintenant.getTime() - 48 * 60 * 60 * 1000);
 
-  // Tâches non terminées dont la date de création ou de mise à jour est > 48h
+  // Tâches non terminées dont la date de création est > 48h
   const tachesEnRetard = await prisma.tacheCorrective.findMany({
     where: {
       statut_tache: { in: ['A_FAIRE', 'EN_COURS'] },
       date_creation: { lte: il_y_a_48h },
-      // On exclut les tâches dont l'échéance n'est pas encore dépassée
-      // mais on relance quand même si créées depuis 48h sans action
     },
     include: {
       responsable: true,
-      alerte: {
-        include: {
-          guichet: true,
-        },
-      },
+      alerte: { include: { guichet: true } },
     },
+    orderBy: { date_echeance: 'asc' },
   });
+
+  // Regroupement par responsable : c'est ce qui permet de n'envoyer qu'UN
+  // seul email/SMS récapitulatif par personne, quel que soit son nombre de
+  // tâches en retard.
+  const parResponsable = new Map<string, { responsable: any; taches: typeof tachesEnRetard }>();
+  for (const tache of tachesEnRetard) {
+    if (!tache.responsable?.email) continue;
+    if (!parResponsable.has(tache.responsable.id)) {
+      parResponsable.set(tache.responsable.id, { responsable: tache.responsable, taches: [] });
+    }
+    parResponsable.get(tache.responsable.id)!.taches.push(tache);
+  }
 
   let relancesEnvoyees = 0;
 
-  for (const tache of tachesEnRetard) {
-    const responsable = tache.responsable;
-    if (!responsable?.email) continue;
+  for (const [, { responsable, taches }] of parResponsable) {
+    const tachesAvecMeta = taches.map((t) => ({
+      tache: t,
+      guichetNom: t.alerte?.guichet?.nom_guichet ?? 'Guichet inconnu',
+      echeance: t.date_echeance.toLocaleDateString('fr-FR'),
+      isEnRetard: t.date_echeance < maintenant,
+    }));
 
-    const guichetNom = tache.alerte?.guichet?.nom_guichet ?? 'Guichet inconnu';
-    const echeance = tache.date_echeance.toLocaleDateString('fr-FR');
-    const statut = tache.statut_tache === 'A_FAIRE' ? 'À Faire' : 'En cours';
-    const isEnRetard = tache.date_echeance < maintenant;
+    const nbEnRetard = tachesAvecMeta.filter((t) => t.isEnRetard).length;
+    const sujet =
+      nbEnRetard > 0
+        ? `🔴 ${nbEnRetard} tâche(s) en retard sur ${tachesAvecMeta.length}`
+        : `⏰ ${tachesAvecMeta.length} tâche(s) sans action depuis 48h`;
 
-    const sujet = isEnRetard
-      ? `🔴 Tâche en retard — ${tache.titre}`
-      : `⏰ Rappel — Tâche corrective sans action depuis 48h`;
+    const lignesHtml = tachesAvecMeta
+      .map(
+        ({ tache, guichetNom, echeance, isEnRetard }) => `
+        <div style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+            <div>
+              <p style="margin: 0; font-weight: 700; color: #111827; font-size: 14px;">${tache.titre}</p>
+              <p style="margin: 2px 0 0; color: #9ca3af; font-size: 12px;">${guichetNom}</p>
+            </div>
+            <span style="
+              background: ${isEnRetard ? '#fee2e2' : '#fef3c7'};
+              color: ${isEnRetard ? '#dc2626' : '#92400e'};
+              padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+              white-space: nowrap;
+            ">${isEnRetard ? `En retard depuis le ${echeance}` : `Échéance ${echeance}`}</span>
+          </div>
+        </div>`
+      )
+      .join('');
 
     const html = `
 <!DOCTYPE html>
@@ -60,9 +95,9 @@ export const relancerTachesEnRetard = async (_args: unknown, _context: any) => {
 <body style="font-family: system-ui, sans-serif; background: #f8f9fa; margin: 0; padding: 20px;">
   <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
     <div style="background: linear-gradient(135deg, #1a3a5c, #c47a20); padding: 28px 32px;">
-      <h1 style="color: white; margin: 0; font-size: 20px; font-weight: 800;">CXSAT — Tâche corrective</h1>
+      <h1 style="color: white; margin: 0; font-size: 20px; font-weight: 800;">Yeba — Tâches correctives</h1>
       <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 13px;">
-        ${isEnRetard ? '🔴 En retard' : '⏰ Sans action depuis 48h'}
+        ${nbEnRetard > 0 ? `🔴 ${nbEnRetard} en retard` : '⏰ Sans action depuis 48h'}
       </p>
     </div>
     <div style="padding: 28px 32px;">
@@ -70,86 +105,64 @@ export const relancerTachesEnRetard = async (_args: unknown, _context: any) => {
         Bonjour <strong>${responsable.prenom ?? ''} ${responsable.nom ?? ''}</strong>,
       </p>
       <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-        ${isEnRetard
-          ? `La tâche corrective ci-dessous a <strong style="color:#dc2626;">dépassé sa date d'échéance</strong> et reste non traitée.`
-          : `La tâche corrective ci-dessous est <strong>sans action depuis plus de 48h</strong>.`
+        ${tachesAvecMeta.length > 1
+          ? `Vous avez <strong>${tachesAvecMeta.length} tâches correctives</strong> qui attendent une action, listées ci-dessous par échéance.`
+          : `Une tâche corrective attend une action.`
         }
       </p>
-      
-      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-          <div>
-            <p style="margin: 0; font-weight: 700; color: #111827; font-size: 15px;">${tache.titre}</p>
-            ${tache.description ? `<p style="margin: 4px 0 0; color: #6b7280; font-size: 13px;">${tache.description}</p>` : ''}
-          </div>
-          <span style="
-            background: ${tache.statut_tache === 'A_FAIRE' ? '#fef3c7' : '#dbeafe'};
-            color: ${tache.statut_tache === 'A_FAIRE' ? '#92400e' : '#1e40af'};
-            padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
-            white-space: nowrap;
-          ">${statut}</span>
-        </div>
-        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; display: flex; gap: 24px;">
-          <div>
-            <p style="margin: 0; color: #9ca3af; font-size: 11px; text-transform: uppercase; font-weight: 600;">Guichet</p>
-            <p style="margin: 2px 0 0; color: #374151; font-size: 13px; font-weight: 500;">${guichetNom}</p>
-          </div>
-          <div>
-            <p style="margin: 0; color: #9ca3af; font-size: 11px; text-transform: uppercase; font-weight: 600;">Échéance</p>
-            <p style="margin: 2px 0 0; color: ${isEnRetard ? '#dc2626' : '#374151'}; font-size: 13px; font-weight: ${isEnRetard ? '700' : '500'};">${echeance}</p>
-          </div>
-        </div>
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 16px; margin: 20px 0;">
+        ${lignesHtml}
       </div>
-
       <div style="text-align: center; margin: 24px 0 0;">
         <a href="${FRONTEND_URL}/alertes-taches"
-           style="
-             display: inline-block;
-             background: linear-gradient(135deg, #1a3a5c, #c47a20);
-             color: white;
-             text-decoration: none;
-             padding: 12px 28px;
-             border-radius: 8px;
-             font-weight: 700;
-             font-size: 14px;
-           ">
-          Traiter cette tâche →
+           style="display: inline-block; background: linear-gradient(135deg, #1a3a5c, #c47a20); color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 700; font-size: 14px;">
+          Traiter ${tachesAvecMeta.length > 1 ? 'ces tâches' : 'cette tâche'} →
         </a>
       </div>
     </div>
     <div style="background: #f9fafb; padding: 16px 32px; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-        CXSAT — Plateforme de satisfaction client · 
-        <a href="${FRONTEND_URL}" style="color: #c47a20; text-decoration: none;">cxsat.ci</a>
+        Yeba — Plateforme de satisfaction client · 
+        <a href="${FRONTEND_URL}" style="color: #c47a20; text-decoration: none;">yeba.ci</a>
       </p>
     </div>
   </div>
 </body>
 </html>`;
 
+    const texteListe = tachesAvecMeta
+      .map((t) => `- ${t.tache.titre} (${t.guichetNom}) — ${t.isEnRetard ? `en retard depuis le ${t.echeance}` : `échéance ${t.echeance}`}`)
+      .join('\n');
+
     try {
       await emailSender.send({
         to: responsable.email,
         subject: sujet,
         html,
-        text: `${sujet}\n\nTâche : ${tache.titre}\nGuichet : ${guichetNom}\nÉchéance : ${echeance}\nStatut : ${statut}\n\nTraitez cette tâche sur : ${FRONTEND_URL}/alertes-taches`,
+        text: `${sujet}\n\n${texteListe}\n\nTraitez ces tâches sur : ${FRONTEND_URL}/alertes-taches`,
       });
 
-      // SMS complémentaire si en vrai retard
-      if (isEnRetard && responsable.telephone) {
-        await envoyerAlerteSMS(
-          responsable.telephone,
-          `🔴 CXSAT RETARD — La tâche "${tache.titre.slice(0, 40)}" est en retard depuis le ${echeance}. Traitez-la sur l'application.`
-        );
+      // SMS unique et consolidé (au lieu d'un SMS par tâche en retard) :
+      // le nombre total + la plus urgente (liste déjà triée par échéance
+      // croissante), avec un lien direct vers l'écran de traitement.
+      if (nbEnRetard > 0 && responsable.telephone) {
+        const plusUrgente = tachesAvecMeta.find((t) => t.isEnRetard)!;
+        const resume =
+          nbEnRetard === 1
+            ? `La tâche "${plusUrgente.tache.titre.slice(0, 40)}" est en retard depuis le ${plusUrgente.echeance}.`
+            : `${nbEnRetard} tâches sont en retard, la plus urgente : "${plusUrgente.tache.titre.slice(0, 30)}" (depuis le ${plusUrgente.echeance}).`;
+        await envoyerAlerteSMS(responsable.telephone, `🔴 Yeba RETARD — ${resume} Détails : ${FRONTEND_URL}/alertes-taches`);
       }
 
-      relancesEnvoyees++;
-      console.log(`[RELANCE] Email envoyé à ${responsable.email} pour tâche #${tache.id}`);
+      relancesEnvoyees += tachesAvecMeta.length;
+      console.log(`[RELANCE] 1 email consolidé envoyé à ${responsable.email} pour ${tachesAvecMeta.length} tâche(s)`);
     } catch (err) {
-      console.error(`[RELANCE] Erreur pour tâche #${tache.id}:`, err);
+      console.error(`[RELANCE] Erreur pour responsable ${responsable.id}:`, err);
     }
   }
 
-  console.log(`[RELANCE] Job terminé — ${relancesEnvoyees} relance(s) sur ${tachesEnRetard.length} tâche(s) en retard`);
+  console.log(
+    `[RELANCE] Job terminé — ${relancesEnvoyees} tâche(s) relancée(s) via ${parResponsable.size} message(s) consolidé(s) sur ${tachesEnRetard.length} tâche(s) en retard`
+  );
   return { relancesEnvoyees, tachesEnRetard: tachesEnRetard.length };
 };

@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { Link, routes } from "wasp/client/router";
 import { cn } from "../../client/utils";
-import { CXSATLogo } from "../../client/components/CXSATLogo";
+import { YebaLogo } from "../../client/components/YebaLogo";
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -72,7 +72,7 @@ export function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
       {/* <!-- SIDEBAR HEADER --> */}
       <div className="py-5.5 lg:py-6.5 flex items-center justify-between gap-2 px-6">
         <Link to="/dashboard">
-          <CXSATLogo className="size-10" />
+          <YebaLogo className="size-10" />
         </Link>
 
         <button

@@ -41,7 +41,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
     <div ref={ref} className="p-12 bg-white text-slate-900 font-sans space-y-10 print:p-8" style={{ width: '210mm' }}>
       <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">CXSAT • Rapport de Performance</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Yeba • Rapport de Performance</h1>
           <p className="text-xs font-mono text-slate-500 mt-1">Généré le {dateGeneration}</p>
         </div>
         <div className="text-right">
@@ -149,7 +149,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
         <div className="text-center p-6 border border-dashed border-slate-200 rounded-xl">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cachet Auditeur / Direction Qualité</p>
           <div className="h-16"></div>
-          <p className="text-xs font-mono text-slate-400">Validé sous CXSAT</p>
+          <p className="text-xs font-mono text-slate-400">Validé sous Yeba</p>
         </div>
       </div>
     </div>

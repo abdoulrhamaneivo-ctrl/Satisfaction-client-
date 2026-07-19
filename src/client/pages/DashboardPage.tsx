@@ -11,12 +11,15 @@ import {
   getActionsPrioritaires,
   getKPIsPeriode,
   getObjectifs,
+  getHeatmapReponses,
+  getTempsTraitement,
 } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2 } from 'lucide-react';
 import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets } from '../components/DashboardCharts';
+import { HeatmapReponses } from '../components/HeatmapReponses';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -24,6 +27,13 @@ import { MotionCard } from '../components/MotionCard';
 import { StatCard } from '../components/StatCard';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
 import { DataTable } from '../components/ui/DataTable';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
@@ -34,8 +44,25 @@ import { exportToXLSX } from '../utils/exportData';
 const formatDelta = (value: number, suffix: string) =>
   `${value > 0 ? '+' : ''}${value}${suffix}`;
 
+// Une durée en heures brutes ("52h") est illisible au-delà d'une journée —
+// on bascule en jours + heures dès que ça dépasse 24h.
+const formatDuree = (heures: number | null) => {
+  if (heures === null) return '—';
+  if (heures < 24) return `${heures}h`;
+  const jours = Math.floor(heures / 24);
+  const reste = Math.round(heures % 24);
+  return reste > 0 ? `${jours}j ${reste}h` : `${jours}j`;
+};
+
 export const DashboardPage = () => {
   const { data: user } = useAuth();
+
+  // Le chef d'agence n'a auparavant aucun levier pour comparer une semaine
+  // chargée à un mois calme : la fenêtre était figée à 30 jours. Seuls les
+  // KPIs du haut (Satisfaction / Volume / Note / tendance) suivent ce
+  // sélecteur — les graphiques plus bas restent sur leur propre logique
+  // (tendance sur 12 mois, etc.) qui n'a pas vocation à changer ici.
+  const [periodeJours, setPeriodeJours] = useState(30);
 
   const { data: reponses, isLoading: loadingReponses } = useQuery(getReponses);
   const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
@@ -45,8 +72,10 @@ export const DashboardPage = () => {
   const { data: statsByAgent, isLoading: loadingAgents } = useQuery(getStatsByAgent);
   const { data: statsByGuichet, isLoading: loadingGuichets } = useQuery(getStatsByGuichet);
   const { data: actionsPrioritaires, isLoading: loadingActions } = useQuery(getActionsPrioritaires);
-  const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode);
+  const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode, { nbJours: periodeJours });
   const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
+  const { data: heatmap, isLoading: loadingHeatmap } = useQuery(getHeatmapReponses, { nbJours: 90 });
+  const { data: tempsTraitement, isLoading: loadingTemps } = useQuery(getTempsTraitement, { nbJours: periodeJours });
 
   const reponsesList: any[] = reponses || [];
   // "Derniers avis" / badges de comptage : un avis = une soumission, pas une
@@ -68,6 +97,7 @@ export const DashboardPage = () => {
   const satisfaction = periodeActuelle ? periodeActuelle.satisfaction.toFixed(0) : '0';
   const noteMoyenne = periodeActuelle ? periodeActuelle.moyenne.toFixed(1) : '0.0';
   const totalAvisPeriode = periodeActuelle ? periodeActuelle.nb : 0;
+  const labelPeriode = periodeJours === 1 ? '24h' : `${periodeJours}j`;
 
   const alertesNouvelles = alertesList.filter((a: any) => a.statut_alerte === 'NOUVELLE').length;
 
@@ -78,7 +108,7 @@ export const DashboardPage = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    documentTitle: `Rapport-Mensuel-CXSAT-${user?.id_agence || 'Agence'}`,
+    documentTitle: `Rapport-Mensuel-Yeba-${user?.id_agence || 'Agence'}`,
   });
 
   const [exportingXLSX, setExportingXLSX] = useState(false);
@@ -118,7 +148,7 @@ export const DashboardPage = () => {
             })),
           },
           {
-            name: 'KPIs 30j',
+            name: `KPIs ${labelPeriode}`,
             data: kpisPeriode ? [{
               'Satisfaction (%)': periodeActuelle?.satisfaction ?? 0,
               'Note moyenne (/5)': periodeActuelle?.moyenne ?? 0,
@@ -129,7 +159,7 @@ export const DashboardPage = () => {
             }] : [],
           },
         ],
-        `CXSAT_Rapport_${new Date().toISOString().split('T')[0]}`
+        `Yeba_Rapport_${new Date().toISOString().split('T')[0]}`
       );
     } catch (err: any) {
       console.error('Erreur export XLSX', err);
@@ -156,6 +186,16 @@ export const DashboardPage = () => {
           }
           actions={
             <div className="flex items-center gap-2 flex-wrap">
+              <Select value={String(periodeJours)} onValueChange={(v) => setPeriodeJours(Number(v))}>
+                <SelectTrigger className="h-10 w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">7 derniers jours</SelectItem>
+                  <SelectItem value="30">30 derniers jours</SelectItem>
+                  <SelectItem value="90">90 derniers jours</SelectItem>
+                </SelectContent>
+              </Select>
               <motion.div whileTap={{ scale: 0.97 }}>
                 <Button variant="outline" onClick={() => handlePrint()} disabled={isLoading}>
                   <Printer className="size-4" /> Exporter le rapport (PDF)
@@ -199,7 +239,7 @@ export const DashboardPage = () => {
         {/* NIVEAU 2 — Où j'en suis : KPIs avec tendance vs période précédente */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            title="Satisfaction (30j)"
+            title={`Satisfaction (${labelPeriode})`}
             value={`${satisfaction}%`}
             icon={Smile}
             accent="success"
@@ -208,7 +248,7 @@ export const DashboardPage = () => {
             trendDirection={deltaSatisfaction >= 0 ? 'up' : 'down'}
           />
           <StatCard
-            title="Total Avis (30j)"
+            title={`Total Avis (${labelPeriode})`}
             value={String(totalAvisPeriode)}
             icon={MessageSquare}
             accent="primary"
@@ -217,7 +257,7 @@ export const DashboardPage = () => {
             trendDirection={deltaVolume >= 0 ? 'up' : 'down'}
           />
           <StatCard
-            title="Note Moyenne (30j)"
+            title={`Note Moyenne (${labelPeriode})`}
             value={`${noteMoyenne} / 5`}
             icon={Star}
             accent="secondary"
@@ -231,6 +271,38 @@ export const DashboardPage = () => {
             icon={AlertTriangle}
             accent={alertesNouvelles > 0 ? 'destructive' : 'success'}
             index={3}
+          />
+        </div>
+
+        {/* NIVEAU 2ter — À quelle vitesse on traite : deux délais à ne pas confondre */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <StatCard
+            title={`Prise en charge moyenne (${labelPeriode})`}
+            value={formatDuree(tempsTraitement?.prise_en_charge?.moyenne_heures ?? null)}
+            icon={Timer}
+            accent="secondary"
+            index={4}
+            trend={
+              !loadingTemps && tempsTraitement?.prise_en_charge?.delta_heures !== null
+                ? formatDelta(tempsTraitement?.prise_en_charge?.delta_heures ?? 0, 'h')
+                : undefined
+            }
+            // Moins de temps = amélioration, donc un delta négatif doit
+            // s'afficher comme une tendance "up" (positive), pas "down".
+            trendDirection={(tempsTraitement?.prise_en_charge?.delta_heures ?? 0) <= 0 ? 'up' : 'down'}
+          />
+          <StatCard
+            title={`Résolution moyenne (${labelPeriode})`}
+            value={formatDuree(tempsTraitement?.resolution?.moyenne_heures ?? null)}
+            icon={CheckCircle2}
+            accent="primary"
+            index={5}
+            trend={
+              !loadingTemps && tempsTraitement?.resolution?.delta_heures !== null
+                ? formatDelta(tempsTraitement?.resolution?.delta_heures ?? 0, 'h')
+                : undefined
+            }
+            trendDirection={(tempsTraitement?.resolution?.delta_heures ?? 0) <= 0 ? 'up' : 'down'}
           />
         </div>
 
@@ -272,6 +344,15 @@ export const DashboardPage = () => {
           ) : (
             <ClassementGuichets data={guichetsList} />
           )}
+        </section>
+
+        {/* Affluence par jour / heure */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Clock className="size-5 text-secondary" />
+            <h2 className="text-title-sm font-bold text-foreground">Quand les avis arrivent-ils</h2>
+          </div>
+          <HeatmapReponses data={heatmap as any} isLoading={loadingHeatmap} />
         </section>
 
         {/* Tendance mensuelle */}

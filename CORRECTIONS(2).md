@@ -8,7 +8,7 @@ vraiment et que j'ai corrigé, et ce qui reste un vrai chantier à part.
 ## Déjà en place (vérifié dans le code, rien à faire)
 
 - **Logo clair + logo sombre + favicon** : upload séparé des 3, déjà là.
-- **4 palettes prédéfinies** ("CXSAT", "Émeraude Zen", "Océan Indigo",
+- **4 palettes prédéfinies** ("Yeba", "Émeraude Zen", "Océan Indigo",
   "Royal Gold") + 5 polices Google Fonts au choix : déjà là.
 - **Curseur d'arrondis** (Carré / Subtil / Moyen / Arrondi) et **4 styles
   d'ombre** : déjà là.
@@ -49,7 +49,7 @@ pas des ajustements de code :
   Ce n'est pas qu'un correctif de code.
 - **E-mails transactionnels personnalisés** : vérifié dans le code — les
   emails (rapport mensuel, alertes...) sont actuellement tous envoyés avec
-  la marque "CXSAT" en dur, pas celle du client. Techniquement faisable
+  la marque "Yeba" en dur, pas celle du client. Techniquement faisable
   (récupérer la Charte Graphique de l'entreprise dans chaque job d'envoi,
   construire un gabarit HTML aux couleurs du client), MAIS le nom
   d'expéditeur ("From") dépend souvent de ce que votre fournisseur d'e-mail
@@ -124,7 +124,7 @@ telle quelle, c'est le bon pattern dans ce cas précis.)
 En regroupant les pages dans le menu "Paramètres", j'avais ajouté un lien
 vers **Tarifs**. En vérifiant son code cette fois-ci, j'ai vu que cette
 page est protégée par `user?.isAdmin` (réservé aux administrateurs de la
-plateforme CXSAT elle-même), pas par le rôle métier `DIRECTION`. Un client
+plateforme Yeba elle-même), pas par le rôle métier `DIRECTION`. Un client
 DIRECTION qui aurait cliqué dessus serait tombé sur un écran "Accès
 réservé" — exactement le genre de bug que ce projet corrige déjà ailleurs
 pour d'autres pages. **Retiré du menu client.** Cette page reste accessible

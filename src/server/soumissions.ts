@@ -17,6 +17,7 @@ export type ReponseAvecSoumission = {
   id: number | string | bigint;
   id_soumission?: string | null;
   score_brut: number;
+  commentaire_texte?: string | null;
   [key: string]: any;
 };
 
@@ -50,7 +51,30 @@ export function regrouperParSoumission<T extends ReponseAvecSoumission>(
   return ordre.map((cle) => index.get(cle)!);
 }
 
-/** Nombre réel d'avis (soumissions) dans une liste de lignes Reponse. */
+/**
+ * Concatène les commentaires distincts d'une soumission en un seul texte
+ * lisible. Depuis que chaque ligne Reponse peut porter son propre texte
+ * (réponse à un critère de type TEXTE, en plus du commentaire final libre),
+ * ne garder que celui de la première ligne du groupe en perdait une partie —
+ * ex. le commentaire final de l'étape "Message ou suggestion" s'il n'était
+ * pas répondu au premier critère du formulaire.
+ */
+export function commentairesDeGroupe<T extends ReponseAvecSoumission>(
+  groupe: T[]
+): string {
+  const vus = new Set<string>();
+  const textes: string[] = [];
+  for (const r of groupe) {
+    const t = (r.commentaire_texte || '').trim();
+    if (t && !vus.has(t)) {
+      vus.add(t);
+      textes.push(t);
+    }
+  }
+  return textes.join(' • ');
+}
+
+
 export function compterAvis<T extends ReponseAvecSoumission>(reponses: T[]): number {
   return regrouperParSoumission(reponses).length;
 }

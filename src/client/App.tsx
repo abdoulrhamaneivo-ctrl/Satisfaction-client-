@@ -7,6 +7,7 @@ import { NavBar } from "./components/NavBar/NavBar";
 import { demoNavigationitems } from "./components/NavBar/constants";
 import { AnimatePresence, motion } from "framer-motion";
 import { BrandProvider } from "./context/BrandContext";
+import { CommandPalette } from "./components/CommandPalette";
 
 export function App() {
   const location = useLocation();
@@ -16,17 +17,17 @@ export function App() {
     return location.pathname !== routes.LoginRoute.build();
   }, [location]);
 
-  // Les routes CXSAT /admin/personnel et /admin/agences ne sont pas le
+  // Les routes Yeba /admin/personnel et /admin/agences ne sont pas le
   // dashboard admin Wasp — elles ont besoin de la NavBar normale. Bug
   // corrigé : /admin/agences avait été oublié dans cette liste, donc son
   // chemin "/admin/agences" matchait startsWith("/admin") et la page était
   // traitée comme le dashboard admin intégré de Wasp (rendu seul, sans
   // NavBar ni barre de navigation d'aucune sorte).
-  const CXSAT_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences'];
+  const YEBA_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences'];
   const isAdminDashboard = useMemo(() => {
     return (
       location.pathname.startsWith(routes.AdminRoute.to) &&
-      !CXSAT_ADMIN_ROUTES.some((r) => location.pathname.startsWith(r))
+      !YEBA_ADMIN_ROUTES.some((r) => location.pathname.startsWith(r))
     );
   }, [location]);
 
@@ -90,7 +91,10 @@ export function App() {
             ) : (
               <>
                 {shouldDisplayAppNavBar && (
-                  <NavBar navigationItems={navigationItems} />
+                  <>
+                    <NavBar navigationItems={navigationItems} />
+                    <CommandPalette />
+                  </>
                 )}
                 <div className="max-w-(--breakpoint-2xl) mx-auto">
                   <Outlet />

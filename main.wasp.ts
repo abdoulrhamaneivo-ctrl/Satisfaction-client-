@@ -6,7 +6,7 @@ import { serverEnvValidationSchema } from "./src/env" with { type: "ref" };
 import { LandingRedirectPage } from "./src/client/LandingRedirectPage" with { type: "ref" };
 import { seedEntrepriseUnique } from "./src/server/scripts/dbSeeds" with { type: "ref" };
 
-// === IMPORTS POUR LES GUICHETS CXSAT ===
+// === IMPORTS POUR LES GUICHETS Yeba ===
 import { GuichetsPage } from "./src/client/pages/GuichetsPage" with { type: "ref" };
 import { PlanningPage } from "./src/client/pages/PlanningPage" with { type: "ref" };
 import { CollectePage } from "./src/client/pages/CollectePage" with { type: "ref" };
@@ -40,9 +40,11 @@ import {
   moveCritereToService,
   removeCritereFromService,
   reorderCriteresInService,
+  updateAffectationGuichet,
+  deleteAffectationGuichet,
 } from "./src/server/actions" with { type: "ref" };
 
-// === IMPORTS JOBS CRON CXSAT ===
+// === IMPORTS JOBS CRON Yeba ===
 import { detecterAlertesSilence } from "./src/server/jobs/alerteSilence" with { type: "ref" };
 import { relancerTachesEnRetard } from "./src/server/jobs/relanceTache" with { type: "ref" };
 import { envoyerRapportsMensuels } from "./src/server/jobs/rapportMensuel" with { type: "ref" };
@@ -74,6 +76,9 @@ import {
   getActionsPrioritaires,
   getKPIsPeriode,
   getCriteresParOperation,
+  getHeatmapReponses,
+  getTempsTraitement,
+  getRechercheGlobale,
 } from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
@@ -100,6 +105,8 @@ const createGuichetAction = action(createGuichet, {
 });
 
 const assignAgentAction = action(assignAgent, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
+const updateAffectationGuichetAction = action(updateAffectationGuichet, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
+const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence"] });
 
 const soumettreAvisAction = action(soumettreAvis, {
   entities: ["Reponse", "Critere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "Canal"],
@@ -193,11 +200,18 @@ const getKPIsPeriodeQuery = query(getKPIsPeriode, { entities: ["Reponse", "User"
 const getCriteresParOperationQuery = query(getCriteresParOperation, {
   entities: ["Service", "Critere", "CritereService", "AgenceCritere", "User", "Agence"],
 });
+const getHeatmapReponsesQuery = query(getHeatmapReponses, { entities: ["Reponse", "User", "Agence"] });
+const getTempsTraitementQuery = query(getTempsTraitement, {
+  entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "User", "Agence"],
+});
+const getRechercheGlobaleQuery = query(getRechercheGlobale, {
+  entities: ["Agence", "Guichet", "User", "Reponse"],
+});
 
 export default app({
-  name: "CXSAT",
+  name: "Yeba",
   wasp: { version: "^0.24.0" },
-  title: "CXSAT — Satisfaction Client",
+  title: "Yeba — Satisfaction Client",
   head,
   auth: authConfig,
   db: {
@@ -219,7 +233,7 @@ export default app({
     userSpec,
     fileUploadSpec,
     adminSpec,
-    // Routes CXSAT
+    // Routes Yeba
     guichetsRoute,
     planningRoute,
     dashboardRoute,
@@ -232,6 +246,8 @@ export default app({
     // Actions existantes
     createGuichetAction,
     assignAgentAction,
+    updateAffectationGuichetAction,
+    deleteAffectationGuichetAction,
     soumettreAvisAction,
     updateAgentAction,
     deleteAgentAction,
@@ -278,6 +294,9 @@ export default app({
     getActionsPrioritairesQuery,
     getKPIsPeriodeQuery,
     getCriteresParOperationQuery,
+    getHeatmapReponsesQuery,
+    getTempsTraitementQuery,
+    getRechercheGlobaleQuery,
     exportAvisGroupesQuery,
     job(detecterAlertesSilence, {
       executor: "PgBoss",

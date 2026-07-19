@@ -9,7 +9,7 @@ import { useAuth } from "wasp/client/auth";
  *
  * Remplace l'ancien comportement qui renvoyait systématiquement vers
  * "/demo-app" (page de démonstration IA du template Open SaaS, sans lien
- * avec la plateforme CXSAT).
+ * avec la plateforme Yeba).
  */
 export function useRedirectIfLoggedIn() {
   const { data: user } = useAuth();

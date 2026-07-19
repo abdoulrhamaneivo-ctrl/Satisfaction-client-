@@ -1,6 +1,6 @@
-# CXSAT — outil interne
+# Yeba — outil interne
 
-CXSAT est un outil interne de collecte et de pilotage de la satisfaction
+Yeba est un outil interne de collecte et de pilotage de la satisfaction
 client (formulaires accessibles via QR code sur des guichets physiques).
 C'est un déploiement **mono-agence** : une seule entreprise, une seule
 agence pour l'instant, sans facturation ni inscription publique.

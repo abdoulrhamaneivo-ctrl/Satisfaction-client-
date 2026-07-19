@@ -14,7 +14,7 @@ import { LoadingSpinner } from "../admin/layout/LoadingSpinner";
  *
  * Corrige le comportement précédent qui redirigeait systématiquement
  * vers /demo-app (page de démonstration IA héritée du modèle Open SaaS,
- * sans rapport avec la plateforme CXSAT).
+ * sans rapport avec la plateforme Yeba).
  */
 export function PostAuthRedirectPage() {
   const { data: user, isLoading } = useAuth();

@@ -124,7 +124,7 @@ export const AvisPage = () => {
       const raw = await exportAvisGroupes(exportArgs);
       const formatted = formaterAvisPourCSV(raw as any[]);
       const date = new Date().toISOString().split('T')[0];
-      exportToCSV(formatted, `CXSAT_Avis_${date}`);
+      exportToCSV(formatted, `Yeba_Avis_${date}`);
       toast({ title: 'Export réussi', description: `${formatted.length} avis exportés.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur export', description: err.message });

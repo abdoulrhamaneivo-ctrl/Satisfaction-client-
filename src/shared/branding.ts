@@ -1,7 +1,7 @@
 export const BRANDING = {
-  platform_name: "CXSAT",
+  platform_name: "Yéba",
   platform_description: "Plateforme de pilotage de la satisfaction client",
-  logo_url: null,
+  logo_url: "/yeba-logo.svg",
   logo_dark_url: null,
   favicon_url: null,
   color_background: "40 20% 98.5%",
@@ -36,7 +36,7 @@ export const BRANDING = {
   form_thank_you: "Merci pour votre avis !",
   qr_slogan: "Scannez ce QR Code",
   ussd_help_text: "Pas de connexion internet ?",
-  hide_cxsat_branding: false,
+  hide_yeba_branding: false,
 };
 
 export type BrandConfigType = typeof BRANDING;

@@ -2,7 +2,7 @@ import React, { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, Sparkles, ArrowLeft } from "lucide-react";
 import { AmbientBackground } from "../client/components/AmbientBackground";
-import { CXSATLogo } from "../client/components/CXSATLogo";
+import { YebaLogo } from "../client/components/YebaLogo";
 
 const HIGHLIGHTS = [
   "Collecte des avis par QR Code & USSD",
@@ -22,7 +22,7 @@ interface AuthPageLayoutProps {
  * Habillage commun des pages d'authentification (connexion, mot de passe
  * oublié, réinitialisation, vérification e-mail) — panneau de marque +
  * panneau de formulaire — pour une expérience cohérente sur toute la
- * plateforme CXSAT.
+ * plateforme Yeba.
  */
 export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: AuthPageLayoutProps) {
   return (
@@ -44,9 +44,9 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
               <Sparkles className="size-3.5" /> {eyebrow}
             </span>
             <div className="mt-6 flex items-center gap-3">
-              <CXSATLogo className="size-10" />
+              <YebaLogo className="size-10" />
               <h2 className="text-title-xl font-black leading-tight">
-                <span className="text-gradient-primary">CXSAT</span> Abidjan
+                <span className="text-gradient-primary">Yeba</span> Abidjan
               </h2>
             </div>
             <p className="mt-3 max-w-sm text-sm text-primary-foreground/70">{subtitle}</p>

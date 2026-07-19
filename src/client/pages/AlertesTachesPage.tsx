@@ -98,6 +98,9 @@ export const AlertesTachesPage = () => {
   const tachesList: any[] = taches || [];
 
   const alertesNouvelles = alertesList.filter((a) => a.statut_alerte === 'NOUVELLE');
+  const tachesEnRetardCount = tachesList.filter(
+    (t) => t.statut_tache !== 'TERMINEE' && new Date(t.date_echeance) < new Date()
+  ).length;
 
   const handleCreerTache = (alerte: any) => {
     // L'agence de l'alerte se déduit soit de son guichet, soit — pour une
@@ -228,7 +231,14 @@ export const AlertesTachesPage = () => {
 
         {/* Kanban */}
         <section>
-          <h2 className="mb-4 text-title-sm font-bold text-foreground">Tableau Kanban des tâches correctives</h2>
+          <h2 className="mb-4 text-title-sm font-bold text-foreground flex items-center gap-2">
+            Tableau Kanban des tâches correctives
+            {tachesEnRetardCount > 0 && (
+              <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-bold text-destructive flex items-center gap-1">
+                <AlertTriangle className="size-3" /> {tachesEnRetardCount} en retard
+              </span>
+            )}
+          </h2>
 
           {loadingTaches ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
@@ -262,14 +272,30 @@ export const AlertesTachesPage = () => {
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.9 }}
                             >
-                              <MotionCard className="p-4 space-y-2.5">
+                              <MotionCard
+                                className={`p-4 space-y-2.5 ${
+                                  col.statut !== 'TERMINEE' && new Date(tache.date_echeance) < new Date()
+                                    ? 'border-destructive/40 bg-destructive/5'
+                                    : ''
+                                }`}
+                              >
                                 <p className="text-sm font-semibold text-foreground leading-snug">{tache.titre}</p>
                                 {tache.description && (
                                   <p className="text-xs text-muted-foreground line-clamp-2">{tache.description}</p>
                                 )}
                                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <span>
+                                  <span
+                                    className={
+                                      col.statut !== 'TERMINEE' && new Date(tache.date_echeance) < new Date()
+                                        ? 'flex items-center gap-1 font-bold text-destructive'
+                                        : ''
+                                    }
+                                  >
+                                    {col.statut !== 'TERMINEE' && new Date(tache.date_echeance) < new Date() && (
+                                      <AlertTriangle className="size-3" />
+                                    )}
                                     Échéance: {new Date(tache.date_echeance).toLocaleDateString('fr-FR')}
+                                    {col.statut !== 'TERMINEE' && new Date(tache.date_echeance) < new Date() && ' (dépassée)'}
                                   </span>
                                   {tache.responsable && (
                                     <span className="font-medium text-foreground">

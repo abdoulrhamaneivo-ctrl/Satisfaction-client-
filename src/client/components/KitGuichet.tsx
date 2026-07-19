@@ -16,7 +16,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
   
   const evalUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/q/${guichet.id}`
-    : `https://cxsat.ci/q/${guichet.id}`;
+    : `https://yeba.ci/q/${guichet.id}`;
 
   const ussdCode = `*789*42*${guichet.id}#`;
 
@@ -123,7 +123,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
         },
       });
       const link = document.createElement('a');
-      link.download = `affiche-${(brandConfig?.platform_name || "cxsat").toLowerCase()}-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
+      link.download = `affiche-${(brandConfig?.platform_name || "yeba").toLowerCase()}-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
@@ -169,7 +169,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
           <div className="mb-4 flex items-center justify-center gap-2">
             <BrandLogo className={currentConfig.logoClass} height={currentConfig.logoSize} />
             <span className="text-sm font-bold uppercase tracking-widest text-neutral-500">
-              {brandConfig?.platform_name || "CXSAT"}
+              {brandConfig?.platform_name || "Yeba"}
             </span>
           </div>
 

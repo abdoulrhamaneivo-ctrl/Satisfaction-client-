@@ -20,6 +20,15 @@ import {
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
 
+const typeReponseLabel: Record<string, string> = {
+  SMILEY: '⭐ Note',
+  OUI_NON: '👍 Oui/Non',
+  QCM: '📝 Choix unique',
+  CASES: '☑️ Choix multiples',
+  ECHELLE: '🔢 Échelle',
+  TEXTE: '✍️ Texte',
+};
+
 export const ConfigurationCriteresPage = () => {
   const { data: user } = useAuth();
   const { toast } = useToast();
@@ -60,6 +69,9 @@ export const ConfigurationCriteresPage = () => {
   const [nouvelleDesc, setNouvelleDesc] = useState('');
   const [typeReponse, setTypeReponse] = useState('SMILEY');
   const [optionsReponse, setOptionsReponse] = useState('');
+  const [echelleMin, setEchelleMin] = useState('1');
+  const [echelleMax, setEchelleMax] = useState('10');
+  const [obligatoire, setObligatoire] = useState(true);
   const [loadingCreation, setLoadingCreation] = useState(false);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [newServiceName, setNewServiceName] = useState('');
@@ -83,13 +95,27 @@ export const ConfigurationCriteresPage = () => {
   const handleCreateCustom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nouveauLibelle.trim() || selectedAgenceId === undefined) return;
+    if (typeReponse === 'ECHELLE') {
+      const min = Number(echelleMin);
+      const max = Number(echelleMax);
+      if (!Number.isInteger(min) || !Number.isInteger(max) || max <= min) {
+        toast({ variant: 'destructive', title: 'Échelle invalide', description: 'Le maximum doit être un entier supérieur au minimum.' });
+        return;
+      }
+    }
     setLoadingCreation(true);
     try {
       await createCritere({
         libelle_critere: nouveauLibelle,
         description: nouvelleDesc,
         type_reponse: typeReponse,
-        options_reponse: typeReponse === 'QCM' ? optionsReponse : undefined,
+        options_reponse:
+          typeReponse === 'QCM' || typeReponse === 'CASES'
+            ? optionsReponse
+            : typeReponse === 'ECHELLE'
+            ? `${echelleMin},${echelleMax}`
+            : undefined,
+        obligatoire,
         id_agence: selectedAgenceId,
         serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
       });
@@ -97,6 +123,9 @@ export const ConfigurationCriteresPage = () => {
       setNouvelleDesc('');
       setOptionsReponse('');
       setTypeReponse('SMILEY');
+      setEchelleMin('1');
+      setEchelleMax('10');
+      setObligatoire(true);
       setSelectedServiceIds([]);
       toast({ title: 'Critère créé', description: `« ${nouveauLibelle} » a été ajouté avec succès.` });
     } catch (err: any) {
@@ -179,7 +208,14 @@ export const ConfigurationCriteresPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Colonne principale : liste des critères */}
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-lg font-bold text-foreground">Axes d'évaluation nationaux et personnalisés</h2>
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              Axes d'évaluation nationaux et personnalisés
+              {!loadingCriteres && !loadingActive && criteres && criteres.length > 0 && (
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  {activeIds.length} actif{activeIds.length > 1 ? 's' : ''} / {criteres.length}
+                </span>
+              )}
+            </h2>
 
             {(loadingCriteres || loadingActive) && (
               <div className="space-y-3">
@@ -195,11 +231,19 @@ export const ConfigurationCriteresPage = () => {
                 return (
                   <MotionCard key={critere.id} className="p-5 flex items-center justify-between gap-4">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-foreground text-base">{critere.libelle_critere}</span>
                         <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${isActive ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
                           {isActive ? 'Actif' : 'Désactivé'}
                         </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-primary/10 text-primary">
+                          {typeReponseLabel[critere.type_reponse] || critere.type_reponse}
+                        </span>
+                        {critere.obligatoire === false && (
+                          <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-secondary/15 text-secondary-muted-foreground">
+                            Optionnelle
+                          </span>
+                        )}
                       </div>
                       {critere.description && (
                         <p className="text-xs text-muted-foreground">{critere.description}</p>
@@ -261,17 +305,21 @@ export const ConfigurationCriteresPage = () => {
                   >
                     <option value="SMILEY">⭐ Note / Smileys (1 à 5)</option>
                     <option value="OUI_NON">👍 Oui / Non</option>
-                    <option value="QCM">📝 Choix Multiples (QCM)</option>
+                    <option value="QCM">📝 Choix unique (QCM)</option>
+                    <option value="CASES">☑️ Choix multiples (cases à cocher)</option>
+                    <option value="ECHELLE">🔢 Échelle linéaire (ex. note sur 10)</option>
                     <option value="TEXTE">✍️ Texte libre / Suggestion</option>
                   </select>
                 </div>
 
-                {typeReponse === 'QCM' && (
+                {(typeReponse === 'QCM' || typeReponse === 'CASES') && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                   >
-                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Choix possibles (séparés par des virgules)</label>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">
+                      {typeReponse === 'CASES' ? 'Cases proposées (séparées par des virgules)' : 'Choix possibles (séparés par des virgules)'}
+                    </label>
                     <input
                       type="text"
                       required
@@ -280,8 +328,55 @@ export const ConfigurationCriteresPage = () => {
                       placeholder="Ex: Trop d'attente, Personnel absent, Autre"
                       className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
                     />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {typeReponse === 'CASES'
+                        ? 'Le client pourra cocher plusieurs cases à la fois.'
+                        : 'Le client ne pourra choisir qu\'une seule réponse.'}
+                    </p>
                   </motion.div>
                 )}
+
+                {typeReponse === 'ECHELLE' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="flex gap-3"
+                  >
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-foreground uppercase mb-1">Minimum</label>
+                      <input
+                        type="number"
+                        required
+                        value={echelleMin}
+                        onChange={(e) => setEchelleMin(e.target.value)}
+                        className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-foreground uppercase mb-1">Maximum</label>
+                      <input
+                        type="number"
+                        required
+                        value={echelleMax}
+                        onChange={(e) => setEchelleMax(e.target.value)}
+                        className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={obligatoire}
+                    onChange={(e) => setObligatoire(e.target.checked)}
+                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  Question obligatoire
+                  <span className="text-[11px] text-muted-foreground font-normal">
+                    (sinon un bouton « Passer » sera proposé au client)
+                  </span>
+                </label>
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">

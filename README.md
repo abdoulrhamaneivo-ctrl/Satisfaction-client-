@@ -1,4 +1,4 @@
-# CXSAT
+# Yeba
 
 Outil interne de collecte et de pilotage de la satisfaction client (QR code
 sur des guichets physiques). Application mono-agence, réservée à une seule
@@ -31,6 +31,6 @@ Déploiement conteneurisé via `Dockerfile` / `railway.json` (Railway) :
 ## Contact technique
 
 Pour toute question de maintenance (accès `isAdmin`, incidents, évolutions),
-contacter le responsable technique de la plateforme CXSAT au sein de
+contacter le responsable technique de la plateforme Yeba au sein de
 l'entreprise.
 # Satisfaction-client-

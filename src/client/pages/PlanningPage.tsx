@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, assignAgent, getGuichets, getAgents, getAffectationsDuJour } from 'wasp/client/operations';
+import {
+  useQuery,
+  assignAgent,
+  updateAffectationGuichet,
+  deleteAffectationGuichet,
+  getGuichets,
+  getAgents,
+  getAffectationsDuJour,
+} from 'wasp/client/operations';
 import { motion } from 'framer-motion';
-import { CalendarClock, Store, UserCheck2, Clock, AlertTriangle } from 'lucide-react';
+import { CalendarClock, Store, UserCheck2, Clock, AlertTriangle, Pencil, Trash2 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
@@ -15,6 +23,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '../components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { useToast } from '../hooks/use-toast';
 import { RequireAuth } from '../components/RequireAuth';
 
@@ -25,6 +50,15 @@ export const PlanningPage = () => {
   const [heureDebut, setHeureDebut] = useState('08:00');
   const [heureFin, setHeureFin] = useState('13:00');
   const [assigningId, setAssigningId] = useState<number | null>(null);
+
+  // --- Édition / suppression d'une affectation déjà validée ---
+  const [affectationAEditer, setAffectationAEditer] = useState<any | null>(null);
+  const [editAgentId, setEditAgentId] = useState('');
+  const [editHeureDebut, setEditHeureDebut] = useState('08:00');
+  const [editHeureFin, setEditHeureFin] = useState('13:00');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [affectationASupprimer, setAffectationASupprimer] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const userAgenceId = user?.id_agence;
   const today = new Date().toISOString().split('T')[0];
@@ -77,6 +111,57 @@ export const PlanningPage = () => {
       toast({ variant: 'destructive', title: "Erreur lors de l'affectation", description: err.message || 'Erreur inconnue' });
     } finally {
       setAssigningId(null);
+    }
+  };
+
+  const ouvrirEdition = (aff: any) => {
+    setAffectationAEditer(aff);
+    setEditAgentId(String(aff.agent?.id ?? aff.id_agent ?? ''));
+    setEditHeureDebut(aff.heure_debut);
+    setEditHeureFin(aff.heure_fin);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!affectationAEditer) return;
+    if (!editAgentId) {
+      toast({ variant: 'destructive', title: 'Agent manquant', description: 'Veuillez sélectionner un agent.' });
+      return;
+    }
+    if (editHeureFin <= editHeureDebut) {
+      toast({ variant: 'destructive', title: 'Horaire invalide', description: "L'heure de fin doit être après l'heure de début." });
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      await updateAffectationGuichet({
+        id: affectationAEditer.id,
+        id_guichet: affectationAEditer.guichet?.id,
+        id_agent: editAgentId,
+        date: today,
+        heure_debut: editHeureDebut,
+        heure_fin: editHeureFin,
+      });
+      toast({ title: 'Affectation modifiée', description: 'Le planning a été mis à jour.' });
+      setAffectationAEditer(null);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur lors de la modification', description: err.message || 'Erreur inconnue' });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!affectationASupprimer) return;
+    setDeletingId(affectationASupprimer.id);
+    try {
+      await deleteAffectationGuichet({ id: affectationASupprimer.id });
+      toast({ title: 'Affectation retirée', description: 'Le créneau a été libéré.' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur lors de la suppression', description: err.message || 'Erreur inconnue' });
+    } finally {
+      setDeletingId(null);
+      setAffectationASupprimer(null);
     }
   };
 
@@ -188,13 +273,31 @@ export const PlanningPage = () => {
                           <Clock className="size-3" /> Aujourd'hui
                         </p>
                         {affectationsGuichet.map((aff: any) => (
-                          <div key={aff.id} className="flex items-center justify-between text-xs">
+                          <div key={aff.id} className="flex items-center justify-between gap-2 text-xs">
                             <span className="font-medium text-foreground">
                               {aff.agent?.prenom} {aff.agent?.nom}
                             </span>
-                            <span className="text-muted-foreground">
-                              {aff.heure_debut} – {aff.heure_fin}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">
+                                {aff.heure_debut} – {aff.heure_fin}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => ouvrirEdition({ ...aff, guichet: g })}
+                                title="Modifier cette affectation"
+                                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                              >
+                                <Pencil className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAffectationASupprimer({ ...aff, guichet: g })}
+                                title="Retirer cette affectation"
+                                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -233,6 +336,95 @@ export const PlanningPage = () => {
         )}
       </div>
     </AmbientBackground>
+
+    {/* Édition d'une affectation existante */}
+    <Dialog open={affectationAEditer !== null} onOpenChange={(open) => !open && setAffectationAEditer(null)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Modifier l'affectation</DialogTitle>
+        </DialogHeader>
+        {affectationAEditer && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Guichet : <span className="font-medium text-foreground">{affectationAEditer.guichet?.nom_guichet}</span>
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent</label>
+              <Select value={editAgentId} onValueChange={setEditAgentId}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Sélectionner un agent..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents?.map((agent: any) => (
+                    <SelectItem key={agent.id} value={String(agent.id)}>
+                      {agent.prenom} {agent.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex flex-1 flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Heure de début</label>
+                <input
+                  type="time"
+                  value={editHeureDebut}
+                  onChange={(e) => setEditHeureDebut(e.target.value)}
+                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Heure de fin</label>
+                <input
+                  type="time"
+                  value={editHeureFin}
+                  onChange={(e) => setEditHeureFin(e.target.value)}
+                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setAffectationAEditer(null)}>
+            Annuler
+          </Button>
+          <Button onClick={handleSaveEdit} disabled={savingEdit}>
+            {savingEdit ? 'Enregistrement...' : 'Enregistrer'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Confirmation de suppression */}
+    <AlertDialog
+      open={affectationASupprimer !== null}
+      onOpenChange={(open) => !open && setAffectationASupprimer(null)}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Retirer cette affectation ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {affectationASupprimer && (
+              <>
+                <strong className="text-foreground">
+                  {affectationASupprimer.agent?.prenom} {affectationASupprimer.agent?.nom}
+                </strong>{' '}
+                ne sera plus planifié(e) sur <strong className="text-foreground">{affectationASupprimer.guichet?.nom_guichet}</strong>{' '}
+                de {affectationASupprimer.heure_debut} à {affectationASupprimer.heure_fin}. Les avis déjà collectés sur ce
+                créneau restent inchangés.
+              </>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} disabled={deletingId !== null} variant="destructive">
+            {deletingId !== null ? 'Suppression...' : 'Retirer'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </RequireAuth>
   );
 };

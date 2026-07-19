@@ -1,4 +1,4 @@
-import { LogIn, Menu, Bell, ChevronDown } from "lucide-react";
+import { LogIn, Menu, Bell, ChevronDown, Search } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Link as ReactRouterLink } from "react-router";
 import { useAuth } from "wasp/client/auth";
@@ -26,16 +26,17 @@ import { throttleWithTrailingInvocation } from "../../../shared/utils";
 import { UserDropdown } from "../../../user/UserDropdown";
 import { UserMenuItems } from "../../../user/UserMenuItems";
 import { useNotificationBadge } from "../../hooks/useNotificationBadge";
-import { CXSATLogo } from '../CXSATLogo';
+import { YebaLogo } from '../YebaLogo';
 import { cn } from "../../utils";
 import { DarkModeSwitcher } from "../DarkModeSwitcher";
+import { CommandPaletteTrigger } from "../CommandPalette";
 import { useBrand } from "../../context/BrandContext";
 import { BrandLogo } from "../BrandLogo";
 
 export interface NavigationItem {
   name: string;
   to: string;
-  // Rôles CXSAT autorisés à voir ce lien. Si absent, visible par tout le
+  // Rôles Yeba autorisés à voir ce lien. Si absent, visible par tout le
   // monde. Permet de cacher les entrées de menu qui pointent vers des pages
   // restreintes (ex. "Agences" réservé à DIRECTION) au lieu de laisser un
   // CHEF_AGENCE cliquer dessus pour atterrir sur un écran "Accès refusé".
@@ -128,7 +129,7 @@ export function NavBar({
                     },
                   )}
                 >
-                  {brandConfig?.platform_name || "CXSAT"}
+                  {brandConfig?.platform_name || "Yeba"}
                 </span>
               </WaspRouterLink>
 
@@ -155,6 +156,9 @@ function NavBarDesktopUserDropdown({ isScrolled }: { isScrolled: boolean }) {
   return (
     <div className="hidden items-center justify-end gap-3 lg:flex lg:flex-1">
       <ul className="flex items-center justify-center gap-2 sm:gap-4">
+        <li className="hidden md:block">
+          <CommandPaletteTrigger />
+        </li>
         <DarkModeSwitcher />
         {/* Badge de notification temps réel (polling 30s) */}
         {!!user && total > 0 && (
@@ -253,7 +257,7 @@ function NavBarMobileMenu({
           <SheetHeader className="shrink-0 border-b border-border/60 px-6 pb-4 pt-6">
             <SheetTitle className="flex items-center">
               <WaspRouterLink to={routes.LandingPageRoute.to}>
-                <span className="sr-only">{brandConfig?.platform_name || "CXSAT"}</span>
+                <span className="sr-only">{brandConfig?.platform_name || "Yeba"}</span>
                 <NavLogo isScrolled={false} />
               </WaspRouterLink>
             </SheetTitle>
@@ -292,9 +296,22 @@ function NavBarMobileMenu({
               quel que soit le nombre d'éléments au-dessus. C'est ce qui
               causait le bug : avant, ce bouton était dans le flux
               défilant et se retrouvait poussé hors écran. */}
-          <div className="flex shrink-0 items-center justify-between border-t border-border/60 px-6 py-4">
-            <span className="text-sm font-medium text-foreground">Mode sombre</span>
-            <DarkModeSwitcher />
+          <div className="flex shrink-0 flex-col gap-3 border-t border-border/60 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                window.dispatchEvent(new Event('yeba:open-command-palette'));
+              }}
+              className="flex items-center gap-2 rounded-lg border border-border/70 bg-card-subtle/60 px-3 py-2 text-sm text-muted-foreground"
+            >
+              <Search className="size-4" />
+              Rechercher…
+            </button>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">Mode sombre</span>
+              <DarkModeSwitcher />
+            </div>
           </div>
         </SheetContent>
       </Sheet>

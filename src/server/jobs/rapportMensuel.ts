@@ -186,9 +186,9 @@ function genererHtmlRapport(
     <!-- Footer -->
     <div style="background: #f8fafc; padding: 20px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-        Ce rapport est généré automatiquement par <strong>CXSAT</strong> — Plateforme de satisfaction client
+        Ce rapport est généré automatiquement par <strong>Yeba</strong> — Plateforme de satisfaction client
         <br>Norme FD X50-167 · Conformité ARTCI ·
-        <a href="${FRONTEND_URL}" style="color: #c47a20; text-decoration: none;">cxsat.ci</a>
+        <a href="${FRONTEND_URL}" style="color: #c47a20; text-decoration: none;">yeba.ci</a>
       </p>
     </div>
   </div>
@@ -249,10 +249,10 @@ export const envoyerRapportsMensuels = async (_args: unknown, _context: any) => 
       try {
         await emailSender.send({
           to: destinataire.email,
-          subject: `📊 CXSAT — Rapport ${moisLabel} · ${agence.nom_agence}`,
+          subject: `📊 Yeba — Rapport ${moisLabel} · ${agence.nom_agence}`,
           html,
           text: [
-            `Rapport mensuel CXSAT — ${moisLabel}`,
+            `Rapport mensuel Yeba — ${moisLabel}`,
             `Agence : ${stats.agenceNom} (${stats.commune})`,
             ``,
             `• Taux satisfaction : ${stats.tauxSatisfaction.toFixed(0)}%`,

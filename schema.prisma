@@ -19,12 +19,18 @@ model User {
   isAdmin                       Boolean                  @default(false)
   sendEmail                     Boolean                  @default(false)
   
-  // === CHAMPS COMPLÉMENTAIRES CXSAT AJOUTÉS (Optionnels pour éviter les erreurs de compilation) ===
+  // === CHAMPS COMPLÉMENTAIRES Yeba AJOUTÉS (Optionnels pour éviter les erreurs de compilation) ===
   nom                           String?                  @default("")
   prenom                        String?                  @default("")
   telephone                     String?                  @default("")
   role                          String?                  @default("AGENT") // DIRECTION, QUALITE, CHEF_AGENCE, AGENT
   actif                         Boolean                  @default(true)
+  // Force l'utilisateur à définir un nouveau mot de passe avant de pouvoir
+  // utiliser l'application. Mis à `true` pour le tout premier compte créé
+  // par le seed (le seul cas où un mot de passe généré automatiquement est
+  // directement utilisable pour se connecter, sans passer par le lien
+  // "mot de passe oublié" envoyé aux comptes invités).
+  mustChangePassword            Boolean                  @default(false)
   id_agence                     Int?                     // Nullable pour l'onboarding SaaS (Siège créé après)
   agence                        Agence?                  @relation(fields: [id_agence], references: [id])
 
@@ -46,7 +52,7 @@ model User {
 }
 
 // ============================================================================
-// STRUCTURE ORGANISATIONNELLE (CXSAT)
+// STRUCTURE ORGANISATIONNELLE (Yeba)
 // ============================================================================
 
 model Entreprise {
@@ -110,7 +116,7 @@ model AffectationGuichet {
 }
 
 // ============================================================================
-// CONTEXTE D'ÉVALUATION (CXSAT)
+// CONTEXTE D'ÉVALUATION (Yeba)
 // ============================================================================
 
 model Service {
@@ -136,8 +142,15 @@ model Critere {
   description         String?
   
   // === NOUVEAUX CHAMPS DYNAMIQUES ===
-  type_reponse        String            @default("SMILEY") // SMILEY, OUI_NON, QCM, TEXTE
-  options_reponse     String?           // Choix séparés par des virgules pour le QCM
+  // SMILEY, OUI_NON, QCM (choix unique), TEXTE (texte libre),
+  // CASES (choix multiples / checkboxes), ECHELLE (échelle linéaire, ex. 1-10)
+  type_reponse        String            @default("SMILEY")
+  // QCM / CASES : choix séparés par des virgules.
+  // ECHELLE : "min,max" (ex. "1,10"). Vide = échelle 1-5 par défaut.
+  options_reponse     String?
+  // Question obligatoire (bloque la progression tant qu'il n'y a pas de
+  // réponse) ou facultative (un bouton "Passer" est proposé côté collecte).
+  obligatoire         Boolean           @default(true)
 
   // NULL = critère "socle" fourni par la plateforme (visible par toutes les
   // entreprises, ex. les 3 critères FD X50-167 créés au seed). Une valeur =
@@ -212,7 +225,7 @@ model Canal {
 }
 
 // ============================================================================
-// FLUX TRANSACTIONNEL (CXSAT)
+// FLUX TRANSACTIONNEL (Yeba)
 // ============================================================================
 
 model Reponse {
@@ -306,7 +319,7 @@ model TacheCorrectiveHistorique {
 }
 
 // ============================================================================
-// ANTI-REJEU DES VOTES (CXSAT — Conformité ARTCI)
+// ANTI-REJEU DES VOTES (Yeba — Conformité ARTCI)
 // ============================================================================
 
 model VoteAntiRejeu {

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { logout, useAuth } from 'wasp/client/auth';
 import { routes } from 'wasp/client/router';
 
@@ -8,16 +8,24 @@ interface RequireAuthProps {
 }
 
 /**
- * Protège les pages de l'espace applicatif CXSAT.
+ * Protège les pages de l'espace applicatif Yeba.
  * - Si l'utilisateur n'est pas connecté → redirige vers /login
  * - Si le compte a été suspendu/désactivé par la direction → déconnecte et
  *   redirige vers /login (au lieu de laisser un accès fantôme).
+ * - Si le compte doit changer son mot de passe (mustChangePassword) →
+ *   redirige vers /account, seule page accessible tant que ce n'est pas
+ *   fait. Concerne uniquement le tout premier compte créé par le seed
+ *   (mot de passe généré affiché en clair en console, donc directement
+ *   utilisable — contrairement aux comptes invités qui doivent de toute
+ *   façon passer par "mot de passe oublié" avant de pouvoir se connecter).
  * - Pendant le chargement → spinner discret
  * - Connecté et actif → affiche les enfants normalement
  */
 export function RequireAuth({ children }: RequireAuthProps) {
   const { data: user, isLoading } = useAuth();
+  const location = useLocation();
   const isSuspended = Boolean(user) && (user as any).actif === false;
+  const mustChangePassword = Boolean(user) && (user as any).mustChangePassword === true;
 
   useEffect(() => {
     if (isSuspended) {
@@ -38,6 +46,10 @@ export function RequireAuth({ children }: RequireAuthProps) {
 
   if (!isLoading && (!user || isSuspended)) {
     return <Navigate to={routes.LoginRoute.to} replace />;
+  }
+
+  if (mustChangePassword && location.pathname !== routes.AccountRoute.to) {
+    return <Navigate to={routes.AccountRoute.to} replace />;
   }
 
   return <>{children}</>;

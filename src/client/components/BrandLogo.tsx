@@ -1,6 +1,6 @@
 import React from 'react';
 import { useBrand } from '../context/BrandContext';
-import { CXSATLogo } from './CXSATLogo';
+import { YebaLogo } from './YebaLogo';
 
 type BrandLogoProps = {
   className?: string;
@@ -31,5 +31,5 @@ export function BrandLogo({ className = "size-8", width, height, mode = 'auto' }
     );
   }
 
-  return <CXSATLogo className={className} width={width} height={height} />;
+  return <YebaLogo className={className} width={width} height={height} />;
 }

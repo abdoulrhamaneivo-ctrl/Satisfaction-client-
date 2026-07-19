@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from 'wasp/client/auth';
 import {
   useQuery,
@@ -21,6 +21,7 @@ import {
   Users,
   CheckCircle2,
   UsersRound,
+  Search,
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -69,11 +70,18 @@ export const AdminPersonnelPage = () => {
     }
   }, [user?.id_agence, agences, selectedAgenceId]);
 
-  const { data: agents } = useQuery(
+  const { data: agents, isLoading: loadingAgents } = useQuery(
     getAgentsByAgence,
     { id_agence: selectedAgenceId ?? 0 },
     { enabled: selectedAgenceId !== null }
   );
+
+  // Recherche + filtre statut : indispensable dès qu'une agence dépasse une
+  // quinzaine d'agents — sans ça, retrouver un agent précis = scroller une
+  // grille de cartes à l'œil.
+  const [recherche, setRecherche] = useState('');
+  const [filtreStatut, setFiltreStatut] = useState<'TOUS' | 'ACTIFS' | 'SUSPENDUS'>('TOUS');
+  const formCardRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -172,6 +180,10 @@ export const AdminPersonnelPage = () => {
       telephone: agent.telephone || '',
       role: agent.role || 'AGENT',
     });
+    // Le formulaire est sticky mais reste hors champ visuel quand on clique
+    // "Modifier" sur une carte en bas de grille — sans ce scroll, l'agent
+    // ne comprend pas que quelque chose s'est passé.
+    formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleCancelEdit = () => {
@@ -203,7 +215,18 @@ export const AdminPersonnelPage = () => {
     }
   };
 
-  const agentCount = agents?.length ?? 0;
+  const agentsFiltres = (agents ?? []).filter((agent: any) => {
+    if (filtreStatut === 'ACTIFS' && agent.actif === false) return false;
+    if (filtreStatut === 'SUSPENDUS' && agent.actif !== false) return false;
+    if (recherche.trim()) {
+      const q = recherche.trim().toLowerCase();
+      const cible = `${agent.prenom ?? ''} ${agent.nom ?? ''} ${agent.email ?? ''}`.toLowerCase();
+      if (!cible.includes(q)) return false;
+    }
+    return true;
+  });
+  const agentCount = agentsFiltres.length;
+  const agentCountTotal = agents?.length ?? 0;
 
   // Défense en profondeur : les actions serveur (inviteAgent, updateAgent,
   // deleteAgent, reactivateAgent) refusent déjà AGENT/QUALITE, mais sans ce
@@ -262,9 +285,10 @@ export const AdminPersonnelPage = () => {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             {/* CARTE FORMULAIRE (Bento Style) */}
             <motion.div
+              ref={formCardRef}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="lg:col-span-1 rounded-3xl border border-border/70 bg-card p-6 shadow-premium ring-premium"
+              className="lg:col-span-1 rounded-3xl border border-border/70 bg-card p-6 shadow-premium ring-premium scroll-mt-8"
             >
               <h2 className="mb-6 flex items-center gap-2 text-lg font-bold">
                 <UserPlus className="text-primary" /> {editingId ? 'Modifier un agent' : 'Nouvel Agent'}
@@ -361,9 +385,47 @@ export const AdminPersonnelPage = () => {
             </motion.div>
 
             {/* GRILLE DES AGENTS (Bento Grid) */}
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={recherche}
+                    onChange={(e) => setRecherche(e.target.value)}
+                    placeholder="Rechercher un agent (nom, email)..."
+                    className="h-10 pl-9"
+                  />
+                </div>
+                <Select value={filtreStatut} onValueChange={(v: any) => setFiltreStatut(v)}>
+                  <SelectTrigger className="h-10 sm:w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TOUS">Tous les statuts</SelectItem>
+                    <SelectItem value="ACTIFS">Actifs uniquement</SelectItem>
+                    <SelectItem value="SUSPENDUS">Suspendus uniquement</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {!loadingAgents && agentCountTotal > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {agentCount} agent{agentCount > 1 ? 's' : ''} affiché{agentCount > 1 ? 's' : ''}
+                  {agentCount !== agentCountTotal ? ` sur ${agentCountTotal}` : ''}
+                </p>
+              )}
+
+              {loadingAgents && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="h-32 animate-pulse rounded-3xl border border-border/70 bg-card-subtle/50" />
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <AnimatePresence>
-                {agents?.map((agent: any) => (
+                {!loadingAgents && agentsFiltres.map((agent: any) => (
                   <motion.div
                     key={agent.id}
                     layout
@@ -438,7 +500,7 @@ export const AdminPersonnelPage = () => {
                 ))}
               </AnimatePresence>
 
-              {agentCount === 0 && (
+              {!loadingAgents && agentCount === 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -446,13 +508,18 @@ export const AdminPersonnelPage = () => {
                 >
                   <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border/50 bg-card/50 p-10 text-center">
                     <UsersRound className="mb-3 size-10 text-muted-foreground" />
-                    <p className="font-semibold text-foreground">Aucun agent enregistré</p>
+                    <p className="font-semibold text-foreground">
+                      {agentCountTotal === 0 ? 'Aucun agent enregistré' : 'Aucun agent ne correspond à votre recherche'}
+                    </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Ajoutez votre premier agent via le formulaire pour commencer à suivre votre équipe.
+                      {agentCountTotal === 0
+                        ? 'Ajoutez votre premier agent via le formulaire pour commencer à suivre votre équipe.'
+                        : 'Essayez un autre nom, un autre email, ou réinitialisez le filtre de statut.'}
                     </p>
                   </div>
                 </motion.div>
               )}
+              </div>
             </div>
           </div>
         </div>

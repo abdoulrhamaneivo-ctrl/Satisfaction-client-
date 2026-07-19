@@ -8,7 +8,7 @@ import {
   resolveAgenceId,
   resolveAgenceScope,
 } from './middleware/rowLevelSecurity';
-import { regrouperParSoumission, compterAvis, scoreMoyenParAvis } from './soumissions';
+import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, commentairesDeGroupe } from './soumissions';
 import { BRANDING } from '../shared/branding';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
@@ -217,7 +217,7 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
     return {
       id_soumission: g.id_soumission ?? g.cle,
       date_reponse: premiere.date_reponse,
-      commentaire_texte: premiere.commentaire_texte,
+      commentaire_texte: commentairesDeGroupe(g.reponses),
       id_canal: premiere.id_canal,
       guichet: premiere.guichet,
       service: premiere.service,
@@ -302,7 +302,7 @@ export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => 
         service: premiere.service?.libelle_service || '',
         agent: premiere.agent ? `${premiere.agent.prenom || ''} ${premiere.agent.nom || ''}`.trim() : '',
         score_moyen: scoreMoyen,
-        commentaire: premiere.commentaire_texte || '',
+        commentaire: commentairesDeGroupe(g.reponses),
         criteres: g.reponses.map((r: any) => `${r.critere?.libelle_critere || 'Critère'}:${r.score_brut}`).join(' | '),
       };
     })
@@ -941,15 +941,24 @@ export const getActionsPrioritaires = async (_args: void, context: any) => {
 // Un KPI seul ("satisfaction 78%") ne permet aucune décision. Ce qui compte,
 // c'est la direction : est-ce mieux ou moins bien qu'avant ?
 
-export const getKPIsPeriode = async (_args: void, context: any) => {
+export const getKPIsPeriode = async (args: { nbJours?: number } | void, context: any) => {
   requireAuth(context);
   const filter = await buildAgenceFilter(context, context.entities);
 
+  // Fenêtre glissante configurable (7 / 30 / 90 jours...) — 30 par défaut
+  // pour rester compatible avec les appels existants qui ne passent aucun
+  // argument. On borne à [1, 365] pour éviter un scan complet de la table
+  // sur une valeur farfelue envoyée par le client.
+  const nbJoursDemandes = (args as any)?.nbJours;
+  const nbJours = Number.isFinite(nbJoursDemandes)
+    ? Math.min(365, Math.max(1, Math.round(nbJoursDemandes)))
+    : 30;
+
   const now = new Date();
   const debutActuel = new Date(now);
-  debutActuel.setDate(debutActuel.getDate() - 30);
+  debutActuel.setDate(debutActuel.getDate() - nbJours);
   const debutPrecedent = new Date(debutActuel);
-  debutPrecedent.setDate(debutPrecedent.getDate() - 30);
+  debutPrecedent.setDate(debutPrecedent.getDate() - nbJours);
 
   const [actuelles, precedentes] = await Promise.all([
     context.entities.Reponse.findMany({
@@ -989,6 +998,7 @@ export const getKPIsPeriode = async (_args: void, context: any) => {
     : parseFloat((((cur.nb - prev.nb) / prev.nb) * 100).toFixed(1));
 
   return {
+    nb_jours: nbJours,
     periode_actuelle: cur,
     periode_precedente: prev,
     delta_satisfaction_pts: deltaPoints(cur.satisfaction, prev.satisfaction),
@@ -998,10 +1008,209 @@ export const getKPIsPeriode = async (_args: void, context: any) => {
 };
 
 // ============================================================================
+// TEMPS MOYEN DE TRAITEMENT (Module "actions" — décision)
+// Deux délais distincts, à ne pas confondre :
+//  - "prise en charge" : Alerte.date_creation -> Alerte.date_traitement
+//    (le temps qu'un manager mette la main sur l'alerte)
+//  - "résolution" : TacheCorrective.date_creation -> date_cloture, sur les
+//    tâches TERMINEE (le temps jusqu'à ce que le problème soit vraiment réglé)
+// Les deux sont calculés sur les éléments CLÔTURÉS pendant la période (et non
+// créés pendant la période), pour mesurer une vitesse de traitement réelle et
+// pas un artefact de la date de création.
+// ============================================================================
+
+export const getTempsTraitement = async (args: { nbJours?: number } | void, context: any) => {
+  requireAuth(context);
+  const filter = await buildAgenceFilter(context, context.entities);
+  const idAgenceClause = (filter as any).id_agence;
+
+  const nbJoursDemandes = (args as any)?.nbJours;
+  const nbJours = Number.isFinite(nbJoursDemandes)
+    ? Math.min(365, Math.max(1, Math.round(nbJoursDemandes)))
+    : 30;
+
+  const now = new Date();
+  const debutActuel = new Date(now);
+  debutActuel.setDate(debutActuel.getDate() - nbJours);
+  const debutPrecedent = new Date(debutActuel);
+  debutPrecedent.setDate(debutPrecedent.getDate() - nbJours);
+
+  const dureeMoyenneHeures = (items: { debut: Date; fin: Date }[]) => {
+    if (items.length === 0) return null;
+    const totalMs = items.reduce((s, it) => s + (it.fin.getTime() - it.debut.getTime()), 0);
+    return parseFloat((totalMs / items.length / (1000 * 60 * 60)).toFixed(1));
+  };
+
+  const [alertesActuelles, alertesPrecedentes, tachesActuelles, tachesPrecedentes] = await Promise.all([
+    context.entities.Alerte.findMany({
+      where: {
+        date_traitement: { gte: debutActuel, lte: now },
+        OR: [
+          { guichet: { id_agence: idAgenceClause } },
+          { reponse: { id_agence: idAgenceClause } },
+        ],
+      },
+      select: { date_creation: true, date_traitement: true },
+    }),
+    context.entities.Alerte.findMany({
+      where: {
+        date_traitement: { gte: debutPrecedent, lt: debutActuel },
+        OR: [
+          { guichet: { id_agence: idAgenceClause } },
+          { reponse: { id_agence: idAgenceClause } },
+        ],
+      },
+      select: { date_creation: true, date_traitement: true },
+    }),
+    context.entities.TacheCorrective.findMany({
+      where: {
+        statut_tache: 'TERMINEE',
+        date_cloture: { gte: debutActuel, lte: now },
+        alerte: {
+          OR: [
+            { guichet: { id_agence: idAgenceClause } },
+            { reponse: { id_agence: idAgenceClause } },
+          ],
+        },
+      },
+      select: { date_creation: true, date_cloture: true },
+    }),
+    context.entities.TacheCorrective.findMany({
+      where: {
+        statut_tache: 'TERMINEE',
+        date_cloture: { gte: debutPrecedent, lt: debutActuel },
+        alerte: {
+          OR: [
+            { guichet: { id_agence: idAgenceClause } },
+            { reponse: { id_agence: idAgenceClause } },
+          ],
+        },
+      },
+      select: { date_creation: true, date_cloture: true },
+    }),
+  ]);
+
+  const priseEnChargeActuelle = dureeMoyenneHeures(
+    alertesActuelles.map((a: any) => ({ debut: new Date(a.date_creation), fin: new Date(a.date_traitement) }))
+  );
+  const priseEnChargePrecedente = dureeMoyenneHeures(
+    alertesPrecedentes.map((a: any) => ({ debut: new Date(a.date_creation), fin: new Date(a.date_traitement) }))
+  );
+  const resolutionActuelle = dureeMoyenneHeures(
+    tachesActuelles.map((t: any) => ({ debut: new Date(t.date_creation), fin: new Date(t.date_cloture) }))
+  );
+  const resolutionPrecedente = dureeMoyenneHeures(
+    tachesPrecedentes.map((t: any) => ({ debut: new Date(t.date_creation), fin: new Date(t.date_cloture) }))
+  );
+
+  const deltaHeures = (a: number | null, b: number | null) =>
+    a === null || b === null ? null : parseFloat((a - b).toFixed(1));
+
+  return {
+    nb_jours: nbJours,
+    prise_en_charge: {
+      moyenne_heures: priseEnChargeActuelle,
+      nb: alertesActuelles.length,
+      delta_heures: deltaHeures(priseEnChargeActuelle, priseEnChargePrecedente),
+    },
+    resolution: {
+      moyenne_heures: resolutionActuelle,
+      nb: tachesActuelles.length,
+      delta_heures: deltaHeures(resolutionActuelle, resolutionPrecedente),
+    },
+  };
+};
+
+// ============================================================================
 // HISTORIQUE D'AUDIT DES TÂCHES CORRECTIVES (Module 4)
 // Retourne l'historique complet des changements de statut d'une tâche.
 // Utilisé par la timeline dans le Kanban pour la traçabilité ARTCI.
 // ============================================================================
+
+// ============================================================================
+// HEATMAP DES AVIS PAR JOUR / HEURE
+// Répond à "à quel moment mes clients sont-ils le plus mécontents ?" — sert
+// à ajuster les effectifs (renfort un vendredi après-midi si c'est le
+// créneau qui concentre les mauvaises notes, par ex.). Agrégation simple sur
+// Reponse.date_reponse, pas de nouvelle donnée nécessaire.
+// ============================================================================
+
+const JOURS_SEMAINE_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+export const getHeatmapReponses = async (
+  args: { nbJours?: number; id_agence?: number } | void,
+  context: any
+) => {
+  requireAuth(context);
+  const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
+
+  const nbJoursDemandes = (args as any)?.nbJours;
+  const nbJours = Number.isFinite(nbJoursDemandes)
+    ? Math.min(365, Math.max(1, Math.round(nbJoursDemandes)))
+    : 90;
+
+  const debut = new Date();
+  debut.setDate(debut.getDate() - nbJours);
+
+  const reponses = await context.entities.Reponse.findMany({
+    where: {
+      id_agence: scope.id_agence,
+      date_reponse: { gte: debut },
+    },
+    select: { id_soumission: true, id: true, score_brut: true, date_reponse: true },
+  });
+
+  // Un avis à N critères ne doit compter qu'une fois par créneau — même
+  // logique de regroupement par soumission que partout ailleurs dans ce
+  // fichier (scoreMoyenParAvis), sinon un formulaire à 5 questions pèserait
+  // artificiellement plus lourd dans la heatmap qu'un formulaire à 1 question.
+  const parSoumission = new Map<string, { date: Date; scores: number[] }>();
+  for (const r of reponses as any[]) {
+    const cle = r.id_soumission ?? `_${r.id}`;
+    if (!parSoumission.has(cle)) {
+      parSoumission.set(cle, { date: new Date(r.date_reponse), scores: [] });
+    }
+    parSoumission.get(cle)!.scores.push(r.score_brut);
+  }
+
+  // Grille complète 7 jours x 24h initialisée à zéro, pour que le front
+  // n'ait pas à gérer les créneaux sans aucun avis.
+  const grille = new Map<string, { nb: number; sommeScores: number }>();
+  for (let jour = 0; jour < 7; jour++) {
+    for (let heure = 0; heure < 24; heure++) {
+      grille.set(`${jour}-${heure}`, { nb: 0, sommeScores: 0 });
+    }
+  }
+
+  for (const { date, scores } of parSoumission.values()) {
+    const jour = date.getDay();
+    const heure = date.getHours();
+    const scoreMoyenAvis = scores.reduce((s, v) => s + v, 0) / scores.length;
+    const cellule = grille.get(`${jour}-${heure}`)!;
+    cellule.nb += 1;
+    cellule.sommeScores += scoreMoyenAvis;
+  }
+
+  const cellules = Array.from(grille.entries()).map(([cle, { nb, sommeScores }]) => {
+    const [jour, heure] = cle.split('-').map(Number);
+    return {
+      jour,
+      jour_label: JOURS_SEMAINE_FR[jour],
+      heure,
+      nb,
+      score_moyen: nb > 0 ? parseFloat((sommeScores / nb).toFixed(2)) : null,
+    };
+  });
+
+  const maxNb = cellules.reduce((m, c) => Math.max(m, c.nb), 0);
+
+  return {
+    nb_jours: nbJours,
+    total_avis: parSoumission.size,
+    max_nb: maxNb,
+    cellules,
+  };
+};
 
 export const getTacheHistorique = async (args: { id_tache: number }, context: any) => {
   requireAuth(context);
@@ -1106,4 +1315,87 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
       };
     })
   );
+};
+
+// ============================================================================
+// RECHERCHE GLOBALE (palette de commandes Ctrl+K)
+// Interroge plusieurs entités en une fois (agences, guichets, agents, avis)
+// — voir l'analyse UX : ce n'est pas juste un champ texte en façade, c'est
+// une vraie requête backend multi-entités, respectant le même périmètre de
+// données (RLS) que le reste de l'app.
+// ============================================================================
+
+export const getRechercheGlobale = async (args: { q: string }, context: any) => {
+  requireAuth(context);
+
+  const q = (args?.q ?? '').trim();
+  // Sous 2 caractères, une recherche "contains" sur plusieurs tables ne
+  // renvoie que du bruit — on ne lance pas la requête tant que ce n'est pas
+  // atteint (protège aussi la base d'un scan sur chaque frappe).
+  if (q.length < 2) {
+    return { agences: [], guichets: [], agents: [], avis: [] };
+  }
+
+  const filter = await buildAgenceFilter(context, context.entities);
+  const idAgenceClause = filter.id_agence;
+  const contains = { contains: q, mode: 'insensitive' as const };
+
+  const peutVoirAgences = context.user.role === 'DIRECTION' || context.user.role === 'QUALITE';
+
+  const [agences, guichets, agents, avis] = await Promise.all([
+    peutVoirAgences && context.user.id_entreprise
+      ? context.entities.Agence.findMany({
+          where: {
+            id_entreprise: context.user.id_entreprise,
+            OR: [{ nom_agence: contains }, { commune: contains }],
+          },
+          select: { id: true, nom_agence: true, commune: true },
+          take: 5,
+        })
+      : Promise.resolve([]),
+    context.entities.Guichet.findMany({
+      where: { id_agence: idAgenceClause, nom_guichet: contains },
+      select: { id: true, nom_guichet: true, id_agence: true, agence: { select: { nom_agence: true } } },
+      take: 5,
+    }),
+    context.entities.User.findMany({
+      where: {
+        id_agence: idAgenceClause,
+        role: 'AGENT',
+        OR: [{ nom: contains }, { prenom: contains }],
+      },
+      select: { id: true, nom: true, prenom: true, id_agence: true },
+      take: 5,
+    }),
+    context.entities.Reponse.findMany({
+      where: { id_agence: idAgenceClause, commentaire_texte: contains },
+      select: {
+        id: true,
+        commentaire_texte: true,
+        score_brut: true,
+        date_reponse: true,
+        guichet: { select: { nom_guichet: true } },
+      },
+      orderBy: { date_reponse: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  return {
+    agences: agences.map((a: any) => ({ id: a.id, nom_agence: a.nom_agence, commune: a.commune })),
+    guichets: guichets.map((g: any) => ({
+      id: g.id,
+      nom_guichet: g.nom_guichet,
+      id_agence: g.id_agence,
+      nom_agence: g.agence?.nom_agence ?? null,
+    })),
+    agents: agents.map((u: any) => ({ id: u.id, nom: u.nom, prenom: u.prenom, id_agence: u.id_agence })),
+    avis: avis.map((r: any) => ({
+      id: r.id.toString(),
+      commentaire_texte: r.commentaire_texte,
+      score_brut: r.score_brut,
+      date_reponse: r.date_reponse,
+      guichet: r.guichet?.nom_guichet ?? null,
+    })),
+  };
 };

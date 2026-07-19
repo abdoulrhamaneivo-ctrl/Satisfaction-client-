@@ -51,7 +51,7 @@ export function PasswordResetPage() {
     <AuthPageLayout
       eyebrow="Nouveau mot de passe"
       title="Choisir un nouveau mot de passe"
-      subtitle="Définissez un nouveau mot de passe sécurisé pour votre compte CXSAT."
+      subtitle="Définissez un nouveau mot de passe sécurisé pour votre compte Yeba."
       footer={
         <WaspRouterLink to={routes.LoginRoute.to} className="font-semibold text-primary underline">
           Retour à la connexion

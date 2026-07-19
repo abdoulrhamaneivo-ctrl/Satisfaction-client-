@@ -25,12 +25,19 @@ export const CollectePage = () => {
   const [step, setStep] = useState<'SERVICE_SELECT' | 'QUESTIONS' | 'COMMENT_STEP' | 'SUCCESS'>('SERVICE_SELECT');
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Array<{ critereId: number; score: number }>>([]);
+  const [answers, setAnswers] = useState<Array<{ critereId: number; score: number; texte?: string }>>([]);
   
   const [commentaire, setCommentaire] = useState('');
+  const [texteReponseCourante, setTexteReponseCourante] = useState('');
+  const [casesSelectionnees, setCasesSelectionnees] = useState<string[]>([]);
   const [telephone, setTelephone] = useState('');
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTexteReponseCourante('');
+    setCasesSelectionnees([]);
+  }, [currentQuestionIndex, step]);
 
   // Initialize step based on number of services
   useEffect(() => {
@@ -83,14 +90,25 @@ export const CollectePage = () => {
     setAnswers([]);
   };
 
-  const handleAnswer = (score: number) => {
+  const handleAnswer = (score: number, texte?: string) => {
     const newAnswers = [...answers];
     newAnswers[currentQuestionIndex] = {
       critereId: currentCritere.id,
-      score: score
+      score: score,
+      ...(texte !== undefined ? { texte } : {}),
     };
     setAnswers(newAnswers);
 
+    if (currentQuestionIndex < criteres.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    } else {
+      setStep('COMMENT_STEP');
+    }
+  };
+
+  // Question facultative (obligatoire === false) : on avance sans enregistrer
+  // de réponse pour ce critère, plutôt que de forcer une valeur arbitraire.
+  const handleSkip = () => {
     if (currentQuestionIndex < criteres.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
@@ -118,18 +136,32 @@ export const CollectePage = () => {
     setErreur(null);
 
     try {
+      // Filtre les "trous" laissés par les questions facultatives passées
+      // (handleSkip n'écrit rien dans answers[] à cet index) : sans ça, le
+      // tableau envoyé au serveur contient des `null` après sérialisation
+      // JSON, que soumettreAvis ne sait pas interpréter.
+      const reponsesRenseignees = answers.filter((a) => a && a.critereId !== undefined);
+
       await soumettreAvis({
         guichetId: idGuichetNum,
         canalId: 1, // QR_WEB
         commentaire: commentaire.trim(),
-        telephone: telephone.trim() || undefined,
+        telephone: telephone.trim() ? normaliserTelephone(telephone) : undefined,
         serviceId: selectedService?.id || undefined,
-        responses: answers
+        responses: reponsesRenseignees
       });
 
-      // Calculate worst score to trigger confetti
-      const scores = answers.map(a => a.score);
-      const minScore = Math.min(...scores);
+      // Calculate worst score to trigger confetti — on exclut les réponses
+      // de type TEXTE et CASES (score neutre fixe, ce n'est pas une vraie
+      // note) pour ne pas bloquer les confettis sur un formulaire par
+      // ailleurs excellent.
+      const idsCriteresNeutres = new Set(
+        criteres.filter((c: any) => c.type_reponse === 'TEXTE' || c.type_reponse === 'CASES').map((c: any) => c.id)
+      );
+      const scoresNotables = reponsesRenseignees
+        .filter((a) => !idsCriteresNeutres.has(a.critereId))
+        .map((a) => a.score);
+      const minScore = scoresNotables.length > 0 ? Math.min(...scoresNotables) : 5;
       if (minScore >= 4) {
         confetti({
           particleCount: 100,
@@ -155,6 +187,19 @@ export const CollectePage = () => {
     { note: 5, icon: '🤩', label: 'Très satisfait' },
   ];
 
+  // Sans cette normalisation, "07 00 00 00 00" et "+225 0700000000" génèrent
+  // deux hachages SHA-256 différents côté serveur pour la même personne —
+  // la protection anti-rejeu (1 avis/24h) devient contournable simplement
+  // en variant le format de saisie. On ramène tout au format E.164 local
+  // (+225XXXXXXXXXX) avant envoi.
+  const normaliserTelephone = (valeur: string): string => {
+    const chiffres = valeur.replace(/[^\d]/g, '');
+    if (!chiffres) return '';
+    if (chiffres.startsWith('225')) return `+${chiffres}`;
+    if (chiffres.startsWith('0')) return `+225${chiffres.slice(1)}`;
+    return `+225${chiffres}`;
+  };
+
   return (
     <AmbientBackground>
       <div className="flex min-h-screen flex-col justify-between p-4">
@@ -177,7 +222,7 @@ export const CollectePage = () => {
             />
           ) : (
             <span className="text-xs font-bold uppercase tracking-widest text-primary">
-              {brandConfig?.platform_name || "CXSAT"}
+              {brandConfig?.platform_name || "Yeba"}
             </span>
           )}
         </div>
@@ -327,17 +372,97 @@ export const CollectePage = () => {
                 {currentCritere.type_reponse === 'TEXTE' && (
                   <div className="space-y-4 pt-2">
                     <textarea
+                      value={texteReponseCourante}
                       placeholder="Votre réponse ici..."
                       rows={4}
                       className="w-full px-4 py-3 border border-border bg-background rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground resize-none"
-                      onChange={(e) => {
-                        setCommentaire(e.target.value);
-                      }}
+                      onChange={(e) => setTexteReponseCourante(e.target.value)}
                     />
-                    <Button onClick={() => handleAnswer(5)} className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md">
+                    <Button
+                      onClick={() => handleAnswer(3, texteReponseCourante.trim())}
+                      disabled={texteReponseCourante.trim().length === 0}
+                      className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md"
+                    >
                       Continuer <ChevronRight size={18} className="ml-1" />
                     </Button>
                   </div>
+                )}
+
+                {/* Échelle linéaire (ex. note sur 10) */}
+                {currentCritere.type_reponse === 'ECHELLE' && (() => {
+                  const [minStr, maxStr] = (currentCritere.options_reponse || '1,5').split(',');
+                  const min = Number(minStr) || 1;
+                  const max = Number(maxStr) || 5;
+                  const valeurs = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+                  return (
+                    <div className="flex flex-wrap justify-center gap-2 pt-2">
+                      {valeurs.map((v) => (
+                        <motion.button
+                          key={v}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.92 }}
+                          onClick={() => handleAnswer(v)}
+                          className="min-w-11 h-11 px-2 rounded-xl border border-border bg-background hover:bg-primary/10 hover:border-primary/40 text-sm font-bold text-foreground transition-colors"
+                        >
+                          {v}
+                        </motion.button>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Choix multiples (cases à cocher) */}
+                {currentCritere.type_reponse === 'CASES' && (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex flex-col gap-2">
+                      {currentCritere.options_reponse?.split(',').map((option: string, index: number) => {
+                        const label = option.trim();
+                        const checked = casesSelectionnees.includes(label);
+                        return (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() =>
+                              setCasesSelectionnees((prev) =>
+                                checked ? prev.filter((v) => v !== label) : [...prev, label]
+                              )
+                            }
+                            className={`w-full text-left p-3.5 border rounded-xl text-sm font-semibold transition-colors flex items-center gap-2.5 ${
+                              checked
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border hover:bg-muted text-foreground'
+                            }`}
+                          >
+                            <span
+                              className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+                                checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                              }`}
+                            >
+                              {checked && '✓'}
+                            </span>
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      onClick={() => handleAnswer(3, casesSelectionnees.join(' • '))}
+                      disabled={casesSelectionnees.length === 0}
+                      className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md"
+                    >
+                      Continuer <ChevronRight size={18} className="ml-1" />
+                    </Button>
+                  </div>
+                )}
+
+                {currentCritere.obligatoire === false && (
+                  <button
+                    type="button"
+                    onClick={handleSkip}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                  >
+                    Passer cette question
+                  </button>
                 )}
 
                 <p className="text-xs text-muted-foreground">
@@ -449,10 +574,10 @@ export const CollectePage = () => {
       </div>
 
       {/* Footer Branding */}
-      {!brandConfig?.hide_cxsat_branding && (
+      {!brandConfig?.hide_yeba_branding && (
         <div className="py-4 text-center">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-            Propulsé par {brandConfig?.platform_name || "CXSAT"}
+            Propulsé par {brandConfig?.platform_name || "Yeba"}
           </p>
         </div>
       )}

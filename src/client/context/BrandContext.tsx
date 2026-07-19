@@ -45,10 +45,10 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     // Créer ou modifier l'élément style
-    let styleElement = document.getElementById('cxsat-brand-tokens');
+    let styleElement = document.getElementById('yeba-brand-tokens');
     if (!styleElement) {
       styleElement = document.createElement('style');
-      styleElement.id = 'cxsat-brand-tokens';
+      styleElement.id = 'yeba-brand-tokens';
       document.head.appendChild(styleElement);
     }
 

@@ -1,6 +1,6 @@
 // src/server/middleware/rowLevelSecurity.ts
 // ============================================================================
-// Row-Level Security (RLS) — Isolation multi-tenant CXSAT
+// Row-Level Security (RLS) — Isolation multi-tenant Yeba
 // ============================================================================
 // MODULE UNIQUE ET CANONIQUE pour toutes les vérifications de permission.
 // Toute query/action métier DOIT passer par ces helpers — aucune vérification
@@ -34,6 +34,7 @@ import { HttpError } from 'wasp/server';
 export interface WaspContext {
   user?: {
     id: string;
+    email?: string | null;
     role?: string | null;
     id_agence?: number | null;
     id_entreprise?: number | null;
@@ -43,14 +44,14 @@ export interface WaspContext {
   entities: Record<string, any>;
 }
 
-export type CXSATRole =
+export type YebaRole =
   | 'DIRECTION'
   | 'QUALITE'
   | 'CHEF_AGENCE'
   | 'AGENT';
 
 /** Rôles dont la portée est l'entreprise entière (toutes les agences du tenant). */
-const ENTREPRISE_WIDE_ROLES: CXSATRole[] = ['DIRECTION', 'QUALITE'];
+const ENTREPRISE_WIDE_ROLES: YebaRole[] = ['DIRECTION', 'QUALITE'];
 
 // ─────────────────────────────────────────────
 // 1. Authentification
@@ -79,9 +80,9 @@ export function requireAuth(
  * Vérifie que l'utilisateur possède l'un des rôles autorisés.
  * Lève une HttpError 403 sinon.
  */
-export function requireRole(context: WaspContext, roles: CXSATRole[]): void {
+export function requireRole(context: WaspContext, roles: YebaRole[]): void {
   requireAuth(context);
-  const userRole = context.user!.role as CXSATRole | null | undefined;
+  const userRole = context.user!.role as YebaRole | null | undefined;
   if (!userRole || !roles.includes(userRole)) {
     throw new HttpError(403, `Accès réservé aux profils : ${roles.join(', ')}.`);
   }
@@ -89,13 +90,13 @@ export function requireRole(context: WaspContext, roles: CXSATRole[]): void {
 
 /**
  * Vérifie que l'utilisateur est administrateur de la plateforme (indépendant
- * des rôles métier CXSAT — réservé aux opérations propres à l'éditeur SaaS,
+ * des rôles métier Yeba — réservé aux opérations propres à l'éditeur SaaS,
  * ex. tarification globale).
  */
 export function requireAdmin(context: WaspContext): void {
   requireAuth(context);
   if (!context.user!.isAdmin) {
-    throw new HttpError(403, 'Accès réservé aux administrateurs CXSAT.');
+    throw new HttpError(403, 'Accès réservé aux administrateurs Yeba.');
   }
 }
 
@@ -118,7 +119,7 @@ export async function getEntrepriseAgenceIds(context: WaspContext, entities: any
   requireAuth(context);
   const { id_entreprise } = context.user!;
   if (!id_entreprise) {
-    throw new HttpError(400, "Votre compte n'est rattaché à aucune entreprise. Contactez l'administrateur technique de CXSAT.");
+    throw new HttpError(400, "Votre compte n'est rattaché à aucune entreprise. Contactez l'administrateur technique de Yeba.");
   }
   const agences = await entities.Agence.findMany({
     where: { id_entreprise },
@@ -137,7 +138,7 @@ export function requireAgence(context: WaspContext): number {
   requireAuth(context);
   const { id_agence } = context.user!;
   if (!id_agence) {
-    throw new HttpError(400, "Votre compte n'est pas rattaché à une agence. Contactez votre Chef d'Agence ou l'administrateur technique de CXSAT.");
+    throw new HttpError(400, "Votre compte n'est pas rattaché à une agence. Contactez votre Chef d'Agence ou l'administrateur technique de Yeba.");
   }
   return id_agence;
 }
@@ -155,7 +156,7 @@ export async function buildAgenceFilter(
   entities: any
 ): Promise<{ id_agence: number | { in: number[] } }> {
   requireAuth(context);
-  const role = context.user!.role as CXSATRole | null | undefined;
+  const role = context.user!.role as YebaRole | null | undefined;
 
   if (role && ENTREPRISE_WIDE_ROLES.includes(role)) {
     const agenceIds = await getEntrepriseAgenceIds(context, entities);
@@ -186,7 +187,7 @@ export async function assertAgenceAccess(
     throw new HttpError(400, `Identifiant d'agence manquant ou invalide pour cette ${resourceName}.`);
   }
 
-  const role = context.user!.role as CXSATRole | null | undefined;
+  const role = context.user!.role as YebaRole | null | undefined;
   const { id_agence } = context.user!;
 
   if (role && ENTREPRISE_WIDE_ROLES.includes(role)) {
@@ -268,4 +269,3 @@ export async function resolveAgenceScope(
 
   return buildAgenceFilter(context, entities);
 }
-

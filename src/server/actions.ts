@@ -16,6 +16,11 @@ import {
   resolveAgenceId,
 } from './middleware/rowLevelSecurity';
 
+// Utilisé pour construire des liens directs vers l'application dans les
+// notifications SMS/WhatsApp (ex. lien vers /alertes-taches).
+const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+
+
 // Sel d'environnement pour le hachage des numéros de téléphone (ARTCI).
 // En production, un sel manquant compromettrait l'anti-rejeu (hachage
 // prévisible / attaquable par dictionnaire) : on refuse de démarrer plutôt
@@ -25,7 +30,7 @@ if (!process.env.TELEPHONE_HASH_SALT && process.env.NODE_ENV === 'production') {
     "TELEPHONE_HASH_SALT doit être défini en production (voir .env.server)."
   );
 }
-const TELEPHONE_SALT = process.env.TELEPHONE_HASH_SALT || 'cxsat-default-salt-change-me';
+const TELEPHONE_SALT = process.env.TELEPHONE_HASH_SALT || 'yeba-default-salt-change-me';
 
 /** Résout l'id_agence auquel se rattache une Alerte (via son guichet ou sa réponse). */
 async function resolveAlerteAgenceId(entities: any, id_alerte: bigint): Promise<number> {
@@ -173,6 +178,97 @@ export const assignAgent = async (args: any, context: any) => {
   });
 };
 
+/**
+ * Modifie une affectation existante (créneau, guichet ou agent).
+ * Réutilise les mêmes contrôles d'accès et la même détection de
+ * chevauchement que assignAgent, en excluant l'affectation modifiée
+ * elle-même de la recherche de chevauchement.
+ */
+export const updateAffectationGuichet = async (args: any, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
+
+  if (!args.id) throw new HttpError(400, "Identifiant d'affectation manquant.");
+  if (!args.date || !args.heure_debut || !args.heure_fin || !args.id_guichet || !args.id_agent) {
+    throw new HttpError(400, 'Tous les champs de planification sont requis.');
+  }
+  if (args.heure_fin <= args.heure_debut) {
+    throw new HttpError(400, "L'heure de fin doit être postérieure à l'heure de début.");
+  }
+
+  const affectation = await context.entities.AffectationGuichet.findUnique({
+    where: { id: args.id },
+    include: { guichet: { select: { id_agence: true } } },
+  });
+  if (!affectation) throw new HttpError(404, 'Affectation introuvable.');
+
+  // L'affectation doit rester dans le périmètre de l'appelant (agence d'origine).
+  await assertAgenceAccess(context, context.entities, affectation.guichet.id_agence, 'affectation');
+
+  const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
+  if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
+  // Le nouveau guichet ciblé doit aussi rester dans le périmètre de l'appelant.
+  await assertAgenceAccess(context, context.entities, guichet.id_agence, 'guichet');
+
+  const agent = await context.entities.User.findUnique({ where: { id: args.id_agent } });
+  if (!agent) throw new HttpError(404, 'Agent introuvable.');
+  if (agent.id_agence !== guichet.id_agence) {
+    throw new HttpError(400, "L'agent sélectionné n'appartient pas à l'agence de ce guichet.");
+  }
+
+  const chevauchement = await context.entities.AffectationGuichet.findFirst({
+    where: {
+      id: { not: args.id },
+      id_agent: args.id_agent,
+      date_affectation: new Date(args.date),
+      heure_debut: { lt: args.heure_fin },
+      heure_fin: { gt: args.heure_debut },
+    },
+    include: { guichet: { select: { nom_guichet: true } } },
+  });
+
+  if (chevauchement) {
+    throw new HttpError(
+      409,
+      `Cet agent est déjà affecté au guichet « ${chevauchement.guichet?.nom_guichet || 'inconnu'} » de ${chevauchement.heure_debut} à ${chevauchement.heure_fin}. Les créneaux ne peuvent pas se chevaucher.`
+    );
+  }
+
+  return context.entities.AffectationGuichet.update({
+    where: { id: args.id },
+    data: {
+      date_affectation: new Date(args.date),
+      heure_debut: args.heure_debut,
+      heure_fin: args.heure_fin,
+      id_guichet: args.id_guichet,
+      id_agent: args.id_agent,
+    },
+  });
+};
+
+/**
+ * Retire une affectation du planning (guichet libéré pour ce créneau).
+ * Note : on ne touche pas aux avis déjà collectés pendant ce créneau
+ * (Reponse.id_agent conserve son historique, indépendant du planning).
+ */
+export const deleteAffectationGuichet = async (args: any, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
+
+  if (!args.id) throw new HttpError(400, "Identifiant d'affectation manquant.");
+
+  const affectation = await context.entities.AffectationGuichet.findUnique({
+    where: { id: args.id },
+    include: { guichet: { select: { id_agence: true } } },
+  });
+  if (!affectation) throw new HttpError(404, 'Affectation introuvable.');
+
+  await assertAgenceAccess(context, context.entities, affectation.guichet.id_agence, 'affectation');
+
+  await context.entities.AffectationGuichet.delete({ where: { id: args.id } });
+  return { success: true };
+};
+
 // ============================================================================
 // COLLECTE D'AVIS (avec anti-rejeu + notifications)
 // ============================================================================
@@ -260,11 +356,12 @@ export const soumettreAvis = async (args: any, context: any) => {
   const submissionId = args.id_soumission || crypto.randomUUID();
 
   // Normalize responses list
-  let itemsToInsert: Array<{ critereId: number; score: number }> = [];
+  let itemsToInsert: Array<{ critereId: number; score: number; texte?: string }> = [];
   if (responses && Array.isArray(responses) && responses.length > 0) {
     itemsToInsert = responses.map((r: any) => ({
       critereId: Number(r.critereId),
-      score: Number(r.score)
+      score: Number(r.score),
+      texte: typeof r.texte === 'string' ? r.texte.trim() : undefined,
     }));
   } else if (score !== undefined && score !== null && critereId !== undefined) {
     itemsToInsert = [{
@@ -273,13 +370,6 @@ export const soumettreAvis = async (args: any, context: any) => {
     }];
   } else {
     throw new HttpError(400, "Données d'évaluation manquantes.");
-  }
-
-  // Validate scores
-  for (const item of itemsToInsert) {
-    if (!Number.isInteger(item.score) || item.score < 1 || item.score > 5) {
-      throw new HttpError(400, "Le score doit être un entier compris entre 1 et 5.");
-    }
   }
 
   // Bug corrigé : le formulaire client (CollectePage) utilise un critère de
@@ -293,8 +383,9 @@ export const soumettreAvis = async (args: any, context: any) => {
   const critereIds = [...new Set(itemsToInsert.map((i) => i.critereId))];
   const criteresExistants = await context.entities.Critere.findMany({
     where: { id: { in: critereIds } },
-    select: { id: true },
+    select: { id: true, type_reponse: true, options_reponse: true },
   });
+  const critereById = new Map(criteresExistants.map((c: any) => [c.id, c]));
   const idsExistants = new Set(criteresExistants.map((c: any) => c.id));
   const idsManquants = critereIds.filter((id) => !idsExistants.has(id));
   if (idsManquants.length > 0) {
@@ -304,18 +395,64 @@ export const soumettreAvis = async (args: any, context: any) => {
     );
   }
 
+  // Validation des scores : bornée à l'échelle propre à chaque critère
+  // (ex. 1-10 pour une question de type ECHELLE configurée sur 10), 1-5
+  // sinon (SMILEY, OUI_NON, QCM, TEXTE, CASES restent sur l'échelle
+  // historique — TEXTE/CASES envoient un score neutre fixe, pas une vraie
+  // note, donc 1-5 leur suffit).
+  for (const item of itemsToInsert) {
+    const critere: any = critereById.get(item.critereId);
+    let min = 1;
+    let max = 5;
+    if (critere?.type_reponse === 'ECHELLE') {
+      const [minStr, maxStr] = (critere.options_reponse || '1,5').split(',');
+      min = Number(minStr);
+      max = Number(maxStr);
+      if (!Number.isInteger(min) || !Number.isInteger(max) || max <= min) {
+        min = 1;
+        max = 5;
+      }
+    }
+    if (!Number.isInteger(item.score) || item.score < min || item.score > max) {
+      throw new HttpError(400, `Le score doit être un entier compris entre ${min} et ${max}.`);
+    }
+  }
+
+  // Score normalisé sur 5 : sert uniquement à détecter les avis critiques
+  // (worstScore <= 2) et le seuil confetti, indépendamment de l'échelle
+  // réelle de saisie (une ECHELLE configurée 1-10 ne doit pas être comparée
+  // brute à un seuil pensé pour du 1-5).
+  const normaliserScoreSur5 = (critere: any, score: number): number => {
+    if (critere?.type_reponse === 'ECHELLE') {
+      const [minStr, maxStr] = (critere.options_reponse || '1,5').split(',');
+      const min = Number(minStr) || 1;
+      const max = Number(maxStr) || 5;
+      if (max <= min) return score;
+      const ratio = (score - min) / (max - min);
+      return Math.max(1, Math.min(5, Math.round(1 + ratio * 4)));
+    }
+    return score;
+  };
+
   const createdReponses: Array<{ id: number; [key: string]: any }> = [];
   let worstScore = 5;
 
   for (const item of itemsToInsert) {
-    if (item.score < worstScore) {
-      worstScore = item.score;
+    const scoreNormalise = normaliserScoreSur5(critereById.get(item.critereId), item.score);
+    if (scoreNormalise < worstScore) {
+      worstScore = scoreNormalise;
     }
 
     const rep: { id: number; [key: string]: any } = await context.entities.Reponse.create({
       data: {
         score_brut: item.score,
-        commentaire_texte: commentaire || "",
+        // Correctif : chaque ligne recevait systématiquement le même
+        // commentaire global (celui de l'étape finale "Message ou
+        // suggestion"), écrasant de fait la réponse tapée par le client sur
+        // un critère de type TEXTE ("Texte libre / Suggestion"). Chaque item
+        // porte désormais son propre texte ; on ne retombe sur le
+        // commentaire final que s'il n'y en a pas.
+        commentaire_texte: (item.texte && item.texte.length > 0) ? item.texte : (commentaire || ""),
         id_soumission: submissionId,
         id_critere: item.critereId,
         id_canal: idCanalResolved,
@@ -350,9 +487,15 @@ export const soumettreAvis = async (args: any, context: any) => {
         }
       });
 
-      // Envoi SMS/WhatsApp (mode stub si clés non configurées)
+      // Envoi SMS/WhatsApp (mode stub si clés non configurées) — message
+      // actionnable : lien direct vers l'écran de traitement, et extrait du
+      // commentaire client si disponible, pour comprendre le problème sans
+      // devoir d'abord ouvrir l'application.
       if (destinataire.telephone) {
-        const msgAlerte = `⚠️ CXSAT ALERTE — Note critique ${worstScore}/5 au guichet "${guichet.nom_guichet}". Vérifiez vos tâches correctives.`;
+        const extraitCommentaire = commentaire?.trim()
+          ? ` « ${commentaire.trim().slice(0, 60)}${commentaire.trim().length > 60 ? '…' : ''} »`
+          : '';
+        const msgAlerte = `⚠️ Yeba ALERTE — Note critique ${worstScore}/5 au guichet "${guichet.nom_guichet}".${extraitCommentaire} Traitez : ${FRONTEND_URL}/alertes-taches`;
         try {
           await envoyerAlerteWhatsApp(destinataire.telephone, msgAlerte);
         } catch {
@@ -644,7 +787,7 @@ export const inviteAgent = async (
 
     await emailSender.send({
       to: normalizedEmail!,
-      subject: `🎉 Bienvenue sur CXSAT — Accès ${roleLabel}`,
+      subject: `🎉 Bienvenue sur Yeba — Accès ${roleLabel}`,
       html: `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"></head>
@@ -658,7 +801,7 @@ export const inviteAgent = async (
         Bienvenue, ${args.prenom} !
       </h1>
       <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
-        Votre accès ${roleLabel} CXSAT est prêt
+        Votre accès ${roleLabel} Yeba est prêt
       </p>
     </div>
 
@@ -738,8 +881,8 @@ export const inviteAgent = async (
     <!-- Footer -->
     <div style="background: #f8fafc; padding: 20px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-        <strong>CXSAT</strong> — Plateforme de satisfaction client · Norme FD X50-167 ·
-        <a href="${frontendUrl}" style="color: #c47a20; text-decoration: none;">cxsat.ci</a>
+        <strong>Yeba</strong> — Plateforme de satisfaction client · Norme FD X50-167 ·
+        <a href="${frontendUrl}" style="color: #c47a20; text-decoration: none;">yeba.ci</a>
       </p>
       <p style="margin: 6px 0 0; color: #d1d5db; font-size: 11px;">
         Si vous n'attendiez pas cet email, ignorez-le ou contactez votre direction.
@@ -751,16 +894,16 @@ export const inviteAgent = async (
       text: [
         `Bienvenue ${args.prenom} ${args.nom} !`,
         ``,
-        `Vous avez été nommé(e) ${roleLabel} sur CXSAT pour : ${nomAgence}.`,
+        `Vous avez été nommé(e) ${roleLabel} sur Yeba pour : ${nomAgence}.`,
         ``,
         `Email de connexion : ${args.email}`,
         ``,
         `Étapes :`,
         `1. Définissez votre mot de passe : ${frontendUrl}/request-password-reset`,
         `2. Connectez-vous sur : ${frontendUrl}/login`,
-        `3. Retrouvez votre espace CXSAT depuis votre tableau de bord.`,
+        `3. Retrouvez votre espace Yeba depuis votre tableau de bord.`,
         ``,
-        `CXSAT — Plateforme de satisfaction client`,
+        `Yeba — Plateforme de satisfaction client`,
       ].join('\n'),
     });
 
@@ -831,7 +974,15 @@ export const createService = async (
 };
 
 export const createCritere = async (
-  args: { libelle_critere: string; description?: string; type_reponse?: string; options_reponse?: string; id_agence?: number; serviceIds?: number[] },
+  args: {
+    libelle_critere: string;
+    description?: string;
+    type_reponse?: string;
+    options_reponse?: string;
+    obligatoire?: boolean;
+    id_agence?: number;
+    serviceIds?: number[];
+  },
   context: any
 ) => {
   requireAuth(context);
@@ -855,10 +1006,31 @@ export const createCritere = async (
     throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
   }
 
-  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE'];
+  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES'];
   const typeReponse = args.type_reponse && typesValides.includes(args.type_reponse) ? args.type_reponse : 'SMILEY';
-  if (typeReponse === 'QCM' && !args.options_reponse?.trim()) {
-    throw new HttpError(400, 'Les choix (QCM) sont requis pour ce type de réponse.');
+  if ((typeReponse === 'QCM' || typeReponse === 'CASES') && !args.options_reponse?.trim()) {
+    throw new HttpError(400, 'Les choix sont requis pour ce type de réponse.');
+  }
+  if ((typeReponse === 'QCM' || typeReponse === 'CASES')) {
+    const nbOptions = args.options_reponse!.split(',').map((o) => o.trim()).filter(Boolean).length;
+    if (nbOptions < 2) {
+      throw new HttpError(400, 'Il faut au moins 2 choix.');
+    }
+  }
+  let optionsEchelle: string | null = null;
+  if (typeReponse === 'ECHELLE') {
+    const brut = args.options_reponse?.trim();
+    if (brut) {
+      const [minStr, maxStr] = brut.split(',').map((v) => v.trim());
+      const min = Number(minStr);
+      const max = Number(maxStr);
+      if (!Number.isInteger(min) || !Number.isInteger(max) || min < 0 || max > 20 || max <= min) {
+        throw new HttpError(400, "Échelle invalide : indiquez un minimum et un maximum entiers cohérents (ex. 1,10).");
+      }
+      optionsEchelle = `${min},${max}`;
+    } else {
+      optionsEchelle = '1,5';
+    }
   }
 
   // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
@@ -885,7 +1057,13 @@ export const createCritere = async (
         libelle_critere: libelle,
         description,
         type_reponse: typeReponse,
-        options_reponse: typeReponse === 'QCM' ? args.options_reponse?.trim() || null : null,
+        options_reponse:
+          typeReponse === 'QCM' || typeReponse === 'CASES'
+            ? args.options_reponse?.trim() || null
+            : typeReponse === 'ECHELLE'
+            ? optionsEchelle
+            : null,
+        obligatoire: args.obligatoire !== false,
         // Isolation demandée : un critère créé par une entreprise reste
         // invisible aux autres entreprises (getCriteres filtre dessus).
         id_entreprise: context.user.id_entreprise,

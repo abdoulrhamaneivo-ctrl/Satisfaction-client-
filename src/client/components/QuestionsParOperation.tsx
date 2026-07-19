@@ -49,6 +49,8 @@ const typeLabel: Record<string, string> = {
   OUI_NON: '👍 Oui/Non',
   QCM: '📝 QCM',
   TEXTE: '✍️ Texte',
+  ECHELLE: '🔢 Échelle',
+  CASES: '☑️ Cases',
 };
 
 export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: number }) => {

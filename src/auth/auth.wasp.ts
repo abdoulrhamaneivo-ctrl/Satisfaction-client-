@@ -19,7 +19,7 @@ import { getEmailUserFields } from "./userSignupFields" with { type: "ref" };
 
 const emailAuthMethod: NonNullable<AuthMethods["email"]> = {
   fromField: {
-    name: "CXSAT Abidjan",
+    name: "Yeba Abidjan",
     email: "abdoulrhamane.ivo@gmail.com",
   },
   emailVerification: {
@@ -51,7 +51,7 @@ export const authConfig: Auth = {
   },
   onAuthFailedRedirectTo: "/login",
   // Ancienne valeur "/demo-app" : reliquat du template Open SaaS (démo IA)
-  // sans rapport avec CXSAT. On route désormais vers une page d'arbitrage
+  // sans rapport avec Yeba. On route désormais vers une page d'arbitrage
   // qui envoie l'utilisateur vers /dashboard (tous les comptes, y compris
   // le compte CHEF_AGENCE créé par le seed initial, sont déjà rattachés à
   // une agence dès leur création — il n'y a plus d'onboarding à faire).

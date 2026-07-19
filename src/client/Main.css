@@ -538,7 +538,7 @@
 }
 
 /* ----------------------------------------------------------------------
-   Recharts (graphiques du tableau de bord CXSAT : histogramme, radar,
+   Recharts (graphiques du tableau de bord Yeba : histogramme, radar,
    tendance, classements). Contrairement à Apexcharts ci-dessus, Recharts
    dessine ses axes/texte/grille avec des couleurs par défaut codées en dur
    (~#666 pour le texte, ~#ccc pour la grille) qui ne réagissent pas au
