@@ -12,6 +12,7 @@ jobs:
       WASP_VERSION: "0.24"
       RAILWAY_PROJECT_NAME: cxsat-poste-ci
       RAILWAY_PROJECT_ID: aa94d855-a4a9-46d5-a2ac-d7fb35cdfb55
+      RAILWAY_ENVIRONMENT_ID: 64f204d4-01e7-4000-b8c9-186cff74baa2
 
     steps:
       - uses: actions/checkout@v6
@@ -33,4 +34,7 @@ jobs:
       - name: Deploy
         run: wasp deploy railway deploy $RAILWAY_PROJECT_NAME --existing-project-id $RAILWAY_PROJECT_ID
         env:
+          # Le token reste ici, pas au niveau du job : c'est le seul
+          # secret parmi ces variables, il ne doit pas traîner dans les
+          # logs des étapes qui n'en ont pas besoin (checkout, install...).
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
