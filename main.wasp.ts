@@ -39,6 +39,8 @@ import {
   updateGuichetServices,
   moveCritereToService,
   removeCritereFromService,
+  deleteCritere,
+  duplicateCritere,
   reorderCriteresInService,
   updateAffectationGuichet,
   deleteAffectationGuichet,
@@ -139,6 +141,8 @@ const marquerAlerteTraiteeAction = action(marquerAlerteTraitee, {
 const updateGuichetServicesAction = action(updateGuichetServices, { entities: ["Guichet", "Service", "User", "Agence"] });
 const moveCritereToServiceAction = action(moveCritereToService, { entities: ["CritereService", "Critere", "Service", "User"] });
 const removeCritereFromServiceAction = action(removeCritereFromService, { entities: ["CritereService", "Critere", "Service", "User"] });
+const deleteCritereAction = action(deleteCritere, { entities: ["Critere", "Reponse", "AgenceCritere", "CritereService", "Objectif", "User"] });
+const duplicateCritereAction = action(duplicateCritere, { entities: ["Critere", "AgenceCritere", "CritereService", "User"] });
 const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User"] });
 // === QUERIES ===
 const getGuichetsQuery = query(getGuichets, {
@@ -267,6 +271,8 @@ export default app({
     updateGuichetServicesAction,
     moveCritereToServiceAction,
     removeCritereFromServiceAction,
+    deleteCritereAction,
+    duplicateCritereAction,
     reorderCriteresInServiceAction,
     // Queries existantes
     getStatsFiltereesQuery,

@@ -1223,6 +1223,110 @@ export const removeCritereFromService = async (
 };
 
 /**
+ * Supprime définitivement un critère créé par l'entreprise courante.
+ * Les critères "socle" (id_entreprise NULL, fournis par la plateforme) ne
+ * sont jamais supprimables. S'il existe déjà des réponses de clients
+ * rattachées à ce critère, la suppression est refusée (on perdrait de
+ * l'historique d'avis) : on invite plutôt à le désactiver via
+ * toggleCritereAgence, ce qui le cache sans effacer les données passées.
+ */
+export const deleteCritere = async (
+  args: { id_critere: number },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idCritere = Number(args.id_critere);
+  if (!Number.isInteger(idCritere)) {
+    throw new HttpError(400, 'Identifiant invalide.');
+  }
+
+  const critere = await assertCritereAccessible(context, idCritere);
+  if (critere.id_entreprise === null) {
+    throw new HttpError(403, "Ce critère fait partie du socle commun de la plateforme et ne peut pas être supprimé. Vous pouvez le désactiver.");
+  }
+
+  const nbReponses = await context.entities.Reponse.count({ where: { id_critere: idCritere } });
+  if (nbReponses > 0) {
+    throw new HttpError(
+      409,
+      `Ce critère a déjà reçu ${nbReponses} réponse${nbReponses > 1 ? 's' : ''} de clients : le supprimer effacerait cet historique. Désactivez-le plutôt (interrupteur) pour qu'il n'apparaisse plus sans perdre les avis déjà collectés.`
+    );
+  }
+
+  // AgenceCritere, CritereService et Objectif sont déclarés en cascade côté
+  // schéma (onDelete: Cascade sur la relation vers Critere) : leur
+  // suppression est automatique dès que le critère l'est.
+  await context.entities.Critere.delete({ where: { id: idCritere } });
+
+  return { success: true };
+};
+
+/**
+ * Duplique un critère existant (y compris un critère "socle" partagé) en
+ * une copie appartenant à l'entreprise courante — pratique pour partir d'un
+ * standard existant et l'adapter légèrement sans toucher à l'original.
+ * La copie reprend les mêmes activations par agence et les mêmes
+ * rattachements à des opérations que l'original.
+ */
+export const duplicateCritere = async (
+  args: { id_critere: number },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idCritere = Number(args.id_critere);
+  if (!Number.isInteger(idCritere)) {
+    throw new HttpError(400, 'Identifiant invalide.');
+  }
+
+  const original = await assertCritereAccessible(context, idCritere);
+
+  const [agenceLiens, serviceLiens] = await Promise.all([
+    context.entities.AgenceCritere.findMany({ where: { id_critere: idCritere } }),
+    context.entities.CritereService.findMany({ where: { id_critere: idCritere } }),
+  ]);
+
+  const libelleCopie = `${original.libelle_critere} (copie)`.slice(0, 300);
+
+  const copie = await prisma.$transaction(async (tx) => {
+    const created = await tx.critere.create({
+      data: {
+        libelle_critere: libelleCopie,
+        description: original.description,
+        type_reponse: original.type_reponse,
+        options_reponse: original.options_reponse,
+        obligatoire: original.obligatoire,
+        // La copie devient toujours un critère propre à l'entreprise qui
+        // duplique (même si l'original était un critère socle partagé) :
+        // c'est ce qui permet de l'adapter librement sans affecter les
+        // autres entreprises.
+        id_entreprise: context.user.id_entreprise,
+      },
+    });
+
+    for (const lien of agenceLiens) {
+      await tx.agenceCritere.create({
+        data: { id_agence: lien.id_agence, id_critere: created.id },
+      });
+    }
+
+    for (const lien of serviceLiens) {
+      const nbExistants = await tx.critereService.count({ where: { id_service: lien.id_service } });
+      await tx.critereService.create({
+        data: { id_critere: created.id, id_service: lien.id_service, ordre: nbExistants },
+      });
+    }
+
+    return created;
+  });
+
+  return copie;
+};
+
+/**
  * Réordonnancement en masse d'une opération : reçoit la liste complète des
  * ids de critères dans le nouvel ordre souhaité (résultat d'un drag & drop
  * réordonnant plusieurs cartes à la fois côté client).
@@ -1382,7 +1486,6 @@ export const updateStatutTache = async (
   // AGENT, pouvait modifier le statut de n'importe quelle tâche corrective
   // de n'importe quelle agence (voire d'une autre entreprise).
   requireAuth(context);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const STATUTS_VALIDES = ['A_FAIRE', 'EN_COURS', 'TERMINEE'];
   if (!STATUTS_VALIDES.includes(args.statut)) {
@@ -1394,6 +1497,20 @@ export const updateStatutTache = async (
     include: { alerte: { include: { guichet: true, reponse: true } } },
   });
   if (!tache) throw new HttpError(404, 'Tâche introuvable.');
+
+  // Bug corrigé : seuls DIRECTION/QUALITE/CHEF_AGENCE pouvaient auparavant
+  // faire évoluer une tâche — un AGENT auquel une tâche était assignée
+  // (cas le plus courant : un chef d'agence délègue l'action corrective à
+  // un agent) ne pouvait jamais la faire passer lui-même à "Terminé" et
+  // dépendait entièrement de son chef pour clôturer un travail qu'il avait
+  // déjà réellement effectué. On autorise donc aussi le responsable
+  // désigné de CETTE tâche à changer son propre statut, en plus des rôles
+  // de gestion qui gardent le droit de le faire pour n'importe quelle tâche
+  // de leur périmètre.
+  const estResponsableDeLaTache = tache.id_responsable === context.user.id;
+  if (!estResponsableDeLaTache) {
+    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  }
 
   const idAgenceTache = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
   if (!idAgenceTache) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");

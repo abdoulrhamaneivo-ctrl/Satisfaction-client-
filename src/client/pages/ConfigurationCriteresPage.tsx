@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, getCriteres, getAgenceCriteres, getAgences, toggleCritereAgence, createCritere, getServices, createService } from 'wasp/client/operations';
+import { useQuery, getCriteres, getAgenceCriteres, getAgences, toggleCritereAgence, createCritere, getServices, createService, deleteCritere, duplicateCritere } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
 import { MotionCard } from '../components/MotionCard';
 import { Button } from '../components/ui/button';
@@ -8,7 +8,7 @@ import { Switch } from '../components/ui/switch';
 import { useToast } from '../hooks/use-toast';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
-import { Settings2 } from 'lucide-react';
+import { Settings2, Copy, Trash2 } from 'lucide-react';
 import { ObjectifsPanel } from '../components/ObjectifsPanel';
 import { QuestionsParOperation } from '../components/QuestionsParOperation';
 import {
@@ -78,6 +78,39 @@ export const ConfigurationCriteresPage = () => {
   const [creatingService, setCreatingService] = useState(false);
 
   const activeIds: number[] = agenceCriteresIds || [];
+
+  const [deletingCritereId, setDeletingCritereId] = useState<number | null>(null);
+  const [duplicatingCritereId, setDuplicatingCritereId] = useState<number | null>(null);
+
+  const handleDeleteCritere = async (critere: any) => {
+    if (deletingCritereId) return;
+    const confirme = window.confirm(
+      `Supprimer définitivement « ${critere.libelle_critere} » ?\n\nCette action est irréversible. Si des clients ont déjà répondu à cette question, la suppression sera refusée : désactivez-la plutôt avec l'interrupteur.`
+    );
+    if (!confirme) return;
+    setDeletingCritereId(critere.id);
+    try {
+      await deleteCritere({ id_critere: critere.id });
+      toast({ title: 'Critère supprimé', description: `« ${critere.libelle_critere} » a été supprimé.` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Suppression impossible', description: err.message || 'Erreur inconnue' });
+    } finally {
+      setDeletingCritereId(null);
+    }
+  };
+
+  const handleDuplicateCritere = async (critere: any) => {
+    if (duplicatingCritereId) return;
+    setDuplicatingCritereId(critere.id);
+    try {
+      await duplicateCritere({ id_critere: critere.id });
+      toast({ title: 'Critère dupliqué', description: `Une copie de « ${critere.libelle_critere} » a été créée, modifiable librement.` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Duplication impossible', description: err.message || 'Erreur inconnue' });
+    } finally {
+      setDuplicatingCritereId(null);
+    }
+  };
 
   const handleToggle = async (idCritere: number, checked: boolean) => {
     if (selectedAgenceId === undefined) return;
@@ -161,7 +194,7 @@ export const ConfigurationCriteresPage = () => {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="max-w-6xl mx-auto p-6 lg:p-10 space-y-8"
+        className="max-w-[1680px] mx-auto p-6 lg:p-10 space-y-8"
       >
         <PageHeader
           icon={Settings2}
@@ -250,7 +283,32 @@ export const ConfigurationCriteresPage = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleDuplicateCritere(critere)}
+                        disabled={duplicatingCritereId === critere.id}
+                        className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        aria-label={`Dupliquer « ${critere.libelle_critere} »`}
+                        title="Dupliquer ce critère"
+                      >
+                        <Copy className="size-4" />
+                      </button>
+                      {/* Seuls les critères propres à l'entreprise (id_entreprise non nul)
+                          sont supprimables ; les critères socle communs à toutes les
+                          entreprises ne le sont jamais (voir deleteCritere côté serveur). */}
+                      {critere.id_entreprise !== null && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCritere(critere)}
+                          disabled={deletingCritereId === critere.id}
+                          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                          aria-label={`Supprimer « ${critere.libelle_critere} »`}
+                          title="Supprimer ce critère"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      )}
                       <Switch
                         checked={isActive}
                         onCheckedChange={(checked) => handleToggle(critere.id, checked)}

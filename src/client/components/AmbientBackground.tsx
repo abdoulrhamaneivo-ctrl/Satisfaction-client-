@@ -23,8 +23,11 @@ export const AmbientBackground = ({
       transition={{ duration: 0.4 }}
       className={cn(
         'bg-app-shell relative min-h-screen overflow-hidden',
-        // Mode clair : fond très légèrement crème pour différencier du blanc pur
-        'bg-[hsl(20,35%,98%)] dark:bg-transparent',
+        // Mode clair : repose désormais sur la même variable --background que
+        // le reste du thème (au lieu d'une teinte codée en dur légèrement
+        // différente), pour une cohérence parfaite et le même effort de
+        // réduction de la fatigue visuelle appliqué globalement.
+        'bg-background dark:bg-transparent',
         className,
       )}
     >

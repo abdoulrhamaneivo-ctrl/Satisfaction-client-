@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { login } from "wasp/client/auth";
 import { Link as WaspRouterLink, routes } from "wasp/client/router";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Mail, Lock, LogIn, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthPageLayout } from "./AuthPageLayout";
 import { useRedirectIfLoggedIn } from "./hooks/useRedirectIfLoggedIn";
@@ -61,7 +61,7 @@ export function LoginPage() {
             Mot de passe oublié ?{" "}
             <WaspRouterLink
               to={routes.RequestPasswordResetRoute.to}
-              className="font-semibold text-primary underline"
+              className="font-semibold text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary"
             >
               Réinitialiser
             </WaspRouterLink>
@@ -82,37 +82,51 @@ export function LoginPage() {
         )}
 
         <FormField label="Adresse e-mail" htmlFor="email" required>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="vous@entreprise.ci"
-            className="h-11"
-            disabled={loading}
-          />
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vous@entreprise.ci"
+              className="h-11 pl-10"
+              disabled={loading}
+            />
+          </div>
         </FormField>
 
         <FormField label="Mot de passe" htmlFor="password" required>
-          <PasswordInput
-            id="password"
-            name="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="h-11"
-            disabled={loading}
-          />
+          <div className="relative">
+            <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+            <PasswordInput
+              id="password"
+              name="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="h-11 pl-10"
+              disabled={loading}
+            />
+          </div>
         </FormField>
 
         <motion.div whileTap={{ scale: 0.98 }}>
-          <Button type="submit" size="lg" disabled={loading} className="w-full">
-            {loading ? "Connexion en cours..." : "Se connecter"}
+          <Button type="submit" size="lg" disabled={loading} className="w-full gap-2 shadow-premium">
+            {loading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Connexion en cours...
+              </>
+            ) : (
+              <>
+                <LogIn className="size-4" /> Se connecter
+              </>
+            )}
           </Button>
         </motion.div>
       </form>

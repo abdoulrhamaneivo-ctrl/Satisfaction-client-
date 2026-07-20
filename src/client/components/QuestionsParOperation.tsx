@@ -23,9 +23,23 @@ import {
   moveCritereToService,
   removeCritereFromService,
   createCritere,
+  deleteCritere,
+  duplicateCritere,
 } from 'wasp/client/operations';
-import { GripVertical, Inbox, Plus, X } from 'lucide-react';
+import { GripVertical, Inbox, Plus, X, Copy, Trash2 } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+
+// QCM et CASES exigent une liste de choix (voir createCritere côté serveur)
+// qu'il n'y a pas la place de saisir proprement dans ce formulaire rapide :
+// on ne propose ici que les types utilisables sans configuration
+// supplémentaire. Pour QCM/CASES, on renvoie vers « Créer un critère à la
+// carte » (formulaire complet, colonne de droite).
+const typeReponseOptions: { value: string; label: string }[] = [
+  { value: 'SMILEY', label: '⭐ Note / Smileys' },
+  { value: 'OUI_NON', label: '👍 Oui / Non' },
+  { value: 'ECHELLE', label: '🔢 Échelle (1 à 5 par défaut)' },
+  { value: 'TEXTE', label: '✍️ Texte libre' },
+];
 
 type Critere = {
   id: number;
@@ -61,7 +75,12 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
   const [activeCritere, setActiveCritere] = useState<Critere | null>(null);
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
   const [nouvelleQuestion, setNouvelleQuestion] = useState('');
+  const [nouveauType, setNouveauType] = useState('SMILEY');
   const [creatingInline, setCreatingInline] = useState(false);
+  // Verrous locaux : évitent un double-clic sur Supprimer/Dupliquer pendant
+  // que la requête précédente est encore en vol (id du critère concerné).
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   // Verrou anti-chevauchement : tant qu'un déplacement précédent n'a pas
   // fini d'être persisté côté serveur, on bloque le suivant. Sans ça, deux
   // glissers rapides successifs pourraient partir avec des instantanés
@@ -217,16 +236,48 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
     try {
       await createCritere({
         libelle_critere: libelle,
+        type_reponse: nouveauType,
         id_agence: selectedAgenceId,
         serviceIds: col.id_service ? [col.id_service] : undefined,
       });
       setNouvelleQuestion('');
+      setNouveauType('SMILEY');
       setAddingToColumn(null);
       toast({ title: 'Question ajoutée', description: `Ajoutée à « ${col.title} ».` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err?.message || 'Erreur inconnue' });
     } finally {
       setCreatingInline(false);
+    }
+  };
+
+  const handleDelete = async (critere: Critere) => {
+    if (deletingId) return;
+    const confirme = window.confirm(
+      `Supprimer définitivement la question « ${critere.libelle_critere} » ?\n\nCette action est irréversible. Si des clients ont déjà répondu à cette question, la suppression sera refusée — désactivez-la plutôt depuis la liste des critères.`
+    );
+    if (!confirme) return;
+    setDeletingId(critere.id);
+    try {
+      await deleteCritere({ id_critere: critere.id });
+      toast({ title: 'Question supprimée', description: `« ${critere.libelle_critere} » a été supprimée.` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Suppression impossible', description: err?.message || 'Erreur inconnue' });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleDuplicate = async (critere: Critere) => {
+    if (duplicatingId) return;
+    setDuplicatingId(critere.id);
+    try {
+      await duplicateCritere({ id_critere: critere.id });
+      toast({ title: 'Question dupliquée', description: `Une copie de « ${critere.libelle_critere} » a été créée.` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Duplication impossible', description: err?.message || 'Erreur inconnue' });
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -270,7 +321,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
           sauvegarde : empêche physiquement un second drag de démarrer
           avant que le précédent ait fini d'être persisté côté serveur. */}
       <div
-        className={`-mx-1 flex gap-4 overflow-x-auto momentum-scroll scroll-fade-x px-1 pb-3 snap-x snap-mandatory transition-opacity sm:snap-none ${
+        className={`-mx-1 flex gap-4 overflow-x-auto momentum-scroll scroll-fade-x px-1 pb-3 snap-x snap-mandatory transition-opacity sm:snap-none xl:flex-wrap xl:overflow-x-visible ${
           isSaving ? 'pointer-events-none opacity-60' : ''
         }`}
       >
@@ -284,8 +335,14 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
             setAddingToColumn={setAddingToColumn}
             nouvelleQuestion={nouvelleQuestion}
             setNouvelleQuestion={setNouvelleQuestion}
+            nouveauType={nouveauType}
+            setNouveauType={setNouveauType}
             onAddQuestion={handleAddQuestion}
             creatingInline={creatingInline}
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
+            deletingId={deletingId}
+            duplicatingId={duplicatingId}
           />
         ))}
       </div>
@@ -305,8 +362,14 @@ function ColumnView({
   setAddingToColumn,
   nouvelleQuestion,
   setNouvelleQuestion,
+  nouveauType,
+  setNouveauType,
   onAddQuestion,
   creatingInline,
+  onDelete,
+  onDuplicate,
+  deletingId,
+  duplicatingId,
 }: {
   column: Column;
   columns: Column[];
@@ -315,8 +378,14 @@ function ColumnView({
   setAddingToColumn: (key: string | null) => void;
   nouvelleQuestion: string;
   setNouvelleQuestion: (v: string) => void;
+  nouveauType: string;
+  setNouveauType: (v: string) => void;
   onAddQuestion: (col: Column) => void;
   creatingInline: boolean;
+  onDelete: (critere: Critere) => void;
+  onDuplicate: (critere: Critere) => void;
+  deletingId: number | null;
+  duplicatingId: number | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
   const isAdding = addingToColumn === column.key;
@@ -345,35 +414,56 @@ function ColumnView({
       </div>
 
       {isAdding && (
-        <div className="flex items-center gap-1.5 border-b border-border/60 bg-background/60 px-3 py-2">
-          <input
-            autoFocus
-            value={nouvelleQuestion}
-            onChange={(e) => setNouvelleQuestion(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onAddQuestion(column);
-              if (e.key === 'Escape') setAddingToColumn(null);
-            }}
-            placeholder="Nouvelle question..."
-            maxLength={300}
-            className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-ring"
-          />
-          <button
-            type="button"
-            disabled={creatingInline || !nouvelleQuestion.trim()}
-            onClick={() => onAddQuestion(column)}
-            className="shrink-0 rounded-md bg-primary px-2 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            OK
-          </button>
-          <button
-            type="button"
-            onClick={() => setAddingToColumn(null)}
-            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-            aria-label="Annuler"
-          >
-            <X className="size-3.5" />
-          </button>
+        <div className="space-y-1.5 border-b border-border/60 bg-background/60 px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <input
+              autoFocus
+              value={nouvelleQuestion}
+              onChange={(e) => setNouvelleQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onAddQuestion(column);
+                if (e.key === 'Escape') setAddingToColumn(null);
+              }}
+              placeholder="Nouvelle question..."
+              maxLength={300}
+              className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-ring"
+            />
+            <button
+              type="button"
+              onClick={() => setAddingToColumn(null)}
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+              aria-label="Annuler"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+          {/* Type de réponse attendu : demandé dès la création rapide pour
+              éviter de devoir repasser par le formulaire complet juste pour
+              corriger un type resté par défaut sur "Note / Smileys". */}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={nouveauType}
+              onChange={(e) => setNouveauType(e.target.value)}
+              aria-label="Type de réponse attendu"
+              className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-ring"
+            >
+              {typeReponseOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={creatingInline || !nouvelleQuestion.trim()}
+              onClick={() => onAddQuestion(column)}
+              className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              OK
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Besoin d'un QCM ou de cases à cocher ? Utilisez « Créer un critère à la carte »
+            (colonne de droite) pour saisir les choix possibles.
+          </p>
         </div>
       )}
 
@@ -390,7 +480,17 @@ function ColumnView({
             </p>
           )}
           {column.criteres.map((q) => (
-            <SortableQuestionCard key={q.id} critere={q} columns={columns} currentKey={column.key} onMoveTo={onMoveTo} />
+            <SortableQuestionCard
+              key={q.id}
+              critere={q}
+              columns={columns}
+              currentKey={column.key}
+              onMoveTo={onMoveTo}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              isDeleting={deletingId === q.id}
+              isDuplicating={duplicatingId === q.id}
+            />
           ))}
         </SortableContext>
       </div>
@@ -403,11 +503,19 @@ function SortableQuestionCard({
   columns,
   currentKey,
   onMoveTo,
+  onDelete,
+  onDuplicate,
+  isDeleting,
+  isDuplicating,
 }: {
   critere: Critere;
   columns: Column[];
   currentKey: string;
   onMoveTo: (activeId: number, destKey: string) => void;
+  onDelete: (critere: Critere) => void;
+  onDuplicate: (critere: Critere) => void;
+  isDeleting: boolean;
+  isDuplicating: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: critere.id,
@@ -427,6 +535,10 @@ function SortableQuestionCard({
         columns={columns}
         currentKey={currentKey}
         onMoveTo={onMoveTo}
+        onDelete={onDelete}
+        onDuplicate={onDuplicate}
+        isDeleting={isDeleting}
+        isDuplicating={isDuplicating}
       />
     </div>
   );
@@ -439,6 +551,10 @@ function QuestionCard({
   columns,
   currentKey,
   onMoveTo,
+  onDelete,
+  onDuplicate,
+  isDeleting,
+  isDuplicating,
 }: {
   critere: Critere;
   dragHandleProps?: any;
@@ -446,10 +562,14 @@ function QuestionCard({
   columns?: Column[];
   currentKey?: string;
   onMoveTo?: (activeId: number, destKey: string) => void;
+  onDelete?: (critere: Critere) => void;
+  onDuplicate?: (critere: Critere) => void;
+  isDeleting?: boolean;
+  isDuplicating?: boolean;
 }) {
   return (
     <div
-      className={`flex items-start gap-2 rounded-xl border border-border/70 bg-card p-3 shadow-sm ${
+      className={`group flex items-start gap-2 rounded-xl border border-border/70 bg-card p-3 shadow-sm ${
         dragging ? 'shadow-lg ring-2 ring-primary/40' : ''
       }`}
     >
@@ -497,6 +617,43 @@ function QuestionCard({
               </option>
             ))}
           </select>
+        )}
+
+        {(onDelete || onDuplicate) && (
+          <div className="mt-1.5 flex items-center gap-1">
+            {onDuplicate && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate(critere);
+                }}
+                disabled={isDuplicating}
+                className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                aria-label={`Dupliquer « ${critere.libelle_critere} »`}
+                title="Dupliquer cette question"
+              >
+                <Copy className="size-3" />
+                {isDuplicating ? '...' : 'Dupliquer'}
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(critere);
+                }}
+                disabled={isDeleting}
+                className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                aria-label={`Supprimer « ${critere.libelle_critere} »`}
+                title="Supprimer cette question"
+              >
+                <Trash2 className="size-3" />
+                {isDeleting ? '...' : 'Supprimer'}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

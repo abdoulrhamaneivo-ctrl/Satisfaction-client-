@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useAction } from 'wasp/client/operations';
+import { useAuth } from 'wasp/client/auth';
 import { getAlertes, getTachesCorrectives, getAgentsByAgence, getTacheHistorique } from 'wasp/client/operations';
 import { createTacheCorrective, updateStatutTache, marquerAlerteTraitee } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,6 +59,7 @@ type ModalData = {
 
 export const AlertesTachesPage = () => {
   const { toast } = useToast();
+  const { data: currentUser } = useAuth();
   const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
   const { data: taches, isLoading: loadingTaches } = useQuery(getTachesCorrectives);
   const createTache = useAction(createTacheCorrective);
@@ -96,6 +98,27 @@ export const AlertesTachesPage = () => {
 
   const alertesList: any[] = alertes || [];
   const tachesList: any[] = taches || [];
+
+  const rolesGestion = ['DIRECTION', 'QUALITE', 'CHEF_AGENCE'];
+  // Un profil de gestion peut agir sur n'importe quelle tâche de son
+  // périmètre ; un AGENT ne peut agir que sur les tâches qui lui sont
+  // assignées (même règle que côté serveur dans updateStatutTache) — avant
+  // ce correctif, les boutons étaient affichés à tout le monde et un AGENT
+  // assigné à sa propre tâche recevait une erreur d'accès en tentant de la
+  // clôturer, sans jamais pouvoir réellement la terminer.
+  const peutAgirSurTache = (tache: any) =>
+    !!currentUser && (rolesGestion.includes((currentUser as any).role) || tache.id_responsable === (currentUser as any).id);
+
+  // Empêche le tableau de se remplacer par le squelette de chargement lors
+  // d'un simple rafraîchissement en arrière-plan (après un déplacement de
+  // tâche par ex.) : seul le tout premier chargement affiche le squelette,
+  // ce qui évite un effet de "plateau qui se vide" pendant une fraction de
+  // seconde à chaque mise à jour de statut.
+  const [aDejaChargeUneFois, setADejaChargeUneFois] = useState(false);
+  useEffect(() => {
+    if (!loadingTaches && taches !== undefined) setADejaChargeUneFois(true);
+  }, [loadingTaches, taches]);
+  const afficherSquelette = loadingTaches && !aDejaChargeUneFois;
 
   const alertesNouvelles = alertesList.filter((a) => a.statut_alerte === 'NOUVELLE');
   const tachesEnRetardCount = tachesList.filter(
@@ -240,7 +263,7 @@ export const AlertesTachesPage = () => {
             )}
           </h2>
 
-          {loadingTaches ? (
+          {afficherSquelette ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
@@ -310,7 +333,7 @@ export const AlertesTachesPage = () => {
                                 )}
                                 {/* Boutons de transition + historique */}
                                 <div className="flex gap-2 pt-1 flex-wrap">
-                                  {col.statut !== 'A_FAIRE' && (
+                                  {col.statut !== 'A_FAIRE' && peutAgirSurTache(tache) && (
                                     <button
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'EN_COURS' ? 'A_FAIRE' : 'EN_COURS')}
                                       disabled={movingId === tacheIdNum}
@@ -326,7 +349,7 @@ export const AlertesTachesPage = () => {
                                   >
                                     <History className="size-3" /> Historique
                                   </button>
-                                  {col.statut !== 'TERMINEE' && (
+                                  {col.statut !== 'TERMINEE' && peutAgirSurTache(tache) && (
                                     <button
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'A_FAIRE' ? 'EN_COURS' : 'TERMINEE')}
                                       disabled={movingId === tacheIdNum}

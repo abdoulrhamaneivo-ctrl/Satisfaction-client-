@@ -344,16 +344,28 @@
        texte quasi noir produit un contraste très élevé qui "éblouit" sur
        certains écrans/pages très remplies de texte. On adoucit légèrement
        le fond (blanc cassé chaleureux, cohérent avec AmbientBackground) et
-       les cartes, sans perdre le côté "clair" du thème. */
-    --background: 40 20% 98.5%;
+       les cartes, sans perdre le côté "clair" du thème.
+       Complément : le fond, les cartes et les libellés muted avaient déjà
+       été adoucis, mais plusieurs surfaces restaient en blanc quasi pur
+       (--card-accent, --popover) ou en gris froid neutre (--muted), donc
+       le contraste "éblouissant" persistait dès qu'une carte, un menu
+       déroulant ou une zone survolée s'affichait — ce qui, sur une
+       interface de tableau de bord où ces surfaces couvrent une grande
+       part de l'écran toute la journée, fatiguait beaucoup les yeux.
+       Toutes les surfaces claires sont désormais dans la même famille de
+       blanc cassé chaleureux (teinte 40, jamais 0% de saturation), avec
+       une luminosité légèrement réduite (99% → 97.5% pour le fond) : le
+       thème reste clairement "clair", mais sans le pic de luminosité brut
+       d'un blanc pur écran. */
+    --background: 40 22% 97.5%;
     --foreground: 0 0% 3.9%;
-    --card: 40 20% 99%;
+    --card: 40 20% 98.5%;
     --card-foreground: 0 0% 3.9%;
-    --card-accent: 0 0% 100%;
+    --card-accent: 40 25% 99%;
     --card-accent-foreground: 0 0% 3.9%;
-    --card-subtle: 31 57% 96%;
+    --card-subtle: 31 45% 95%;
     --card-subtle-foreground: 0 0% 9%;
-    --popover: 0 0% 100%;
+    --popover: 40 22% 99%;
     --popover-foreground: 0 0% 3.9%;
     /* Identité La Poste de Côte d'Ivoire : orange postal en primaire, vert
        (drapeau ivoirien) en secondaire — remplace l'ancien bleu marine
@@ -364,7 +376,10 @@
     --secondary-foreground: 0 0% 98%;
     --secondary-muted: 152 45% 90%;
     --secondary-muted-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
+    /* Bug corrigé : gris neutre froid (0% de saturation) qui tranchait avec
+       le reste du thème, désormais chaleureux — remis dans la même famille
+       de teinte que le fond pour une transition moins abrupte à l'œil. */
+    --muted: 40 15% 93%;
     /* Bug corrigé : 45.1% de luminosité pour le texte secondaire est trop
        clair sur un fond quasi blanc (ratio de contraste proche de la limite
        WCAG AA) — beaucoup de libellés, sous-titres et cellules de tableau

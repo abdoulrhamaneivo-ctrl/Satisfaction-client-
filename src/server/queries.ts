@@ -1214,7 +1214,6 @@ export const getHeatmapReponses = async (
 
 export const getTacheHistorique = async (args: { id_tache: number }, context: any) => {
   requireAuth(context);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idTache = requireNumber(args.id_tache, 'id_tache');
 
@@ -1224,6 +1223,13 @@ export const getTacheHistorique = async (args: { id_tache: number }, context: an
     include: { alerte: { include: { guichet: true, reponse: true } } },
   });
   if (!tache) throw new HttpError(404, 'Tâche introuvable.');
+
+  // Même règle que updateStatutTache : un profil de gestion peut consulter
+  // l'historique de n'importe quelle tâche de son périmètre, un AGENT
+  // seulement celui des tâches qui lui sont assignées.
+  if (tache.id_responsable !== context.user.id) {
+    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  }
 
   const idAgence = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
   if (!idAgence) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");

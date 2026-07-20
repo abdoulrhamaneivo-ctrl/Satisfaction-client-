@@ -1,13 +1,13 @@
 import React, { ReactNode } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck, Sparkles, ArrowLeft } from "lucide-react";
+import { ShieldCheck, Zap, Radio, ArrowLeft, Star } from "lucide-react";
 import { AmbientBackground } from "../client/components/AmbientBackground";
 import { YebaLogo } from "../client/components/YebaLogo";
 
 const HIGHLIGHTS = [
-  "Collecte des avis par QR Code & USSD",
-  "Tableau de bord temps réel",
-  "Alertes instantanées SMS / WhatsApp",
+  { icon: Radio, text: "Collecte des avis par QR Code & USSD" },
+  { icon: Zap, text: "Tableau de bord temps réel" },
+  { icon: ShieldCheck, text: "Alertes instantanées SMS / WhatsApp" },
 ];
 
 interface AuthPageLayoutProps {
@@ -19,6 +19,36 @@ interface AuthPageLayoutProps {
 }
 
 /**
+ * Signature du panneau de marque : la note de satisfaction (5 étoiles)
+ * s'allume progressivement puis se réinitialise, en boucle douce — un
+ * clin d'œil direct au produit (Yeba mesure la satisfaction client) plutôt
+ * qu'une icône générique. Élément volontairement unique à cette page pour
+ * lui donner une identité propre, sans rien changer à la marque.
+ */
+function NoteSignature() {
+  return (
+    <div className="flex items-center gap-0.5" aria-hidden>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <motion.span
+          key={i}
+          initial={{ opacity: 0.25, scale: 0.85 }}
+          animate={{ opacity: [0.25, 1, 1, 0.25], scale: [0.85, 1.08, 1, 0.85] }}
+          transition={{
+            duration: 4.5,
+            repeat: Infinity,
+            repeatDelay: 1.2,
+            delay: i * 0.22,
+            ease: "easeInOut",
+          }}
+        >
+          <Star className="size-3 fill-current text-secondary-muted" />
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Habillage commun des pages d'authentification (connexion, mot de passe
  * oublié, réinitialisation, vérification e-mail) — panneau de marque +
  * panneau de formulaire — pour une expérience cohérente sur toute la
@@ -26,22 +56,55 @@ interface AuthPageLayoutProps {
  */
 export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: AuthPageLayoutProps) {
   return (
-    <AmbientBackground className="flex items-center justify-center px-4 py-12">
+    <AmbientBackground className="flex items-center justify-center px-4 py-10 sm:py-12">
+      {/* En-tête compact visible uniquement sur mobile : le panneau de marque
+          plein écran n'apparaît qu'à partir de `lg`, un mobile ne doit donc
+          jamais se retrouver avec un simple formulaire sans aucune identité
+          de marque au-dessus. */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="mb-5 flex items-center gap-2.5 lg:hidden"
+      >
+        <YebaLogo className="size-8" />
+        <span className="text-title-xsm font-black text-foreground">
+          <span className="text-gradient-primary">Yeba</span> Abidjan
+        </span>
+      </motion.div>
+
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="grid w-full max-w-4xl overflow-hidden rounded-3xl border border-border/70 bg-card shadow-premium-lg lg:grid-cols-[1.05fr_1fr]"
+        className="grid w-full max-w-4xl overflow-hidden rounded-3xl border border-border/70 bg-card shadow-premium-lg ring-1 ring-black/[0.02] lg:grid-cols-[1.05fr_1fr]"
       >
         {/* Panneau de marque */}
-        <div className="relative hidden flex-col justify-between bg-primary p-10 text-primary-foreground lg:flex">
+        <div className="relative hidden flex-col justify-between overflow-hidden bg-primary p-10 text-primary-foreground lg:flex">
+          {/* Texture fine en pointillés : profondeur discrète, jamais au
+              premier plan (opacité très faible), qui évite au grand aplat
+              de couleur primaire de paraître plat/générique. */}
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
+              backgroundSize: "18px 18px",
+            }}
+          />
           <div
             aria-hidden
             className="animate-float-slower absolute -right-16 top-10 h-56 w-56 rounded-full bg-secondary/25 blur-3xl"
           />
+          <div
+            aria-hidden
+            className="animate-float-slow absolute -left-10 bottom-16 h-48 w-48 rounded-full bg-white/10 blur-3xl"
+          />
+
           <div className="relative">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]">
-              <Sparkles className="size-3.5" /> {eyebrow}
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] backdrop-blur-sm">
+              <NoteSignature />
+              {eyebrow}
             </span>
             <div className="mt-6 flex items-center gap-3">
               <YebaLogo className="size-10" />
@@ -49,17 +112,23 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
                 <span className="text-gradient-primary">Yeba</span> Abidjan
               </h2>
             </div>
-            <p className="mt-3 max-w-sm text-sm text-primary-foreground/70">{subtitle}</p>
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-primary-foreground/70">{subtitle}</p>
           </div>
 
           <ul className="relative mt-8 space-y-3">
-            {HIGHLIGHTS.map((item) => (
-              <li key={item} className="flex items-center gap-3 text-sm">
-                <span className="flex size-6 items-center justify-center rounded-full bg-secondary/20 text-secondary-muted">
-                  <ShieldCheck className="size-3.5" />
+            {HIGHLIGHTS.map(({ icon: Icon, text }, i) => (
+              <motion.li
+                key={text}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 + i * 0.08, duration: 0.35 }}
+                className="flex items-center gap-3 text-sm"
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary-muted">
+                  <Icon className="size-3.5" />
                 </span>
-                {item}
-              </li>
+                {text}
+              </motion.li>
             ))}
           </ul>
         </div>
@@ -75,11 +144,22 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
               Retour à l'accueil
             </a>
           </div>
-          <div className="mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.35 }}
+            className="mb-8"
+          >
             <h1 className="text-title-md font-black tracking-tight text-foreground">{title}</h1>
-          </div>
+          </motion.div>
 
-          {children}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, duration: 0.35 }}
+          >
+            {children}
+          </motion.div>
 
           {footer && <div className="mt-6 text-sm font-medium text-foreground">{footer}</div>}
         </div>
