@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, getAgences, createAgence } from 'wasp/client/operations';
+import { useQuery, getAgences, createAgence, archiverAgence } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, MapPin, PlusCircle, ShieldAlert } from 'lucide-react';
+import { Building2, MapPin, PlusCircle, ShieldAlert, Archive } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { RequireAuth } from '../components/RequireAuth';
 import { useToast } from '../hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 export const GestionAgencesPage = () => {
   const { data: user } = useAuth();
@@ -21,6 +31,8 @@ export const GestionAgencesPage = () => {
     adresse: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [agenceAArchiver, setAgenceAArchiver] = useState<{ id: number; nom: string } | null>(null);
+  const [archivingId, setArchivingId] = useState<number | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -50,6 +62,23 @@ export const GestionAgencesPage = () => {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleArchiverAgence = async () => {
+    if (!agenceAArchiver) return;
+    setArchivingId(agenceAArchiver.id);
+    try {
+      await archiverAgence({ id_agence: agenceAArchiver.id });
+      toast({
+        title: 'Agence archivée',
+        description: `« ${agenceAArchiver.nom} » et ses guichets sont fermés et déplacés dans les Archives. Tout l'historique reste intact.`,
+      });
+      setAgenceAArchiver(null);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: error?.message || 'Erreur inconnue' });
+    } finally {
+      setArchivingId(null);
     }
   };
 
@@ -159,18 +188,28 @@ export const GestionAgencesPage = () => {
                       exit={{ opacity: 0, scale: 0.9 }}
                       className="rounded-3xl border border-border/70 bg-card p-5 shadow-sm transition-all hover:shadow-premium hover:border-primary/20"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                          <Building2 className="size-5" />
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <Building2 className="size-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="truncate font-bold text-foreground">
+                              {agence.nom_agence}
+                            </h3>
+                            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <MapPin className="size-3" /> {agence.commune}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-bold text-foreground">
-                            {agence.nom_agence}
-                          </h3>
-                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <MapPin className="size-3" /> {agence.commune}
-                          </p>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAgenceAArchiver({ id: agence.id, nom: agence.nom_agence })}
+                          className="flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border/70 p-2.5 text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+                          title="Fermer définitivement cette agence (archivage, aucune perte de données)"
+                        >
+                          <Archive className="size-4" />
+                        </button>
                       </div>
                     </motion.div>
                   ))}
@@ -198,6 +237,34 @@ export const GestionAgencesPage = () => {
           </div>
         </div>
       </AmbientBackground>
+
+      <AlertDialog open={agenceAArchiver !== null} onOpenChange={(open) => !open && setAgenceAArchiver(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fermer définitivement cette agence ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {agenceAArchiver && (
+                <>
+                  <strong className="text-foreground">{agenceAArchiver.nom}</strong> et tous ses
+                  guichets seront archivés : ils disparaîtront des listes actives. Tout l'historique
+                  (avis, alertes, statistiques) reste intact et consultable depuis la page Archives —
+                  vous pourrez la réactiver à tout moment.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleArchiverAgence}
+              disabled={archivingId !== null}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {archivingId !== null ? 'Archivage...' : "Archiver l'agence"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </RequireAuth>
   );
 };

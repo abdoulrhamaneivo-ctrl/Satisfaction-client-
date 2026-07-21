@@ -16,6 +16,7 @@ import { GestionAgencesPage } from "./src/client/pages/GestionAgencesPage" with 
 import { AvisPage } from "./src/client/pages/AvisPage" with { type: "ref" };
 import { ConfigurationCriteresPage } from "./src/client/pages/ConfigurationCriteresPage" with { type: "ref" };
 import { AlertesTachesPage } from "./src/client/pages/AlertesTachesPage" with { type: "ref" };
+import { ArchivesPage } from "./src/client/pages/ArchivesPage" with { type: "ref" };
 
 // === ACTIONS ===
 import {
@@ -44,12 +45,21 @@ import {
   reorderCriteresInService,
   updateAffectationGuichet,
   deleteAffectationGuichet,
+  archiverGuichet,
+  desarchiverGuichet,
+  archiverAgence,
+  desarchiverAgence,
+  archiverAlerte,
+  desarchiverAlerte,
+  archiverTache,
+  desarchiverTache,
 } from "./src/server/actions" with { type: "ref" };
 
 // === IMPORTS JOBS CRON Yeba ===
 import { detecterAlertesSilence } from "./src/server/jobs/alerteSilence" with { type: "ref" };
 import { relancerTachesEnRetard } from "./src/server/jobs/relanceTache" with { type: "ref" };
 import { envoyerRapportsMensuels } from "./src/server/jobs/rapportMensuel" with { type: "ref" };
+import { archiverElementsResolusAnciens } from "./src/server/jobs/archivageAutomatique" with { type: "ref" };
 
 // === QUERIES ===
 import {
@@ -81,6 +91,7 @@ import {
   getHeatmapReponses,
   getTempsTraitement,
   getRechercheGlobale,
+  getArchives,
 } from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
@@ -100,6 +111,7 @@ const avisRoute = route("AvisRoute", "/avis", page(AvisPage));
 const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/criteres", page(ConfigurationCriteresPage));
 const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
+const archivesRoute = route("ArchivesRoute", "/archives", page(ArchivesPage));
 
 // === ACTIONS ===
 const createGuichetAction = action(createGuichet, {
@@ -144,6 +156,16 @@ const removeCritereFromServiceAction = action(removeCritereFromService, { entiti
 const deleteCritereAction = action(deleteCritere, { entities: ["Critere", "Reponse", "AgenceCritere", "CritereService", "Objectif", "User"] });
 const duplicateCritereAction = action(duplicateCritere, { entities: ["Critere", "AgenceCritere", "CritereService", "User"] });
 const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User"] });
+
+// Archivage logique
+const archiverGuichetAction = action(archiverGuichet, { entities: ["Guichet", "User", "Agence"] });
+const desarchiverGuichetAction = action(desarchiverGuichet, { entities: ["Guichet", "User", "Agence"] });
+const archiverAgenceAction = action(archiverAgence, { entities: ["Agence", "Guichet", "User"] });
+const desarchiverAgenceAction = action(desarchiverAgence, { entities: ["Agence", "User"] });
+const archiverAlerteAction = action(archiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"] });
+const desarchiverAlerteAction = action(desarchiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"] });
+const archiverTacheAction = action(archiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
+const desarchiverTacheAction = action(desarchiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
 // === QUERIES ===
 const getGuichetsQuery = query(getGuichets, {
   entities: ["Guichet", "User", "Service", "Agence"],
@@ -211,6 +233,9 @@ const getTempsTraitementQuery = query(getTempsTraitement, {
 const getRechercheGlobaleQuery = query(getRechercheGlobale, {
   entities: ["Agence", "Guichet", "User", "Reponse"],
 });
+const getArchivesQuery = query(getArchives, {
+  entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User"],
+});
 
 export default app({
   name: "Yeba",
@@ -247,6 +272,7 @@ export default app({
     configurationCriteresRoute,
     collecteRoute,
     alertesTachesRoute,
+    archivesRoute,
     // Actions existantes
     createGuichetAction,
     assignAgentAction,
@@ -274,6 +300,14 @@ export default app({
     deleteCritereAction,
     duplicateCritereAction,
     reorderCriteresInServiceAction,
+    archiverGuichetAction,
+    desarchiverGuichetAction,
+    archiverAgenceAction,
+    desarchiverAgenceAction,
+    archiverAlerteAction,
+    desarchiverAlerteAction,
+    archiverTacheAction,
+    desarchiverTacheAction,
     // Queries existantes
     getStatsFiltereesQuery,
     getAgentsByAgenceQuery,
@@ -303,6 +337,7 @@ export default app({
     getHeatmapReponsesQuery,
     getTempsTraitementQuery,
     getRechercheGlobaleQuery,
+    getArchivesQuery,
     exportAvisGroupesQuery,
     job(detecterAlertesSilence, {
       executor: "PgBoss",
@@ -318,6 +353,11 @@ export default app({
       executor: "PgBoss",
       entities: ["Agence", "Reponse", "Alerte", "TacheCorrective", "User"],
       schedule: { cron: "0 7 1 * *" }, // Le 1er du mois à 07h00
+    }),
+    job(archiverElementsResolusAnciens, {
+      executor: "PgBoss",
+      entities: ["Alerte", "TacheCorrective"],
+      schedule: { cron: "0 3 * * *" }, // Tous les jours à 03h00
     }),
   ],
 });

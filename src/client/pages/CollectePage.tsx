@@ -195,8 +195,10 @@ export const CollectePage = () => {
   const normaliserTelephone = (valeur: string): string => {
     const chiffres = valeur.replace(/[^\d]/g, '');
     if (!chiffres) return '';
-    if (chiffres.startsWith('225')) return `+${chiffres}`;
-    if (chiffres.startsWith('0')) return `+225${chiffres.slice(1)}`;
+    if (chiffres.startsWith('225') && chiffres.length === 13) return `+${chiffres}`;
+    if (chiffres.startsWith('00225')) return `+225${chiffres.slice(5)}`;
+    // Numéro local à 10 chiffres (ex. "0700000000") : le "0" initial fait
+    // partie du numéro en Côte d'Ivoire depuis 2021, on ne le retire pas.
     return `+225${chiffres}`;
   };
 

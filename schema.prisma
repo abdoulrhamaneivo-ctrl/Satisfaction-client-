@@ -74,6 +74,16 @@ model Agence {
   heure_ouverture     String            @default("08:00")
   heure_fermeture     String            @default("17:00")
   jours_ouvres        String            @default("1,2,3,4,5,6")
+
+  // ──────────────────────────────────────────────────────────────
+  // ARCHIVAGE LOGIQUE (jamais de suppression physique) : une agence
+  // fermée définitivement est archivée plutôt que supprimée — tout son
+  // historique (avis, alertes, statistiques) reste intact en base et
+  // consultable, mais elle disparaît des listes actives, formulaires et
+  // sélecteurs.
+  // ──────────────────────────────────────────────────────────────
+  archive             Boolean           @default(false)
+  date_archivage      DateTime?
   
   id_entreprise       Int
   entreprise          Entreprise        @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
@@ -91,6 +101,12 @@ model Guichet {
   nom_guichet         String
   type_guichet        String?
   actif               Boolean           @default(true)
+
+  // Archivage logique (fermeture définitive du guichet) — voir Agence
+  // ci-dessus pour la logique complète. Distinct de `actif`, qui reste
+  // disponible pour une désactivation opérationnelle temporaire.
+  archive             Boolean           @default(false)
+  date_archivage      DateTime?
   
   id_agence           Int
   agence              Agence            @relation(fields: [id_agence], references: [id], onDelete: Cascade)
@@ -264,6 +280,13 @@ model Alerte {
   type_alerte         String            // NOTE_CRITIQUE, SILENCE_EVALUATION
   date_creation       DateTime          @default(now())
   date_traitement     DateTime?
+
+  // Archivage logique : une alerte TRAITEE ancienne est archivée
+  // (automatiquement par le job quotidien, ou manuellement) pour alléger
+  // les vues actives — jamais supprimée, toujours consultable dans
+  // Archives et comptée dans les rapports/statistiques.
+  archive             Boolean           @default(false)
+  date_archivage      DateTime?
   
   id_reponse          BigInt?
   reponse             Reponse?          @relation(fields: [id_reponse], references: [id], onDelete: Cascade)
@@ -275,6 +298,8 @@ model Alerte {
   guichet             Guichet?  @relation(fields: [id_guichet_concerne], references: [id], onDelete: SetNull)
 
   taches              TacheCorrective[]
+
+  @@index([archive])
 }
 
 model TacheCorrective {
@@ -285,6 +310,10 @@ model TacheCorrective {
   date_creation       DateTime          @default(now())
   date_echeance       DateTime
   date_cloture        DateTime?
+
+  // Archivage logique — même principe que Alerte ci-dessus.
+  archive             Boolean           @default(false)
+  date_archivage      DateTime?
   
   id_alerte           BigInt
   alerte              Alerte            @relation(fields: [id_alerte], references: [id], onDelete: Cascade)
@@ -293,6 +322,8 @@ model TacheCorrective {
   responsable         User              @relation(fields: [id_responsable], references: [id])
 
   historique          TacheCorrectiveHistorique[]
+
+  @@index([archive])
 }
 
 // ============================================================================

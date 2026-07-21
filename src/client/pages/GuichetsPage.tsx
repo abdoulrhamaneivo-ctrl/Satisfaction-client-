@@ -1,10 +1,10 @@
 // src/client/pages/GuichetsPage.tsx
 import React, { useState, useRef } from 'react';
-import { useQuery, createGuichet, getGuichets, getServices, updateGuichetServices, createService } from 'wasp/client/operations';
+import { useQuery, createGuichet, getGuichets, getServices, updateGuichetServices, createService, archiverGuichet } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
-import { Printer, Store, PlusCircle, AlertCircle, Inbox, Settings2, Check, X, Loader2, QrCode } from 'lucide-react';
+import { Printer, Store, PlusCircle, AlertCircle, Inbox, Settings2, Check, X, Loader2, QrCode, Archive } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
@@ -112,6 +112,11 @@ export const GuichetsPage = () => {
   // doit pas pouvoir l'appliquer sans un dernier geste de confirmation,
   // comme pour la suspension d'un agent.
   const [guichetAConfirmer, setGuichetAConfirmer] = useState<{ id: number; nom: string } | null>(null);
+  // Confirmation dédiée à l'archivage (fermeture définitive) : action
+  // différente du reste (pas juste un changement de config), donc dialogue
+  // séparé avec son propre texte d'avertissement.
+  const [guichetAArchiver, setGuichetAArchiver] = useState<{ id: number; nom: string } | null>(null);
+  const [archivingId, setArchivingId] = useState<number | null>(null);
 
   const userAgenceId = user?.id_agence;
 
@@ -153,6 +158,23 @@ export const GuichetsPage = () => {
       setError(err.message || 'Erreur de création du guichet.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleArchiverGuichet = async () => {
+    if (!guichetAArchiver) return;
+    setArchivingId(guichetAArchiver.id);
+    try {
+      await archiverGuichet({ id_guichet: guichetAArchiver.id });
+      toast({
+        title: 'Guichet archivé',
+        description: `« ${guichetAArchiver.nom} » est fermé et déplacé dans les Archives. Son historique reste intact.`,
+      });
+      setGuichetAArchiver(null);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: err?.message || 'Erreur inconnue' });
+    } finally {
+      setArchivingId(null);
     }
   };
 
@@ -427,7 +449,17 @@ export const GuichetsPage = () => {
                             {g.nom_guichet}
                           </h3>
                         </div>
-                        <GuichetQrPreview guichet={g} />
+                        <div className="flex shrink-0 items-center gap-2">
+                          <GuichetQrPreview guichet={g} />
+                          <button
+                            type="button"
+                            onClick={() => setGuichetAArchiver({ id: g.id, nom: g.nom_guichet })}
+                            className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+                            title="Fermer définitivement ce guichet (archivage, aucune perte de données)"
+                          >
+                            <Archive className="size-4" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Operations Configuration Section */}
@@ -563,6 +595,37 @@ export const GuichetsPage = () => {
               }}
             >
               Appliquer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={guichetAArchiver !== null}
+        onOpenChange={(open) => !open && setGuichetAArchiver(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fermer définitivement ce guichet ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {guichetAArchiver && (
+                <>
+                  <strong className="text-foreground">{guichetAArchiver.nom}</strong> sera archivé :
+                  il disparaîtra des listes actives et ne pourra plus recevoir d'avis. Tout son
+                  historique reste intact et consultable depuis la page Archives — vous pourrez le
+                  réactiver à tout moment.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleArchiverGuichet}
+              disabled={archivingId !== null}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {archivingId !== null ? 'Archivage...' : 'Archiver le guichet'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

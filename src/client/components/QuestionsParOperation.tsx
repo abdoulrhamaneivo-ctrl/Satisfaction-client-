@@ -319,9 +319,20 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
           pour voir toutes les opérations plutôt que de tout écraser dans
           une seule colonne illisible. pointer-events-none pendant la
           sauvegarde : empêche physiquement un second drag de démarrer
-          avant que le précédent ait fini d'être persisté côté serveur. */}
+          avant que le précédent ait fini d'être persisté côté serveur.
+          Bug corrigé : `snap-mandatory` force le navigateur à recaler la
+          colonne pile sur un point d'ancrage — or dès qu'on ouvre le champ
+          "Nouvelle question" (autoFocus), le clavier virtuel apparaît et le
+          navigateur mobile tente AUSSI de faire défiler ce champ dans la
+          zone visible. Les deux mécanismes de scroll se disputaient la
+          position en même temps : sur téléphone, la colonne repartait
+          brusquement sur son point d'ancrage pendant qu'on tapait, donnant
+          l'impression que la saisie/l'ajout de question ne faisait rien.
+          `snap-proximity` garde le confort du "glisser pour voir la
+          colonne suivante" sans jamais forcer un recalage pendant une
+          interaction en cours (saisie, focus clavier). */}
       <div
-        className={`-mx-1 flex gap-4 overflow-x-auto momentum-scroll scroll-fade-x px-1 pb-3 snap-x snap-mandatory transition-opacity sm:snap-none xl:flex-wrap xl:overflow-x-visible ${
+        className={`-mx-1 flex gap-4 overflow-x-auto momentum-scroll scroll-fade-x px-1 pb-3 snap-x snap-proximity transition-opacity sm:snap-none xl:flex-wrap xl:overflow-x-visible ${
           isSaving ? 'pointer-events-none opacity-60' : ''
         }`}
       >
@@ -404,7 +415,17 @@ function ColumnView({
         </div>
         <button
           type="button"
-          onClick={() => setAddingToColumn(isAdding ? null : column.key)}
+          onClick={() => {
+            // Bug corrigé : nouvelleQuestion/nouveauType sont un état
+            // partagé entre toutes les colonnes (un seul formulaire rapide
+            // actif à la fois). Sans réinitialisation, un texte tapé dans
+            // la colonne A puis un clic sur "+" dans la colonne B faisait
+            // apparaître le même texte dans B — on repart toujours d'un
+            // champ vide en changeant de colonne.
+            setNouvelleQuestion('');
+            setNouveauType('SMILEY');
+            setAddingToColumn(isAdding ? null : column.key);
+          }}
           className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/20"
           aria-label={`Ajouter une question à ${column.title}`}
           title="Ajouter une question"

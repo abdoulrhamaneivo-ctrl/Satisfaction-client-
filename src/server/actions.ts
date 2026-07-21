@@ -117,8 +117,44 @@ export const updateGuichetServices = async (
 };
 
 // ============================================================================
-// PLANNING
+// ARCHIVAGE — voir docs/archivage.md pour la logique d'ensemble.
+// Principe commun à toutes les fonctions archiver*/desarchiver* de ce
+// fichier : on ne supprime JAMAIS de ligne. On pose juste `archive: true` +
+// `date_archivage`, ce qui la fait disparaître des vues actives (Kanban,
+// listes, sélecteurs) sans toucher à son historique ni aux statistiques.
 // ============================================================================
+
+export const archiverGuichet = async (args: { id_guichet: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
+  if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
+  await assertAgenceAccess(context, context.entities, guichet.id_agence, 'guichet');
+
+  if (guichet.archive) return guichet; // déjà archivé : idempotent, pas d'erreur
+
+  return context.entities.Guichet.update({
+    where: { id: args.id_guichet },
+    data: { archive: true, date_archivage: new Date() },
+  });
+};
+
+export const desarchiverGuichet = async (args: { id_guichet: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
+  if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
+  await assertAgenceAccess(context, context.entities, guichet.id_agence, 'guichet');
+
+  return context.entities.Guichet.update({
+    where: { id: args.id_guichet },
+    data: { archive: false, date_archivage: null },
+  });
+};
+
+
 
 export const assignAgent = async (args: any, context: any) => {
   requireAuth(context);
@@ -467,13 +503,26 @@ export const soumettreAvis = async (args: any, context: any) => {
 
   // --- ALERTE + NOTIFICATIONS si note critique ---
   if (worstScore <= 2) {
-    const destinataire = await context.entities.User.findFirst({
+    // Bug corrigé : `findFirst` avec `role: { in: [...] }` sans `orderBy`
+    // renvoyait un destinataire dans un ordre non garanti par la base — si
+    // une agence avait à la fois un CHEF_AGENCE et un compte QUALITE actifs,
+    // celui prévenu d'une note critique dépendait de l'ordre interne de la
+    // base plutôt que d'un choix voulu. On priorise explicitement le chef
+    // d'agence (le mieux placé pour réagir immédiatement sur place), avec
+    // repli sur DIRECTION puis QUALITE — même logique que l'escalade de
+    // silence dans alerteSilence.ts.
+    const utilisateursEligibles = await context.entities.User.findMany({
       where: {
         id_agence: guichet.id_agence,
         role: { in: ['CHEF_AGENCE', 'DIRECTION', 'QUALITE'] },
-        actif: true
-      }
+        actif: true,
+      },
     });
+    const destinataire =
+      utilisateursEligibles.find((u: any) => u.role === 'CHEF_AGENCE') ||
+      utilisateursEligibles.find((u: any) => u.role === 'DIRECTION') ||
+      utilisateursEligibles.find((u: any) => u.role === 'QUALITE') ||
+      null;
 
     if (destinataire) {
       await context.entities.Alerte.create({
@@ -675,6 +724,56 @@ export const createAgence = async (
       ...(args.heure_fermeture ? { heure_fermeture: args.heure_fermeture } : {}),
       id_entreprise: context.user.id_entreprise,
     },
+  });
+};
+
+/**
+ * Archive une agence fermée définitivement. Cascade volontaire : ses
+ * guichets sont archivés en même temps (une agence fermée n'a plus de
+ * guichets ouverts), horodatés à l'identique pour qu'on sache qu'ils ont
+ * été fermés "avec" l'agence plutôt qu'individuellement. Rien n'est
+ * supprimé : avis, alertes et statistiques historiques restent intacts et
+ * consultables.
+ */
+export const archiverAgence = async (args: { id_agence: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION']);
+  await assertAgenceAccess(context, context.entities, args.id_agence, 'agence');
+
+  const agence = await context.entities.Agence.findUnique({ where: { id: args.id_agence } });
+  if (!agence) throw new HttpError(404, 'Agence introuvable.');
+  if (agence.archive) return agence;
+
+  const maintenant = new Date();
+  return prisma.$transaction(async (tx) => {
+    await tx.guichet.updateMany({
+      where: { id_agence: args.id_agence, archive: false },
+      data: { archive: true, date_archivage: maintenant },
+    });
+    return tx.agence.update({
+      where: { id: args.id_agence },
+      data: { archive: true, date_archivage: maintenant },
+    });
+  });
+};
+
+/**
+ * Désarchive une agence. Choix délibéré : ne restaure PAS automatiquement
+ * ses guichets — une réouverture d'agence ne rouvre pas forcément tous les
+ * anciens guichets tels quels (locaux réaménagés, etc.). Chaque guichet se
+ * désarchive donc individuellement depuis la page Guichets.
+ */
+export const desarchiverAgence = async (args: { id_agence: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION']);
+  await assertAgenceAccess(context, context.entities, args.id_agence, 'agence');
+
+  const agence = await context.entities.Agence.findUnique({ where: { id: args.id_agence } });
+  if (!agence) throw new HttpError(404, 'Agence introuvable.');
+
+  return context.entities.Agence.update({
+    where: { id: args.id_agence },
+    data: { archive: false, date_archivage: null },
   });
 };
 
@@ -1578,4 +1677,100 @@ export const deleteObjectif = async (args: { id: number }, context: any) => {
   await assertAgenceAccess(context, context.entities, objectif.id_agence, 'objectif');
 
   return context.entities.Objectif.delete({ where: { id: args.id } });
+};
+
+/**
+ * Archive manuellement une alerte déjà traitée (le job quotidien
+ * `archiverElementsResolusAnciens` le fait automatiquement pour celles de
+ * plus de 6 mois, mais un manager peut vouloir alléger sa vue plus tôt).
+ * On refuse d'archiver une alerte encore NOUVELLE : elle doit d'abord être
+ * traitée, sinon on perdrait sa visibilité opérationnelle par erreur.
+ */
+export const archiverAlerte = async (args: { id_alerte: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idAlerte = BigInt(args.id_alerte);
+  const idAgenceAlerte = await resolveAlerteAgenceId(context.entities, idAlerte);
+  await assertAgenceAccess(context, context.entities, idAgenceAlerte, 'alerte');
+
+  const alerte = await context.entities.Alerte.findUnique({ where: { id: idAlerte } });
+  if (!alerte) throw new HttpError(404, 'Alerte introuvable.');
+  if (alerte.statut_alerte !== 'TRAITEE') {
+    throw new HttpError(409, "Cette alerte doit d'abord être traitée avant de pouvoir être archivée.");
+  }
+
+  return context.entities.Alerte.update({
+    where: { id: idAlerte },
+    data: { archive: true, date_archivage: new Date() },
+  });
+};
+
+export const desarchiverAlerte = async (args: { id_alerte: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idAlerte = BigInt(args.id_alerte);
+  const idAgenceAlerte = await resolveAlerteAgenceId(context.entities, idAlerte);
+  await assertAgenceAccess(context, context.entities, idAgenceAlerte, 'alerte');
+
+  return context.entities.Alerte.update({
+    where: { id: idAlerte },
+    data: { archive: false, date_archivage: null },
+  });
+};
+
+/**
+ * Archive manuellement une tâche déjà TERMINEE. Même règle d'autorisation
+ * que updateStatutTache : un profil de gestion, ou le responsable de la
+ * tâche lui-même.
+ */
+export const archiverTache = async (args: { id_tache: number }, context: any) => {
+  requireAuth(context);
+
+  const idTache = BigInt(args.id_tache);
+  const tache = await context.entities.TacheCorrective.findUnique({
+    where: { id: idTache },
+    include: { alerte: { include: { guichet: true, reponse: true } } },
+  });
+  if (!tache) throw new HttpError(404, 'Tâche introuvable.');
+
+  if (tache.id_responsable !== context.user.id) {
+    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  }
+  const idAgenceTache = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
+  if (!idAgenceTache) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");
+  await assertAgenceAccess(context, context.entities, idAgenceTache, 'tâche corrective');
+
+  if (tache.statut_tache !== 'TERMINEE') {
+    throw new HttpError(409, "Cette tâche doit d'abord être terminée avant de pouvoir être archivée.");
+  }
+
+  return context.entities.TacheCorrective.update({
+    where: { id: idTache },
+    data: { archive: true, date_archivage: new Date() },
+  });
+};
+
+export const desarchiverTache = async (args: { id_tache: number }, context: any) => {
+  requireAuth(context);
+
+  const idTache = BigInt(args.id_tache);
+  const tache = await context.entities.TacheCorrective.findUnique({
+    where: { id: idTache },
+    include: { alerte: { include: { guichet: true, reponse: true } } },
+  });
+  if (!tache) throw new HttpError(404, 'Tâche introuvable.');
+
+  if (tache.id_responsable !== context.user.id) {
+    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  }
+  const idAgenceTache = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
+  if (!idAgenceTache) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");
+  await assertAgenceAccess(context, context.entities, idAgenceTache, 'tâche corrective');
+
+  return context.entities.TacheCorrective.update({
+    where: { id: idTache },
+    data: { archive: false, date_archivage: null },
+  });
 };

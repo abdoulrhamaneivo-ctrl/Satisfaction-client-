@@ -39,8 +39,10 @@ export const getGuichets = async (args: GetGuichetsArgs, context: any) => {
     where = await buildAgenceFilter(context, context.entities);
   }
 
+  // Un guichet archivé (fermeture définitive) sort des vues actives — voir
+  // getArchives pour le consulter et le désarchiver si besoin.
   return context.entities.Guichet.findMany({
-    where: { ...where, actif: true },
+    where: { ...where, actif: true, archive: false },
     include: { services: true },
     orderBy: { id: 'asc' },
   });
@@ -333,7 +335,7 @@ export const getAgences = async (args: void, context: any) => {
   if (!context.user.id_entreprise) return [];
 
   return context.entities.Agence.findMany({
-    where: { id_entreprise: context.user.id_entreprise },
+    where: { id_entreprise: context.user.id_entreprise, archive: false },
     select: { id: true, nom_agence: true, commune: true },
     orderBy: { id: 'asc' },
   });
@@ -345,8 +347,10 @@ export const getAlertes = async (_args: void, context: any) => {
   const filter = await buildAgenceFilter(context, context.entities);
   const idAgenceClause = filter.id_agence;
 
+  // Une alerte archivée sort de la liste active — voir getArchives.
   return context.entities.Alerte.findMany({
     where: {
+      archive: false,
       OR: [
         { guichet: { id_agence: idAgenceClause } },
         { reponse: { id_agence: idAgenceClause } },
@@ -670,7 +674,7 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
   const alerteIds = alertes.map((a: any) => a.id);
 
   return context.entities.TacheCorrective.findMany({
-    where: { id_alerte: { in: alerteIds } },
+    where: { id_alerte: { in: alerteIds }, archive: false },
     orderBy: { date_creation: 'desc' },
     include: {
       alerte: {
@@ -684,6 +688,68 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
       },
     },
   });
+};
+
+// ============================================================================
+// ARCHIVES — vue consolidée des éléments archivés (guichets, agences,
+// alertes, tâches). Une seule query pour alimenter les 4 onglets de la
+// page Archives en un aller-retour réseau ; chaque catégorie reste filtrée
+// par le même périmètre d'agence que le reste de l'application.
+// ============================================================================
+
+export const getArchives = async (_args: void, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const filter = await buildAgenceFilter(context, context.entities);
+
+  const [guichets, alertes, taches] = await Promise.all([
+    context.entities.Guichet.findMany({
+      where: { ...filter, archive: true },
+      include: { agence: { select: { nom_agence: true } } },
+      orderBy: { date_archivage: 'desc' },
+    }),
+    context.entities.Alerte.findMany({
+      where: {
+        archive: true,
+        OR: [
+          { guichet: { id_agence: filter.id_agence } },
+          { reponse: { id_agence: filter.id_agence } },
+        ],
+      },
+      include: { guichet: { include: { agence: { select: { nom_agence: true } } } }, reponse: true },
+      orderBy: { date_archivage: 'desc' },
+    }),
+    context.entities.TacheCorrective.findMany({
+      where: {
+        archive: true,
+        alerte: {
+          OR: [
+            { guichet: { id_agence: filter.id_agence } },
+            { reponse: { id_agence: filter.id_agence } },
+          ],
+        },
+      },
+      include: {
+        alerte: { include: { guichet: { include: { agence: { select: { nom_agence: true } } } }, reponse: true } },
+        responsable: { select: { id: true, nom: true, prenom: true } },
+      },
+      orderBy: { date_archivage: 'desc' },
+    }),
+  ]);
+
+  // Les agences archivées ne concernent que la direction/qualité (les chefs
+  // d'agence ne gèrent pas le réseau d'agences lui-même).
+  const agences =
+    context.user.role === 'DIRECTION' || context.user.role === 'QUALITE'
+      ? await context.entities.Agence.findMany({
+          where: { id_entreprise: context.user.id_entreprise, archive: true },
+          select: { id: true, nom_agence: true, commune: true, date_archivage: true },
+          orderBy: { date_archivage: 'desc' },
+        })
+      : [];
+
+  return { guichets, agences, alertes, taches };
 };
 
 // ============================================================================
