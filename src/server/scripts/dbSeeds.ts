@@ -13,7 +13,7 @@ import {
 const NOM_ENTREPRISE = "Mon Entreprise";
 const NOM_AGENCE = "Agence Centrale";
 const COMMUNE_AGENCE = "Plateau";
-const EMAIL_CHEF = "chef@yeba.local";
+const EMAIL_CHEF = "abdoulivo5@gmail.com";
 
 /**
  * Seeding unique pour l'outil interne mono-agence de Yeba.
