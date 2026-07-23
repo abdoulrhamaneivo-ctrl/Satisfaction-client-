@@ -179,6 +179,10 @@ export const AlertesTachesPage = () => {
 
   const handleSoumettreCreation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formTache.id_responsable) {
+      toast({ variant: 'destructive', title: 'Responsable requis', description: 'Sélectionnez un responsable avant de créer la tâche.' });
+      return;
+    }
     setSaving(true);
     try {
       await createTache({
@@ -547,7 +551,7 @@ export const AlertesTachesPage = () => {
                   <Button type="button" variant="outline" className="flex-1" onClick={() => setModal({ alerteId: null, idAgence: null })}>
                     Annuler
                   </Button>
-                  <Button type="submit" className="flex-1" disabled={saving}>
+                  <Button type="submit" className="flex-1" disabled={saving || !formTache.id_responsable}>
                     {saving ? 'Création...' : 'Créer la tâche'}
                   </Button>
                 </div>
