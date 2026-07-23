@@ -145,17 +145,15 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       {/* Sélecteur de format / dimension */}
       <div className="flex flex-wrap gap-2 justify-center print:hidden border-b border-border/60 pb-4">
         {(Object.keys(formatConfigs) as Array<FormatKey>).map((fmt) => (
-          <button
+          <Button
             key={fmt}
+            type="button"
+            variant={selectedFormat === fmt ? 'default' : 'outline'}
             onClick={() => setSelectedFormat(fmt)}
-            className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all ${
-              selectedFormat === fmt
-                ? 'bg-primary text-primary-foreground border-primary shadow-premium-sm'
-                : 'bg-white hover:bg-neutral-50 text-neutral-600 border-neutral-200'
-            }`}
+            className={selectedFormat === fmt ? 'rounded-xl shadow-premium-sm' : 'rounded-xl'}
           >
             {formatConfigs[fmt].label}
-          </button>
+          </Button>
         ))}
       </div>
 

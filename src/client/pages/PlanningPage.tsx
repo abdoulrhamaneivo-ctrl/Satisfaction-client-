@@ -194,24 +194,24 @@ export const PlanningPage = () => {
             <label htmlFor="heure-debut" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Heure de début
             </label>
-            <input
+            <Input
               id="heure-debut"
               type="time"
               value={heureDebut}
               onChange={(e) => setHeureDebut(e.target.value)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+              className="h-10 w-auto"
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="heure-fin" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Heure de fin
             </label>
-            <input
+            <Input
               id="heure-fin"
               type="time"
               value={heureFin}
               onChange={(e) => setHeureFin(e.target.value)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+              className="h-10 w-auto"
             />
           </div>
           <p className="text-xs text-muted-foreground">
@@ -327,22 +327,26 @@ export const PlanningPage = () => {
                               <span className="text-muted-foreground">
                                 {aff.heure_debut} – {aff.heure_fin}
                               </span>
-                              <button
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => ouvrirEdition({ ...aff, guichet: g })}
                                 title="Modifier cette affectation"
-                                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                                className="size-6 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                               >
                                 <Pencil className="size-3.5" />
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => setAffectationASupprimer({ ...aff, guichet: g })}
                                 title="Retirer cette affectation"
-                                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               >
                                 <Trash2 className="size-3.5" />
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -413,20 +417,20 @@ export const PlanningPage = () => {
             <div className="flex gap-4">
               <div className="flex flex-1 flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Heure de début</label>
-                <input
+                <Input
                   type="time"
                   value={editHeureDebut}
                   onChange={(e) => setEditHeureDebut(e.target.value)}
-                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                  className="h-10"
                 />
               </div>
               <div className="flex flex-1 flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Heure de fin</label>
-                <input
+                <Input
                   type="time"
                   value={editHeureFin}
                   onChange={(e) => setEditHeureFin(e.target.value)}
-                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                  className="h-10"
                 />
               </div>
             </div>

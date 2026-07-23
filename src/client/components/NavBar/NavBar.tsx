@@ -32,6 +32,7 @@ import { DarkModeSwitcher } from "../DarkModeSwitcher";
 import { CommandPaletteTrigger } from "../CommandPalette";
 import { useBrand } from "../../context/BrandContext";
 import { BrandLogo } from "../BrandLogo";
+import { Button } from "../ui/button";
 
 export interface NavigationItem {
   name: string;
@@ -156,13 +157,13 @@ function NavBarDesktopUserDropdown({ isScrolled }: { isScrolled: boolean }) {
                 className={cn(
                   'transition-colors',
                   isScrolled ? 'size-4' : 'size-5',
-                  hasCritical ? 'text-destructive' : 'text-amber-500'
+                  hasCritical ? 'text-destructive' : 'text-warning'
                 )}
               />
               <span
                 className={cn(
                   'absolute -top-1.5 -right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-0.5 text-[10px] font-black text-white leading-none',
-                  hasCritical ? 'bg-destructive' : 'bg-amber-500'
+                  hasCritical ? 'bg-destructive' : 'bg-warning'
                 )}
               >
                 {total > 99 ? '99+' : total}
@@ -219,11 +220,11 @@ function NavBarMobileMenu({
     <div className="flex lg:hidden">
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <SheetTrigger asChild>
-          <button
+          <Button
             type="button"
-            className={cn(
-              "text-muted-foreground hover:text-muted hover:bg-accent inline-flex items-center justify-center rounded-md transition-colors",
-            )}
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-muted"
           >
             <span className="sr-only">Open main menu</span>
             <Menu
@@ -233,7 +234,7 @@ function NavBarMobileMenu({
               })}
               aria-hidden="true"
             />
-          </button>
+          </Button>
         </SheetTrigger>
         <SheetContent
           side="right"
@@ -283,17 +284,18 @@ function NavBarMobileMenu({
               causait le bug : avant, ce bouton était dans le flux
               défilant et se retrouvait poussé hors écran. */}
           <div className="flex shrink-0 flex-col gap-3 border-t border-border/60 px-6 py-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => {
                 setMobileMenuOpen(false);
                 window.dispatchEvent(new Event('yeba:open-command-palette'));
               }}
-              className="flex items-center gap-2 rounded-lg border border-border/70 bg-card-subtle/60 px-3 py-2 text-sm text-muted-foreground"
+              className="h-auto justify-start gap-2 rounded-lg border-border/70 bg-card-subtle/60 px-3 py-2 text-sm font-normal text-muted-foreground"
             >
               <Search className="size-4" />
               Rechercher…
-            </button>
+            </Button>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-foreground">Mode sombre</span>
               <DarkModeSwitcher />

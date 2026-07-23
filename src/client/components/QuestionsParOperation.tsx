@@ -31,6 +31,15 @@ import {
 } from 'wasp/client/operations';
 import { GripVertical, Inbox, Plus, X, Copy, Trash2 } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -456,8 +465,10 @@ function ColumnView({
             {column.criteres.length}
           </span>
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => {
             // Bug corrigé : nouvelleQuestion/nouveauType sont un état
             // partagé entre toutes les colonnes (un seul formulaire rapide
@@ -469,18 +480,18 @@ function ColumnView({
             setNouveauType('SMILEY');
             setAddingToColumn(isAdding ? null : column.key);
           }}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+          className="size-7 shrink-0 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           aria-label={`Ajouter une question à ${column.title}`}
           title="Ajouter une question"
         >
           <Plus className="size-4" />
-        </button>
+        </Button>
       </div>
 
       {isAdding && (
         <div className="space-y-1.5 border-b border-border/60 bg-background/60 px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <input
+            <Input
               autoFocus
               value={nouvelleQuestion}
               onChange={(e) => setNouvelleQuestion(e.target.value)}
@@ -490,39 +501,42 @@ function ColumnView({
               }}
               placeholder="Nouvelle question..."
               maxLength={300}
-              className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-ring"
+              className="h-8 min-w-0 flex-1 text-xs"
             />
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => setAddingToColumn(null)}
-              className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+              className="size-8 shrink-0"
               aria-label="Annuler"
             >
               <X className="size-3.5" />
-            </button>
+            </Button>
           </div>
           {/* Type de réponse attendu : demandé dès la création rapide pour
               éviter de devoir repasser par le formulaire complet juste pour
               corriger un type resté par défaut sur "Note / Smileys". */}
           <div className="flex items-center gap-1.5">
-            <select
-              value={nouveauType}
-              onChange={(e) => setNouveauType(e.target.value)}
-              aria-label="Type de réponse attendu"
-              className="min-w-0 flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-ring"
-            >
-              {typeReponseOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            <button
+            <Select value={nouveauType} onValueChange={setNouveauType}>
+              <SelectTrigger className="h-8 min-w-0 flex-1 text-xs" aria-label="Type de réponse attendu">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {typeReponseOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
               type="button"
+              size="sm"
               disabled={creatingInline || !nouvelleQuestion.trim()}
               onClick={() => onAddQuestion(column)}
-              className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              className="h-8 shrink-0 text-xs"
             >
               OK
-            </button>
+            </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
             Besoin d'un QCM ou de cases à cocher ? Utilisez « Créer un critère à la carte »
@@ -640,14 +654,16 @@ function QuestionCard({
       {/* Poignée de 44x44px minimum : indispensable au tactile (une cible
           de préhension trop petite est le premier bug de drag & drop
           mobile — le doigt "rate" systématiquement l'élément). */}
-      <button
+      <Button
         type="button"
-        className="-ml-1 -mt-1 flex size-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground active:cursor-grabbing hover:bg-muted"
+        variant="ghost"
+        size="icon"
+        className="-ml-1 -mt-1 size-9 shrink-0 cursor-grab touch-none active:cursor-grabbing"
         {...dragHandleProps}
         aria-label="Réordonner"
       >
         <GripVertical className="size-4" />
-      </button>
+      </Button>
       <div className="min-w-0 flex-1 pt-1">
         <p className="text-sm font-semibold leading-snug text-foreground break-words">
           {critere.libelle_critere}
@@ -668,54 +684,61 @@ function QuestionCard({
             beaucoup n'arrivaient pas à réaliser (mobile ET desktop). Ce
             sélecteur déplace la question en un clic, sans aucun glisser. */}
         {columns && currentKey && onMoveTo && (
-          <select
-            value={currentKey}
-            onChange={(e) => onMoveTo(critere.id, e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            aria-label={`Déplacer « ${critere.libelle_critere} » vers une autre opération`}
-            className="mt-2 w-full rounded-md border border-input bg-background px-2 py-1 text-xs font-medium text-foreground focus:ring-1 focus:ring-ring"
-          >
-            {columns.map((c) => (
-              <option key={c.key} value={c.key}>
-                {c.key === currentKey ? `📍 ${c.title}` : `Déplacer vers : ${c.title}`}
-              </option>
-            ))}
-          </select>
+          <Select value={currentKey} onValueChange={(v) => onMoveTo(critere.id, v)}>
+            <SelectTrigger
+              className="mt-2 h-7 w-full text-xs font-medium"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Déplacer « ${critere.libelle_critere} » vers une autre opération`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {columns.map((c) => (
+                <SelectItem key={c.key} value={c.key}>
+                  {c.key === currentKey ? `📍 ${c.title}` : `Déplacer vers : ${c.title}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {(onDelete || onDuplicate) && (
           <div className="mt-1.5 flex items-center gap-1">
             {onDuplicate && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDuplicate(critere);
                 }}
                 disabled={isDuplicating}
-                className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                className="h-6 px-1.5 text-[11px] font-medium"
                 aria-label={`Dupliquer « ${critere.libelle_critere} »`}
                 title="Dupliquer cette question"
               >
                 <Copy className="size-3" />
                 {isDuplicating ? '...' : 'Dupliquer'}
-              </button>
+              </Button>
             )}
             {onDelete && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(critere);
                 }}
                 disabled={isDeleting}
-                className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                className="h-6 px-1.5 text-[11px] font-medium hover:bg-destructive/10 hover:text-destructive"
                 aria-label={`Supprimer « ${critere.libelle_critere} »`}
                 title="Supprimer cette question"
               >
                 <Trash2 className="size-3" />
                 {isDeleting ? '...' : 'Supprimer'}
-              </button>
+              </Button>
             )}
           </div>
         )}

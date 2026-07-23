@@ -13,6 +13,7 @@ import { FormField } from '../components/FormField';
 import { KitGuichet } from '../components/KitGuichet';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Checkbox } from '../components/ui/checkbox';
 import { RequireAuth } from '../components/RequireAuth';
 import { useToast } from '../hooks/use-toast';
 import {
@@ -51,10 +52,11 @@ const GuichetQrPreview = ({ guichet }: { guichet: any }) => {
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={() => setOpen(true)}
-        className="group flex shrink-0 items-center gap-3 rounded-2xl border border-dashed border-border/70 bg-muted px-4 py-3 text-left transition-all hover:border-primary/50 hover:bg-muted/70"
+        className="group h-auto shrink-0 items-center gap-3 rounded-2xl border border-dashed border-border/70 bg-muted px-4 py-3 text-left font-normal hover:border-primary/50 hover:bg-muted/70"
         aria-label={`Afficher le QR code du guichet ${guichet.nom_guichet}`}
       >
         <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground grayscale transition-all group-hover:bg-primary/10 group-hover:text-primary group-hover:grayscale-0">
@@ -64,11 +66,11 @@ const GuichetQrPreview = ({ guichet }: { guichet: any }) => {
           <span className="block text-xs font-bold uppercase tracking-wide text-muted-foreground group-hover:text-primary">
             Voir le kit QR
           </span>
-          <span className="block text-[11px] text-muted-foreground">
+          <span className="block text-[11px] font-normal text-muted-foreground">
             QR Code, USSD & affiches
           </span>
         </span>
-      </button>
+      </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto momentum-scroll sm:max-w-2xl">
@@ -327,17 +329,15 @@ export const GuichetsPage = () => {
                   <div className="space-y-2 rounded-xl border border-border/70 p-3 bg-muted/40">
                     {allServices?.map((s: any) => (
                       <label key={s.id} className="flex items-center gap-2.5 text-sm font-semibold text-foreground cursor-pointer">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={selectedServiceIds.includes(s.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                          onCheckedChange={(checked) => {
+                            if (checked) {
                               setSelectedServiceIds([...selectedServiceIds, s.id]);
                             } else {
                               setSelectedServiceIds(selectedServiceIds.filter(id => id !== s.id));
                             }
                           }}
-                          className="rounded border-input text-primary focus:ring-primary h-4 w-4"
                         />
                         {s.libelle_service}
                       </label>
@@ -486,15 +486,16 @@ export const GuichetsPage = () => {
                         <div className="flex shrink-0 items-center gap-2">
                           <GuichetQrPreview guichet={g} />
                           {user?.role === 'CHEF_AGENCE' && (
-                            <button
+                            <Button
                               type="button"
+                              variant="outline"
                               onClick={() => setGuichetAArchiver({ id: g.id, nom: g.nom_guichet })}
-                              className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+                              className="h-auto border-dashed px-3 py-3 text-xs font-semibold hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
                               title="Fermer définitivement ce guichet (archivage, aucune perte de données)"
                               aria-label={`Archiver le guichet ${g.nom_guichet}`}
                             >
                               <Archive className="size-4" />
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -509,17 +510,15 @@ export const GuichetsPage = () => {
                             <div className="grid grid-cols-1 gap-2 py-1 sm:grid-cols-2">
                               {allServices?.map((s: any) => (
                                 <label key={s.id} className="flex items-center gap-2 text-sm font-semibold text-foreground cursor-pointer">
-                                  <input
-                                    type="checkbox"
+                                  <Checkbox
                                     checked={editServiceIds.includes(s.id)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
                                         setEditServiceIds([...editServiceIds, s.id]);
                                       } else {
                                         setEditServiceIds(editServiceIds.filter(id => id !== s.id));
                                       }
                                     }}
-                                    className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5"
                                   />
                                   {s.libelle_service}
                                 </label>

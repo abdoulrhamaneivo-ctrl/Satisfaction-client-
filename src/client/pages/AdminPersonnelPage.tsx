@@ -447,7 +447,7 @@ export const AdminPersonnelPage = () => {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 font-bold text-xl">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-xl">
                           {agent.prenom?.[0]}{agent.nom?.[0]}
                         </div>
                         <div>
@@ -457,7 +457,7 @@ export const AdminPersonnelPage = () => {
                           <p className="text-xs text-muted-foreground">
                             {agent.role}
                             {agent.actif === false && (
-                              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-600">
+                              <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold uppercase text-destructive">
                                 Suspendu
                               </span>
                             )}
@@ -476,25 +476,29 @@ export const AdminPersonnelPage = () => {
                           <ShieldUser className="size-4" />
                         </Button>
                         {agent.actif === false ? (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleReactivate(agent.id)}
                             aria-label="Réactiver"
                             title="Réactiver ce compte"
-                            className="text-muted-foreground hover:text-success"
+                            className="text-muted-foreground hover:bg-success/10 hover:text-success"
                           >
-                            <RotateCcw size={18} />
-                          </button>
+                            <RotateCcw className="size-4" />
+                          </Button>
                         ) : (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setAgentAConfirmerSuppression({ id: agent.id, nom: agent.nom, prenom: agent.prenom })}
                             aria-label="Suspendre"
                             title="Suspendre ce compte"
-                            className="text-muted-foreground hover:text-destructive"
+                            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           >
-                            <Trash2 size={18} />
-                          </button>
+                            <Trash2 className="size-4" />
+                          </Button>
                         )}
                       </div>
                     </div>

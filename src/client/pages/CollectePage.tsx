@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, getFormDefinitionForGuichet, soumettreAvis } from 'wasp/client/operations';
 import { MotionCard } from '../components/MotionCard';
 import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
+import { Input } from '../components/ui/input';
 import confetti from 'canvas-confetti';
 import { ChevronRight, MessageSquare, Phone, ArrowLeft, Loader2 } from 'lucide-react';
 import { useBrand } from '../context/BrandContext';
@@ -227,12 +229,15 @@ export const CollectePage = () => {
       {/* Header */}
       <div className="w-full max-w-md mx-auto flex items-center justify-between py-4">
         {step !== 'SUCCESS' && (step !== 'SERVICE_SELECT' || (formDef.services && formDef.services.length > 1 && selectedService !== null)) && (
-          <button 
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={handleBack}
-            className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft size={16} /> Retour
-          </button>
+          </Button>
         )}
         <div className="text-right ml-auto">
           {brandConfig?.logo_url ? (
@@ -415,11 +420,11 @@ export const CollectePage = () => {
                 {/* Text Input */}
                 {currentCritere.type_reponse === 'TEXTE' && (
                   <div className="space-y-4 pt-2">
-                    <textarea
+                    <Textarea
                       value={texteReponseCourante}
                       placeholder="Votre réponse ici..."
                       rows={4}
-                      className="w-full px-4 py-3 border border-border bg-background rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground resize-none"
+                      className="text-center"
                       onChange={(e) => setTexteReponseCourante(e.target.value)}
                     />
                     <Button
@@ -500,13 +505,14 @@ export const CollectePage = () => {
                 )}
 
                 {currentCritere.obligatoire === false && (
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
                     onClick={handleSkip}
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
                     Passer cette question
-                  </button>
+                  </Button>
                 )}
 
                 <p className="text-xs text-muted-foreground">
@@ -545,12 +551,11 @@ export const CollectePage = () => {
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                       <MessageSquare size={12} /> Message ou suggestion
                     </label>
-                    <textarea
+                    <Textarea
                       value={commentaire}
                       onChange={(e) => setCommentaire(e.target.value)}
                       placeholder="Des détails à partager ? Un problème rencontré ?"
                       rows={3}
-                      className="w-full px-4 py-3 border border-border bg-background rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground resize-none"
                     />
                   </div>
 
@@ -558,12 +563,12 @@ export const CollectePage = () => {
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                       <Phone size={12} /> Téléphone (facultatif)
                     </label>
-                    <input
+                    <Input
                       type="tel"
                       value={telephone}
                       onChange={(e) => setTelephone(e.target.value)}
                       placeholder="Ex: +225 0700000000"
-                      className="w-full px-4 py-3 border border-border bg-background rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground"
+                      className="h-12 rounded-2xl px-4"
                     />
                     <p className="text-[10px] text-muted-foreground leading-tight">
                       Votre numéro sera haché (SHA-256) pour éviter les doublons et ne sera jamais partagé.

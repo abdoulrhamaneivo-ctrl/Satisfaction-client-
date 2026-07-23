@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { Target, TrendingUp, Save, Trash2 } from 'lucide-react';
 import { MotionCard } from './MotionCard';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -167,7 +168,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[10px] font-semibold uppercase text-muted-foreground mb-0.5">Cible %</label>
-                  <input
+                  <Input
                     type="number"
                     min={0}
                     max={100}
@@ -175,29 +176,29 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
                     onChange={(e) =>
                       setEditMap((prev) => ({ ...prev, [critere.id]: { ...getEdit(critere.id), valeur: e.target.value } }))
                     }
-                    className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm text-foreground focus:ring-1 focus:ring-ring"
+                    className="h-9"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold uppercase text-muted-foreground mb-0.5">Début</label>
-                  <input
+                  <Input
                     type="date"
                     value={edit.debut}
                     onChange={(e) =>
                       setEditMap((prev) => ({ ...prev, [critere.id]: { ...getEdit(critere.id), debut: e.target.value } }))
                     }
-                    className="h-9 w-full rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:ring-1 focus:ring-ring"
+                    className="h-9 text-xs"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold uppercase text-muted-foreground mb-0.5">Fin</label>
-                  <input
+                  <Input
                     type="date"
                     value={edit.fin}
                     onChange={(e) =>
                       setEditMap((prev) => ({ ...prev, [critere.id]: { ...getEdit(critere.id), fin: e.target.value } }))
                     }
-                    className="h-9 w-full rounded-lg border border-input bg-background px-2 text-xs text-foreground focus:ring-1 focus:ring-ring"
+                    className="h-9 text-xs"
                   />
                 </div>
               </div>

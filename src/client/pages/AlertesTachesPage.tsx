@@ -24,6 +24,14 @@ import { MotionCard } from '../components/MotionCard';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { useToast } from '../hooks/use-toast';
 import { RequireAuth } from '../components/RequireAuth';
 
@@ -394,29 +402,38 @@ export const AlertesTachesPage = () => {
                                 {/* Boutons de transition + historique */}
                                 <div className="flex gap-2 pt-1 flex-wrap">
                                   {col.statut !== 'A_FAIRE' && peutAgirSurTache(tache) && (
-                                    <button
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2.5 text-[11px]"
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'EN_COURS' ? 'A_FAIRE' : 'EN_COURS')}
                                       disabled={movingId === tacheIdNum}
-                                      className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted/60 transition-colors disabled:opacity-40"
                                     >
                                       ← Reculer
-                                    </button>
+                                    </Button>
                                   )}
-                                  <button
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2.5 text-[11px]"
                                     onClick={() => setHistoriqueOpenId(historiqueOpenId === tacheIdNum ? null : tacheIdNum)}
-                                    className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted/60 transition-colors"
                                     title="Voir l'historique d'audit"
                                   >
                                     <History className="size-3" /> Historique
-                                  </button>
+                                  </Button>
                                   {col.statut !== 'TERMINEE' && peutAgirSurTache(tache) && (
-                                    <button
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="ml-auto h-7 px-2.5 text-[11px] text-primary hover:bg-primary/10 hover:text-primary"
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'A_FAIRE' ? 'EN_COURS' : 'TERMINEE')}
                                       disabled={movingId === tacheIdNum}
-                                      className="ml-auto flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-40"
                                     >
                                       Avancer <ChevronRight className="size-3" />
-                                    </button>
+                                    </Button>
                                   )}
                                 </div>
 
@@ -461,9 +478,15 @@ export const AlertesTachesPage = () => {
             >
               <div className="mb-5 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-foreground">Nouvelle tâche corrective</h3>
-                <button onClick={() => setModal({ alerteId: null, idAgence: null })} className="text-muted-foreground hover:text-foreground" aria-label="Fermer">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setModal({ alerteId: null, idAgence: null })}
+                  aria-label="Fermer"
+                >
                   <X className="size-5" />
-                </button>
+                </Button>
               </div>
 
               <form onSubmit={handleSoumettreCreation} className="space-y-4">
@@ -479,41 +502,46 @@ export const AlertesTachesPage = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Description</label>
-                  <textarea
+                  <Textarea
                     value={formTache.description}
                     onChange={(e) => setFormTache((p) => ({ ...p, description: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Date d'échéance *</label>
-                  <input
+                  <Input
                     type="date"
                     required
                     value={formTache.date_echeance}
                     onChange={(e) => setFormTache((p) => ({ ...p, date_echeance: e.target.value }))}
-                    className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground focus:ring-1 focus:ring-ring"
+                    className="h-11"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Responsable *</label>
-                  <select
-                    required
-                    value={formTache.id_responsable}
-                    onChange={(e) => setFormTache((p) => ({ ...p, id_responsable: e.target.value }))}
-                    className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground focus:ring-1 focus:ring-ring disabled:opacity-60"
+                  <Select
+                    value={formTache.id_responsable || undefined}
+                    onValueChange={(value) => setFormTache((p) => ({ ...p, id_responsable: value }))}
                     disabled={responsablesPossibles.length === 0}
                   >
-                    <option value="">
-                      {responsablesPossibles.length > 0 ? 'Sélectionner un responsable...' : 'Aucun agent disponible dans cette agence'}
-                    </option>
-                    {responsablesPossibles.map((agent: any) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.prenom} {agent.nom} — {agent.role}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-11 w-full">
+                      <SelectValue
+                        placeholder={
+                          responsablesPossibles.length > 0
+                            ? 'Sélectionner un responsable...'
+                            : 'Aucun agent disponible dans cette agence'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {responsablesPossibles.map((agent: any) => (
+                        <SelectItem key={agent.id} value={String(agent.id)}>
+                          {agent.prenom} {agent.nom} — {agent.role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="outline" className="flex-1" onClick={() => setModal({ alerteId: null, idAgence: null })}>

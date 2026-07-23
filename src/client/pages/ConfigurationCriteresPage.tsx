@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { MotionCard } from '../components/MotionCard';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
+import { Checkbox } from '../components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { useToast } from '../hooks/use-toast';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -336,30 +338,33 @@ export const ConfigurationCriteresPage = () => {
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleDuplicateCritere(critere)}
                         disabled={duplicatingCritereId === critere.id}
-                        className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
                         aria-label={`Dupliquer « ${critere.libelle_critere} »`}
                         title="Dupliquer ce critère"
                       >
                         <Copy className="size-4" />
-                      </button>
+                      </Button>
                       {/* Seuls les critères propres à l'entreprise (id_entreprise non nul)
                           sont supprimables ; les critères socle communs à toutes les
                           entreprises ne le sont jamais (voir deleteCritere côté serveur). */}
                       {critere.id_entreprise !== null && (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleDeleteCritere(critere)}
                           disabled={deletingCritereId === critere.id}
-                          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                          className="hover:bg-destructive/10 hover:text-destructive"
                           aria-label={`Supprimer « ${critere.libelle_critere} »`}
                           title="Supprimer ce critère"
                         >
                           <Trash2 className="size-4" />
-                        </button>
+                        </Button>
                       )}
                       <Switch
                         checked={isActive}
@@ -385,41 +390,40 @@ export const ConfigurationCriteresPage = () => {
               <form onSubmit={handleCreateCustom} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">Votre question / Critère</label>
-                  <input
+                  <Input
                     type="text"
                     required
                     value={nouveauLibelle}
                     onChange={(e) => setNomLibelle(e.target.value)}
                     placeholder="Ex: Comment évaluez-vous la propreté ?"
-                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">Description (optionnel)</label>
-                  <input
+                  <Input
                     type="text"
                     value={nouvelleDesc}
                     onChange={(e) => setNouvelleDesc(e.target.value)}
                     placeholder="S'affichera sous la question"
-                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">Type de réponse</label>
-                  <select
-                    value={typeReponse}
-                    onChange={(e) => setTypeReponse(e.target.value)}
-                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
-                  >
-                    <option value="SMILEY">⭐ Note / Smileys (1 à 5)</option>
-                    <option value="OUI_NON">👍 Oui / Non</option>
-                    <option value="QCM">📝 Choix unique (QCM)</option>
-                    <option value="CASES">☑️ Choix multiples (cases à cocher)</option>
-                    <option value="ECHELLE">🔢 Échelle linéaire (ex. note sur 10)</option>
-                    <option value="TEXTE">✍️ Texte libre / Suggestion</option>
-                  </select>
+                  <Select value={typeReponse} onValueChange={setTypeReponse}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SMILEY">⭐ Note / Smileys (1 à 5)</SelectItem>
+                      <SelectItem value="OUI_NON">👍 Oui / Non</SelectItem>
+                      <SelectItem value="QCM">📝 Choix unique (QCM)</SelectItem>
+                      <SelectItem value="CASES">☑️ Choix multiples (cases à cocher)</SelectItem>
+                      <SelectItem value="ECHELLE">🔢 Échelle linéaire (ex. note sur 10)</SelectItem>
+                      <SelectItem value="TEXTE">✍️ Texte libre / Suggestion</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {(typeReponse === 'QCM' || typeReponse === 'CASES') && (
@@ -430,13 +434,12 @@ export const ConfigurationCriteresPage = () => {
                     <label className="block text-xs font-semibold text-foreground uppercase mb-1">
                       {typeReponse === 'CASES' ? 'Cases proposées (séparées par des virgules)' : 'Choix possibles (séparés par des virgules)'}
                     </label>
-                    <input
+                    <Input
                       type="text"
                       required
                       value={optionsReponse}
                       onChange={(e) => setOptionsReponse(e.target.value)}
                       placeholder="Ex: Trop d'attente, Personnel absent, Autre"
-                      className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
                     />
                     <p className="text-[11px] text-muted-foreground mt-1">
                       {typeReponse === 'CASES'
@@ -454,33 +457,29 @@ export const ConfigurationCriteresPage = () => {
                   >
                     <div className="flex-1">
                       <label className="block text-xs font-semibold text-foreground uppercase mb-1">Minimum</label>
-                      <input
+                      <Input
                         type="number"
                         required
                         value={echelleMin}
                         onChange={(e) => setEchelleMin(e.target.value)}
-                        className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
                       />
                     </div>
                     <div className="flex-1">
                       <label className="block text-xs font-semibold text-foreground uppercase mb-1">Maximum</label>
-                      <input
+                      <Input
                         type="number"
                         required
                         value={echelleMax}
                         onChange={(e) => setEchelleMax(e.target.value)}
-                        className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-foreground focus:ring-1 focus:ring-ring"
                       />
                     </div>
                   </motion.div>
                 )}
 
                 <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={obligatoire}
-                    onChange={(e) => setObligatoire(e.target.checked)}
-                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                    onCheckedChange={(checked) => setObligatoire(checked === true)}
                   />
                   Question obligatoire
                   <span className="text-[11px] text-muted-foreground font-normal">
@@ -497,37 +496,31 @@ export const ConfigurationCriteresPage = () => {
                     disponible dans le vivier « Non assignées » et fait partie des critères par défaut.
                   </p>
                   <div className="space-y-2 rounded-md border border-input p-3 bg-background/50">
-                    <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                      <input
-                        type="radio"
-                        name="operation-critere"
-                        checked={selectedServiceIds.length === 0}
-                        onChange={() => setSelectedServiceIds([])}
-                        className="border-input text-primary focus:ring-primary h-4 w-4"
-                      />
-                      Non assignée
-                    </label>
-                    {services?.map((s: any) => (
-                      <label key={s.id} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                        <input
-                          type="radio"
-                          name="operation-critere"
-                          checked={selectedServiceIds[0] === s.id}
-                          onChange={() => setSelectedServiceIds([s.id])}
-                          className="border-input text-primary focus:ring-primary h-4 w-4"
-                        />
-                        {s.libelle_service}
+                    <RadioGroup
+                      value={selectedServiceIds.length === 0 ? 'NONE' : String(selectedServiceIds[0])}
+                      onValueChange={(v) => setSelectedServiceIds(v === 'NONE' ? [] : [Number(v)])}
+                      className="space-y-2"
+                    >
+                      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                        <RadioGroupItem value="NONE" />
+                        Non assignée
                       </label>
-                    ))}
+                      {services?.map((s: any) => (
+                        <label key={s.id} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                          <RadioGroupItem value={String(s.id)} />
+                          {s.libelle_service}
+                        </label>
+                      ))}
+                    </RadioGroup>
                     {(!services || services.length === 0) && (
                       <p className="text-xs text-muted-foreground">Aucune opération créée pour le moment.</p>
                     )}
                     <div className="flex gap-2 pt-1">
-                      <input
+                      <Input
                         value={newServiceName}
                         onChange={(e) => setNewServiceName(e.target.value)}
                         placeholder="Nouvelle opération"
-                        className="flex-1 px-2 py-1.5 border border-input bg-background rounded-md text-xs text-foreground focus:ring-1 focus:ring-ring"
+                        className="h-8 flex-1 text-xs"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();

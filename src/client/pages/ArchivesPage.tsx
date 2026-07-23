@@ -24,6 +24,7 @@ import { MotionCard } from '../components/MotionCard';
 import { EmptyState } from '../components/EmptyState';
 import { RequireAuth } from '../components/RequireAuth';
 import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/use-toast';
 
 type Onglet = 'guichets' | 'agences' | 'alertes' | 'taches';
@@ -104,14 +105,12 @@ function ArchivesContent() {
       {/* Onglets */}
       <div className="mb-6 flex flex-wrap gap-2 border-b border-border/70 pb-3">
         {ONGLETS.map((o) => (
-          <button
+          <Button
             key={o.key}
+            type="button"
+            variant={onglet === o.key ? 'default' : 'ghost'}
             onClick={() => setOnglet(o.key)}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-              onglet === o.key
-                ? 'bg-primary text-primary-foreground shadow-premium'
-                : 'text-muted-foreground hover:bg-muted'
-            }`}
+            className={onglet === o.key ? 'rounded-full shadow-premium' : 'rounded-full text-muted-foreground'}
           >
             {o.icon}
             {o.label}
@@ -122,7 +121,7 @@ function ArchivesContent() {
             >
               {compteurs[o.key]}
             </span>
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -269,14 +268,17 @@ function ListeArchive<T>({
                 <span>Archivé le {formatDate(date)}</span>
               </div>
             </div>
-            <button
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={onRestaurer}
               disabled={busy}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+              className="shrink-0"
             >
               <RotateCcw className="size-3.5" />
               {busy ? 'Restauration...' : 'Désarchiver'}
-            </button>
+            </Button>
           </MotionCard>
         );
       })}

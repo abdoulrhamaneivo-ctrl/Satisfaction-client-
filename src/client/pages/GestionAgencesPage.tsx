@@ -227,14 +227,16 @@ export const GestionAgencesPage = () => {
                             </p>
                           </div>
                         </div>
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="icon"
                           onClick={() => setAgenceAArchiver({ id: agence.id, nom: agence.nom_agence })}
-                          className="flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border/70 p-2.5 text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+                          className="shrink-0 border-dashed hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
                           title="Fermer définitivement cette agence (archivage, aucune perte de données)"
                         >
                           <Archive className="size-4" />
-                        </button>
+                        </Button>
                       </div>
                     </motion.div>
                   ))}

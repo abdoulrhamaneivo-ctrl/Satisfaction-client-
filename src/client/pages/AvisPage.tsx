@@ -14,6 +14,13 @@ import { EmptyState } from '../components/EmptyState';
 import { RequireAuth } from '../components/RequireAuth';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { exportToCSV, formaterAvisPourCSV } from '../utils/exportData';
 import { useToast } from '../hooks/use-toast';
 
@@ -190,12 +197,15 @@ export const AvisPage = () => {
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Filter size={16} /> Filtres de recherche
               </h2>
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={handleResetFilters}
-                className="text-xs font-semibold text-muted-foreground hover:text-primary transition-all flex items-center gap-1"
+                className="text-xs text-muted-foreground hover:text-primary"
               >
                 <RotateCcw size={12} /> Réinitialiser
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -205,19 +215,23 @@ export const AvisPage = () => {
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                     <Building size={12} /> Agence
                   </label>
-                  <select
-                    value={selectedAgenceId || ''}
-                    onChange={(e) => {
-                      setSelectedAgenceId(e.target.value ? Number(e.target.value) : undefined);
+                  <Select
+                    value={selectedAgenceId ? String(selectedAgenceId) : 'ALL'}
+                    onValueChange={(v) => {
+                      setSelectedAgenceId(v !== 'ALL' ? Number(v) : undefined);
                       setSelectedGuichetId(undefined);
                     }}
-                    className="w-full h-11 px-3 border border-border/80 bg-background rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground font-semibold"
                   >
-                    <option value="">Toutes les agences</option>
-                    {agences?.map((a: any) => (
-                      <option key={a.id} value={a.id}>{a.nom_agence} ({a.commune})</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-11 w-full font-semibold">
+                      <SelectValue placeholder="Toutes les agences" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Toutes les agences</SelectItem>
+                      {agences?.map((a: any) => (
+                        <SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
@@ -226,17 +240,21 @@ export const AvisPage = () => {
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Store size={12} /> Guichet / Caisse
                 </label>
-                <select
-                  value={selectedGuichetId || ''}
-                  onChange={(e) => setSelectedGuichetId(e.target.value ? Number(e.target.value) : undefined)}
+                <Select
+                  value={selectedGuichetId ? String(selectedGuichetId) : 'ALL'}
+                  onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)}
                   disabled={isDirection && !selectedAgenceId}
-                  className="w-full h-11 px-3 border border-border/80 bg-background rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground font-semibold disabled:opacity-60"
                 >
-                  <option value="">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</option>
-                  {guichets?.map((g: any) => (
-                    <option key={g.id} value={g.id}>{g.nom_guichet} ({g.type_guichet})</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-11 w-full font-semibold">
+                    <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</SelectItem>
+                    {guichets?.map((g: any) => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet} ({g.type_guichet})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Service Filter */}
@@ -244,16 +262,20 @@ export const AvisPage = () => {
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Layers size={12} /> Opération / Service
                 </label>
-                <select
-                  value={selectedServiceId || ''}
-                  onChange={(e) => setSelectedServiceId(e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full h-11 px-3 border border-border/80 bg-background rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground font-semibold"
+                <Select
+                  value={selectedServiceId ? String(selectedServiceId) : 'ALL'}
+                  onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}
                 >
-                  <option value="">Toutes les opérations</option>
-                  {services?.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.libelle_service}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-11 w-full font-semibold">
+                    <SelectValue placeholder="Toutes les opérations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Toutes les opérations</SelectItem>
+                    {services?.map((s: any) => (
+                      <SelectItem key={s.id} value={String(s.id)}>{s.libelle_service}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Score Filter */}
@@ -261,18 +283,22 @@ export const AvisPage = () => {
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <HelpCircle size={12} /> Évaluation (Note)
                 </label>
-                <select
-                  value={selectedScore || ''}
-                  onChange={(e) => setSelectedScore(e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full h-11 px-3 border border-border/80 bg-background rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground font-semibold"
+                <Select
+                  value={selectedScore ? String(selectedScore) : 'ALL'}
+                  onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}
                 >
-                  <option value="">Tous les scores</option>
-                  <option value="5">🤩 Très satisfait (5/5)</option>
-                  <option value="4">🙂 Satisfait (4/5)</option>
-                  <option value="3">😐 Neutre (3/5)</option>
-                  <option value="2">😟 Mécontent (2/5)</option>
-                  <option value="1">😡 Très mécontent (1/5)</option>
-                </select>
+                  <SelectTrigger className="h-11 w-full font-semibold">
+                    <SelectValue placeholder="Tous les scores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Tous les scores</SelectItem>
+                    <SelectItem value="5">🤩 Très satisfait (5/5)</SelectItem>
+                    <SelectItem value="4">🙂 Satisfait (4/5)</SelectItem>
+                    <SelectItem value="3">😐 Neutre (3/5)</SelectItem>
+                    <SelectItem value="2">😟 Mécontent (2/5)</SelectItem>
+                    <SelectItem value="1">😡 Très mécontent (1/5)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Start Date Filter */}

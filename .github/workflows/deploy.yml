@@ -37,4 +37,4 @@ jobs:
           # Le token reste ici, pas au niveau du job : c'est le seul
           # secret parmi ces variables, il ne doit pas traîner dans les
           # logs des étapes qui n'en ont pas besoin (checkout, install...).
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }} 

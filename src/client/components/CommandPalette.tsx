@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
 import { cn } from '../utils';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 // Actions de navigation statiques — même liste que la barre de navigation
 // (voir NavBar/constants.ts), reformatée pour la recherche : un seul niveau
@@ -221,13 +223,13 @@ export function CommandPalette() {
       <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl">
         <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3">
           <Search className="size-4 shrink-0 text-muted-foreground" />
-          <input
+          <Input
             ref={inputRef}
             value={requete}
             onChange={(e) => setRequete(e.target.value)}
             onKeyDown={onKeyDownListe}
             placeholder="Rechercher une page, une agence, un guichet, un agent, un avis…"
-            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="h-auto w-full border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
           />
           {chargement && rechercheActive && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />}
           <kbd className="hidden shrink-0 rounded border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground sm:block">
@@ -252,13 +254,14 @@ export function CommandPalette() {
                 const actif = compteurGlobal === indexActif;
                 const Icon = item.icon;
                 return (
-                  <button
+                  <Button
                     key={item.id}
                     type="button"
+                    variant="ghost"
                     onMouseEnter={() => setIndexActif(compteurGlobal)}
                     onClick={() => selectionner(item)}
                     className={cn(
-                      'flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors',
+                      'h-auto w-full justify-start gap-3 rounded-none px-4 py-2.5 text-left text-sm font-normal',
                       actif ? 'bg-primary/10 text-foreground' : 'text-foreground hover:bg-muted/60'
                     )}
                   >
@@ -268,7 +271,7 @@ export function CommandPalette() {
                       <span className="shrink-0 truncate text-xs text-muted-foreground">{item.sublabel}</span>
                     )}
                     {actif && <CornerDownLeft className="size-3.5 shrink-0 text-muted-foreground" />}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -284,16 +287,17 @@ export function CommandPalette() {
 export function CommandPaletteTrigger() {
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform ?? navigator.userAgent);
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       onClick={() => window.dispatchEvent(new Event('yeba:open-command-palette'))}
-      className="flex items-center gap-2 rounded-full border border-border/70 bg-card-subtle/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60"
+      className="h-auto gap-2 rounded-full border-border/70 bg-card-subtle/60 px-3 py-1.5 text-xs font-normal text-muted-foreground hover:bg-muted/60"
     >
       <Search className="size-3.5" />
       <span className="hidden sm:inline">Rechercher…</span>
       <kbd className="hidden rounded border border-border/70 bg-card px-1 py-0.5 text-[10px] sm:inline">
         {isMac ? '⌘K' : 'Ctrl K'}
       </kbd>
-    </button>
+    </Button>
   );
 }
