@@ -93,48 +93,30 @@ export function NavBar({
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 transition-all duration-300",
-          isScrolled && "xl:mx-30 top-4 mx-4 lg:mx-10",
+          "sticky top-0 z-50 border-b border-border bg-card",
         )}
       >
         <div
-          className={cn("transition-all duration-300", {
-            "bg-background/90 border-border mx-4 rounded-full border pr-2 shadow-lg backdrop-blur-lg md:mx-20 lg:pr-0":
-              isScrolled,
-            "bg-background/80 border-border mx-0 border-b backdrop-blur-lg":
-              !isScrolled,
-          })}
+          className="mx-auto max-w-[1440px]"
         >
           <nav
             className={cn(
-              "flex items-center justify-between transition-all duration-300",
-              {
-                "p-3 px-4 lg:p-4 lg:px-5": isScrolled,
-                "p-6 lg:px-8": !isScrolled,
-              },
+              "flex h-16 items-center justify-between px-4 lg:px-8",
             )}
             aria-label="Global"
           >
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-7">
               <WaspRouterLink
                 to={routes.LandingPageRoute.to}
-                className="text-foreground hover:text-primary flex items-center transition-colors duration-300 ease-in-out"
+                className="flex items-center text-foreground transition-colors hover:text-primary"
               >
                 <NavLogo isScrolled={isScrolled} />
-                <span
-                  className={cn(
-                    "text-foreground font-semibold leading-6 transition-all duration-300",
-                    {
-                      "ml-2 text-sm": !isScrolled,
-                      "ml-2 text-xs": isScrolled,
-                    },
-                  )}
-                >
+                <span className="ml-2 text-sm font-semibold leading-6 text-foreground">
                   {brandConfig?.platform_name || "Yeba"}
                 </span>
               </WaspRouterLink>
 
-              <ul className="ml-4 hidden items-center gap-6 lg:flex">
+              <ul className="ml-5 hidden items-center gap-1 lg:flex">
                 {renderNavigationItems(visibleNavigationItems, undefined, location.pathname)}
               </ul>
             </div>
@@ -331,7 +313,7 @@ function renderNavigationItems(
   const menuStyles = cn({
     "block rounded-lg px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors":
       !!setMobileMenuOpen,
-    "text-sm font-normal leading-6 text-foreground duration-300 ease-in-out hover:text-primary transition-colors":
+    "rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground":
       !setMobileMenuOpen,
   });
 
@@ -342,7 +324,7 @@ function renderNavigationItems(
     const activeStyles = isActive
       ? setMobileMenuOpen
         ? 'bg-primary/10 text-primary'
-        : 'font-semibold text-primary'
+        : 'bg-primary/10 font-semibold text-primary'
       : '';
     if (item.children && item.children.length > 0) {
       // Mobile : sous-menu repliable, pour ne pas empiler tous les liens
@@ -422,10 +404,7 @@ function renderNavigationItems(
 function NavLogo({ isScrolled }: { isScrolled: boolean }) {
   return (
     <BrandLogo 
-      className={cn("transition-all duration-500", {
-        "size-8": !isScrolled,
-        "size-7": isScrolled,
-      })} 
+      className="size-8"
     />
   );
 }

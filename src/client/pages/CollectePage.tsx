@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, getFormDefinitionForGuichet, soumettreAvis } from 'wasp/client/operations';
@@ -33,6 +33,9 @@ export const CollectePage = () => {
   const [telephone, setTelephone] = useState('');
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Conservé pendant une tentative : un double clic ou une relance réseau
+  // représente la même soumission côté serveur, jamais deux avis.
+  const soumissionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setTexteReponseCourante('');
@@ -136,6 +139,7 @@ export const CollectePage = () => {
 
   const finalSubmit = async () => {
     if (envoiEnCours) return;
+    if (!soumissionIdRef.current) soumissionIdRef.current = crypto.randomUUID();
     setEnvoiEnCours(true);
     setErreur(null);
 
@@ -152,7 +156,8 @@ export const CollectePage = () => {
         commentaire: commentaire.trim(),
         telephone: telephone.trim() ? normaliserTelephone(telephone) : undefined,
         serviceId: selectedService?.id || undefined,
-        responses: reponsesRenseignees
+        responses: reponsesRenseignees,
+        id_soumission: soumissionIdRef.current,
       });
 
       // Calculate worst score to trigger confetti — on exclut les réponses
@@ -176,8 +181,18 @@ export const CollectePage = () => {
 
       setStep('SUCCESS');
     } catch (err: any) {
-      console.error('Erreur lors de la soumission de l\'avis:', err);
-      setErreur(err?.message || "Une erreur est survenue lors de la soumission de votre avis. Veuillez réessayer.");
+      // En production, ne jamais exposer l'URL ou le détail HTTP du serveur
+      // au client. Les détails restent disponibles côté Railway grâce au log
+      // [SOUMETTRE_AVIS] ajouté dans l'action serveur.
+      if (import.meta.env.DEV) {
+        console.error("Erreur lors de la soumission de l'avis:", err);
+      }
+      const message = String(err?.message ?? '');
+      setErreur(
+        message.includes('status code 500') || message.includes('Request failed')
+          ? "Nous ne pouvons pas enregistrer votre avis pour le moment. Veuillez réessayer dans quelques instants."
+          : message || "Une erreur est survenue lors de la soumission de votre avis. Veuillez réessayer."
+      );
     } finally {
       setEnvoiEnCours(false);
     }

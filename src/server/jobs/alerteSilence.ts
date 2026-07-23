@@ -44,9 +44,12 @@ const formatDuree = (depuis: Date, maintenant: Date): string => {
  */
 export const detecterAlertesSilence = async (_args: unknown, context: any) => {
   const maintenant = new Date();
-  const heureNow = maintenant.toTimeString().slice(0, 5); // "HH:MM"
-  const today = maintenant.toISOString().split('T')[0]; // "YYYY-MM-DD"
-  const il_y_a_2h = new Date(maintenant.getTime() - 2 * 60 * 60 * 1000);
+  // La Côte d'Ivoire est en UTC toute l'année : on s'appuie explicitement
+  // sur UTC afin que l'horaire du serveur ne déclenche jamais une alerte hors
+  // des heures ouvrées de l'agence.
+  const heureNow = maintenant.toISOString().slice(11, 16); // "HH:MM"
+  const today = maintenant.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const jourOuvreActuel = maintenant.getUTCDay(); // 0 dimanche, 1 lundi…
 
   // 1. Récupérer tous les guichets planifiés aujourd'hui et actuellement en service
   const affectationsActives = await prisma.affectationGuichet.findMany({
@@ -68,6 +71,9 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
           },
           agence: {
             include: {
+              // Les alertes de silence ne sont pertinentes que pendant les
+              // jours et horaires réellement déclarés pour cette agence.
+              // (jours_ouvres utilise le même format 1,2,3… que le modèle.)
               utilisateurs: {
                 where: { role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
               },
@@ -93,10 +99,30 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
 
   for (const affectation of affectationsActives) {
     const guichet = affectation.guichet;
+    const joursOuverts = (guichet.agence.jours_ouvres || '')
+      .split(',')
+      .map((jour: string) => Number(jour.trim()))
+      .filter(Number.isInteger);
+    if (!joursOuverts.includes(jourOuvreActuel)) continue;
+    if (heureNow < guichet.agence.heure_ouverture || heureNow > guichet.agence.heure_fermeture) continue;
+
+    const [heureOuverture, minuteOuverture] = guichet.agence.heure_ouverture.split(':').map(Number);
+    const [heureAffectation, minuteAffectation] = affectation.heure_debut.split(':').map(Number);
+    const debutJour = new Date(`${today}T00:00:00.000Z`);
+    const debutSurveillance = new Date(Math.max(
+      debutJour.getTime() + ((heureOuverture * 60 + minuteOuverture) * 60_000),
+      debutJour.getTime() + ((heureAffectation * 60 + minuteAffectation) * 60_000),
+    ));
+    // On laisse deux heures complètes au dispositif après son ouverture (ou
+    // le début de l'affectation) avant de signaler une absence d'avis.
+    if (maintenant.getTime() - debutSurveillance.getTime() < 2 * 60 * 60 * 1000) continue;
+
     const dernierAvis = guichet.reponses[0]?.date_reponse ?? null;
 
-    // Silence = pas d'avis du tout, OU dernier avis vieux de plus de 2h.
-    if (dernierAvis && dernierAvis >= il_y_a_2h) continue;
+    // Un avis antérieur à l'ouverture ne compte pas pour la journée de
+    // travail courante : seule l'activité depuis le début de surveillance
+    // permet de lever l'alerte.
+    if (dernierAvis && dernierAvis >= debutSurveillance) continue;
 
     // Dédoublonnage : pas plus d'une alerte créée par heure pour un même
     // guichet (le cron tourne toutes les 30 min).
@@ -115,7 +141,7 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
     const destinataire = chefAgence || guichet.agence.utilisateurs[0];
     if (!destinataire) continue;
 
-    const duree = dernierAvis ? formatDuree(dernierAvis, maintenant) : "aujourd'hui";
+    const duree = formatDuree(debutSurveillance, maintenant);
 
     // Historique des alertes NOUVELLE (non traitées) sur ce guichet dans les
     // dernières 24h, pour savoir si on doit escalader vers la direction.
@@ -131,9 +157,7 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
 
     await prisma.alerte.create({
       data: {
-        message: dernierAvis
-          ? `⚠️ Silence détecté : aucun avis reçu au guichet "${guichet.nom_guichet}" depuis ${duree}. Vérifiez si le dispositif est opérationnel.`
-          : `⚠️ Silence détecté : le guichet "${guichet.nom_guichet}" n'a reçu aucun avis aujourd'hui alors qu'un agent y est affecté.`,
+        message: `⚠️ Silence détecté : aucun avis reçu au guichet "${guichet.nom_guichet}" depuis ${duree} pendant ses heures de service. Vérifiez si le dispositif est opérationnel.`,
         type_alerte: 'SILENCE_EVALUATION',
         statut_alerte: 'NOUVELLE',
         id_guichet_concerne: guichet.id,

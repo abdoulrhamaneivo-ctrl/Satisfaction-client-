@@ -80,7 +80,7 @@ export const AdminPersonnelPage = () => {
   // quinzaine d'agents — sans ça, retrouver un agent précis = scroller une
   // grille de cartes à l'œil.
   const [recherche, setRecherche] = useState('');
-  const [filtreStatut, setFiltreStatut] = useState<'TOUS' | 'ACTIFS' | 'SUSPENDUS'>('TOUS');
+  const [filtreStatut, setFiltreStatut] = useState<'TOUS' | 'ACTIFS' | 'SUSPENDUS'>('ACTIFS');
   const formCardRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     nom: '',
@@ -89,13 +89,16 @@ export const AdminPersonnelPage = () => {
     telephone: '',
     role: 'AGENT',
   });
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  // Bloque aussi deux clics qui surviendraient avant le prochain rendu React.
+  const creationEnCoursRef = useRef(false);
+  const [creationEnCours, setCreationEnCours] = useState(false);
   // Agent en attente de confirmation de suspension (audit UX 2.1 : cette
   // action désactivait l'accès du compte au premier clic, sans aucune
   // confirmation, alors qu'elle est placée juste à côté du bouton "réactiver").
   const [agentAConfirmerSuppression, setAgentAConfirmerSuppression] = useState<
-    { id: number; nom: string; prenom: string } | null
+    { id: string; nom: string; prenom: string } | null
   >(null);
 
   // Règle métier : la direction constitue l'encadrement de tout le réseau
@@ -131,10 +134,13 @@ export const AdminPersonnelPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (creationEnCoursRef.current) return;
     if (!selectedAgenceId) {
       toast({ variant: 'destructive', title: 'Agence requise', description: "Sélectionnez d'abord une agence." });
       return;
     }
+    creationEnCoursRef.current = true;
+    setCreationEnCours(true);
     try {
       if (editingId) {
         await updateAgent({ id: editingId, ...formData, id_agence: selectedAgenceId });
@@ -168,6 +174,9 @@ export const AdminPersonnelPage = () => {
         title: "Erreur",
         description: error?.message || "Une erreur est survenue lors de l'enregistrement de l'agent.",
       });
+    } finally {
+      creationEnCoursRef.current = false;
+      setCreationEnCours(false);
     }
   };
 
@@ -191,7 +200,7 @@ export const AdminPersonnelPage = () => {
     setFormData({ nom: '', prenom: '', email: '', telephone: '', role: 'AGENT' });
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       await deleteAgent({ id });
       toast({ title: 'Agent suspendu', description: "Le compte a été désactivé et ne peut plus se connecter. Il peut être réactivé à tout moment." });
@@ -204,7 +213,7 @@ export const AdminPersonnelPage = () => {
     }
   };
 
-  const handleReactivate = async (id: number) => {
+  const handleReactivate = async (id: string) => {
     try {
       await reactivateAgent({ id });
       toast({ title: 'Agent réactivé', description: 'Le compte peut à nouveau se connecter.' });
@@ -373,8 +382,10 @@ export const AdminPersonnelPage = () => {
                       Annuler
                     </Button>
                   )}
-                  <Button type="submit" className="flex-1 rounded-xl font-bold">
-                    {editingId
+                  <Button type="submit" disabled={creationEnCours} className="flex-1 rounded-xl font-bold">
+                    {creationEnCours
+                      ? 'Enregistrement…'
+                      : editingId
                       ? 'Enregistrer'
                       : formData.role === 'CHEF_AGENCE'
                       ? 'Inviter le Chef d’Agence'
@@ -401,9 +412,9 @@ export const AdminPersonnelPage = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TOUS">Tous les statuts</SelectItem>
-                    <SelectItem value="ACTIFS">Actifs uniquement</SelectItem>
-                    <SelectItem value="SUSPENDUS">Suspendus uniquement</SelectItem>
+                    <SelectItem value="ACTIFS">Équipe active</SelectItem>
+                    <SelectItem value="SUSPENDUS">Comptes suspendus</SelectItem>
+                    <SelectItem value="TOUS">Tous les comptes</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

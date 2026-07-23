@@ -5,7 +5,6 @@ import { Toaster } from "../client/components/ui/toaster";
 import "./Main.css";
 import { NavBar } from "./components/NavBar/NavBar";
 import { demoNavigationitems } from "./components/NavBar/constants";
-import { AnimatePresence, motion } from "framer-motion";
 import { BrandProvider } from "./context/BrandContext";
 import { CommandPalette } from "./components/CommandPalette";
 
@@ -81,22 +80,7 @@ export function App() {
 
   return (
     <BrandProvider>
-      {/* Bug corrigé : le <motion.div> n'avait pas de `key` liée à la route,
-          donc AnimatePresence ne détectait jamais un changement de page —
-          combiné à mode="wait" (qui attend la fin de la sortie AVANT de
-          démarrer l'entrée) et une durée de 0.3s de chaque côté, certaines
-          navigations pouvaient sembler figées/lentes. On ajoute la clé,
-          on raccourcit la transition et on retire "wait" pour un fondu
-          croisé quasi instantané, beaucoup plus fluide au clic. */}
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-        >
-          <div className="bg-background text-foreground min-h-screen">
+      <div className="min-h-screen bg-background text-foreground">
             {isAdminDashboard ? (
               <Outlet />
             ) : (
@@ -120,9 +104,7 @@ export function App() {
                 </main>
               </>
             )}
-          </div>
-        </motion.div>
-      </AnimatePresence>
+      </div>
       <Toaster position="bottom-right" />
     </BrandProvider>
   );

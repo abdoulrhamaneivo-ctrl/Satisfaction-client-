@@ -309,8 +309,9 @@ export const deleteAffectationGuichet = async (args: any, context: any) => {
 // COLLECTE D'AVIS (avec anti-rejeu + notifications)
 // ============================================================================
 
-export const soumettreAvis = async (args: any, context: any) => {
+const soumettreAvisImpl = async (args: any, context: any) => {
   const { guichetId, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
+  let hachageTelephone: string | null = null;
 
   if (!guichetId) {
     throw new HttpError(400, "Identifiant du guichet requis.");
@@ -318,7 +319,7 @@ export const soumettreAvis = async (args: any, context: any) => {
 
   // --- ANTI-REJEU : hachage SHA-256 du numéro de téléphone ---
   if (telephone) {
-    const hachage = crypto
+    hachageTelephone = crypto
       .createHash('sha256')
       .update(TELEPHONE_SALT + telephone.replace(/\s+/g, ''))
       .digest('hex');
@@ -326,7 +327,7 @@ export const soumettreAvis = async (args: any, context: any) => {
     const hier = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const existant = await context.entities.VoteAntiRejeu.findFirst({
       where: {
-        hachage_tel: hachage,
+        hachage_tel: hachageTelephone,
         date_vote: { gte: hier },
       },
     });
@@ -335,19 +336,6 @@ export const soumettreAvis = async (args: any, context: any) => {
       throw new HttpError(429, "Vous avez déjà soumis un avis depuis ce numéro ces dernières 24h.");
     }
 
-    // Enregistrement du hachage (upsert : si une entrée existe déjà pour ce
-    // numéro, hors de la fenêtre de 24h, on rafraîchit sa date au lieu de
-    // planter sur la contrainte unique de hachage_tel).
-    await context.entities.VoteAntiRejeu.upsert({
-      where: { hachage_tel: hachage },
-      update: { date_vote: new Date() },
-      create: { hachage_tel: hachage },
-    });
-
-    // Nettoyage des hachages > 24h (purge légère)
-    await context.entities.VoteAntiRejeu.deleteMany({
-      where: { date_vote: { lt: hier } },
-    });
   }
   // -----------------------------------------------------------
 
@@ -393,6 +381,17 @@ export const soumettreAvis = async (args: any, context: any) => {
   });
 
   const submissionId = args.id_soumission || crypto.randomUUID();
+
+  // Une reprise réseau ne doit pas transformer une même soumission en deux
+  // avis. Le client conserve cet identifiant pendant son envoi ; si la
+  // réponse a déjà été enregistrée, l'action est idempotente.
+  if (args.id_soumission) {
+    const soumissionExistante = await context.entities.Reponse.findFirst({
+      where: { id_soumission: submissionId },
+      orderBy: { date_reponse: 'asc' },
+    });
+    if (soumissionExistante) return soumissionExistante;
+  }
 
   // Normalize responses list
   let itemsToInsert: Array<{ critereId: number; score: number; texte?: string }> = [];
@@ -483,6 +482,19 @@ export const soumettreAvis = async (args: any, context: any) => {
     if (!Number.isInteger(item.score) || item.score < min || item.score > max) {
       throw new HttpError(400, `Le score doit être un entier compris entre ${min} et ${max}.`);
     }
+  }
+
+  // Le téléphone n'est réservé qu'après la validation complète du formulaire.
+  // Une erreur de configuration ne bloque donc plus le client pendant 24 h.
+  if (hachageTelephone) {
+    await context.entities.VoteAntiRejeu.upsert({
+      where: { hachage_tel: hachageTelephone },
+      update: { date_vote: new Date() },
+      create: { hachage_tel: hachageTelephone },
+    });
+    await context.entities.VoteAntiRejeu.deleteMany({
+      where: { date_vote: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+    });
   }
 
   // Score normalisé sur 5 : sert uniquement à détecter les avis critiques
@@ -591,6 +603,31 @@ export const soumettreAvis = async (args: any, context: any) => {
   return createdReponses[0];
 };
 
+/**
+ * La collecte est une route publique : aucune exception technique ne doit y
+ * parvenir telle quelle. Les erreurs métier gardent leur code (400, 404,
+ * 429) ; les erreurs imprévues restent tracées dans Railway avec leur cause,
+ * mais le client reçoit une réponse exploitable et sans URL interne.
+ */
+export const soumettreAvis = async (args: any, context: any) => {
+  try {
+    return await soumettreAvisImpl(args, context);
+  } catch (error: any) {
+    if (error instanceof HttpError) throw error;
+
+    console.error('[SOUMETTRE_AVIS] Échec inattendu', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+      guichetId: args?.guichetId,
+    });
+    throw new HttpError(
+      500,
+      "Nous ne pouvons pas enregistrer votre avis pour le moment. Veuillez réessayer dans quelques instants."
+    );
+  }
+};
+
 // ============================================================================
 // GESTION DU PERSONNEL
 // ============================================================================
@@ -606,7 +643,7 @@ export const soumettreAvis = async (args: any, context: any) => {
 // email — voir plus bas.
 
 export const updateAgent = async (
-  args: { id: number; nom?: string; prenom?: string; email?: string; telephone?: string; id_agence?: number },
+  args: { id: string; nom?: string; prenom?: string; email?: string; telephone?: string; id_agence?: number },
   context: any
 ) => {
   requireAuth(context);
@@ -638,7 +675,7 @@ export const updateAgent = async (
   });
 };
 
-export const deleteAgent = async (args: { id: number }, context: any) => {
+export const deleteAgent = async (args: { id: string }, context: any) => {
   requireAuth(context);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
@@ -657,7 +694,7 @@ export const deleteAgent = async (args: { id: number }, context: any) => {
   });
 };
 
-export const reactivateAgent = async (args: { id: number }, context: any) => {
+export const reactivateAgent = async (args: { id: string }, context: any) => {
   requireAuth(context);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
@@ -841,6 +878,28 @@ export const inviteAgent = async (
   if (!targetAgence) throw new HttpError(404, 'Agence introuvable.');
 
   const normalizedEmail = args.email?.trim() ? args.email.trim() : null;
+
+  // La protection du bouton côté interface évite le double-clic courant ; ce
+  // contrôle côté serveur couvre aussi les appels répétés ou les réseaux lents.
+  // Un compte avec e-mail est identifié de façon fiable par son e-mail. Pour
+  // les agents de terrain sans e-mail, on refuse une fiche active strictement
+  // identique dans la même agence (nom, prénom et téléphone normalisés).
+  const doublon = normalizedEmail
+    ? await context.entities.User.findUnique({ where: { email: normalizedEmail } })
+    : await context.entities.User.findFirst({
+        where: {
+          id_agence: targetAgenceId,
+          nom: args.nom.trim(),
+          prenom: args.prenom.trim(),
+          telephone: args.telephone?.trim() || null,
+          actif: true,
+        },
+      });
+  if (doublon) {
+    throw new HttpError(409, normalizedEmail
+      ? 'Un utilisateur utilise déjà cette adresse e-mail.'
+      : 'Cet agent existe déjà dans cette agence.');
+  }
 
   // Un seul chef d'agence actif par agence
   if (args.role === 'CHEF_AGENCE') {

@@ -2,7 +2,6 @@ import React, { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, Zap, Radio, ArrowLeft, Star } from "lucide-react";
 import { AmbientBackground } from "../client/components/AmbientBackground";
-import { YebaLogo } from "../client/components/YebaLogo";
 
 const HIGHLIGHTS = [
   { icon: Radio, text: "Collecte des avis par QR Code & USSD" },
@@ -65,12 +64,9 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="mb-5 flex items-center gap-2.5 lg:hidden"
+        className="mb-5 rounded-2xl bg-white px-4 py-2.5 shadow-sm ring-1 ring-black/5 lg:hidden"
       >
-        <YebaLogo className="size-8" />
-        <span className="text-title-xsm font-black text-foreground">
-          <span className="text-gradient-primary">Yeba</span> Abidjan
-        </span>
+        <img src="/yeba-logo.svg" alt="Yeba Abidjan" className="h-9 w-auto" />
       </motion.div>
 
       <motion.div
@@ -80,13 +76,13 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
         className="grid w-full max-w-4xl overflow-hidden rounded-3xl border border-border/70 bg-card shadow-premium-lg ring-1 ring-black/[0.02] lg:grid-cols-[1.05fr_1fr]"
       >
         {/* Panneau de marque */}
-        <div className="relative hidden flex-col justify-between overflow-hidden bg-primary p-10 text-primary-foreground lg:flex">
+        <div className="relative hidden flex-col justify-between overflow-hidden bg-slate-950 p-10 text-white lg:flex">
           {/* Texture fine en pointillés : profondeur discrète, jamais au
               premier plan (opacité très faible), qui évite au grand aplat
               de couleur primaire de paraître plat/générique. */}
           <div
             aria-hidden
-            className="absolute inset-0 opacity-[0.07]"
+            className="absolute inset-0 opacity-[0.04]"
             style={{
               backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
               backgroundSize: "18px 18px",
@@ -94,11 +90,11 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
           />
           <div
             aria-hidden
-            className="animate-float-slower absolute -right-16 top-10 h-56 w-56 rounded-full bg-secondary/25 blur-3xl"
+            className="absolute -right-16 top-10 h-56 w-56 rounded-full bg-secondary/15 blur-3xl"
           />
           <div
             aria-hidden
-            className="animate-float-slow absolute -left-10 bottom-16 h-48 w-48 rounded-full bg-white/10 blur-3xl"
+            className="absolute -left-10 bottom-16 h-48 w-48 rounded-full bg-white/5 blur-3xl"
           />
 
           <div className="relative">
@@ -106,13 +102,10 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
               <NoteSignature />
               {eyebrow}
             </span>
-            <div className="mt-6 flex items-center gap-3">
-              <YebaLogo className="size-10" />
-              <h2 className="text-title-xl font-black leading-tight">
-                <span className="text-gradient-primary">Yeba</span> Abidjan
-              </h2>
+            <div className="mt-6 inline-flex w-fit items-center rounded-2xl bg-white px-4 py-3 shadow-lg">
+              <img src="/yeba-logo.svg" alt="Yeba Abidjan" className="h-10 w-auto" />
             </div>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-primary-foreground/70">{subtitle}</p>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-300">{subtitle}</p>
           </div>
 
           <ul className="relative mt-8 space-y-3">

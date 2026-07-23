@@ -374,47 +374,47 @@
        une luminosité légèrement réduite (99% → 97.5% pour le fond) : le
        thème reste clairement "clair", mais sans le pic de luminosité brut
        d'un blanc pur écran. */
-    --background: 40 22% 97.5%;
-    --foreground: 0 0% 3.9%;
-    --card: 40 20% 98.5%;
-    --card-foreground: 0 0% 3.9%;
-    --card-accent: 40 25% 99%;
-    --card-accent-foreground: 0 0% 3.9%;
-    --card-subtle: 31 45% 95%;
-    --card-subtle-foreground: 0 0% 9%;
-    --popover: 40 22% 99%;
-    --popover-foreground: 0 0% 3.9%;
+    --background: 210 20% 98%;
+    --foreground: 215 28% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 12%;
+    --card-accent: 210 25% 99%;
+    --card-accent-foreground: 215 28% 12%;
+    --card-subtle: 210 24% 96%;
+    --card-subtle-foreground: 215 28% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 12%;
     /* Identité La Poste de Côte d'Ivoire : orange postal en primaire, vert
        (drapeau ivoirien) en secondaire — remplace l'ancien bleu marine
        générique du template. */
-    --primary: 20 90% 46%;
+    --primary: 211 58% 25%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 152 62% 27%;
+    --secondary: 152 52% 30%;
     --secondary-foreground: 0 0% 98%;
     --secondary-muted: 152 45% 90%;
     --secondary-muted-foreground: 0 0% 9%;
     /* Bug corrigé : gris neutre froid (0% de saturation) qui tranchait avec
        le reste du thème, désormais chaleureux — remis dans la même famille
        de teinte que le fond pour une transition moins abrupte à l'œil. */
-    --muted: 40 15% 93%;
+    --muted: 210 18% 94%;
     /* Bug corrigé : 45.1% de luminosité pour le texte secondaire est trop
        clair sur un fond quasi blanc (ratio de contraste proche de la limite
        WCAG AA) — beaucoup de libellés, sous-titres et cellules de tableau
        utilisent cette couleur et devenaient difficiles à lire en plein
        jour / forte luminosité d'écran. Assombri pour un contraste plus sûr. */
-    --muted-foreground: 0 0% 38%;
-    --accent: 28 88% 58%;
-    --accent-foreground: 0 0% 9%;
+    --muted-foreground: 215 15% 40%;
+    --accent: 210 24% 93%;
+    --accent-foreground: 215 28% 12%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --success: 141 71% 48%;
     --success-foreground: 0 0% 98%;
     --warning: 36 100% 50%;
     --warning-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 20 90% 46%;
-    --radius: 0.5rem;
+    --border: 214 18% 88%;
+    --input: 214 18% 84%;
+    --ring: 211 58% 25%;
+    --radius: 0.375rem;
   }
 
   .dark {
