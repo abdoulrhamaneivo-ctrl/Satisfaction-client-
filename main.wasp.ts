@@ -123,7 +123,7 @@ const updateAffectationGuichetAction = action(updateAffectationGuichet, { entiti
 const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence"] });
 
 const soumettreAvisAction = action(soumettreAvis, {
-  entities: ["Reponse", "Critere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "Canal"],
+  entities: ["Reponse", "Critere", "AgenceCritere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "Canal"],
 });
 
 const createAgenceAction = action(createAgence, { entities: ["Agence", "User"] });
