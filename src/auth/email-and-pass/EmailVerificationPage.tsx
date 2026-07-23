@@ -43,21 +43,21 @@ export function EmailVerificationPage() {
       }
     >
       {status === "chargement" && (
-        <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/30 p-4 text-sm text-foreground">
+        <div role="status" className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/30 p-4 text-sm text-foreground">
           <Loader2 className="size-5 shrink-0 animate-spin text-primary" />
           <p>Vérification de votre adresse e-mail en cours...</p>
         </div>
       )}
 
       {status === "succes" && (
-        <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-primary" />
           <p>Votre e-mail a bien été vérifié. Vous pouvez maintenant vous connecter.</p>
         </div>
       )}
 
       {status === "erreur" && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive">
+        <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           <span>{message}</span>
         </div>

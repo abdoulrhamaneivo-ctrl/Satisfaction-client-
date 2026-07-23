@@ -8,7 +8,7 @@ import { Switch } from '../components/ui/switch';
 import { useToast } from '../hooks/use-toast';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
-import { Settings2, Copy, Trash2 } from 'lucide-react';
+import { Settings2, Copy, Trash2, Search } from 'lucide-react';
 import { ObjectifsPanel } from '../components/ObjectifsPanel';
 import { QuestionsParOperation } from '../components/QuestionsParOperation';
 import {
@@ -19,6 +19,17 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
+import { Input } from '../components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 const typeReponseLabel: Record<string, string> = {
   SMILEY: '⭐ Note',
@@ -81,17 +92,31 @@ export const ConfigurationCriteresPage = () => {
 
   const [deletingCritereId, setDeletingCritereId] = useState<number | null>(null);
   const [duplicatingCritereId, setDuplicatingCritereId] = useState<number | null>(null);
+  const [critereASupprimer, setCritereASupprimer] = useState<any | null>(null);
+  const [rechercheCritere, setRechercheCritere] = useState('');
+  const criteresFiltres = (criteres ?? []).filter((critere: any) => {
+    const recherche = rechercheCritere.trim().toLocaleLowerCase('fr-FR');
+    if (!recherche) return true;
+    return [critere.libelle_critere, critere.description, typeReponseLabel[critere.type_reponse]]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('fr-FR')
+      .includes(recherche);
+  });
 
   const handleDeleteCritere = async (critere: any) => {
     if (deletingCritereId) return;
-    const confirme = window.confirm(
-      `Supprimer définitivement « ${critere.libelle_critere} » ?\n\nCette action est irréversible. Si des clients ont déjà répondu à cette question, la suppression sera refusée : désactivez-la plutôt avec l'interrupteur.`
-    );
-    if (!confirme) return;
+    setCritereASupprimer(critere);
+  };
+
+  const confirmerSuppressionCritere = async () => {
+    const critere = critereASupprimer;
+    if (!critere || deletingCritereId) return;
     setDeletingCritereId(critere.id);
     try {
       await deleteCritere({ id_critere: critere.id });
       toast({ title: 'Critère supprimé', description: `« ${critere.libelle_critere} » a été supprimé.` });
+      setCritereASupprimer(null);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Suppression impossible', description: err.message || 'Erreur inconnue' });
     } finally {
@@ -222,20 +247,30 @@ export const ConfigurationCriteresPage = () => {
           }
         />
 
-        <section className="space-y-3">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Organiser vos questions par opération</h2>
-            <p className="text-xs text-muted-foreground mt-1">
+        <section className="space-y-4 rounded-3xl border border-border/70 bg-card/70 p-4 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Parcours de collecte</p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight text-foreground">Organiser les questions par opération</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
               Glissez-déposez une question vers une opération (ex. Retrait, Dépôt...) pour l'y rattacher,
               réordonnez-les comme une liste de tâches, ou utilisez le bouton <strong>+</strong> de chaque
               colonne pour en ajouter une directement.
-            </p>
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 self-start rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+              <span className="size-2 rounded-full bg-success" />
+              Enregistrement automatique
+            </div>
           </div>
           {selectedAgenceId !== undefined ? (
             <QuestionsParOperation selectedAgenceId={selectedAgenceId} />
           ) : (
             <div className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
           )}
+          <p className="px-1 text-xs text-muted-foreground sm:hidden">
+            Faites glisser horizontalement pour voir les autres opérations. Maintenez une poignée pour déplacer une question.
+          </p>
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -250,6 +285,17 @@ export const ConfigurationCriteresPage = () => {
               )}
             </h2>
 
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={rechercheCritere}
+                onChange={(event) => setRechercheCritere(event.target.value)}
+                placeholder="Rechercher une question ou un type de réponse…"
+                className="h-10 pl-9"
+                aria-label="Rechercher un critère"
+              />
+            </div>
+
             {(loadingCriteres || loadingActive) && (
               <div className="space-y-3">
                 {[0, 1, 2].map((i) => (
@@ -258,8 +304,14 @@ export const ConfigurationCriteresPage = () => {
               </div>
             )}
 
+            {!loadingCriteres && criteres && criteres.length > 0 && criteresFiltres.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-border/70 bg-card-subtle/40 px-5 py-8 text-center text-sm text-muted-foreground">
+                Aucun critère ne correspond à votre recherche.
+              </div>
+            )}
+
             <div className="grid gap-4">
-              {criteres?.map((critere: any) => {
+              {criteresFiltres.map((critere: any) => {
                 const isActive = activeIds.includes(critere.id);
                 return (
                   <MotionCard key={critere.id} className="p-5 flex items-center justify-between gap-4">
@@ -438,27 +490,31 @@ export const ConfigurationCriteresPage = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">
-                    Rattacher à une ou plusieurs opérations (optionnel)
+                    Rattacher à une opération (optionnel)
                   </label>
                   <p className="text-[11px] text-muted-foreground mb-2">
-                    Si vous rattachez ce critère à une opération, il n'apparaîtra que quand le client
-                    choisit cette opération sur le formulaire de collecte. Sinon, il fait partie des
-                    critères par défaut de l'agence.
+                    Une question est organisée dans une seule opération. Sans rattachement, elle reste
+                    disponible dans le vivier « Non assignées » et fait partie des critères par défaut.
                   </p>
                   <div className="space-y-2 rounded-md border border-input p-3 bg-background/50">
+                    <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                      <input
+                        type="radio"
+                        name="operation-critere"
+                        checked={selectedServiceIds.length === 0}
+                        onChange={() => setSelectedServiceIds([])}
+                        className="border-input text-primary focus:ring-primary h-4 w-4"
+                      />
+                      Non assignée
+                    </label>
                     {services?.map((s: any) => (
                       <label key={s.id} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                         <input
-                          type="checkbox"
-                          checked={selectedServiceIds.includes(s.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedServiceIds([...selectedServiceIds, s.id]);
-                            } else {
-                              setSelectedServiceIds(selectedServiceIds.filter((id) => id !== s.id));
-                            }
-                          }}
-                          className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                          type="radio"
+                          name="operation-critere"
+                          checked={selectedServiceIds[0] === s.id}
+                          onChange={() => setSelectedServiceIds([s.id])}
+                          className="border-input text-primary focus:ring-primary h-4 w-4"
                         />
                         {s.libelle_service}
                       </label>
@@ -506,6 +562,23 @@ export const ConfigurationCriteresPage = () => {
             )}
           </div>
         </div>
+
+        <AlertDialog open={critereASupprimer !== null} onOpenChange={(open) => !open && setCritereASupprimer(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer ce critère ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action est irréversible. Si des clients ont déjà répondu à « {critereASupprimer?.libelle_critere} », la suppression sera refusée ; désactivez-le plutôt avec l’interrupteur.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingCritereId !== null}>Annuler</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={confirmerSuppressionCritere} disabled={deletingCritereId !== null}>
+                {deletingCritereId !== null ? 'Suppression…' : 'Supprimer'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </motion.div>
     </AmbientBackground>
     </RequireAuth>

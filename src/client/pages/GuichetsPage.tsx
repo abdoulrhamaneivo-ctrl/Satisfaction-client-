@@ -4,7 +4,7 @@ import { useQuery, createGuichet, getGuichets, getServices, updateGuichetService
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
-import { Printer, Store, PlusCircle, AlertCircle, Inbox, Settings2, Check, X, Loader2, QrCode, Archive } from 'lucide-react';
+import { Printer, Store, PlusCircle, AlertCircle, Inbox, Settings2, Check, X, Loader2, QrCode, Archive, Search } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
@@ -117,6 +117,7 @@ export const GuichetsPage = () => {
   // séparé avec son propre texte d'avertissement.
   const [guichetAArchiver, setGuichetAArchiver] = useState<{ id: number; nom: string } | null>(null);
   const [archivingId, setArchivingId] = useState<number | null>(null);
+  const [recherche, setRecherche] = useState('');
 
   const userAgenceId = user?.id_agence;
 
@@ -237,6 +238,16 @@ export const GuichetsPage = () => {
   }
 
   const guichetCount = guichets?.length ?? 0;
+  const rechercheNormalisee = recherche.trim().toLocaleLowerCase('fr-FR');
+  const guichetsFiltres = (guichets ?? []).filter((guichet: any) => {
+    if (!rechercheNormalisee) return true;
+    const operations = (guichet.services ?? []).map((service: any) => service.libelle_service).join(' ');
+    return [guichet.nom_guichet, guichet.type_guichet, operations]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('fr-FR')
+      .includes(rechercheNormalisee);
+  });
 
   return (
     <RequireAuth>
@@ -391,6 +402,19 @@ export const GuichetsPage = () => {
                 )}
               </div>
 
+              {guichetCount > 0 && (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={recherche}
+                    onChange={(event) => setRecherche(event.target.value)}
+                    placeholder="Rechercher un guichet, type ou opération…"
+                    className="h-10 pl-9"
+                    aria-label="Rechercher un guichet"
+                  />
+                </div>
+              )}
+
               {isLoading && (
                 <div className="space-y-4">
                   {[0, 1].map((i) => (
@@ -424,8 +448,18 @@ export const GuichetsPage = () => {
                 />
               )}
 
+              {guichetCount > 0 && guichetsFiltres.length === 0 && (
+                <EmptyState
+                  icon={Search}
+                  title="Aucun guichet ne correspond à votre recherche"
+                  description="Essayez le nom du guichet, son type ou une opération associée."
+                  action={<Button variant="outline" onClick={() => setRecherche('')}>Effacer la recherche</Button>}
+                  className="py-10"
+                />
+              )}
+
               <div className="grid grid-cols-1 gap-6">
-                {guichets?.map((g: any, i: number) => (
+                {guichetsFiltres.map((g: any, i: number) => (
                   <motion.div
                     key={g.id}
                     initial={{ opacity: 0, y: 16 }}
@@ -451,14 +485,17 @@ export const GuichetsPage = () => {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <GuichetQrPreview guichet={g} />
-                          <button
-                            type="button"
-                            onClick={() => setGuichetAArchiver({ id: g.id, nom: g.nom_guichet })}
-                            className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
-                            title="Fermer définitivement ce guichet (archivage, aucune perte de données)"
-                          >
-                            <Archive className="size-4" />
-                          </button>
+                          {user?.role === 'CHEF_AGENCE' && (
+                            <button
+                              type="button"
+                              onClick={() => setGuichetAArchiver({ id: g.id, nom: g.nom_guichet })}
+                              className="flex items-center gap-1.5 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+                              title="Fermer définitivement ce guichet (archivage, aucune perte de données)"
+                              aria-label={`Archiver le guichet ${g.nom_guichet}`}
+                            >
+                              <Archive className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
 

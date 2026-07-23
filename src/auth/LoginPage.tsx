@@ -72,6 +72,7 @@ export function LoginPage() {
       <form className="space-y-5" onSubmit={handleSubmit} noValidate>
         {error && (
           <motion.div
+            role="alert"
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive"

@@ -10,12 +10,13 @@ import {
   getAffectationsDuJour,
 } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
-import { CalendarClock, Store, UserCheck2, Clock, AlertTriangle, Pencil, Trash2 } from 'lucide-react';
+import { CalendarClock, Store, UserCheck2, Clock, AlertTriangle, Pencil, Trash2, Search } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -59,6 +60,8 @@ export const PlanningPage = () => {
   const [savingEdit, setSavingEdit] = useState(false);
   const [affectationASupprimer, setAffectationASupprimer] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [recherche, setRecherche] = useState('');
+  const [filtreCouverture, setFiltreCouverture] = useState<'TOUS' | 'SANS_AGENT' | 'AFFECTES'>('TOUS');
 
   const userAgenceId = user?.id_agence;
   const today = new Date().toISOString().split('T')[0];
@@ -79,6 +82,15 @@ export const PlanningPage = () => {
 
   const getAffectationsForGuichet = (guichetId: number) =>
     (affectationsDuJour || []).filter((a: any) => a.guichet?.id === guichetId);
+  const guichetsFiltres = (guichets ?? []).filter((guichet: any) => {
+    const aDesAffectations = getAffectationsForGuichet(guichet.id).length > 0;
+    if (filtreCouverture === 'SANS_AGENT' && aDesAffectations) return false;
+    if (filtreCouverture === 'AFFECTES' && !aDesAffectations) return false;
+    const requete = recherche.trim().toLocaleLowerCase('fr-FR');
+    return !requete || `${guichet.nom_guichet ?? ''} ${guichet.type_guichet ?? ''}`
+      .toLocaleLowerCase('fr-FR')
+      .includes(requete);
+  });
 
   const handleAssign = async (guichetId: number) => {
     const agentId = selectedAgent[guichetId];
@@ -208,6 +220,32 @@ export const PlanningPage = () => {
           </p>
         </MotionCard>
 
+        {!!guichets?.length && (
+          <section className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={recherche}
+                onChange={(event) => setRecherche(event.target.value)}
+                placeholder="Rechercher un guichet…"
+                className="h-10 pl-9"
+                aria-label="Rechercher un guichet dans le planning"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {([
+                ['TOUS', 'Tous'],
+                ['SANS_AGENT', 'Sans agent'],
+                ['AFFECTES', 'Affectés'],
+              ] as ['TOUS' | 'SANS_AGENT' | 'AFFECTES', string][]).map(([valeur, libelle]) => (
+                <Button key={valeur} size="sm" variant={filtreCouverture === valeur ? 'default' : 'outline'} onClick={() => setFiltreCouverture(valeur)}>
+                  {libelle}
+                </Button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Grille dynamique des guichets */}
         {loadingGuichets ? (
           // Correctif : un skeleton qui reprend la même grille (mêmes
@@ -226,8 +264,16 @@ export const PlanningPage = () => {
             description="Créez d'abord vos guichets dans l'onglet « Guichets » pour pouvoir y affecter des agents."
           />
         ) : (
+          guichetsFiltres.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="Aucun guichet ne correspond"
+              description="Modifiez votre recherche ou le filtre de couverture pour afficher les guichets concernés."
+              action={<Button variant="outline" onClick={() => { setRecherche(''); setFiltreCouverture('TOUS'); }}>Réinitialiser les filtres</Button>}
+            />
+          ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {guichets.map((g: any, index: number) => {
+            {guichetsFiltres.map((g: any, index: number) => {
               const agentIdForGuichet = selectedAgent[g.id] ?? '';
               const affectationsGuichet = getAffectationsForGuichet(g.id);
 
@@ -333,6 +379,7 @@ export const PlanningPage = () => {
               );
             })}
           </div>
+          )
         )}
       </div>
     </AmbientBackground>

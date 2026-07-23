@@ -16,6 +16,7 @@ import {
   ChevronRight,
   History,
   ArrowRight,
+  Search,
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -27,6 +28,7 @@ import { useToast } from '../hooks/use-toast';
 import { RequireAuth } from '../components/RequireAuth';
 
 type Statut = 'A_FAIRE' | 'EN_COURS' | 'TERMINEE';
+type FiltreTaches = 'TOUTES' | 'RETARD' | 'MES_TACHES';
 
 const COLONNES: { statut: Statut; label: string; icon: React.ReactNode; color: string }[] = [
   {
@@ -81,6 +83,8 @@ export const AlertesTachesPage = () => {
   const [movingId, setMovingId] = useState<number | null>(null);
   // ID de la tâche dont on affiche le panneau historique (null = fermé)
   const [historiqueOpenId, setHistoriqueOpenId] = useState<number | null>(null);
+  const [recherche, setRecherche] = useState('');
+  const [filtreTaches, setFiltreTaches] = useState<FiltreTaches>('TOUTES');
 
   // Liste des responsables potentiels, scopée à l'agence de l'alerte
   // sélectionnée : corrige un vrai bug de logique — le formulaire exigeait
@@ -100,6 +104,7 @@ export const AlertesTachesPage = () => {
   const tachesList: any[] = taches || [];
 
   const rolesGestion = ['DIRECTION', 'QUALITE', 'CHEF_AGENCE'];
+  const peutGererAlertes = !!currentUser && rolesGestion.includes((currentUser as any).role);
   // Un profil de gestion peut agir sur n'importe quelle tâche de son
   // périmètre ; un AGENT ne peut agir que sur les tâches qui lui sont
   // assignées (même règle que côté serveur dans updateStatutTache) — avant
@@ -124,6 +129,28 @@ export const AlertesTachesPage = () => {
   const tachesEnRetardCount = tachesList.filter(
     (t) => t.statut_tache !== 'TERMINEE' && new Date(t.date_echeance) < new Date()
   ).length;
+  const rechercheNormalisee = recherche.trim().toLocaleLowerCase('fr-FR');
+  const correspondRecherche = (valeurs: unknown[]) =>
+    !rechercheNormalisee || valeurs
+      .filter((valeur) => valeur !== null && valeur !== undefined)
+      .join(' ')
+      .toLocaleLowerCase('fr-FR')
+      .includes(rechercheNormalisee);
+  const alertesNouvellesFiltrees = alertesNouvelles.filter((alerte: any) =>
+    correspondRecherche([alerte.message, alerte.guichet?.nom_guichet, alerte.type_alerte])
+  );
+  const tachesFiltrees = tachesList.filter((tache: any) => {
+    const estEnRetard = tache.statut_tache !== 'TERMINEE' && new Date(tache.date_echeance) < new Date();
+    const estAMoi = tache.id_responsable === (currentUser as any)?.id;
+    const passeFiltre = filtreTaches === 'TOUTES' || (filtreTaches === 'RETARD' && estEnRetard) || (filtreTaches === 'MES_TACHES' && estAMoi);
+    return passeFiltre && correspondRecherche([
+      tache.titre,
+      tache.description,
+      tache.responsable?.prenom,
+      tache.responsable?.nom,
+      tache.alerte?.guichet?.nom_guichet,
+    ]);
+  });
 
   const handleCreerTache = (alerte: any) => {
     // L'agence de l'alerte se déduit soit de son guichet, soit — pour une
@@ -194,6 +221,35 @@ export const AlertesTachesPage = () => {
           description="Suivez les alertes critiques et gérez les actions correctives associées en mode Kanban."
         />
 
+        <section className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={recherche}
+              onChange={(event) => setRecherche(event.target.value)}
+              placeholder="Rechercher une alerte, tâche, responsable ou guichet…"
+              className="h-10 pl-9"
+              aria-label="Rechercher dans les alertes et tâches"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {([
+              ['TOUTES', 'Toutes'],
+              ['RETARD', `En retard (${tachesEnRetardCount})`],
+              ['MES_TACHES', 'Mes tâches'],
+            ] as [FiltreTaches, string][]).map(([valeur, libelle]) => (
+              <Button
+                key={valeur}
+                size="sm"
+                variant={filtreTaches === valeur ? 'default' : 'outline'}
+                onClick={() => setFiltreTaches(valeur)}
+              >
+                {libelle}
+              </Button>
+            ))}
+          </div>
+        </section>
+
         {/* Alertes nouvelles */}
         <section>
           <div className="mb-4 flex items-center justify-between">
@@ -218,7 +274,11 @@ export const AlertesTachesPage = () => {
             <EmptyState icon={Inbox} title="Aucune alerte nouvelle" description="Toutes les alertes ont été traitées." />
           ) : (
             <div className="space-y-3">
-              {alertesNouvelles.map((alerte: any, i: number) => (
+              {alertesNouvellesFiltrees.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
+                  Aucune alerte ne correspond à votre recherche.
+                </p>
+              ) : alertesNouvellesFiltrees.map((alerte: any, i: number) => (
                 <motion.div
                   key={alerte.id.toString()}
                   initial={{ opacity: 0, x: -10 }}
@@ -237,14 +297,14 @@ export const AlertesTachesPage = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    {peutGererAlertes && <div className="flex shrink-0 items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleCreerTache(alerte)}>
                         <PlusCircle className="size-3.5 mr-1" /> Créer tâche
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleMarquerTraitee(Number(alerte.id))}>
                         <CheckCircle2 className="size-3.5 mr-1" /> Traiter
                       </Button>
-                    </div>
+                    </div>}
                   </MotionCard>
                 </motion.div>
               ))}
@@ -272,7 +332,7 @@ export const AlertesTachesPage = () => {
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               {COLONNES.map((col) => {
-                const tachesColonne = tachesList.filter((t) => t.statut_tache === col.statut);
+                const tachesColonne = tachesFiltrees.filter((t) => t.statut_tache === col.statut);
                 return (
                   <div key={col.statut} className="rounded-2xl border border-border/70 bg-card/50 p-4">
                     <div className={`mb-4 flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold ${col.color}`}>

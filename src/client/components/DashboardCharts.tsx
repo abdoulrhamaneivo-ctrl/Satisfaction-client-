@@ -24,14 +24,40 @@ const CSAT_COLORS = [
 ];
 
 export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
+  const normaliserScoreSur5 = (reponse: any): number | null => {
+    const type = reponse.critere?.type_reponse;
+    if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
+    if (type === 'ECHELLE') {
+      const [minBrut, maxBrut] = (reponse.critere?.options_reponse || '1,5').split(',');
+      const min = Number(minBrut);
+      const max = Number(maxBrut);
+      if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+        return Math.max(1, Math.min(5, 1 + ((reponse.score_brut - min) / (max - min)) * 4));
+      }
+    }
+    return reponse.score_brut >= 1 && reponse.score_brut <= 5 ? reponse.score_brut : null;
+  };
+
+  const scores = data
+    .map(normaliserScoreSur5)
+    .filter((score): score is number => score !== null);
   const counts = [1, 2, 3, 4, 5].map((note) => ({
     name: `${note} ⭐`,
-    count: data.filter((r) => r.score_brut === note).length,
+    count: scores.filter((score) => Math.round(score) === note).length,
   }));
+
+  if (scores.length === 0) {
+    return (
+      <div className="flex h-72 items-center justify-center rounded-2xl border border-border/70 bg-card p-5 text-sm text-muted-foreground">
+        Aucune réponse chiffrée n’est disponible pour cette répartition.
+      </div>
+    );
+  }
 
   return (
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
-      <h3 className="mb-4 text-sm font-bold text-foreground">Répartition des notes (CSAT)</h3>
+      <h3 className="mb-1 text-sm font-bold text-foreground">Répartition des notes</h3>
+      <p className="mb-3 text-xs text-muted-foreground">Scores normalisés sur 5 — réponses qualitatives exclues</p>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={counts}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
@@ -58,7 +84,8 @@ export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
 export const RadarQualite = ({ data }: { data: any[] }) => {
   return (
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
-      <h3 className="mb-4 text-sm font-bold text-foreground">Index de Conformité (5 Axes)</h3>
+      <h3 className="mb-1 text-sm font-bold text-foreground">Maturité du pilotage</h3>
+      <p className="mb-3 text-xs text-muted-foreground">Planification, collecte récente et traitement des alertes</p>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" data={data}>
           <PolarGrid className="stroke-border" />

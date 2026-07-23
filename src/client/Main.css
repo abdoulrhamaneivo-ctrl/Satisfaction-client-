@@ -212,6 +212,23 @@
   scrollbar-width: none; /* Firefox */
 }
 
+/* Respecte le réglage système des personnes sensibles aux mouvements. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  :where(a, button, input, select, textarea, [role="button"]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+}
+
 /* Premium brand-tinted page shell (uses existing brand tokens only) */
 @utility bg-app-shell {
   background:

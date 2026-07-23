@@ -58,6 +58,8 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { data: user } = useAuth();
+  const canManageDirectory = ['DIRECTION', 'CHEF_AGENCE'].includes(user?.role ?? '');
+  const canManageAgencies = user?.role === 'DIRECTION';
 
   const requeteDebattue = useDebounce(requete, 250);
   const rechercheActive = requeteDebattue.trim().length >= 2;
@@ -129,7 +131,7 @@ export function CommandPalette() {
     }
 
     if (rechercheActive && resultats) {
-      if (resultats.agences?.length > 0) {
+      if (canManageAgencies && resultats.agences?.length > 0) {
         liste.push({
           titre: 'Agences',
           items: resultats.agences.map((a: any) => ({
@@ -153,7 +155,7 @@ export function CommandPalette() {
           })),
         });
       }
-      if (resultats.agents?.length > 0) {
+      if (canManageDirectory && resultats.agents?.length > 0) {
         liste.push({
           titre: 'Agents',
           items: resultats.agents.map((ag: any) => ({
@@ -179,7 +181,7 @@ export function CommandPalette() {
     }
 
     return liste;
-  }, [actionsFiltrees, rechercheActive, resultats]);
+  }, [actionsFiltrees, rechercheActive, resultats, canManageAgencies, canManageDirectory]);
 
   const itemsPlats = useMemo(() => groupes.flatMap((g) => g.items), [groupes]);
 
@@ -211,7 +213,7 @@ export function CommandPalette() {
   let compteurGlobal = -1;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]" role="dialog" aria-modal="true" aria-label="Recherche globale">
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={() => setOuvert(false)}

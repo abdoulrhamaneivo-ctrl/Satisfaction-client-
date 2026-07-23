@@ -36,6 +36,7 @@ import {
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
 import { DataTable } from '../components/ui/DataTable';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
 import { ObjectifsProgress } from '../components/ObjectifsProgress';
 import { regrouperAvisParSoumission } from '../utils';
@@ -69,8 +70,8 @@ export const DashboardPage = () => {
   const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
   const { data: taches, isLoading: loadingTaches } = useQuery(getTachesCorrectives);
   const { data: tendance, isLoading: loadingTendance } = useQuery(getTendanceMensuelle);
-  const { data: statsByAgent, isLoading: loadingAgents } = useQuery(getStatsByAgent);
-  const { data: statsByGuichet, isLoading: loadingGuichets } = useQuery(getStatsByGuichet);
+  const { data: statsByAgent, isLoading: loadingAgents } = useQuery(getStatsByAgent, { nbJours: periodeJours });
+  const { data: statsByGuichet, isLoading: loadingGuichets } = useQuery(getStatsByGuichet, { nbJours: periodeJours });
   const { data: actionsPrioritaires, isLoading: loadingActions } = useQuery(getActionsPrioritaires);
   const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode, { nbJours: periodeJours });
   const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
@@ -274,7 +275,32 @@ export const DashboardPage = () => {
           />
         </div>
 
-        {/* NIVEAU 2ter — À quelle vitesse on traite : deux délais à ne pas confondre */}
+        {/* Objectifs : un indicateur de pilotage, visible sans ouvrir les analyses. */}
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <Target className="size-5 text-primary" />
+            <h2 className="text-title-sm font-bold text-foreground">Objectifs de satisfaction</h2>
+          </div>
+          {loadingObjectifs ? (
+            <div className="h-40 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          ) : (
+            <ObjectifsProgress data={objectifsList} />
+          )}
+        </section>
+
+        {/* Les analyses restent disponibles sans concurrencer les décisions du jour. */}
+        <section className="rounded-2xl border border-border/70 bg-card/60 px-5 shadow-sm sm:px-6">
+          <Accordion type="single" collapsible>
+            <AccordionItem value="analyses" className="border-none">
+              <AccordionTrigger className="py-5 text-base font-bold text-foreground hover:no-underline">
+                Analyses détaillées
+              </AccordionTrigger>
+              <AccordionContent className="pb-6">
+                <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
+                  Délais de traitement, répartition des notes, tendances et performances par point de service.
+                </p>
+                <div className="space-y-8">
+        {/* À quelle vitesse on traite : deux délais à ne pas confondre */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <StatCard
             title={`Prise en charge moyenne (${labelPeriode})`}
@@ -306,19 +332,6 @@ export const DashboardPage = () => {
           />
         </div>
 
-        {/* NIVEAU 2bis — Suis-je sur la trajectoire de mes objectifs ? */}
-        <section>
-          <div className="mb-4 flex items-center gap-2">
-            <Target className="size-5 text-primary" />
-            <h2 className="text-title-sm font-bold text-foreground">Objectifs de satisfaction</h2>
-          </div>
-          {loadingObjectifs ? (
-            <div className="h-40 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
-          ) : (
-            <ObjectifsProgress data={objectifsList} />
-          )}
-        </section>
-
         {/* NIVEAU 3 — Où est le problème : répartition globale + conformité + classement guichets */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {isLoading ? (
@@ -337,7 +350,7 @@ export const DashboardPage = () => {
         <section>
           <div className="mb-4 flex items-center gap-2">
             <Store className="size-5 text-secondary" />
-            <h2 className="text-title-sm font-bold text-foreground">Où se situe le problème</h2>
+            <h2 className="text-title-sm font-bold text-foreground">Où se situe le problème ({labelPeriode})</h2>
           </div>
           {loadingGuichets ? (
             <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
@@ -373,7 +386,7 @@ export const DashboardPage = () => {
           <section>
             <div className="mb-4 flex items-center gap-2">
               <Users className="size-5 text-secondary" />
-              <h2 className="text-title-sm font-bold text-foreground">Performance par agent</h2>
+              <h2 className="text-title-sm font-bold text-foreground">Performance par agent ({labelPeriode})</h2>
             </div>
             {loadingAgents ? (
               <div className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
@@ -382,6 +395,11 @@ export const DashboardPage = () => {
             )}
           </section>
         )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </section>
 
         {/* Derniers avis */}
         {!isLoading && (

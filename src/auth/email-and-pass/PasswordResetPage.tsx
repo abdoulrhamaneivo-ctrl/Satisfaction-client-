@@ -59,7 +59,7 @@ export function PasswordResetPage() {
       }
     >
       {success ? (
-        <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-primary" />
           <p>Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.</p>
         </div>
@@ -67,6 +67,7 @@ export function PasswordResetPage() {
         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
           {error && (
             <motion.div
+              role="alert"
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive"

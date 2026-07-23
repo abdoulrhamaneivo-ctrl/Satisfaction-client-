@@ -353,9 +353,12 @@ export const soumettreAvis = async (args: any, context: any) => {
 
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: Number(guichetId) },
+    include: { agence: { select: { archive: true } } },
   });
 
-  if (!guichet) {
+  // La route est publique : la validation doit être répétée côté serveur
+  // pour qu'un appel direct à l'action ne contourne pas la page de collecte.
+  if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) {
     throw new HttpError(404, "Guichet introuvable.");
   }
 
@@ -431,6 +434,34 @@ export const soumettreAvis = async (args: any, context: any) => {
     );
   }
 
+  // Une route publique ne doit jamais accepter des identifiants de critères
+  // récupérés depuis une autre agence. Sans ce contrôle, un appel forgé
+  // pouvait injecter une réponse liée à un critère hors du périmètre du
+  // guichet et fausser les analyses.
+  const criteresActifsAgence = await context.entities.AgenceCritere.findMany({
+    where: {
+      id_agence: guichet.id_agence,
+      id_critere: { in: critereIds },
+    },
+    select: { id_critere: true },
+  });
+  if (criteresActifsAgence.length !== critereIds.length) {
+    throw new HttpError(400, "Un ou plusieurs critères ne sont pas disponibles pour ce guichet.");
+  }
+
+  if (serviceId) {
+    const serviceDuGuichet = await context.entities.Service.findFirst({
+      where: {
+        id: Number(serviceId),
+        guichets: { some: { id: guichet.id } },
+      },
+      select: { id: true },
+    });
+    if (!serviceDuGuichet) {
+      throw new HttpError(400, "L’opération sélectionnée n’est pas disponible pour ce guichet.");
+    }
+  }
+
   // Validation des scores : bornée à l'échelle propre à chaque critère
   // (ex. 1-10 pour une question de type ECHELLE configurée sur 10), 1-5
   // sinon (SMILEY, OUI_NON, QCM, TEXTE, CASES restent sur l'échelle
@@ -458,7 +489,10 @@ export const soumettreAvis = async (args: any, context: any) => {
   // (worstScore <= 2) et le seuil confetti, indépendamment de l'échelle
   // réelle de saisie (une ECHELLE configurée 1-10 ne doit pas être comparée
   // brute à un seuil pensé pour du 1-5).
-  const normaliserScoreSur5 = (critere: any, score: number): number => {
+  const normaliserScoreSur5 = (critere: any, score: number): number | null => {
+    if (critere?.type_reponse === 'TEXTE' || critere?.type_reponse === 'CASES' || critere?.type_reponse === 'QCM') {
+      return null;
+    }
     if (critere?.type_reponse === 'ECHELLE') {
       const [minStr, maxStr] = (critere.options_reponse || '1,5').split(',');
       const min = Number(minStr) || 1;
@@ -471,11 +505,11 @@ export const soumettreAvis = async (args: any, context: any) => {
   };
 
   const createdReponses: Array<{ id: number; [key: string]: any }> = [];
-  let worstScore = 5;
+  let worstScore: number | null = null;
 
   for (const item of itemsToInsert) {
     const scoreNormalise = normaliserScoreSur5(critereById.get(item.critereId), item.score);
-    if (scoreNormalise < worstScore) {
+    if (scoreNormalise !== null && (worstScore === null || scoreNormalise < worstScore)) {
       worstScore = scoreNormalise;
     }
 
@@ -502,7 +536,7 @@ export const soumettreAvis = async (args: any, context: any) => {
   }
 
   // --- ALERTE + NOTIFICATIONS si note critique ---
-  if (worstScore <= 2) {
+  if (worstScore !== null && worstScore <= 2) {
     // Bug corrigé : `findFirst` avec `role: { in: [...] }` sans `orderBy`
     // renvoyait un destinataire dans un ordre non garanti par la base — si
     // une agence avait à la fois un CHEF_AGENCE et un compte QUALITE actifs,
@@ -1139,6 +1173,9 @@ export const createCritere = async (
   // (double-clic, état client désynchronisé) ne doit pas produire un
   // critère rattaché en double à la même opération.
   const serviceIds = args.serviceIds ? Array.from(new Set(args.serviceIds)) : [];
+  if (serviceIds.length > 1) {
+    throw new HttpError(400, "Un critère ne peut être rattaché qu'à une seule opération. Déplacez-le ensuite depuis l'écran d'organisation si nécessaire.");
+  }
   if (serviceIds.length > 0) {
     for (const idService of serviceIds) {
       await assertServiceAccessible(context, idService);
@@ -1314,8 +1351,23 @@ export const removeCritereFromService = async (
   await assertCritereAccessible(context, idCritere);
   await assertServiceAccessible(context, idService);
 
-  await context.entities.CritereService.deleteMany({
-    where: { id_critere: idCritere, id_service: idService },
+  await prisma.$transaction(async (tx) => {
+    const rattachements = await tx.critereService.findMany({
+      where: { id_service: idService },
+      orderBy: { ordre: 'asc' },
+    });
+    if (!rattachements.some((r) => r.id_critere === idCritere)) {
+      throw new HttpError(409, "Cette question n'est plus rattachée à cette opération. Rechargez la page.");
+    }
+
+    await tx.critereService.deleteMany({
+      where: { id_critere: idCritere, id_service: idService },
+    });
+
+    const restants = rattachements.filter((r) => r.id_critere !== idCritere);
+    for (let index = 0; index < restants.length; index++) {
+      await tx.critereService.update({ where: { id: restants[index].id }, data: { ordre: index } });
+    }
   });
 
   return { success: true };

@@ -1,6 +1,6 @@
 import { LogIn, Menu, Bell, ChevronDown, Search } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { Link as ReactRouterLink } from "react-router";
+import { Link as ReactRouterLink, useLocation } from "react-router";
 import { useAuth } from "wasp/client/auth";
 import { Link as WaspRouterLink, routes } from "wasp/client/router";
 import {
@@ -54,6 +54,7 @@ export function NavBar({
   navigationItems: NavigationItem[];
 }) {
   const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
   const { data: currentUser } = useAuth();
   const { brandConfig } = useBrand();
 
@@ -134,12 +135,13 @@ export function NavBar({
               </WaspRouterLink>
 
               <ul className="ml-4 hidden items-center gap-6 lg:flex">
-                {renderNavigationItems(visibleNavigationItems)}
+                {renderNavigationItems(visibleNavigationItems, undefined, location.pathname)}
               </ul>
             </div>
             <NavBarMobileMenu
               isScrolled={isScrolled}
               navigationItems={visibleNavigationItems}
+              currentPath={location.pathname}
             />
             <NavBarDesktopUserDropdown isScrolled={isScrolled} />
           </nav>
@@ -221,9 +223,11 @@ function NavBarDesktopUserDropdown({ isScrolled }: { isScrolled: boolean }) {
 function NavBarMobileMenu({
   isScrolled,
   navigationItems,
+  currentPath,
 }: {
   isScrolled: boolean;
   navigationItems: NavigationItem[];
+  currentPath: string;
 }) {
   const { data: user, isLoading: isUserLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -270,7 +274,7 @@ function NavBarMobileMenu({
           <div className="min-h-0 flex-1 overflow-y-auto momentum-scroll px-6">
             <div className="divide-border divide-y">
               <ul className="space-y-2 py-6">
-                {renderNavigationItems(navigationItems, setMobileMenuOpen)}
+                {renderNavigationItems(navigationItems, setMobileMenuOpen, currentPath)}
               </ul>
               <div className="py-6">
                 {isUserLoading ? null : !user ? (
@@ -322,6 +326,7 @@ function NavBarMobileMenu({
 function renderNavigationItems(
   navigationItems: NavigationItem[],
   setMobileMenuOpen?: Dispatch<SetStateAction<boolean>>,
+  currentPath?: string,
 ) {
   const menuStyles = cn({
     "block rounded-lg px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors":
@@ -331,6 +336,14 @@ function renderNavigationItems(
   });
 
   return navigationItems.map((item) => {
+    const isActive = item.children
+      ? item.children.some((child) => currentPath === child.to || currentPath?.startsWith(`${child.to}/`))
+      : currentPath === item.to || currentPath?.startsWith(`${item.to}/`);
+    const activeStyles = isActive
+      ? setMobileMenuOpen
+        ? 'bg-primary/10 text-primary'
+        : 'font-semibold text-primary'
+      : '';
     if (item.children && item.children.length > 0) {
       // Mobile : sous-menu repliable, pour ne pas empiler tous les liens
       // "Paramètres" à plat avec le reste de la navigation.
@@ -339,7 +352,7 @@ function renderNavigationItems(
           <li key={item.name}>
             <Accordion type="single" collapsible>
               <AccordionItem value={item.name} className="border-none">
-                <AccordionTrigger className="rounded-lg px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-accent hover:text-accent-foreground hover:no-underline transition-colors">
+                <AccordionTrigger className={cn("rounded-lg px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-accent hover:text-accent-foreground hover:no-underline transition-colors", activeStyles)}>
                   {item.name}
                 </AccordionTrigger>
                 <AccordionContent className="pl-3">
@@ -348,7 +361,8 @@ function renderNavigationItems(
                       <li key={child.name}>
                         <ReactRouterLink
                           to={child.to}
-                          className={menuStyles}
+                          className={cn(menuStyles, currentPath === child.to && 'bg-primary/10 text-primary')}
+                          aria-current={currentPath === child.to ? 'page' : undefined}
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           {child.name}
@@ -367,14 +381,20 @@ function renderNavigationItems(
       return (
         <li key={item.name}>
           <DropdownMenu>
-            <DropdownMenuTrigger className={cn(menuStyles, "flex items-center gap-1 outline-none")}>
+            <DropdownMenuTrigger className={cn(menuStyles, activeStyles, "flex items-center gap-1 outline-none")}>
               {item.name}
               <ChevronDown className="size-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               {item.children.map((child) => (
                 <DropdownMenuItem key={child.name} asChild>
-                  <ReactRouterLink to={child.to}>{child.name}</ReactRouterLink>
+                  <ReactRouterLink
+                    to={child.to}
+                    className={cn(currentPath === child.to && 'bg-primary/10 text-primary')}
+                    aria-current={currentPath === child.to ? 'page' : undefined}
+                  >
+                    {child.name}
+                  </ReactRouterLink>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -387,7 +407,8 @@ function renderNavigationItems(
       <li key={item.name}>
         <ReactRouterLink
           to={item.to}
-          className={menuStyles}
+          className={cn(menuStyles, activeStyles)}
+          aria-current={isActive ? 'page' : undefined}
           onClick={setMobileMenuOpen && (() => setMobileMenuOpen(false))}
           target={item.to.startsWith("http") ? "_blank" : undefined}
         >

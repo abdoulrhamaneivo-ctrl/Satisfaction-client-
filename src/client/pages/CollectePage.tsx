@@ -19,7 +19,7 @@ export const CollectePage = () => {
   const { guichetId } = useParams<{ guichetId: string }>();
   const idGuichetNum = Number(guichetId);
 
-  const { data: formDef, isLoading } = useQuery(getFormDefinitionForGuichet, { id_guichet: idGuichetNum });
+  const { data: formDef, isLoading, isError } = useQuery(getFormDefinitionForGuichet, { id_guichet: idGuichetNum });
   const { brandConfig } = useBrand();
 
   const [step, setStep] = useState<'SERVICE_SELECT' | 'QUESTIONS' | 'COMMENT_STEP' | 'SUCCESS'>('SERVICE_SELECT');
@@ -40,12 +40,15 @@ export const CollectePage = () => {
   }, [currentQuestionIndex, step]);
 
   // Initialize step based on number of services
+  const services = formDef?.services ?? [];
+
   useEffect(() => {
     if (formDef) {
-      if (formDef.services && formDef.services.length === 1) {
-        setSelectedService(formDef.services[0]);
+      const servicesDuGuichet = formDef.services ?? [];
+      if (servicesDuGuichet.length === 1) {
+        setSelectedService(servicesDuGuichet[0]);
         setStep('QUESTIONS');
-      } else if (!formDef.services || formDef.services.length === 0) {
+      } else if (servicesDuGuichet.length === 0) {
         setStep('QUESTIONS');
       }
     }
@@ -62,7 +65,7 @@ export const CollectePage = () => {
     );
   }
 
-  if (!formDef) {
+  if (!Number.isSafeInteger(idGuichetNum) || idGuichetNum <= 0 || isError || !formDef) {
     return (
       <AmbientBackground>
         <div className="flex min-h-screen items-center justify-center p-4">
@@ -79,9 +82,10 @@ export const CollectePage = () => {
     ? selectedService.criteres
     : formDef.agencyCriteres?.length
     ? formDef.agencyCriteres
-    : [{ id: 1, libelle_critere: "Satisfaction globale", type_reponse: "SMILEY", description: "Votre appréciation générale de notre accueil" }];
+    : [];
 
   const currentCritere = criteres[currentQuestionIndex];
+  const questionnaireDisponible = criteres.length > 0;
 
   const handleServiceSelect = (service: ServiceType) => {
     setSelectedService(service);
@@ -123,7 +127,7 @@ export const CollectePage = () => {
     } else if (step === 'QUESTIONS') {
       if (currentQuestionIndex > 0) {
         setCurrentQuestionIndex(currentQuestionIndex - 1);
-      } else if (formDef.services && formDef.services.length > 1) {
+      } else if (services.length > 1) {
         setStep('SERVICE_SELECT');
         setSelectedService(null);
       }
@@ -233,7 +237,7 @@ export const CollectePage = () => {
       {/* Main Content Card */}
       <div className="w-full flex-1 flex items-center justify-center max-w-md mx-auto">
         <AnimatePresence mode="wait">
-          {step === 'SERVICE_SELECT' && (
+          {step === 'SERVICE_SELECT' && services.length > 1 && (
             <motion.div
               key="service_select"
               initial={{ opacity: 0, y: 15 }}
@@ -255,7 +259,7 @@ export const CollectePage = () => {
                 </div>
 
                 <div className="flex flex-col gap-3 pt-2">
-                  {formDef.services.map((service: ServiceType) => (
+                  {services.map((service: ServiceType) => (
                     <motion.button
                       key={service.id}
                       whileHover={{ scale: 1.02 }}
@@ -278,7 +282,23 @@ export const CollectePage = () => {
             </motion.div>
           )}
 
-          {step === 'QUESTIONS' && (
+          {step === 'QUESTIONS' && !questionnaireDisponible && (
+            <motion.div
+              key="questionnaire-indisponible"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full"
+            >
+              <MotionCard className="w-full p-8 text-center space-y-3 shadow-premium-lg border-border/80">
+                <h1 className="text-xl font-extrabold text-foreground">Questionnaire momentanément indisponible</h1>
+                <p className="text-sm text-muted-foreground">
+                  Aucun critère n’est encore configuré pour ce guichet. Merci de contacter l’agence.
+                </p>
+              </MotionCard>
+            </motion.div>
+          )}
+
+          {step === 'QUESTIONS' && questionnaireDisponible && currentCritere && (
             <motion.div
               key={`question_${currentQuestionIndex}`}
               initial={{ opacity: 0, x: 20 }}
@@ -288,7 +308,14 @@ export const CollectePage = () => {
             >
               <MotionCard className="w-full p-6 text-center space-y-6 shadow-premium-lg border-border/80">
                 {/* Progress bar */}
-                <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="w-full bg-muted h-1.5 rounded-full overflow-hidden"
+                  role="progressbar"
+                  aria-label="Progression du questionnaire"
+                  aria-valuemin={1}
+                  aria-valuemax={criteres.length}
+                  aria-valuenow={currentQuestionIndex + 1}
+                >
                   <div 
                     className="bg-primary h-full transition-all duration-300"
                     style={{ width: `${((currentQuestionIndex + 1) / criteres.length) * 100}%` }}
@@ -493,7 +520,7 @@ export const CollectePage = () => {
                 </div>
 
                 {erreur && (
-                  <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs font-medium text-destructive">
+                  <div role="alert" className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs font-medium text-destructive">
                     {erreur}
                   </div>
                 )}

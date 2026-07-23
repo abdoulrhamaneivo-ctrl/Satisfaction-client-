@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -14,6 +16,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
   arrayMove,
+  sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -28,6 +31,16 @@ import {
 } from 'wasp/client/operations';
 import { GripVertical, Inbox, Plus, X, Copy, Trash2 } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 // QCM et CASES exigent une liste de choix (voir createCritere côté serveur)
 // qu'il n'y a pas la place de saisir proprement dans ce formulaire rapide :
@@ -81,6 +94,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
   // que la requête précédente est encore en vol (id du critère concerné).
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
+  const [critereASupprimer, setCritereASupprimer] = useState<Critere | null>(null);
   // Verrou anti-chevauchement : tant qu'un déplacement précédent n'a pas
   // fini d'être persisté côté serveur, on bloque le suivant. Sans ça, deux
   // glissers rapides successifs pourraient partir avec des instantanés
@@ -110,12 +124,20 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
     setColumns(cols);
   }, [data, isDragging]);
 
-  // Capteur tactile + souris : distance d'activation de 5px pour ne pas
-  // gêner un simple tap sur mobile (sinon chaque appui déclencherait un
-  // "drag" fantôme et empêcherait de cliquer normalement sur les cartes).
+  // Sur tactile, on attend un appui intentionnel avant le déplacement : le
+  // défilement horizontal reste ainsi naturel. La souris garde un démarrage
+  // rapide et le clavier dispose du parcours standard de dnd-kit.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+
+  useEffect(() => {
+    setColumns([]);
+    setActiveCritere(null);
+    setAddingToColumn(null);
+  }, [selectedAgenceId]);
 
   const findColumnOfCritere = (critereId: number): Column | undefined =>
     columns.find((c) => c.criteres.some((q) => q.id === critereId));
@@ -253,14 +275,17 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
 
   const handleDelete = async (critere: Critere) => {
     if (deletingId) return;
-    const confirme = window.confirm(
-      `Supprimer définitivement la question « ${critere.libelle_critere} » ?\n\nCette action est irréversible. Si des clients ont déjà répondu à cette question, la suppression sera refusée — désactivez-la plutôt depuis la liste des critères.`
-    );
-    if (!confirme) return;
+    setCritereASupprimer(critere);
+  };
+
+  const confirmerSuppression = async () => {
+    const critere = critereASupprimer;
+    if (!critere || deletingId) return;
     setDeletingId(critere.id);
     try {
       await deleteCritere({ id_critere: critere.id });
       toast({ title: 'Question supprimée', description: `« ${critere.libelle_critere} » a été supprimée.` });
+      setCritereASupprimer(null);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Suppression impossible', description: err?.message || 'Erreur inconnue' });
     } finally {
@@ -300,6 +325,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
   }
 
   return (
+    <>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
@@ -332,7 +358,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
           colonne suivante" sans jamais forcer un recalage pendant une
           interaction en cours (saisie, focus clavier). */}
       <div
-        className={`-mx-1 flex gap-4 overflow-x-auto momentum-scroll scroll-fade-x px-1 pb-3 snap-x snap-proximity transition-opacity sm:snap-none xl:flex-wrap xl:overflow-x-visible ${
+        className={`-mx-1 flex gap-5 overflow-x-auto momentum-scroll scroll-fade-x px-1 pb-4 snap-x snap-proximity transition-opacity ${
           isSaving ? 'pointer-events-none opacity-60' : ''
         }`}
       >
@@ -362,6 +388,23 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
         {activeCritere ? <QuestionCard critere={activeCritere} dragging /> : null}
       </DragOverlay>
     </DndContext>
+    <AlertDialog open={critereASupprimer !== null} onOpenChange={(open) => !open && setCritereASupprimer(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Supprimer cette question ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Cette action est irréversible. Si des clients ont déjà répondu à « {critereASupprimer?.libelle_critere} », la suppression sera refusée ; désactivez-la plutôt depuis la liste des critères.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deletingId !== null}>Annuler</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={confirmerSuppression} disabled={deletingId !== null}>
+            {deletingId !== null ? 'Suppression…' : 'Supprimer'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
@@ -403,7 +446,7 @@ function ColumnView({
 
   return (
     <div
-      className="flex w-[85vw] shrink-0 snap-start flex-col rounded-2xl border border-border/70 bg-card-subtle/40 sm:w-72"
+      className="flex w-[85vw] shrink-0 snap-start flex-col rounded-2xl border border-border/70 bg-card-subtle/40 shadow-sm sm:w-[22rem] xl:w-[24rem]"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2 min-w-0">

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, getAgences, createAgence, archiverAgence } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, MapPin, PlusCircle, ShieldAlert, Archive } from 'lucide-react';
+import { Building2, MapPin, PlusCircle, ShieldAlert, Archive, Search } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/ui/button';
@@ -33,6 +33,7 @@ export const GestionAgencesPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [agenceAArchiver, setAgenceAArchiver] = useState<{ id: number; nom: string } | null>(null);
   const [archivingId, setArchivingId] = useState<number | null>(null);
+  const [recherche, setRecherche] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -104,6 +105,12 @@ export const GestionAgencesPage = () => {
   }
 
   const agenceCount = agences?.length ?? 0;
+  const agencesFiltrees = (agences ?? []).filter((agence: any) => {
+    const requete = recherche.trim().toLocaleLowerCase('fr-FR');
+    return !requete || `${agence.nom_agence ?? ''} ${agence.commune ?? ''} ${agence.adresse ?? ''}`
+      .toLocaleLowerCase('fr-FR')
+      .includes(requete);
+  });
 
   return (
     <RequireAuth>
@@ -166,7 +173,25 @@ export const GestionAgencesPage = () => {
               </motion.div>
 
               {/* LISTE DES AGENCES */}
-              <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="lg:col-span-2 space-y-4">
+                {agenceCount > 0 && (
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={recherche}
+                      onChange={(event) => setRecherche(event.target.value)}
+                      placeholder="Rechercher une agence ou une commune…"
+                      className="h-10 pl-9"
+                      aria-label="Rechercher une agence"
+                    />
+                  </div>
+                )}
+                {!isLoading && agenceCount > 0 && agencesFiltrees.length === 0 && (
+                  <div className="rounded-3xl border-2 border-dashed border-border/50 bg-card/50 p-8 text-center text-sm text-muted-foreground">
+                    Aucune agence ne correspond à votre recherche.
+                  </div>
+                )}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {isLoading && (
                   <>
                     {[0, 1].map((i) => (
@@ -179,7 +204,7 @@ export const GestionAgencesPage = () => {
                 )}
 
                 <AnimatePresence>
-                  {agences?.map((agence: any) => (
+                  {agencesFiltrees.map((agence: any) => (
                     <motion.div
                       key={agence.id}
                       layout
@@ -232,6 +257,7 @@ export const GestionAgencesPage = () => {
                     </div>
                   </motion.div>
                 )}
+                </div>
               </div>
             </div>
           </div>

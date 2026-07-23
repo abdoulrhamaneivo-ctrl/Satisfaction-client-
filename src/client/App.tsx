@@ -14,7 +14,18 @@ export function App() {
   const navigationItems = demoNavigationitems;
 
   const shouldDisplayAppNavBar = useMemo(() => {
-    return location.pathname !== routes.LoginRoute.build();
+    // Le questionnaire QR est une expérience publique et autonome : la
+    // navigation métier (dashboard, personnel, alertes…) n'a rien à y faire.
+    // Les écrans d'authentification gardent également leur propre habillage.
+    const standaloneRoutes = [
+      routes.LandingPageRoute.to,
+      routes.LoginRoute.to,
+      '/apres-connexion',
+      '/request-password-reset',
+      '/password-reset',
+      '/email-verification',
+    ];
+    return !standaloneRoutes.includes(location.pathname) && !location.pathname.startsWith('/q/');
   }, [location]);
 
   // Les routes Yeba /admin/personnel et /admin/agences ne sont pas le
@@ -96,9 +107,17 @@ export function App() {
                     <CommandPalette />
                   </>
                 )}
-                <div className="max-w-(--breakpoint-2xl) mx-auto">
+                {shouldDisplayAppNavBar && (
+                  <a
+                    href="#contenu-principal"
+                    className="sr-only fixed left-4 top-4 z-[100] rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg focus:not-sr-only"
+                  >
+                    Aller au contenu principal
+                  </a>
+                )}
+                <main id="contenu-principal" tabIndex={-1} className="max-w-(--breakpoint-2xl) mx-auto">
                   <Outlet />
-                </div>
+                </main>
               </>
             )}
           </div>

@@ -17,6 +17,10 @@ export type ReponseAvecSoumission = {
   id: number | string | bigint;
   id_soumission?: string | null;
   score_brut: number;
+  critere?: {
+    type_reponse?: string | null;
+    options_reponse?: string | null;
+  } | null;
   commentaire_texte?: string | null;
   [key: string]: any;
 };
@@ -80,13 +84,40 @@ export function compterAvis<T extends ReponseAvecSoumission>(reponses: T[]): num
 }
 
 /**
+ * Ramène les réponses quantitatives sur une échelle commune de 1 à 5.
+ * Les réponses de collecte libre ne sont pas des mesures de satisfaction :
+ * les inclure dans une moyenne créerait un score artificiel.
+ */
+export function scoreNormaliseSur5(reponse: ReponseAvecSoumission): number | null {
+  const type = reponse.critere?.type_reponse;
+  if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
+
+  if (type === 'ECHELLE') {
+    const [minBrut, maxBrut] = (reponse.critere?.options_reponse || '1,5').split(',');
+    const min = Number(minBrut);
+    const max = Number(maxBrut);
+    if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+      const ratio = (reponse.score_brut - min) / (max - min);
+      return Math.max(1, Math.min(5, 1 + ratio * 4));
+    }
+  }
+
+  return reponse.score_brut >= 1 && reponse.score_brut <= 5 ? reponse.score_brut : null;
+}
+
+/**
  * Score moyen PAR AVIS : chaque soumission compte pour 1, quel que soit son
  * nombre de critères (une soumission à 5 critères ne doit pas peser 5x plus
  * qu'une soumission à 1 critère dans une moyenne globale).
  */
 export function scoreMoyenParAvis<T extends ReponseAvecSoumission>(reponses: T[]): number[] {
-  return regrouperParSoumission(reponses).map((g) => {
-    const total = g.reponses.reduce((s, r) => s + r.score_brut, 0);
-    return total / g.reponses.length;
-  });
+  return regrouperParSoumission(reponses)
+    .map((g) => {
+      const scores = g.reponses
+        .map(scoreNormaliseSur5)
+        .filter((score): score is number => score !== null);
+      if (scores.length === 0) return null;
+      return scores.reduce((s, score) => s + score, 0) / scores.length;
+    })
+    .filter((score): score is number => score !== null);
 }

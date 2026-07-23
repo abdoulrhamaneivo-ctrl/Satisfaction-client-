@@ -8,7 +8,7 @@ import {
   resolveAgenceId,
   resolveAgenceScope,
 } from './middleware/rowLevelSecurity';
-import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, commentairesDeGroupe } from './soumissions';
+import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
 import { BRANDING } from '../shared/branding';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
@@ -414,6 +414,7 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
     where: { id: args.id_guichet },
     include: {
       services: {
+        orderBy: { id: 'asc' },
         include: {
           criteresServices: {
             include: { critere: true },
@@ -434,9 +435,14 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
     },
   });
 
-  if (!guichet) return null;
+  // Un QR code ne doit jamais réactiver une collecte sur un guichet ou une
+  // agence retirée du service. Cette query est publique, donc elle constitue
+  // la première barrière côté client.
+  if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) return null;
 
   const agencyCriteres = guichet.agence.agencesCriteres.map((ac: any) => ac.critere);
+  const criteresActifsAgence = new Set(guichet.agence.agencesCriteres.map((ac: any) => ac.id_critere));
+  const criteresDejaRattaches = new Set<number>();
 
   return {
     guichetName: guichet.nom_guichet,
@@ -444,7 +450,14 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
     services: guichet.services.map((s: any) => ({
       id: s.id,
       libelle_service: s.libelle_service,
-      criteres: s.criteresServices.map((cs: any) => cs.critere),
+      criteres: s.criteresServices.filter((cs: any) => {
+        // Désactiver un critère pour l'agence doit le retirer de tous les
+        // formulaires, y compris lorsqu'il était déjà placé dans une opération.
+        if (!criteresActifsAgence.has(cs.id_critere)) return false;
+        if (criteresDejaRattaches.has(cs.id_critere)) return false;
+        criteresDejaRattaches.add(cs.id_critere);
+        return true;
+      }).map((cs: any) => cs.critere),
     })),
     agencyCriteres: agencyCriteres,
     brandConfig: BRANDING,
@@ -494,15 +507,27 @@ export const getCriteresParOperation = async (args: { id_agence?: number }, cont
   const assignedIds = new Set(
     services.flatMap((s: any) => s.criteresServices.map((cs: any) => cs.id_critere))
   );
+  // Les anciennes données pouvaient contenir le même critère dans plusieurs
+  // opérations alors que l'éditeur le déplace comme une carte unique. On
+  // présente une seule carte (la première opération par ordre stable) pour
+  // éviter doublons et déplacements ambigus ; le prochain déplacement remet
+  // automatiquement les rattachements en cohérence.
+  const criteresDejaPlaces = new Set<number>();
 
   return {
     operations: services.map((s: any) => ({
       id: s.id,
       libelle_service: s.libelle_service,
-      criteres: s.criteresServices.map((cs: any) => ({
-        ...cs.critere,
-        actif: activeIds.has(cs.critere.id),
-      })),
+      criteres: s.criteresServices
+        .filter((cs: any) => {
+          if (criteresDejaPlaces.has(cs.id_critere)) return false;
+          criteresDejaPlaces.add(cs.id_critere);
+          return true;
+        })
+        .map((cs: any) => ({
+          ...cs.critere,
+          actif: activeIds.has(cs.critere.id),
+        })),
     })),
     // Questions encore rattachées à aucune opération : le vivier de gauche
     // dans lequel on pioche pour glisser une question vers une colonne.
@@ -537,8 +562,10 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
 
   // "Mesurage" = nombre d'AVIS reçus (pas de lignes Reponse : un formulaire à
   // plusieurs critères ne doit pas gonfler artificiellement ce score).
+  const debutCollecte = new Date();
+  debutCollecte.setDate(debutCollecte.getDate() - 30);
   const reponsesPourComptage = await context.entities.Reponse.findMany({
-    where: { id_agence: idAgence },
+    where: { id_agence: idAgence, date_reponse: { gte: debutCollecte } },
     select: { id: true, id_soumission: true },
   });
   const totalAvis = compterAvis(reponsesPourComptage);
@@ -555,7 +582,7 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
       ],
     },
   });
-  const activeAlertesNonNouvelles = await context.entities.Alerte.count({
+  const alertesPrisesEnCharge = await context.entities.Alerte.count({
     where: {
       OR: [
         { guichet: { id_agence: idAgence } },
@@ -565,16 +592,21 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
     },
   });
   const surveillanceScore = totalAlertes > 0
-    ? Math.round((activeAlertesNonNouvelles / totalAlertes) * 100)
+    ? Math.round((alertesPrisesEnCharge / totalAlertes) * 100)
     : 100;
 
-  const distinctCanalsResponse = await context.entities.Reponse.findMany({
-    where: { id_agence: idAgence },
-    select: { id_canal: true },
-    distinct: ['id_canal'],
+  const alertesResolues = await context.entities.Alerte.count({
+    where: {
+      OR: [
+        { guichet: { id_agence: idAgence } },
+        { reponse: { id_agence: idAgence } },
+      ],
+      statut_alerte: 'TRAITEE',
+    },
   });
-  const distinctCanalsCount = distinctCanalsResponse.length;
-  const communicationScore = Math.min(100, Math.round((distinctCanalsCount / 3) * 100));
+  const resolutionScore = totalAlertes > 0
+    ? Math.round((alertesResolues / totalAlertes) * 100)
+    : 100;
 
   const tacheFilter = {
     alerte: {
@@ -596,9 +628,9 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
 
   return [
     { subject: 'Planification', A: planificationScore, fullMark: 100 },
-    { subject: 'Mesurage', A: mesurageScore, fullMark: 100 },
-    { subject: 'Surveillance', A: surveillanceScore, fullMark: 100 },
-    { subject: 'Communication', A: communicationScore, fullMark: 100 },
+    { subject: 'Collecte (30j)', A: mesurageScore, fullMark: 100 },
+    { subject: 'Alertes prises en charge', A: surveillanceScore, fullMark: 100 },
+    { subject: 'Alertes résolues', A: resolutionScore, fullMark: 100 },
     { subject: 'Amélioration', A: ameliorationScore, fullMark: 100 },
   ];
 };
@@ -631,7 +663,10 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
           id_agence: scope.id_agence,
           date_reponse: { gte: obj.date_debut, lte: dateFinEffective },
         },
-        select: { score_brut: true },
+        select: {
+          score_brut: true,
+          critere: { select: { type_reponse: true, options_reponse: true } },
+        },
       });
 
       const nb = reponses.length;
@@ -641,7 +676,13 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
       let statut: 'ATTEINT' | 'EN_RETARD' | 'PAS_DE_DONNEES' = 'PAS_DE_DONNEES';
 
       if (nb > 0) {
-        const moyenne = reponses.reduce((s: number, r: any) => s + r.score_brut, 0) / nb;
+        const scores = reponses
+          .map((reponse: any) => scoreNormaliseSur5(reponse))
+          .filter((score): score is number => score !== null);
+        if (scores.length === 0) {
+          return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
+        }
+        const moyenne = scores.reduce((s: number, score: number) => s + score, 0) / scores.length;
         realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
         ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
         statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
@@ -800,6 +841,7 @@ export const getTendanceMensuelle = async (args: { id_agence?: number }, context
       id_soumission: true,
       score_brut: true,
       date_reponse: true,
+      critere: { select: { type_reponse: true, options_reponse: true } },
     },
     orderBy: { date_reponse: 'asc' },
   });
@@ -834,10 +876,15 @@ export const getTendanceMensuelle = async (args: { id_agence?: number }, context
 // COMPARAISON PAR AGENT (Module 3 — Surveillance)
 // ============================================================================
 
-export const getStatsByAgent = async (args: { id_agence?: number }, context: any) => {
+export const getStatsByAgent = async (args: { id_agence?: number; nbJours?: number } | void, context: any) => {
   requireAuth(context);
-  const scope = await resolveAgenceScope(context, context.entities, args.id_agence);
+  const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
   const idAgence = scope.id_agence;
+  const nbJours = Number.isFinite((args as any)?.nbJours)
+    ? Math.min(365, Math.max(1, Math.round((args as any).nbJours)))
+    : 30;
+  const debut = new Date();
+  debut.setDate(debut.getDate() - nbJours);
 
   const agents = await context.entities.User.findMany({
     where: { id_agence: idAgence, role: 'AGENT', actif: true },
@@ -850,8 +897,18 @@ export const getStatsByAgent = async (args: { id_agence?: number }, context: any
   // dashboard. On récupère maintenant toutes les réponses de l'agence en
   // UNE seule requête, puis on les regroupe en mémoire par agent.
   const reponses = await context.entities.Reponse.findMany({
-    where: { id_agence: idAgence, id_agent: { in: agents.map((a: any) => a.id) } },
-    select: { id: true, id_soumission: true, score_brut: true, id_agent: true },
+    where: {
+      id_agence: idAgence,
+      id_agent: { in: agents.map((a: any) => a.id) },
+      date_reponse: { gte: debut },
+    },
+    select: {
+      id: true,
+      id_soumission: true,
+      score_brut: true,
+      id_agent: true,
+      critere: { select: { type_reponse: true, options_reponse: true } },
+    },
   });
 
   const reponsesParAgent = new Map<string, any[]>();
@@ -864,8 +921,9 @@ export const getStatsByAgent = async (args: { id_agence?: number }, context: any
   const stats = agents.map((agent: any) => {
     const reponsesAgent = reponsesParAgent.get(agent.id) || [];
     const nb = compterAvis(reponsesAgent);
-    const scoreMoyen = reponsesAgent.length > 0
-      ? parseFloat((reponsesAgent.reduce((s: number, r: any) => s + r.score_brut, 0) / reponsesAgent.length).toFixed(2))
+    const scoresParAvis = scoreMoyenParAvis(reponsesAgent);
+    const scoreMoyen = scoresParAvis.length > 0
+      ? parseFloat((scoresParAvis.reduce((s, score) => s + score, 0) / scoresParAvis.length).toFixed(2))
       : 0;
     return {
       nom: `${agent.prenom} ${agent.nom}`,
@@ -884,9 +942,14 @@ export const getStatsByAgent = async (args: { id_agence?: number }, context: any
 // l'utilisateur doit repérer en priorité les points faibles, pas se
 // féliciter des meilleurs scores en premier.
 
-export const getStatsByGuichet = async (args: { id_agence?: number }, context: any) => {
+export const getStatsByGuichet = async (args: { id_agence?: number; nbJours?: number } | void, context: any) => {
   requireAuth(context);
-  const scope = await resolveAgenceScope(context, context.entities, args.id_agence);
+  const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
+  const nbJours = Number.isFinite((args as any)?.nbJours)
+    ? Math.min(365, Math.max(1, Math.round((args as any).nbJours)))
+    : 30;
+  const debut = new Date();
+  debut.setDate(debut.getDate() - nbJours);
 
   const guichets = await context.entities.Guichet.findMany({
     where: { id_agence: scope.id_agence, actif: true },
@@ -901,8 +964,17 @@ export const getStatsByGuichet = async (args: { id_agence?: number }, context: a
   // guichets de l'agence plutôt qu'une requête par guichet (N+1). Le gain
   // devient significatif dès qu'une agence dépasse une poignée de caisses.
   const reponses = await context.entities.Reponse.findMany({
-    where: { id_guichet: { in: guichets.map((g: any) => g.id) } },
-    select: { id: true, id_soumission: true, score_brut: true, id_guichet: true },
+    where: {
+      id_guichet: { in: guichets.map((g: any) => g.id) },
+      date_reponse: { gte: debut },
+    },
+    select: {
+      id: true,
+      id_soumission: true,
+      score_brut: true,
+      id_guichet: true,
+      critere: { select: { type_reponse: true, options_reponse: true } },
+    },
   });
 
   const reponsesParGuichet = new Map<number, any[]>();
@@ -914,8 +986,9 @@ export const getStatsByGuichet = async (args: { id_agence?: number }, context: a
   const stats = guichets.map((g: any) => {
     const reponsesGuichet = reponsesParGuichet.get(g.id) || [];
     const nb = compterAvis(reponsesGuichet);
-    const scoreMoyen = reponsesGuichet.length > 0
-      ? parseFloat((reponsesGuichet.reduce((s: number, r: any) => s + r.score_brut, 0) / reponsesGuichet.length).toFixed(2))
+    const scoresParAvis = scoreMoyenParAvis(reponsesGuichet);
+    const scoreMoyen = scoresParAvis.length > 0
+      ? parseFloat((scoresParAvis.reduce((s, score) => s + score, 0) / scoresParAvis.length).toFixed(2))
       : 0;
     return {
       id: g.id,
@@ -1029,11 +1102,21 @@ export const getKPIsPeriode = async (args: { nbJours?: number } | void, context:
   const [actuelles, precedentes] = await Promise.all([
     context.entities.Reponse.findMany({
       where: { ...filter, date_reponse: { gte: debutActuel, lte: now } },
-      select: { id: true, id_soumission: true, score_brut: true },
+      select: {
+        id: true,
+        id_soumission: true,
+        score_brut: true,
+        critere: { select: { type_reponse: true, options_reponse: true } },
+      },
     }),
     context.entities.Reponse.findMany({
       where: { ...filter, date_reponse: { gte: debutPrecedent, lt: debutActuel } },
-      select: { id: true, id_soumission: true, score_brut: true },
+      select: {
+        id: true,
+        id_soumission: true,
+        score_brut: true,
+        critere: { select: { type_reponse: true, options_reponse: true } },
+      },
     }),
   ]);
 
@@ -1223,7 +1306,13 @@ export const getHeatmapReponses = async (
       id_agence: scope.id_agence,
       date_reponse: { gte: debut },
     },
-    select: { id_soumission: true, id: true, score_brut: true, date_reponse: true },
+    select: {
+      id_soumission: true,
+      id: true,
+      score_brut: true,
+      date_reponse: true,
+      critere: { select: { type_reponse: true, options_reponse: true } },
+    },
   });
 
   // Un avis à N critères ne doit compter qu'une fois par créneau — même
@@ -1236,35 +1325,38 @@ export const getHeatmapReponses = async (
     if (!parSoumission.has(cle)) {
       parSoumission.set(cle, { date: new Date(r.date_reponse), scores: [] });
     }
-    parSoumission.get(cle)!.scores.push(r.score_brut);
+    const score = scoreNormaliseSur5(r);
+    if (score !== null) parSoumission.get(cle)!.scores.push(score);
   }
 
   // Grille complète 7 jours x 24h initialisée à zéro, pour que le front
   // n'ait pas à gérer les créneaux sans aucun avis.
-  const grille = new Map<string, { nb: number; sommeScores: number }>();
+  const grille = new Map<string, { nb: number; sommeScores: number; nbScores: number }>();
   for (let jour = 0; jour < 7; jour++) {
     for (let heure = 0; heure < 24; heure++) {
-      grille.set(`${jour}-${heure}`, { nb: 0, sommeScores: 0 });
+      grille.set(`${jour}-${heure}`, { nb: 0, sommeScores: 0, nbScores: 0 });
     }
   }
 
   for (const { date, scores } of parSoumission.values()) {
     const jour = date.getDay();
     const heure = date.getHours();
-    const scoreMoyenAvis = scores.reduce((s, v) => s + v, 0) / scores.length;
     const cellule = grille.get(`${jour}-${heure}`)!;
     cellule.nb += 1;
-    cellule.sommeScores += scoreMoyenAvis;
+    if (scores.length > 0) {
+      cellule.sommeScores += scores.reduce((s, v) => s + v, 0) / scores.length;
+      cellule.nbScores += 1;
+    }
   }
 
-  const cellules = Array.from(grille.entries()).map(([cle, { nb, sommeScores }]) => {
+  const cellules = Array.from(grille.entries()).map(([cle, { nb, sommeScores, nbScores }]) => {
     const [jour, heure] = cle.split('-').map(Number);
     return {
       jour,
       jour_label: JOURS_SEMAINE_FR[jour],
       heure,
       nb,
-      score_moyen: nb > 0 ? parseFloat((sommeScores / nb).toFixed(2)) : null,
+      score_moyen: nbScores > 0 ? parseFloat((sommeScores / nbScores).toFixed(2)) : null,
     };
   });
 
