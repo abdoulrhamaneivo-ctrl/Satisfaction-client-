@@ -678,7 +678,7 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
       if (nb > 0) {
         const scores = reponses
           .map((reponse: any) => scoreNormaliseSur5(reponse))
-          .filter((score): score is number => score !== null);
+          .filter((score: number | null): score is number => score !== null);
         if (scores.length === 0) {
           return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
         }
