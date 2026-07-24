@@ -94,7 +94,7 @@ export function NavBar({
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 border-b border-border bg-card",
+          "sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
         )}
       >
         <div
@@ -102,22 +102,22 @@ export function NavBar({
         >
           <nav
             className={cn(
-              "flex h-16 items-center justify-between px-4 lg:px-8",
+              "flex h-[68px] items-center justify-between px-4 lg:px-8",
             )}
             aria-label="Global"
           >
-            <div className="flex items-center gap-7">
+            <div className="flex items-center gap-8">
               <WaspRouterLink
                 to={routes.LandingPageRoute.to}
                 className="flex items-center text-foreground transition-colors hover:text-primary"
               >
                 <NavLogo isScrolled={isScrolled} />
-                <span className="ml-2 text-sm font-semibold leading-6 text-foreground">
+                <span className="ml-2.5 text-sm font-bold leading-6 tracking-tight text-foreground">
                   {brandConfig?.platform_name || "Yeba"}
                 </span>
               </WaspRouterLink>
 
-              <ul className="ml-5 hidden items-center gap-1 lg:flex">
+              <ul className="ml-2 hidden items-center gap-1.5 lg:flex">
                 {renderNavigationItems(visibleNavigationItems, undefined, location.pathname)}
               </ul>
             </div>
@@ -315,7 +315,7 @@ function renderNavigationItems(
   const menuStyles = cn({
     "block rounded-lg px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors":
       !!setMobileMenuOpen,
-    "rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground":
+    "rounded-lg px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground":
       !setMobileMenuOpen,
   });
 
@@ -326,7 +326,7 @@ function renderNavigationItems(
     const activeStyles = isActive
       ? setMobileMenuOpen
         ? 'bg-primary/10 text-primary'
-        : 'bg-primary/10 font-semibold text-primary'
+        : 'bg-primary/8 font-semibold text-primary shadow-[inset_0_-2px_0_0_hsl(var(--primary))]'
       : '';
     if (item.children && item.children.length > 0) {
       // Mobile : sous-menu repliable, pour ne pas empiler tous les liens

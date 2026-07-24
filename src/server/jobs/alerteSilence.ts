@@ -92,7 +92,7 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
   };
   const parDestinataire = new Map<
     string,
-    { destinataire: any; guichets: GuichetSilencieux[]; escaladeDirection: boolean; idAgence: number }
+    { destinataire: any; guichets: GuichetSilencieux[]; escaladeDirection: boolean; idEntreprise: number | null }
   >();
 
   let alertesCreees = 0;
@@ -173,7 +173,7 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
         destinataire,
         guichets: [],
         escaladeDirection: false,
-        idAgence: guichet.id_agence,
+        idEntreprise: guichet.agence.id_entreprise ?? null,
       });
     }
     const groupe = parDestinataire.get(destinataire.id)!;
@@ -192,7 +192,7 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
   // guichets en silence pour ce cycle.
   let messagesEnvoyes = 0;
   for (const [, groupe] of parDestinataire) {
-    const { destinataire, guichets, escaladeDirection, idAgence } = groupe;
+    const { destinataire, guichets, escaladeDirection, idEntreprise } = groupe;
     if (!destinataire.telephone) continue;
 
     const lignes = guichets
@@ -217,9 +217,14 @@ export const detecterAlertesSilence = async (_args: unknown, context: any) => {
     // plusieurs cycles sans traitement — pas à chaque cycle, seulement
     // quand le seuil est franchi, pour ne pas doubler le volume de SMS.
     if (escaladeDirection) {
-      const direction = await prisma.user.findMany({
-        where: { id_agence: idAgence, role: 'DIRECTION', actif: true, telephone: { not: '' } },
-      });
+      // Même correctif que soumettreAvisImpl (actions.ts) : DIRECTION est un
+      // rôle à portée ENTREPRISE, jamais une seule agence — on cherche donc
+      // par id_entreprise, pas par l'id_agence du guichet en silence.
+      const direction = idEntreprise
+        ? await prisma.user.findMany({
+            where: { id_entreprise: idEntreprise, role: 'DIRECTION', actif: true, telephone: { not: '' } },
+          })
+        : [];
       for (const dir of direction) {
         if (dir.id === destinataire.id) continue;
         const msgDirection = `🔴 Yeba ESCALADE — Silence non résolu depuis plusieurs heures sur ${guichets.length} guichet(s) de votre agence, malgré alerte au chef d'agence. Détails : ${FRONTEND_URL}/alertes-taches`;

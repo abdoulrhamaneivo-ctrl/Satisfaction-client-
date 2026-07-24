@@ -170,6 +170,7 @@ export const GuichetsPage = () => {
     try {
       await archiverGuichet({ id_guichet: guichetAArchiver.id });
       toast({
+        variant: 'success',
         title: 'Guichet archivé',
         description: `« ${guichetAArchiver.nom} » est fermé et déplacé dans les Archives. Son historique reste intact.`,
       });
@@ -403,15 +404,17 @@ export const GuichetsPage = () => {
               </div>
 
               {guichetCount > 0 && (
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={recherche}
-                    onChange={(event) => setRecherche(event.target.value)}
-                    placeholder="Rechercher un guichet, type ou opération…"
-                    className="h-10 pl-9"
-                    aria-label="Rechercher un guichet"
-                  />
+                <div className="sticky top-[76px] z-20 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/85">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={recherche}
+                      onChange={(event) => setRecherche(event.target.value)}
+                      placeholder="Rechercher un guichet, type ou opération…"
+                      className="h-10 pl-9"
+                      aria-label="Rechercher un guichet"
+                    />
+                  </div>
                 </div>
               )}
 

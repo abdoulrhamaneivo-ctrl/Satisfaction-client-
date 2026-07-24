@@ -193,7 +193,7 @@ export const AlertesTachesPage = () => {
         id_responsable: formTache.id_responsable,
       });
       setModal({ alerteId: null, idAgence: null });
-      toast({ title: 'Tâche créée', description: 'La tâche corrective a bien été enregistrée.' });
+      toast({ variant: 'success', title: 'Tâche créée', description: 'La tâche corrective a bien été enregistrée.' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Erreur inconnue' });
     } finally {
@@ -205,7 +205,7 @@ export const AlertesTachesPage = () => {
     setMovingId(tacheId);
     try {
       await updateStatut({ id: tacheId, statut });
-      toast({ title: 'Statut mis à jour', description: `Tâche déplacée vers « ${COLONNES.find((c) => c.statut === statut)?.label} »` });
+      toast({ variant: 'success', title: 'Statut mis à jour', description: `Tâche déplacée vers « ${COLONNES.find((c) => c.statut === statut)?.label} »` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     } finally {
@@ -216,7 +216,7 @@ export const AlertesTachesPage = () => {
   const handleMarquerTraitee = async (alerteId: number) => {
     try {
       await marquerTraitee({ id_alerte: alerteId });
-      toast({ title: 'Alerte traitée', description: 'L\'alerte a été marquée comme traitée.' });
+      toast({ variant: 'success', title: 'Alerte traitée', description: 'L\'alerte a été marquée comme traitée.' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     }
@@ -601,7 +601,10 @@ function TacheHistoriquePanel({ idTache }: { idTache: number }) {
         </p>
 
         {isLoading && (
-          <p className="text-xs text-muted-foreground italic">Chargement...</p>
+          <div className="space-y-1.5">
+            <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+          </div>
         )}
 
         {!isLoading && (!historique || historique.length === 0) && (

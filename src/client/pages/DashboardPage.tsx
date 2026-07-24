@@ -15,9 +15,11 @@ import {
   getTempsTraitement,
 } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
+import { Link as WaspRouterLink, routes } from 'wasp/client/router';
+import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2, ChevronRight } from 'lucide-react';
 import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets } from '../components/DashboardCharts';
 import { HeatmapReponses } from '../components/HeatmapReponses';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
@@ -35,7 +37,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
-import { DataTable } from '../components/ui/DataTable';
+import { DataTable, DataTableRow } from '../components/ui/DataTable';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
 import { ObjectifsProgress } from '../components/ObjectifsProgress';
@@ -57,6 +59,7 @@ const formatDuree = (heures: number | null) => {
 
 export const DashboardPage = () => {
   const { data: user } = useAuth();
+  const navigate = useNavigate();
 
   // Le chef d'agence n'a auparavant aucun levier pour comparer une semaine
   // chargée à un mois calme : la fenêtre était figée à 30 jours. Seuls les
@@ -416,19 +419,30 @@ export const DashboardPage = () => {
           <section>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-title-sm font-bold text-foreground">Derniers avis</h2>
-              {avisGroupes.length > 0 && (
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                  {avisGroupes.length} avis
-                </span>
-              )}
+              <div className="flex items-center gap-3">
+                {avisGroupes.length > 0 && (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {avisGroupes.length} avis
+                  </span>
+                )}
+                <WaspRouterLink
+                  to={routes.AvisRoute.to}
+                  className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary"
+                >
+                  Voir tout <ChevronRight className="size-3.5" />
+                </WaspRouterLink>
+              </div>
             </div>
 
             {avisGroupes.length > 0 ? (
-              <DataTable headers={['Note moyenne', 'Guichet', 'Critères', 'Date']}>
+              <DataTable headers={['Note moyenne', 'Guichet', 'Critères', 'Date', '']}>
                 {avisGroupes.slice(0, 5).map((avis) => {
                   const premiere = avis.reponses[0];
                   return (
-                    <tr key={avis.id_soumission ?? premiere.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <DataTableRow
+                      key={avis.id_soumission ?? premiere.id}
+                      onClick={() => navigate(routes.AvisRoute.to)}
+                    >
                       <td className="px-6 py-4">
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-bold ${
@@ -445,7 +459,10 @@ export const DashboardPage = () => {
                         {avis.reponses.map((r: any) => r.critere?.libelle_critere).filter(Boolean).join(', ') || 'Critère inconnu'}
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">{new Date(premiere.date_reponse).toLocaleDateString()}</td>
-                    </tr>
+                      <td className="px-6 py-4 text-right">
+                        <ChevronRight className="ml-auto size-4 text-muted-foreground" />
+                      </td>
+                    </DataTableRow>
                   );
                 })}
               </DataTable>

@@ -51,6 +51,7 @@ export const GestionAgencesPage = () => {
         adresse: formData.adresse || undefined,
       });
       toast({
+        variant: 'success',
         title: 'Agence créée',
         description: `"${formData.nom_agence}" a été ajoutée à votre réseau.`,
       });
@@ -72,6 +73,7 @@ export const GestionAgencesPage = () => {
     try {
       await archiverAgence({ id_agence: agenceAArchiver.id });
       toast({
+        variant: 'success',
         title: 'Agence archivée',
         description: `« ${agenceAArchiver.nom} » et ses guichets sont fermés et déplacés dans les Archives. Tout l'historique reste intact.`,
       });

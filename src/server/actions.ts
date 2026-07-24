@@ -72,6 +72,28 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
     ? { connect: serviceIds.map(id => ({ id })) }
     : undefined;
 
+  // Bug corrigé : cette affectation par défaut utilisait `new Date()`
+  // (horodatage courant, avec heures/minutes/secondes) au lieu d'une date
+  // tronquée à minuit UTC comme partout ailleurs dans le code
+  // (createAffectation, soumettreAvisImpl, les requêtes de planning...).
+  // Résultat : cette ligne ne correspondait JAMAIS à une recherche par date
+  // exacte — le guichet apparaissait "sans agent en poste" dès sa création,
+  // silencieusement, jusqu'à ce qu'un vrai créneau soit affecté manuellement.
+  const dateAffectationParDefaut = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
+
+  // On évite aussi de créer un double-booking fantôme pour le chef
+  // d'agence : s'il est déjà affecté ailleurs sur ce créneau 08:00-17:00
+  // aujourd'hui, on crée le guichet sans affectation par défaut plutôt que
+  // de violer silencieusement la même règle de chevauchement qu'ailleurs.
+  const chevauchementDefaut = await context.entities.AffectationGuichet.findFirst({
+    where: {
+      id_agent: user.id,
+      date_affectation: dateAffectationParDefaut,
+      heure_debut: { lt: "17:00" },
+      heure_fin: { gt: "08:00" },
+    },
+  });
+
   return await context.entities.Guichet.create({
     data: {
       nom_guichet: nomGuichet.trim(),
@@ -79,14 +101,18 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
       actif: true,
       agence: { connect: { id: id_agence } },
       services: servicesConnect,
-      affectations: {
-        create: {
-          date_affectation: new Date(),
-          heure_debut: "08:00",
-          heure_fin: "17:00",
-          id_agent: user.id
-        }
-      }
+      ...(chevauchementDefaut
+        ? {}
+        : {
+            affectations: {
+              create: {
+                date_affectation: dateAffectationParDefaut,
+                heure_debut: "08:00",
+                heure_fin: "17:00",
+                id_agent: user.id
+              }
+            }
+          }),
     }
   });
 };
@@ -341,7 +367,7 @@ const soumettreAvisImpl = async (args: any, context: any) => {
 
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: Number(guichetId) },
-    include: { agence: { select: { archive: true } } },
+    include: { agence: { select: { archive: true, id_entreprise: true } } },
   });
 
   // La route est publique : la validation doit être répétée côté serveur
@@ -557,17 +583,26 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     // d'agence (le mieux placé pour réagir immédiatement sur place), avec
     // repli sur DIRECTION puis QUALITE — même logique que l'escalade de
     // silence dans alerteSilence.ts.
-    const utilisateursEligibles = await context.entities.User.findMany({
-      where: {
-        id_agence: guichet.id_agence,
-        role: { in: ['CHEF_AGENCE', 'DIRECTION', 'QUALITE'] },
-        actif: true,
-      },
+    const chefAgence = await context.entities.User.findFirst({
+      where: { id_agence: guichet.id_agence, role: 'CHEF_AGENCE', actif: true },
     });
+    // DIRECTION/QUALITE sont des rôles à portée ENTREPRISE (toutes les
+    // agences du tenant), jamais une seule agence — voir
+    // rowLevelSecurity.ts. On les cherche donc par id_entreprise, pas par
+    // l'id_agence du guichet.
+    const utilisateursEntreprise = chefAgence
+      ? []
+      : await context.entities.User.findMany({
+          where: {
+            id_entreprise: guichet.agence.id_entreprise,
+            role: { in: ['DIRECTION', 'QUALITE'] },
+            actif: true,
+          },
+        });
     const destinataire =
-      utilisateursEligibles.find((u: any) => u.role === 'CHEF_AGENCE') ||
-      utilisateursEligibles.find((u: any) => u.role === 'DIRECTION') ||
-      utilisateursEligibles.find((u: any) => u.role === 'QUALITE') ||
+      chefAgence ||
+      utilisateursEntreprise.find((u: any) => u.role === 'DIRECTION') ||
+      utilisateursEntreprise.find((u: any) => u.role === 'QUALITE') ||
       null;
 
     if (destinataire) {
@@ -1610,6 +1645,21 @@ export const upsertObjectif = async (
     throw new HttpError(400, "L'objectif doit être compris entre 0 et 100%.");
   }
 
+  // Bug corrigé : aucune validation ne garantissait que la date de fin
+  // suive la date de début. Un objectif avec une plage inversée était
+  // silencieusement enregistré, puis getObjectifs ne trouvait jamais de
+  // réponses correspondantes (date_reponse entre date_debut et date_fin
+  // effective) — l'objectif restait invisible/non évaluable sans aucune
+  // erreur expliquant pourquoi.
+  const dateDebut = new Date(args.date_debut);
+  const dateFin = new Date(args.date_fin);
+  if (isNaN(dateDebut.getTime()) || isNaN(dateFin.getTime())) {
+    throw new HttpError(400, 'Dates invalides.');
+  }
+  if (dateFin <= dateDebut) {
+    throw new HttpError(400, 'La date de fin doit être postérieure à la date de début.');
+  }
+
   // Chercher un objectif actif existant pour ce couple agence/critère
   const existing = await context.entities.Objectif.findFirst({
     where: { id_agence: idAgence, id_critere: args.id_critere },
@@ -1620,8 +1670,8 @@ export const upsertObjectif = async (
       where: { id: existing.id },
       data: {
         valeur_cible: args.valeur_cible,
-        date_debut: new Date(args.date_debut),
-        date_fin: new Date(args.date_fin),
+        date_debut: dateDebut,
+        date_fin: dateFin,
       },
     });
   }
@@ -1631,8 +1681,8 @@ export const upsertObjectif = async (
       id_agence: idAgence,
       id_critere: args.id_critere,
       valeur_cible: args.valeur_cible,
-      date_debut: new Date(args.date_debut),
-      date_fin: new Date(args.date_fin),
+      date_debut: dateDebut,
+      date_fin: dateFin,
     },
   });
 };

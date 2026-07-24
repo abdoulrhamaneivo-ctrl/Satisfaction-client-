@@ -114,6 +114,7 @@ export const PlanningPage = () => {
       });
       const agentNom = agents?.find((a: any) => String(a.id) === agentId);
       toast({
+        variant: 'success',
         title: 'Agent affecté',
         description: agentNom
           ? `${agentNom.prenom} ${agentNom.nom} est planifié(e) de ${heureDebut} à ${heureFin}.`
@@ -154,7 +155,7 @@ export const PlanningPage = () => {
         heure_debut: editHeureDebut,
         heure_fin: editHeureFin,
       });
-      toast({ title: 'Affectation modifiée', description: 'Le planning a été mis à jour.' });
+      toast({ variant: 'success', title: 'Affectation modifiée', description: 'Le planning a été mis à jour.' });
       setAffectationAEditer(null);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur lors de la modification', description: err.message || 'Erreur inconnue' });
@@ -168,7 +169,7 @@ export const PlanningPage = () => {
     setDeletingId(affectationASupprimer.id);
     try {
       await deleteAffectationGuichet({ id: affectationASupprimer.id });
-      toast({ title: 'Affectation retirée', description: 'Le créneau a été libéré.' });
+      toast({ variant: 'success', title: 'Affectation retirée', description: 'Le créneau a été libéré.' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur lors de la suppression', description: err.message || 'Erreur inconnue' });
     } finally {

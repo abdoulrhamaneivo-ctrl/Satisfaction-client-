@@ -92,7 +92,7 @@ function ArchivesContent() {
     setBusyId(cle);
     try {
       await fn();
-      toast({ title: 'Restauré', description: `« ${libelle} » est de nouveau actif.` });
+      toast({ variant: 'success', title: 'Restauré', description: `« ${libelle} » est de nouveau actif.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err?.message || 'Erreur inconnue' });
     } finally {
@@ -102,38 +102,40 @@ function ArchivesContent() {
 
   return (
     <div>
-      {/* Onglets */}
-      <div className="mb-6 flex flex-wrap gap-2 border-b border-border/70 pb-3">
-        {ONGLETS.map((o) => (
-          <Button
-            key={o.key}
-            type="button"
-            variant={onglet === o.key ? 'default' : 'ghost'}
-            onClick={() => setOnglet(o.key)}
-            className={onglet === o.key ? 'rounded-full shadow-premium' : 'rounded-full text-muted-foreground'}
-          >
-            {o.icon}
-            {o.label}
-            <span
-              className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                onglet === o.key ? 'bg-white/20' : 'bg-muted-foreground/10'
-              }`}
+      {/* Onglets + recherche : flottants pendant le scroll de la liste */}
+      <div className="sticky top-[76px] z-20 mb-6 rounded-2xl border border-border/70 bg-card/95 p-4 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/85">
+        <div className="flex flex-wrap gap-2 border-b border-border/70 pb-3">
+          {ONGLETS.map((o) => (
+            <Button
+              key={o.key}
+              type="button"
+              variant={onglet === o.key ? 'default' : 'ghost'}
+              onClick={() => setOnglet(o.key)}
+              className={onglet === o.key ? 'rounded-full shadow-premium' : 'rounded-full text-muted-foreground'}
             >
-              {compteurs[o.key]}
-            </span>
-          </Button>
-        ))}
-      </div>
+              {o.icon}
+              {o.label}
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
+                  onglet === o.key ? 'bg-white/20' : 'bg-muted-foreground/10'
+                }`}
+              >
+                {compteurs[o.key]}
+              </span>
+            </Button>
+          ))}
+        </div>
 
-      <div className="relative mb-6 max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={recherche}
-          onChange={(event) => setRecherche(event.target.value)}
-          placeholder={`Rechercher dans les ${onglet} archivés…`}
-          className="h-10 pl-9"
-          aria-label="Rechercher dans les archives"
-        />
+        <div className="relative mt-4 max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={recherche}
+            onChange={(event) => setRecherche(event.target.value)}
+            placeholder={`Rechercher dans les ${onglet} archivés…`}
+            className="h-10 pl-9"
+            aria-label="Rechercher dans les archives"
+          />
+        </div>
       </div>
 
       {isLoading ? (

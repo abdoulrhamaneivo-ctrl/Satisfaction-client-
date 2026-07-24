@@ -132,7 +132,7 @@ export const AvisPage = () => {
       const formatted = formaterAvisPourCSV(raw as any[]);
       const date = new Date().toISOString().split('T')[0];
       exportToCSV(formatted, `Yeba_Avis_${date}`);
-      toast({ title: 'Export réussi', description: `${formatted.length} avis exportés.` });
+      toast({ variant: 'success', title: 'Export réussi', description: `${formatted.length} avis exportés.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur export', description: err.message });
     } finally {
@@ -191,8 +191,9 @@ export const AvisPage = () => {
             }
           />
 
-          {/* Filters Dashboard Panel */}
-          <MotionCard interactive={false} className="p-6">
+          {/* Filters Dashboard Panel — flottant : reste accessible en scrollant
+              la liste, potentiellement longue, des avis en dessous. */}
+          <MotionCard interactive={false} className="sticky top-[76px] z-30 p-6 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/92">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Filter size={16} /> Filtres de recherche

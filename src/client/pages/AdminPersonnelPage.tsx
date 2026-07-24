@@ -144,7 +144,7 @@ export const AdminPersonnelPage = () => {
     try {
       if (editingId) {
         await updateAgent({ id: editingId, ...formData, id_agence: selectedAgenceId });
-        toast({ title: 'Agent mis à jour', description: `${formData.prenom} ${formData.nom} a bien été modifié(e).` });
+        toast({ variant: 'success', title: 'Agent mis à jour', description: `${formData.prenom} ${formData.nom} a bien été modifié(e).` });
       } else {
         await inviteAgent({
           email: formData.email,
@@ -155,6 +155,7 @@ export const AdminPersonnelPage = () => {
           telephone: formData.telephone,
         });
         toast({
+          variant: 'success',
           title: formData.role === 'CHEF_AGENCE' ? 'Invitation envoyée' : 'Agent créé',
           description: `${formData.prenom} ${formData.nom} a bien été ajouté(e).`,
         });
@@ -203,7 +204,7 @@ export const AdminPersonnelPage = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteAgent({ id });
-      toast({ title: 'Agent suspendu', description: "Le compte a été désactivé et ne peut plus se connecter. Il peut être réactivé à tout moment." });
+      toast({ variant: 'success', title: 'Agent suspendu', description: "Le compte a été désactivé et ne peut plus se connecter. Il peut être réactivé à tout moment." });
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error: any) {
@@ -216,7 +217,7 @@ export const AdminPersonnelPage = () => {
   const handleReactivate = async (id: string) => {
     try {
       await reactivateAgent({ id });
-      toast({ title: 'Agent réactivé', description: 'Le compte peut à nouveau se connecter.' });
+      toast({ variant: 'success', title: 'Agent réactivé', description: 'Le compte peut à nouveau se connecter.' });
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error: any) {
@@ -397,7 +398,7 @@ export const AdminPersonnelPage = () => {
 
             {/* GRILLE DES AGENTS (Bento Grid) */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="sticky top-[76px] z-20 flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/85 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input

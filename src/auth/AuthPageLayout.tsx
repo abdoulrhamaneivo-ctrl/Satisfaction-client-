@@ -75,8 +75,12 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="grid w-full max-w-4xl overflow-hidden rounded-3xl border border-border/70 bg-card shadow-premium-lg ring-1 ring-black/[0.02] lg:grid-cols-[1.05fr_1fr]"
       >
-        {/* Panneau de marque */}
-        <div className="relative hidden flex-col justify-between overflow-hidden bg-slate-950 p-10 text-white lg:flex">
+        {/* Panneau de marque : anciennement un slate-950 générique, resté
+            tel quel lors du premier passage de rebranding (juillet 2026) —
+            désormais teinté dans la même famille "encre" que la nouvelle
+            couleur primaire, pour que la première page vue par un visiteur
+            porte déjà l'identité Yeba plutôt qu'un noir neutre quelconque. */}
+        <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0B191E] p-10 text-white lg:flex">
           {/* Texture fine en pointillés : profondeur discrète, jamais au
               premier plan (opacité très faible), qui évite au grand aplat
               de couleur primaire de paraître plat/générique. */}
@@ -131,7 +135,7 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
           <div className="mb-6 flex justify-start">
             <a
               href="/"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-500 hover:text-foreground transition-colors group"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
             >
               <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1" />
               Retour à l'accueil

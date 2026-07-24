@@ -117,7 +117,7 @@ export const ConfigurationCriteresPage = () => {
     setDeletingCritereId(critere.id);
     try {
       await deleteCritere({ id_critere: critere.id });
-      toast({ title: 'Critère supprimé', description: `« ${critere.libelle_critere} » a été supprimé.` });
+      toast({ variant: 'success', title: 'Critère supprimé', description: `« ${critere.libelle_critere} » a été supprimé.` });
       setCritereASupprimer(null);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Suppression impossible', description: err.message || 'Erreur inconnue' });
@@ -131,7 +131,7 @@ export const ConfigurationCriteresPage = () => {
     setDuplicatingCritereId(critere.id);
     try {
       await duplicateCritere({ id_critere: critere.id });
-      toast({ title: 'Critère dupliqué', description: `Une copie de « ${critere.libelle_critere} » a été créée, modifiable librement.` });
+      toast({ variant: 'success', title: 'Critère dupliqué', description: `Une copie de « ${critere.libelle_critere} » a été créée, modifiable librement.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Duplication impossible', description: err.message || 'Erreur inconnue' });
     } finally {
@@ -187,7 +187,7 @@ export const ConfigurationCriteresPage = () => {
       setEchelleMax('10');
       setObligatoire(true);
       setSelectedServiceIds([]);
-      toast({ title: 'Critère créé', description: `« ${nouveauLibelle} » a été ajouté avec succès.` });
+      toast({ variant: 'success', title: 'Critère créé', description: `« ${nouveauLibelle} » a été ajouté avec succès.` });
     } catch (err: any) {
       toast({
         variant: 'destructive',
@@ -206,7 +206,7 @@ export const ConfigurationCriteresPage = () => {
       const created: any = await createService({ libelle_service: newServiceName.trim() });
       setNewServiceName('');
       setSelectedServiceIds((prev) => [...prev, created.id]);
-      toast({ title: 'Opération créée', description: `« ${created.libelle_service} » est disponible.` });
+      toast({ variant: 'success', title: 'Opération créée', description: `« ${created.libelle_service} » est disponible.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Erreur inconnue' });
     } finally {

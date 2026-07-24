@@ -1,3 +1,4 @@
+import { CheckCircle2, AlertTriangle, AlertCircle, Info } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import {
   Toast,
@@ -7,6 +8,13 @@ import {
   ToastTitle,
   ToastViewport,
 } from "./toast";
+
+const VARIANT_ICON = {
+  default: Info,
+  destructive: AlertCircle,
+  success: CheckCircle2,
+  warning: AlertTriangle,
+} as const;
 
 export function Toaster({
   position,
@@ -23,10 +31,12 @@ export function Toaster({
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, variant, ...props }) {
+        const Icon = VARIANT_ICON[(variant as keyof typeof VARIANT_ICON) || "default"];
         return (
-          <Toast key={id} {...props}>
-            <div className="grid gap-1">
+          <Toast key={id} variant={variant} {...props}>
+            <Icon className="mt-0.5 size-5 shrink-0" strokeWidth={2} />
+            <div className="grid flex-1 gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (
                 <ToastDescription>{description}</ToastDescription>

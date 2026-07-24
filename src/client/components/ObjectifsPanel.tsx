@@ -68,6 +68,14 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
       toast({ variant: 'destructive', title: 'Valeur invalide', description: 'L\'objectif doit être entre 0 et 100%.' });
       return;
     }
+    // Bug corrigé : rien n'empêchait de saisir une date de fin antérieure
+    // (ou égale) à la date de début — l'objectif était alors enregistré
+    // mais ne pouvait jamais correspondre à la moindre réponse, restant
+    // invisible côté "réalisé" sans qu'on comprenne pourquoi.
+    if (new Date(edit.fin) <= new Date(edit.debut)) {
+      toast({ variant: 'destructive', title: 'Dates invalides', description: 'La date de fin doit être postérieure à la date de début.' });
+      return;
+    }
     setSaving(idCritere);
     try {
       await saveObjectif({
@@ -77,7 +85,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
         date_debut: edit.debut,
         date_fin: edit.fin,
       });
-      toast({ title: 'Objectif enregistré', description: `Objectif de ${valeur}% défini avec succès.` });
+      toast({ variant: 'success', title: 'Objectif enregistré', description: `Objectif de ${valeur}% défini avec succès.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     } finally {
@@ -91,7 +99,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
     setDeleting(idCritere);
     try {
       await supprimerObjectif({ id: objectifActuel.id });
-      toast({ title: 'Objectif supprimé', description: 'L\'objectif a été supprimé avec succès.' });
+      toast({ variant: 'success', title: 'Objectif supprimé', description: 'L\'objectif a été supprimé avec succès.' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     } finally {
@@ -142,11 +150,23 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-foreground">{critere.libelle_critere}</span>
-                {objectifActuel && (
-                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success uppercase">
-                    Actif
-                  </span>
-                )}
+                {objectifActuel && (() => {
+                  const now = new Date();
+                  const debut = new Date(objectifActuel.date_debut);
+                  const fin = new Date(objectifActuel.date_fin);
+                  const statut = now < debut ? 'À venir' : now > fin ? 'Expiré' : 'Actif';
+                  const tone =
+                    statut === 'Actif'
+                      ? 'bg-success/10 text-success'
+                      : statut === 'Expiré'
+                      ? 'bg-muted text-muted-foreground'
+                      : 'bg-warning/10 text-warning';
+                  return (
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${tone}`}>
+                      {statut}
+                    </span>
+                  );
+                })()}
               </div>
 
               {/* Barre de progression */}

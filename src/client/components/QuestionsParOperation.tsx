@@ -274,7 +274,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
       setNouvelleQuestion('');
       setNouveauType('SMILEY');
       setAddingToColumn(null);
-      toast({ title: 'Question ajoutée', description: `Ajoutée à « ${col.title} ».` });
+      toast({ variant: 'success', title: 'Question ajoutée', description: `Ajoutée à « ${col.title} ».` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err?.message || 'Erreur inconnue' });
     } finally {
@@ -293,7 +293,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
     setDeletingId(critere.id);
     try {
       await deleteCritere({ id_critere: critere.id });
-      toast({ title: 'Question supprimée', description: `« ${critere.libelle_critere} » a été supprimée.` });
+      toast({ variant: 'success', title: 'Question supprimée', description: `« ${critere.libelle_critere} » a été supprimée.` });
       setCritereASupprimer(null);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Suppression impossible', description: err?.message || 'Erreur inconnue' });
@@ -307,7 +307,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
     setDuplicatingId(critere.id);
     try {
       await duplicateCritere({ id_critere: critere.id });
-      toast({ title: 'Question dupliquée', description: `Une copie de « ${critere.libelle_critere} » a été créée.` });
+      toast({ variant: 'success', title: 'Question dupliquée', description: `Une copie de « ${critere.libelle_critere} » a été créée.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Duplication impossible', description: err?.message || 'Erreur inconnue' });
     } finally {
