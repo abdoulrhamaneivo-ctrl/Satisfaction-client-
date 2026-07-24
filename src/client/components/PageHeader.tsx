@@ -24,13 +24,13 @@ export const PageHeader = ({
   return (
     <div
       className={cn(
-        'mb-7 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between',
+        'mb-8 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between',
         className,
       )}
     >
       <div className="flex items-start gap-4">
         {Icon && (
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Icon className="size-5" strokeWidth={2} />
           </span>
         )}
@@ -40,7 +40,7 @@ export const PageHeader = ({
               {eyebrow}
             </p>
           )}
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-title-lg font-bold tracking-tight text-foreground">
             {title}
           </h1>
           {description && (

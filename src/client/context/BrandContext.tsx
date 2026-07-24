@@ -56,8 +56,12 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
     const cardAccentForeground = BRANDING.color_accent_foreground;
     const cardSubtle = BRANDING.color_muted;
     const cardSubtleForeground = BRANDING.color_muted_foreground;
-    const secondaryMuted = BRANDING.color_secondary;
-    const secondaryMutedForeground = BRANDING.color_secondary_foreground;
+    // Bug corrigé : secondary-muted (fond des badges "doux") était mappé
+    // directement sur color_secondary, donc un badge "muted" affichait la
+    // couleur secondaire pleine saturation au lieu d'une teinte discrète —
+    // BRANDING expose maintenant ses propres champs dédiés.
+    const secondaryMuted = BRANDING.color_secondary_muted;
+    const secondaryMutedForeground = BRANDING.color_secondary_muted_foreground;
 
     styleElement.innerHTML = `
       ${BRANDING.font_url ? `@import url('${BRANDING.font_url}');` : ''}

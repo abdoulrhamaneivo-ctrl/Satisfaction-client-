@@ -23,7 +23,7 @@ import { HeatmapReponses } from '../components/HeatmapReponses';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
-import { MotionCard } from '../components/MotionCard';
+import { DashboardSummary } from '../components/DashboardSummary';
 import { StatCard } from '../components/StatCard';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
@@ -216,20 +216,30 @@ export const DashboardPage = () => {
           }
         />
 
+        <DashboardSummary
+          prenom={(user as any)?.prenom}
+          satisfaction={Number(satisfaction)}
+          totalAvis={totalAvisPeriode}
+          alertesNouvelles={alertesNouvelles}
+          tachesEnRetard={actionsPrioritaires?.tachesEnRetard?.length ?? 0}
+          labelPeriode={labelPeriode}
+          isLoading={loadingKpis || loadingActions}
+        />
+
         {user?.role === 'DIRECTION' && (
-          <MotionCard interactive={false} className="border-primary/30 bg-primary/5 p-4 text-sm text-foreground">
-            Vue Entreprise : vous voyez les chiffres cumulés de l'ensemble du réseau.
-          </MotionCard>
+          <p className="text-xs text-muted-foreground">
+            Vue Entreprise : ces chiffres sont cumulés sur l'ensemble du réseau.
+          </p>
         )}
 
         {user?.role !== 'DIRECTION' && (user as any)?.agence?.nom_agence && (
-          <MotionCard interactive={false} className="border-border/70 bg-card-subtle/40 p-4 text-sm text-foreground">
-            Vue Agence : {(user as any).agence.nom_agence} — Vous ne voyez que les données de votre agence.
-          </MotionCard>
+          <p className="text-xs text-muted-foreground">
+            Vue Agence : ces chiffres ne portent que sur {(user as any).agence.nom_agence}.
+          </p>
         )}
 
         {/* NIVEAU 1 — Quoi faire aujourd'hui (priorité absolue, avant tout le reste) */}
-        <section>
+        <section id="actions-prioritaires">
           <ActionsPrioritaires
             alertesNouvelles={actionsPrioritaires?.alertesNouvelles ?? []}
             tachesEnRetard={actionsPrioritaires?.tachesEnRetard ?? []}

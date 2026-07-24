@@ -531,7 +531,7 @@ export const GuichetsPage = () => {
                                 onClick={() => setEditingGuichetId(null)}
                                 className="h-8 text-xs gap-1"
                               >
-                                <X size={12} /> Annuler
+                                <X className="size-3" /> Annuler
                               </Button>
                               <Button 
                                 size="sm" 

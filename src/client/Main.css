@@ -374,73 +374,76 @@
        une luminosité légèrement réduite (99% → 97.5% pour le fond) : le
        thème reste clairement "clair", mais sans le pic de luminosité brut
        d'un blanc pur écran. */
-    --background: 210 20% 98%;
-    --foreground: 215 28% 12%;
+    --background: 200 20% 98%;
+    --foreground: 200 22% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 215 28% 12%;
-    --card-accent: 210 25% 99%;
-    --card-accent-foreground: 215 28% 12%;
-    --card-subtle: 210 24% 96%;
-    --card-subtle-foreground: 215 28% 12%;
+    --card-foreground: 200 22% 12%;
+    --card-accent: 200 25% 99%;
+    --card-accent-foreground: 200 22% 12%;
+    --card-subtle: 200 22% 96%;
+    --card-subtle-foreground: 200 22% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 12%;
-    /* Identité La Poste de Côte d'Ivoire : orange postal en primaire, vert
-       (drapeau ivoirien) en secondaire — remplace l'ancien bleu marine
-       générique du template. */
-    --primary: 211 58% 25%;
+    --popover-foreground: 200 22% 12%;
+    /* Nouvelle identité Yeba (juillet 2026) : on abandonne le bleu marine /
+       orange-vert générique du template au profit d'une paire "encre et
+       laiton" — un bleu-pétrole profond en primaire (rigueur, confiance,
+       lisibilité du cachet postal) et un laiton chaud en secondaire (le
+       sceau de cire), pensée pour ne ressembler à aucun autre SaaS
+       bleu/violet du marché tout en restant sobre et professionnelle. */
+    --primary: 192 62% 22%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 152 52% 30%;
+    --secondary: 32 58% 42%;
     --secondary-foreground: 0 0% 98%;
-    --secondary-muted: 152 45% 90%;
-    --secondary-muted-foreground: 0 0% 9%;
+    --secondary-muted: 32 48% 91%;
+    --secondary-muted-foreground: 30 45% 22%;
     /* Bug corrigé : gris neutre froid (0% de saturation) qui tranchait avec
        le reste du thème, désormais chaleureux — remis dans la même famille
        de teinte que le fond pour une transition moins abrupte à l'œil. */
-    --muted: 210 18% 94%;
+    --muted: 200 18% 94%;
     /* Bug corrigé : 45.1% de luminosité pour le texte secondaire est trop
        clair sur un fond quasi blanc (ratio de contraste proche de la limite
        WCAG AA) — beaucoup de libellés, sous-titres et cellules de tableau
        utilisent cette couleur et devenaient difficiles à lire en plein
        jour / forte luminosité d'écran. Assombri pour un contraste plus sûr. */
-    --muted-foreground: 215 15% 40%;
-    --accent: 210 24% 93%;
-    --accent-foreground: 215 28% 12%;
+    --muted-foreground: 205 15% 40%;
+    --accent: 200 24% 93%;
+    --accent-foreground: 200 22% 12%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --success: 141 71% 48%;
     --success-foreground: 0 0% 98%;
     --warning: 36 100% 50%;
     --warning-foreground: 0 0% 98%;
-    --border: 214 18% 88%;
-    --input: 214 18% 84%;
-    --ring: 211 58% 25%;
+    --border: 200 18% 88%;
+    --input: 200 18% 84%;
+    --ring: 192 62% 22%;
     --radius: 0.375rem;
   }
 
   .dark {
-    --background: 155 30% 5%;
+    --background: 200 28% 6%;
     --foreground: 0 0% 98%;
-    --card: 155 30% 5%;
+    --card: 200 28% 6%;
     --card-foreground: 0 0% 98%;
-    --card-accent: 31 57% 93%;
-    --card-accent-foreground: 0 0% 3.9%;
-    --card-subtle: 155 24% 13%;
+    --card-accent: 35 55% 92%;
+    --card-accent-foreground: 0 0% 4%;
+    --card-subtle: 200 22% 13%;
     --card-subtle-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
+    --popover: 0 0% 4%;
     --popover-foreground: 0 0% 98%;
-    --primary: 24 92% 58%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 150 55% 45%;
+    --primary: 174 58% 50%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 36 75% 56%;
     --secondary-foreground: 0 0% 9%;
-    --secondary-muted: 152 40% 90%;
-    --secondary-muted-foreground: 0 0% 9%;
-    --muted: 155 25% 12%;
+    --secondary-muted: 36 40% 18%;
+    --secondary-muted-foreground: 36 65% 78%;
+    --muted: 200 22% 13%;
     /* Bug corrigé : 63.9% était un peu trop sombre sur le fond très foncé
        (5% de luminosité) du thème sombre, rendant le texte secondaire
        (sous-titres, légendes, dates) difficile à lire. Éclairci pour un
        meilleur contraste. */
     --muted-foreground: 0 0% 72%;
-    --accent: 28 90% 65%;
+    --accent: 36 80% 62%;
     --accent-foreground: 0 0% 9%;
     --destructive: 0 62.8% 63%;
     --destructive-foreground: 0 0% 98%;
@@ -448,9 +451,9 @@
     --success-foreground: 0 0% 98%;
     --warning: 36 100% 50%;
     --warning-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 24 92% 58%;
+    --border: 200 15% 16%;
+    --input: 200 15% 16%;
+    --ring: 174 58% 50%;
   }
 }
 
