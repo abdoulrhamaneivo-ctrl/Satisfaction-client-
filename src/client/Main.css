@@ -295,36 +295,27 @@
   & > * {
     background: hsl(var(--background));
   }
+}
 
-  /* Radial gradient utilities */
-  .bg-radial-gradient {
-    background: radial-gradient(
-      circle at 30% 30%,
-      hsl(var(--card-accent) / 0.5) 0%,
-      hsl(var(--accent) / 0.15) 100%
-    );
-  }
+/* Radial gradient utilities */
+.bg-radial-gradient {
+  background: radial-gradient(
+    circle at 30% 30%,
+    hsl(var(--card-accent) / 0.5) 0%,
+    hsl(var(--accent) / 0.15) 100%
+  );
+}
 
-  .dark .bg-radial-gradient {
-    background: radial-gradient(
-      circle at 30% 30%,
-      hsl(var(--card-subtle) / 0.8) 0%,
-       texte quasi noir produit un contraste très élevé qui "éblouit" sur
-       certains écrans/pages très remplies de texte. On adoucit légèrement
-       le fond (blanc cassé chaleureux, cohérent avec AmbientBackground) et
-       les cartes, sans perdre le côté "clair" du thème.
-       Complément : le fond, les cartes et les libellés muted avaient déjà
-       été adoucis, mais plusieurs surfaces restaient en blanc quasi pur
-       (--card-accent, --popover) ou en gris froid neutre (--muted), donc
-       le contraste "éblouissant" persistait dès qu'une carte, un menu
-       déroulant ou une zone survolée s'affichait — ce qui, sur une
-       interface de tableau de bord où ces surfaces couvrent une grande
-       part de l'écran toute la journée, fatiguait beaucoup les yeux.
-       Toutes les surfaces claires sont désormais dans la même famille de
-       blanc cassé chaleureux (teinte 40, jamais 0% de saturation), avec
-       une luminosité légèrement réduite (99% → 97.5% pour le fond) : le
-       thème reste clairement "clair", mais sans le pic de luminosité brut
-       d'un blanc pur écran. */
+.dark .bg-radial-gradient {
+  background: radial-gradient(
+    circle at 30% 30%,
+    hsl(var(--card-subtle) / 0.8) 0%,
+    hsl(var(--card)) 100%
+  );
+}
+
+@layer base {
+  :root {
     --background: 200 20% 98%;
     --foreground: 200 22% 12%;
     --card: 0 0% 100%;
@@ -335,27 +326,13 @@
     --card-subtle-foreground: 200 22% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 200 22% 12%;
-    /* Nouvelle identité Yeba (juillet 2026) : on abandonne le bleu marine /
-       orange-vert générique du template au profit d'une paire "encre et
-       laiton" — un bleu-pétrole profond en primaire (rigueur, confiance,
-       lisibilité du cachet postal) et un laiton chaud en secondaire (le
-       sceau de cire), pensée pour ne ressembler à aucun autre SaaS
-       bleu/violet du marché tout en restant sobre et professionnelle. */
     --primary: 192 62% 22%;
     --primary-foreground: 0 0% 98%;
     --secondary: 32 58% 42%;
     --secondary-foreground: 0 0% 98%;
     --secondary-muted: 32 48% 91%;
     --secondary-muted-foreground: 30 45% 22%;
-    /* Bug corrigé : gris neutre froid (0% de saturation) qui tranchait avec
-       le reste du thème, désormais chaleureux — remis dans la même famille
-       de teinte que le fond pour une transition moins abrupte à l'œil. */
     --muted: 200 18% 94%;
-    /* Bug corrigé : 45.1% de luminosité pour le texte secondaire est trop
-       clair sur un fond quasi blanc (ratio de contraste proche de la limite
-       WCAG AA) — beaucoup de libellés, sous-titres et cellules de tableau
-       utilisent cette couleur et devenaient difficiles à lire en plein
-       jour / forte luminosité d'écran. Assombri pour un contraste plus sûr. */
     --muted-foreground: 205 15% 40%;
     --accent: 200 24% 93%;
     --accent-foreground: 200 22% 12%;
@@ -389,10 +366,6 @@
     --secondary-muted: 36 40% 18%;
     --secondary-muted-foreground: 36 65% 78%;
     --muted: 200 22% 13%;
-    /* Bug corrigé : 63.9% était un peu trop sombre sur le fond très foncé
-       (5% de luminosité) du thème sombre, rendant le texte secondaire
-       (sous-titres, légendes, dates) difficile à lire. Éclairci pour un
-       meilleur contraste. */
     --muted-foreground: 0 0% 72%;
     --accent: 36 80% 62%;
     --accent-foreground: 0 0% 9%;
@@ -406,12 +379,11 @@
     --input: 200 15% 16%;
     --ring: 174 58% 50%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
+
   html {
     /* Verrou anti-défilement horizontal parasite : si un composant quelque
        part déborde de quelques pixels (carte trop large, image non
