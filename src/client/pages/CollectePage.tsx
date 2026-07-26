@@ -542,4 +542,96 @@ export const CollectePage = () => {
 
                 {erreur && (
                   <div role="alert" className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs font-medium text-destructive">
+                    {erreur}
+                  </div>
+                )}
+
+                <div className="space-y-4 pt-1">
+                  <div className="text-left space-y-1.5">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <MessageSquare size={12} /> Message ou suggestion
+                    </label>
+                    <Textarea
+                      value={commentaire}
+                      onChange={(e) => setCommentaire(e.target.value)}
+                      placeholder="Des détails à partager ? Un problème rencontré ?"
+                      rows={3}
+                      className="text-base rounded-2xl"
+                    />
+                  </div>
+
+                  <div className="text-left space-y-1.5">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Phone size={12} /> Téléphone (facultatif)
+                    </label>
+                    <Input
+                      type="tel"
+                      value={telephone}
+                      onChange={(e) => setTelephone(e.target.value)}
+                      placeholder="Ex: +225 0700000000"
+                      className="h-12 rounded-2xl px-4 text-base"
+                    />
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      Votre numéro sera haché (SHA-256) pour éviter les doublons et ne sera jamais partagé.
+                    </p>
+                  </div>
+
+                  <Button 
+                    onClick={finalSubmit} 
+                    disabled={envoiEnCours} 
+                    className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md flex items-center justify-center gap-2 touch-manipulation"
+                  >
+                    {envoiEnCours ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      'Envoyer mon avis'
+                    )}
+                  </Button>
+                </div>
+              </MotionCard>
+            </motion.div>
+          )}
+
+          {step === 'SUCCESS' && (
+            <motion.div
+              key="success_step"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-full"
+            >
+              <MotionCard className="w-full p-6 sm:p-8 text-center space-y-5 shadow-premium-lg border-border/80 rounded-3xl bg-card/95 backdrop-blur-sm">
+                <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto text-4xl shadow-sm border border-success/20">
+                  🎉
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+                    {brandConfig?.form_thank_you || "Merci pour votre avis !"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
+                    Votre retour précieux nous aide à améliorer constamment votre expérience au guichet.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <p className="text-xs text-muted-foreground">Vous pouvez fermer cet onglet en toute sécurité.</p>
+                </div>
+              </MotionCard>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Footer Branding */}
+      {!brandConfig?.hide_yeba_branding && (
+        <div className="py-2 text-center">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+            Propulsé par {brandConfig?.platform_name || "Yeba"}
+          </p>
+        </div>
+      )}
+      </div>
+    </AmbientBackground>
+  );
 };
