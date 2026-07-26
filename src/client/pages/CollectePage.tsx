@@ -225,18 +225,18 @@ export const CollectePage = () => {
 
   return (
     <AmbientBackground>
-      <div className="flex min-h-screen flex-col justify-between p-4">
+      <div className="flex min-h-[100dvh] w-full max-w-lg mx-auto flex-col justify-between px-3 py-3 sm:px-6 overflow-x-hidden">
       {/* Header */}
-      <div className="w-full max-w-md mx-auto flex items-center justify-between py-4">
+      <div className="w-full flex items-center justify-between py-2 sm:py-4 px-1">
         {step !== 'SUCCESS' && (step !== 'SERVICE_SELECT' || (formDef.services && formDef.services.length > 1 && selectedService !== null)) && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={handleBack}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground touch-manipulation"
           >
-            <ArrowLeft size={16} /> Retour
+            <ArrowLeft size={16} className="mr-1" /> Retour
           </Button>
         )}
         <div className="text-right ml-auto">
@@ -255,7 +255,7 @@ export const CollectePage = () => {
       </div>
 
       {/* Main Content Card */}
-      <div className="w-full flex-1 flex items-center justify-center max-w-md mx-auto">
+      <div className="w-full flex-1 flex items-center justify-center my-auto py-2">
         <AnimatePresence mode="wait">
           {step === 'SERVICE_SELECT' && services.length > 1 && (
             <motion.div
@@ -265,9 +265,9 @@ export const CollectePage = () => {
               exit={{ opacity: 0, y: -15 }}
               className="w-full"
             >
-              <MotionCard className="w-full p-6 text-center space-y-6 shadow-premium-lg border-border/80">
+              <MotionCard className="w-full p-5 sm:p-7 text-center space-y-6 shadow-premium-lg border-border/80 rounded-3xl bg-card/95 backdrop-blur-sm overflow-hidden">
                 <div>
-                  <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">
                     {brandConfig?.form_title || "Bienvenue au guichet"}
                   </h1>
                   <p className="text-base font-bold text-primary mt-1">
@@ -285,12 +285,12 @@ export const CollectePage = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleServiceSelect(service)}
-                      className="w-full p-4 text-left rounded-2xl border border-border bg-background hover:bg-muted hover:border-primary/40 shadow-premium-sm transition-all flex items-center justify-between group"
+                      className="w-full p-4 text-left rounded-2xl border border-border bg-background hover:bg-muted hover:border-primary/40 shadow-premium-sm transition-all flex items-center justify-between group touch-manipulation"
                     >
                       <span className="font-bold text-foreground group-hover:text-primary transition-colors">
                         {service.libelle_service}
                       </span>
-                      <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                      <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                     </motion.button>
                   ))}
                 </div>
@@ -309,7 +309,7 @@ export const CollectePage = () => {
               animate={{ opacity: 1, y: 0 }}
               className="w-full"
             >
-              <MotionCard className="w-full p-8 text-center space-y-3 shadow-premium-lg border-border/80">
+              <MotionCard className="w-full p-6 sm:p-8 text-center space-y-3 shadow-premium-lg border-border/80 rounded-3xl bg-card/95 backdrop-blur-sm">
                 <h1 className="text-xl font-extrabold text-foreground">Questionnaire momentanément indisponible</h1>
                 <p className="text-sm text-muted-foreground">
                   Aucun critère n’est encore configuré pour ce guichet. Merci de contacter l’agence.
@@ -326,7 +326,7 @@ export const CollectePage = () => {
               exit={{ opacity: 0, x: -20 }}
               className="w-full"
             >
-              <MotionCard className="w-full p-6 text-center space-y-6 shadow-premium-lg border-border/80">
+              <MotionCard className="w-full p-5 sm:p-7 text-center space-y-5 shadow-premium-lg border-border/80 rounded-3xl bg-card/95 backdrop-blur-sm overflow-hidden">
                 {/* Progress bar */}
                 <div
                   className="w-full bg-muted h-1.5 rounded-full overflow-hidden"
@@ -342,16 +342,16 @@ export const CollectePage = () => {
                   />
                 </div>
                 <div className="flex justify-between items-center text-xs font-bold text-muted-foreground">
-                  <span>{selectedService?.libelle_service || "Évaluation"}</span>
-                  <span>Question {currentQuestionIndex + 1} sur {criteres.length}</span>
+                  <span className="truncate max-w-[180px]">{selectedService?.libelle_service || "Évaluation"}</span>
+                  <span className="shrink-0">Question {currentQuestionIndex + 1} sur {criteres.length}</span>
                 </div>
 
                 <div className="space-y-2">
-                  <h2 className="text-xl font-extrabold text-foreground leading-tight">
+                  <h2 className="text-lg sm:text-xl font-extrabold text-foreground leading-tight">
                     {currentCritere.libelle_critere}
                   </h2>
                   {currentCritere.description && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       {currentCritere.description}
                     </p>
                   )}
@@ -359,15 +359,15 @@ export const CollectePage = () => {
 
                 {/* Smiley Input */}
                 {currentCritere.type_reponse === 'SMILEY' && (
-                  <div className="flex justify-around gap-1 pt-4">
+                  <div className="flex justify-between items-center gap-1 sm:gap-2 pt-3 touch-manipulation w-full min-w-0">
                     {smileys.map((s) => (
                       <motion.button
                         key={s.note}
-                        whileHover={{ scale: 1.25 }}
+                        whileHover={{ scale: 1.2 }}
                         whileTap={{ scale: 0.85 }}
                         onClick={() => handleAnswer(s.note)}
                         aria-label={s.label}
-                        className="text-4xl p-2.5 rounded-full hover:bg-muted transition-colors"
+                        className="text-3xl sm:text-4xl p-2 sm:p-2.5 flex-1 max-w-[64px] flex justify-center items-center rounded-2xl hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation"
                       >
                         {s.icon}
                       </motion.button>
@@ -377,21 +377,21 @@ export const CollectePage = () => {
 
                 {/* Oui/Non Input */}
                 {currentCritere.type_reponse === 'OUI_NON' && (
-                  <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
                     <motion.button
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.96 }}
                       onClick={() => handleAnswer(5)}
-                      className="bg-success/10 hover:bg-success/15 text-success border border-success/30 font-bold py-4 rounded-2xl text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm"
+                      className="bg-success/10 hover:bg-success/15 text-success border border-success/30 font-bold py-4 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm touch-manipulation"
                     >
                       <span className="text-2xl">👍</span>
                       <span>Oui</span>
                     </motion.button>
                     <motion.button
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.96 }}
                       onClick={() => handleAnswer(1)}
-                      className="bg-destructive/10 hover:bg-destructive/15 text-destructive border border-destructive/30 font-bold py-4 rounded-2xl text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm"
+                      className="bg-destructive/10 hover:bg-destructive/15 text-destructive border border-destructive/30 font-bold py-4 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm touch-manipulation"
                     >
                       <span className="text-2xl">👎</span>
                       <span>Non</span>
@@ -408,10 +408,10 @@ export const CollectePage = () => {
                         whileHover={{ x: 4 }}
                         whileTap={{ scale: 0.99 }}
                         onClick={() => handleAnswer(index + 1)}
-                        className="w-full text-left p-3.5 border border-border rounded-xl hover:bg-muted text-foreground text-sm font-semibold transition-colors flex items-center gap-2"
+                        className="w-full text-left p-3.5 border border-border rounded-xl hover:bg-muted text-foreground text-sm font-semibold transition-colors flex items-center gap-2.5 touch-manipulation"
                       >
-                        <span className="w-1.5 h-1.5 bg-primary rounded-full" />
-                        {option.trim()}
+                        <span className="w-2 h-2 bg-primary rounded-full shrink-0" />
+                        <span>{option.trim()}</span>
                       </motion.button>
                     ))}
                   </div>
@@ -424,34 +424,34 @@ export const CollectePage = () => {
                       value={texteReponseCourante}
                       placeholder="Votre réponse ici..."
                       rows={4}
-                      className="text-center"
+                      className="text-base text-left rounded-2xl"
                       onChange={(e) => setTexteReponseCourante(e.target.value)}
                     />
                     <Button
                       onClick={() => handleAnswer(3, texteReponseCourante.trim())}
                       disabled={texteReponseCourante.trim().length === 0}
-                      className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md"
+                      className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md touch-manipulation"
                     >
                       Continuer <ChevronRight size={18} className="ml-1" />
                     </Button>
                   </div>
                 )}
 
-                {/* Échelle linéaire (ex. note sur 10) */}
+                {/* Échelle linéaire (ex. note sur 10 ou 5) */}
                 {currentCritere.type_reponse === 'ECHELLE' && (() => {
                   const [minStr, maxStr] = (currentCritere.options_reponse || '1,5').split(',');
                   const min = Number(minStr) || 1;
                   const max = Number(maxStr) || 5;
                   const valeurs = Array.from({ length: max - min + 1 }, (_, i) => min + i);
                   return (
-                    <div className="flex flex-wrap justify-center gap-2 pt-2">
+                    <div className={`grid ${valeurs.length > 5 ? 'grid-cols-5' : 'grid-cols-5'} gap-1.5 sm:gap-2 pt-2 w-full min-w-0`}>
                       {valeurs.map((v) => (
                         <motion.button
                           key={v}
-                          whileHover={{ scale: 1.08 }}
+                          whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.92 }}
                           onClick={() => handleAnswer(v)}
-                          className="min-w-11 h-11 px-2 rounded-xl border border-border bg-background hover:bg-primary/10 hover:border-primary/40 text-sm font-bold text-foreground transition-colors"
+                          className="w-full h-11 rounded-xl border border-border bg-background hover:bg-primary/10 hover:border-primary/40 active:bg-primary/20 text-sm font-bold text-foreground transition-all touch-manipulation flex items-center justify-center"
                         >
                           {v}
                         </motion.button>
@@ -476,7 +476,7 @@ export const CollectePage = () => {
                                 checked ? prev.filter((v) => v !== label) : [...prev, label]
                               )
                             }
-                            className={`w-full text-left p-3.5 border rounded-xl text-sm font-semibold transition-colors flex items-center gap-2.5 ${
+                            className={`w-full text-left p-3.5 border rounded-xl text-sm font-semibold transition-colors flex items-center gap-2.5 touch-manipulation ${
                               checked
                                 ? 'border-primary bg-primary/10 text-primary'
                                 : 'border-border hover:bg-muted text-foreground'
@@ -489,7 +489,7 @@ export const CollectePage = () => {
                             >
                               {checked && '✓'}
                             </span>
-                            {label}
+                            <span>{label}</span>
                           </button>
                         );
                       })}
@@ -497,7 +497,7 @@ export const CollectePage = () => {
                     <Button
                       onClick={() => handleAnswer(3, casesSelectionnees.join(' • '))}
                       disabled={casesSelectionnees.length === 0}
-                      className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md"
+                      className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md touch-manipulation"
                     >
                       Continuer <ChevronRight size={18} className="ml-1" />
                     </Button>
@@ -509,7 +509,7 @@ export const CollectePage = () => {
                     type="button"
                     variant="link"
                     onClick={handleSkip}
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground touch-manipulation"
                   >
                     Passer cette question
                   </Button>
@@ -530,107 +530,16 @@ export const CollectePage = () => {
               exit={{ opacity: 0, y: -15 }}
               className="w-full"
             >
-              <MotionCard className="w-full p-6 text-center space-y-6 shadow-premium-lg border-border/80">
+              <MotionCard className="w-full p-5 sm:p-7 text-center space-y-5 shadow-premium-lg border-border/80 rounded-3xl bg-card/95 backdrop-blur-sm overflow-hidden">
                 <div>
-                  <h2 className="text-xl font-extrabold text-foreground leading-tight">
+                  <h2 className="text-lg sm:text-xl font-extrabold text-foreground leading-tight">
                     Finaliser votre avis
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                     Optionnel : aidez-nous à mieux comprendre votre expérience
                   </p>
                 </div>
 
                 {erreur && (
                   <div role="alert" className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs font-medium text-destructive">
-                    {erreur}
-                  </div>
-                )}
-
-                <div className="space-y-4 pt-2">
-                  <div className="text-left space-y-1.5">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <MessageSquare size={12} /> Message ou suggestion
-                    </label>
-                    <Textarea
-                      value={commentaire}
-                      onChange={(e) => setCommentaire(e.target.value)}
-                      placeholder="Des détails à partager ? Un problème rencontré ?"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="text-left space-y-1.5">
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <Phone size={12} /> Téléphone (facultatif)
-                    </label>
-                    <Input
-                      type="tel"
-                      value={telephone}
-                      onChange={(e) => setTelephone(e.target.value)}
-                      placeholder="Ex: +225 0700000000"
-                      className="h-12 rounded-2xl px-4"
-                    />
-                    <p className="text-[10px] text-muted-foreground leading-tight">
-                      Votre numéro sera haché (SHA-256) pour éviter les doublons et ne sera jamais partagé.
-                    </p>
-                  </div>
-
-                  <Button 
-                    onClick={finalSubmit} 
-                    disabled={envoiEnCours} 
-                    className="w-full py-6 rounded-2xl text-base font-bold shadow-premium-md flex items-center justify-center gap-2"
-                  >
-                    {envoiEnCours ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin" />
-                        Envoi en cours...
-                      </>
-                    ) : (
-                      'Envoyer mon avis'
-                    )}
-                  </Button>
-                </div>
-              </MotionCard>
-            </motion.div>
-          )}
-
-          {step === 'SUCCESS' && (
-            <motion.div
-              key="success_step"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full"
-            >
-              <MotionCard className="w-full p-8 text-center space-y-6 shadow-premium-lg border-border/80">
-                <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto text-4xl shadow-sm border border-success/20">
-                  🎉
-                </div>
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-extrabold text-foreground">
-                    {brandConfig?.form_thank_you || "Merci pour votre avis !"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
-                    Votre retour précieux nous aide à améliorer constamment votre expérience au guichet.
-                  </p>
-                </div>
-                <div className="pt-2">
-                  <p className="text-xs text-muted-foreground">Vous pouvez fermer cet onglet en toute sécurité.</p>
-                </div>
-              </MotionCard>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Footer Branding */}
-      {!brandConfig?.hide_yeba_branding && (
-        <div className="py-4 text-center">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-            Propulsé par {brandConfig?.platform_name || "Yeba"}
-          </p>
-        </div>
-      )}
-      </div>
-    </AmbientBackground>
-  );
 };

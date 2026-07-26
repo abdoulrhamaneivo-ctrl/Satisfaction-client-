@@ -309,55 +309,6 @@
     background: radial-gradient(
       circle at 30% 30%,
       hsl(var(--card-subtle) / 0.8) 0%,
-      hsl(var(--card)) 100%
-    );
-  }
-}
-
-/* Satoshi Font Family */
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/Satoshi-Light.woff2") format("woff2");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/Satoshi-Regular.woff2") format("woff2");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/Satoshi-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/Satoshi-Bold.woff2") format("woff2");
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/fonts/Satoshi-Black.woff2") format("woff2");
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@layer base {
-  :root {
-    /* Bug corrigé : un fond blanc pur (100% de luminosité) juxtaposé à du
        texte quasi noir produit un contraste très élevé qui "éblouit" sur
        certains écrans/pages très remplies de texte. On adoucit légèrement
        le fond (blanc cassé chaleureux, cohérent avec AmbientBackground) et

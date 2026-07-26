@@ -113,13 +113,16 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     try {
+      const targetWidth = parseInt(currentConfig.containerStyle.width, 10) || 420;
       const dataUrl = await toPng(kitRef.current, {
         pixelRatio: 2,
         cacheBust: true,
         skipFonts: true,
+        width: targetWidth,
         style: {
-          transform: 'scale(1)',
+          transform: 'none',
           transformOrigin: 'top left',
+          margin: '0 auto',
         },
       });
       const link = document.createElement('a');
@@ -150,78 +153,80 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
             type="button"
             variant={selectedFormat === fmt ? 'default' : 'outline'}
             onClick={() => setSelectedFormat(fmt)}
-            className={selectedFormat === fmt ? 'rounded-xl shadow-premium-sm' : 'rounded-xl'}
+            className={selectedFormat === fmt ? 'rounded-xl shadow-premium-sm font-bold' : 'rounded-xl'}
           >
             {formatConfigs[fmt].label}
           </Button>
         ))}
       </div>
 
-      {/* Wrapper responsive avec scroll horizontal pour éviter de casser la grille sur mobile */}
-      <div className="w-full overflow-x-auto momentum-scroll scroll-fade-x p-4 bg-neutral-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-border/80">
-        <div
-          ref={kitRef}
-          style={{ ...currentConfig.containerStyle, ...primaryColorStyle }}
-          className="kit-affiche mx-auto rounded-2xl border-4 bg-white text-center shadow-xl print:rounded-none print:border-black print:shadow-none"
-        >
-          <div className="mb-4 flex items-center justify-center gap-2">
-            <BrandLogo className={currentConfig.logoClass} height={currentConfig.logoSize} />
-            <span className="text-sm font-bold uppercase tracking-widest text-neutral-500">
-              {brandConfig?.platform_name || "Yeba"}
-            </span>
-          </div>
-
-          <h2 className={`${currentConfig.titleClass} font-extrabold leading-tight text-neutral-900`}>
-            {brandConfig?.form_title || "Votre avis compte !"}
-          </h2>
-          <p className={`${currentConfig.subtitleClass} font-semibold text-neutral-600`}>
-            {guichet.nom_guichet}
-          </p>
-
-          <div 
-            style={currentConfig.qrWrapperStyle}
-            className="mx-auto mb-5 flex items-center justify-center rounded-xl border-4 border-neutral-900 bg-white p-3"
+      {/* Wrapper responsive avec scroll horizontal & centrage pour aperçu mobile parfait */}
+      <div className="w-full overflow-x-auto momentum-scroll scroll-fade-x p-4 sm:p-6 bg-neutral-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-border/80 flex justify-center items-center">
+        <div className="shrink-0 max-w-full">
+          <div
+            ref={kitRef}
+            style={{ ...currentConfig.containerStyle, ...primaryColorStyle }}
+            className="kit-affiche mx-auto rounded-2xl border-4 bg-white text-center shadow-xl print:rounded-none print:border-black print:shadow-none transition-all duration-200"
           >
-            {loadingQr ? (
-              <div className="flex flex-col items-center justify-center gap-2 text-neutral-500">
-                <Loader2 className="size-8 animate-spin" />
-                <span className="text-xs font-semibold">Génération du QR...</span>
-              </div>
-            ) : (
-              <img
-                src={qrDataUrl}
-                alt="QR Code d'évaluation"
-                className="mx-auto block"
-                style={{
-                  width: selectedFormat === 'A4' ? '384px' : selectedFormat === 'A5' ? '256px' : '160px',
-                  height: selectedFormat === 'A4' ? '384px' : selectedFormat === 'A5' ? '256px' : '160px',
-                }}
-              />
-            )}
-          </div>
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <BrandLogo className={currentConfig.logoClass} height={currentConfig.logoSize} />
+              <span className="text-sm font-bold uppercase tracking-widest text-neutral-500">
+                {brandConfig?.platform_name || "Yeba"}
+              </span>
+            </div>
 
-          <p className={`${currentConfig.scanTextClass} font-extrabold uppercase tracking-wide text-neutral-900`}>
-            {brandConfig?.qr_slogan || "Scannez ce QR Code"}
-          </p>
-          <p className={`${currentConfig.scanDescClass} font-medium text-neutral-600`}>
-            Notez-nous en 10 secondes, après votre passage à ce guichet
-          </p>
+            <h2 className={`${currentConfig.titleClass} font-extrabold leading-tight text-neutral-900`}>
+              {brandConfig?.form_title || "Votre avis compte !"}
+            </h2>
+            <p className={`${currentConfig.subtitleClass} font-semibold text-neutral-600`}>
+              {guichet.nom_guichet}
+            </p>
 
-          <div className={`rounded-xl bg-neutral-100 px-4 ${currentConfig.ussdPaddingClass} print:border print:border-neutral-400 print:bg-white`}>
-            <p className="text-xs font-semibold text-neutral-700">
-              {brandConfig?.ussd_help_text || "Pas de connexion internet ?"}
+            <div 
+              style={currentConfig.qrWrapperStyle}
+              className="mx-auto mb-5 flex items-center justify-center rounded-xl border-4 border-neutral-900 bg-white p-3 shadow-inner"
+            >
+              {loadingQr ? (
+                <div className="flex flex-col items-center justify-center gap-2 text-neutral-500">
+                  <Loader2 className="size-8 animate-spin" />
+                  <span className="text-xs font-semibold">Génération du QR...</span>
+                </div>
+              ) : (
+                <img
+                  src={qrDataUrl}
+                  alt="QR Code d'évaluation"
+                  className="mx-auto block object-contain"
+                  style={{
+                    width: selectedFormat === 'A4' ? '384px' : selectedFormat === 'A5' ? '256px' : '160px',
+                    height: selectedFormat === 'A4' ? '384px' : selectedFormat === 'A5' ? '256px' : '160px',
+                  }}
+                />
+              )}
+            </div>
+
+            <p className={`${currentConfig.scanTextClass} font-extrabold uppercase tracking-wide text-neutral-900`}>
+              {brandConfig?.qr_slogan || "Scannez ce QR Code"}
             </p>
-            <p className="text-sm font-bold tracking-wide text-neutral-900 mt-1">
-              Composez <span className="font-extrabold text-primary">{ussdCode}</span>
+            <p className={`${currentConfig.scanDescClass} font-medium text-neutral-600`}>
+              Notez-nous en 10 secondes, après votre passage à ce guichet
             </p>
+
+            <div className={`rounded-xl bg-neutral-100 px-4 ${currentConfig.ussdPaddingClass} print:border print:border-neutral-400 print:bg-white`}>
+              <p className="text-xs font-semibold text-neutral-700">
+                {brandConfig?.ussd_help_text || "Pas de connexion internet ?"}
+              </p>
+              <p className="text-sm font-bold tracking-wide text-neutral-900 mt-1">
+                Composez <span className="font-extrabold text-primary">{ussdCode}</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 justify-center print:hidden">
+      <div className="flex flex-wrap gap-3 justify-center print:hidden pt-2">
         <motion.div whileTap={{ scale: loadingQr ? 1 : 0.95 }}>
-          <Button onClick={downloadKit} disabled={loadingQr} className="gap-2">
+          <Button onClick={downloadKit} disabled={loadingQr} className="gap-2 rounded-xl shadow-premium-sm px-5 py-5 text-sm font-bold">
             {loadingQr ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
@@ -229,13 +234,13 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
               </>
             ) : (
               <>
-                <Download size={16} /> Télécharger ({selectedFormat})
+                <Download size={16} /> Télécharger l'affiche ({selectedFormat})
               </>
             )}
           </Button>
         </motion.div>
         <motion.div whileTap={{ scale: 0.95 }}>
-          <Button variant="outline" onClick={() => navigator.clipboard.writeText(evalUrl)} className="gap-2">
+          <Button variant="outline" onClick={() => navigator.clipboard.writeText(evalUrl)} className="gap-2 rounded-xl px-5 py-5 text-sm font-semibold">
             <Share2 size={16} /> Copier le lien
           </Button>
         </motion.div>

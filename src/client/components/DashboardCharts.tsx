@@ -58,7 +58,7 @@ export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-1 text-sm font-bold text-foreground">Répartition des notes</h3>
       <p className="mb-3 text-xs text-muted-foreground">Scores normalisés sur 5 — réponses qualitatives exclues</p>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={counts}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
           <XAxis dataKey="name" className="fill-muted-foreground" tick={{ fontSize: 12 }} />
@@ -86,7 +86,7 @@ export const RadarQualite = ({ data }: { data: any[] }) => {
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-1 text-sm font-bold text-foreground">Maturité du pilotage</h3>
       <p className="mb-3 text-xs text-muted-foreground">Planification, collecte récente et traitement des alertes</p>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <RadarChart cx="50%" cy="50%" data={data}>
           <PolarGrid className="stroke-border" />
           <PolarAngleAxis dataKey="subject" className="fill-foreground text-xs font-semibold" />
@@ -121,7 +121,7 @@ export const TendanceMensuelle = ({ data }: { data: any[] }) => {
   return (
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-4 text-sm font-bold text-foreground">Tendance mensuelle — Score moyen / 5</h3>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={data}>
           <defs>
             <linearGradient id="tendanceGrad" x1="0" y1="0" x2="0" y2="1">
@@ -174,7 +174,7 @@ export const ClassementGuichets = ({ data }: { data: any[] }) => {
     <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-premium" style={{ height: hauteur }}>
       <h3 className="mb-1 text-sm font-bold text-foreground">Classement des guichets</h3>
       <p className="mb-3 text-xs text-muted-foreground">Du plus faible au plus performant</p>
-      <ResponsiveContainer width="100%" height="88%">
+      <ResponsiveContainer width="100%" height="88%" minWidth={0} minHeight={0}>
         <BarChart data={data} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
           <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
@@ -222,7 +222,7 @@ export const ComparaisonAgents = ({ data }: { data: any[] }) => {
   return (
     <div className="h-64 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-4 text-sm font-bold text-foreground">Scores de satisfaction par agent</h3>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
           <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
