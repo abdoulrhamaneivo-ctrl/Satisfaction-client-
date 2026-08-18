@@ -9,7 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      WASP_VERSION: "0.24.0"
       RAILWAY_PROJECT_NAME: cxsat-poste-ci
       RAILWAY_PROJECT_ID: aa94d855-a4a9-46d5-a2ac-d7fb35cdfb55
       RAILWAY_ENVIRONMENT_ID: 64f204d4-01e7-4000-b8c9-186cff74baa2
@@ -24,7 +23,7 @@ jobs:
 
       - name: Install Wasp CLI
         run: |
-          curl -sSL https://get.wasp.sh | sh -s -- -v $WASP_VERSION
+          curl -sSL https://get.wasp.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install Railway CLI
