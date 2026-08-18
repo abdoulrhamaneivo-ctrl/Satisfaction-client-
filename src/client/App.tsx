@@ -68,13 +68,14 @@ export function App() {
         {isAdminDashboard ? (
           <Outlet />
         ) : shouldDisplayAppNavBar ? (
-          <div className="flex min-h-screen relative">
-            {/* Sidebar Sleek Notion/Linear sur Desktop */}
-            <div className="hidden lg:block shrink-0">
+          <div className="min-h-screen relative">
+            {/* Sidebar Sleek Notion/Linear 100% fixe sur Desktop */}
+            <div className="hidden lg:block">
               <Sidebar />
             </div>
 
-            <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+            {/* Contenu principal décalé avec lg:pl-64 pour s'aligner sur la Sidebar fixe */}
+            <div className="flex-1 flex flex-col min-w-0 min-h-screen lg:pl-64">
               {/* Header Top sur mobile/tablette */}
               <div className="lg:hidden sticky top-0 z-50">
                 <NavBar navigationItems={navigationItems} />

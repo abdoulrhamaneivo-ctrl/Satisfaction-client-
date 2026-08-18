@@ -45,7 +45,7 @@ export function Sidebar() {
   const hasAdminAccess = isDirection || isChefAgence || isQualite;
 
   return (
-    <aside className="w-64 shrink-0 border-r border-border/80 bg-card/95 backdrop-blur-md flex flex-col justify-between h-screen sticky top-0 z-40 overflow-y-auto momentum-scroll select-none text-foreground">
+    <aside className="w-64 shrink-0 border-r border-border/80 bg-card/95 backdrop-blur-md flex flex-col justify-between h-screen fixed top-0 left-0 z-40 overflow-y-auto momentum-scroll select-none text-foreground shadow-sm">
       {/* Top Header: Platform Brand */}
       <div className="p-4 space-y-5">
         <Link 
