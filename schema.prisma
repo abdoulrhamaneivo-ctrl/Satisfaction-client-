@@ -173,6 +173,10 @@ model Critere {
   // critère créé par une entreprise via createCritere, invisible aux autres
   // entreprises (isolation demandée : chaque DIRECTION ne voit que le
   // catalogue commun + les critères de sa propre entreprise).
+  // Archivage logique : une question archivée ne s'affiche plus dans les formulaires de collecte (QR Code / Guichet) mais conserve son historique de données.
+  archive             Boolean           @default(false)
+  date_archivage      DateTime?
+
   id_entreprise       Int?
   entreprise          Entreprise?       @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
 
@@ -271,6 +275,37 @@ model Reponse {
   agent               User?             @relation("AgentResponses", fields: [id_agent], references: [id], onDelete: SetNull)
   
   alertes             Alerte[]
+  analyseIA           AnalyseAvisIA?
+}
+
+// ============================================================================
+// ANALYSE IA SÉMANTIQUE (NVIDIA NIM — Async Job PgBoss)
+// ============================================================================
+
+model AnalyseAvisIA {
+  id                 BigInt   @id @default(autoincrement())
+  reponseId          BigInt   @unique
+  reponse            Reponse  @relation(fields: [reponseId], references: [id], onDelete: Cascade)
+  
+  status             String   @default("PENDING") // PENDING, PROCESSING, DONE, FAILED
+  sentiment          String?  // POSITIVE, NEUTRAL, NEGATIVE, MIXED
+  sentimentScore     Float?   // 0.0 à 1.0
+  themes             String?  // JSON Array des thèmes contrôlés
+  problemePrincipal  String?
+  urgence            String?  // LOW, MEDIUM, HIGH, CRITICAL
+  resume             String?
+  actionRecommandee  String?
+  
+  model              String   @default("qwen/qwen3-next-80b-a3b-instruct")
+  provider           String   @default("nvidia")
+  attempts           Int      @default(0)
+  error              String?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  processedAt        DateTime?
+
+  @@index([status])
 }
 
 model Alerte {

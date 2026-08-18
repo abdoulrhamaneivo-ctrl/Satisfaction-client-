@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquareQuote, Inbox, Filter, RotateCcw, Calendar,
   User as UserIcon, HelpCircle, Layers, Building, Store,
-  Download, Loader2, ChevronDown,
+  Download, Loader2, ChevronDown, FileSpreadsheet,
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -21,8 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { exportToCSV, formaterAvisPourCSV } from '../utils/exportData';
+import { exportToCSV, exportToXLSX, formaterAvisPourCSV } from '../utils/exportData';
 import { useToast } from '../hooks/use-toast';
+import { AIAnalysisBadge } from '../components/AIAnalysisBadge';
 
 export const AvisPage = () => {
   const { data: user } = useAuth();
@@ -116,8 +117,10 @@ export const AvisPage = () => {
     setAllAvis([]);
   };
 
-  // Export CSV — charge TOUS les avis filtrés (sans pagination)
+  // Export CSV & XLSX — charge TOUS les avis filtrés (sans pagination)
   const [exporting, setExporting] = useState(false);
+  const [exportingXLSX, setExportingXLSX] = useState(false);
+
   const handleExportCSV = useCallback(async () => {
     setExporting(true);
     try {
@@ -132,11 +135,33 @@ export const AvisPage = () => {
       const formatted = formaterAvisPourCSV(raw as any[]);
       const date = new Date().toISOString().split('T')[0];
       exportToCSV(formatted, `Yeba_Avis_${date}`);
-      toast({ variant: 'success', title: 'Export réussi', description: `${formatted.length} avis exportés.` });
+      toast({ variant: 'success', title: 'Export CSV réussi', description: `${formatted.length} avis exportés.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur export', description: err.message });
     } finally {
       setExporting(false);
+    }
+  }, [effectiveAgenceId, selectedGuichetId, selectedServiceId, startDate, endDate, toast]);
+
+  const handleExportXLSX = useCallback(async () => {
+    setExportingXLSX(true);
+    try {
+      const exportArgs = {
+        id_agence: effectiveAgenceId,
+        id_guichet: selectedGuichetId,
+        id_service: selectedServiceId,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      };
+      const raw = await exportAvisGroupes(exportArgs);
+      const formatted = formaterAvisPourCSV(raw as any[]);
+      const date = new Date().toISOString().split('T')[0];
+      await exportToXLSX([{ name: 'Avis Clients Yéba', data: formatted }], `Yeba_Avis_Complet_${date}`);
+      toast({ variant: 'success', title: 'Export Excel réussi', description: `${formatted.length} avis exportés sous format XLSX.` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur export Excel', description: err.message });
+    } finally {
+      setExportingXLSX(false);
     }
   }, [effectiveAgenceId, selectedGuichetId, selectedServiceId, startDate, endDate, toast]);
 
@@ -166,7 +191,7 @@ export const AvisPage = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
               <span>Écoute Client</span>
               <span>/</span>
-              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "La Poste CI Plateau"}</span>
+              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
               <span>/</span>
               <span className="text-primary font-black">Avis & Retours</span>
             </div>
@@ -196,13 +221,29 @@ export const AvisPage = () => {
                   onClick={handleExportCSV}
                   disabled={exporting || allAvis.length === 0}
                   id="btn-export-csv"
+                  className="rounded-xl font-bold"
                 >
                   {exporting ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <Download className="size-4" />
                   )}
-                  <span className="ml-1.5">Exporter CSV</span>
+                  <span className="ml-1.5">CSV</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportXLSX}
+                  disabled={exportingXLSX || allAvis.length === 0}
+                  id="btn-export-xlsx"
+                  className="rounded-xl font-bold"
+                >
+                  {exportingXLSX ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="size-4" />
+                  )}
+                  <span className="ml-1.5">Excel (XLSX)</span>
                 </Button>
               </div>
             }
@@ -408,6 +449,9 @@ export const AvisPage = () => {
                               <span className="text-muted-foreground italic text-xs font-normal">Aucun commentaire écrit</span>
                             )}
                           </p>
+
+                          {/* Analyse Sémantique IA (NVIDIA NIM) */}
+                          <AIAnalysisBadge analyse={rep.analyseIA} />
 
                           {rep.agent && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted w-fit px-2.5 py-1 rounded-lg border border-border/40">

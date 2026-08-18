@@ -138,6 +138,7 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
       guichet: true,
       critere: true,
       service: true,
+      analyseIA: true,
       agence: {
         select: { id: true, nom_agence: true, commune: true },
       },
@@ -205,6 +206,7 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
       guichet: true,
       critere: true,
       service: true,
+      analyseIA: true,
       agence: { select: { id: true, nom_agence: true, commune: true } },
       agent: { select: { id: true, username: true, email: true, nom: true, prenom: true } },
     },
@@ -215,6 +217,7 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
     const scores = g.reponses.map((r: any) => r.score_brut);
     const scoreMin = Math.min(...scores);
     const scoreMoyen = parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2));
+    const analyseEffective = g.reponses.find((r: any) => r.analyseIA)?.analyseIA || premiere.analyseIA || null;
 
     return {
       id_soumission: g.id_soumission ?? g.cle,
@@ -227,10 +230,12 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
       agent: premiere.agent,
       score_min: scoreMin,
       score_moyen: scoreMoyen,
+      analyseIA: analyseEffective,
       reponses: g.reponses.map((r: any) => ({
         id: r.id,
         score_brut: r.score_brut,
         critere: r.critere,
+        analyseIA: r.analyseIA,
       })),
     };
   });
@@ -440,8 +445,10 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
   // la première barrière côté client.
   if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) return null;
 
-  const agencyCriteres = guichet.agence.agencesCriteres.map((ac: any) => ac.critere);
-  const criteresActifsAgence = new Set(guichet.agence.agencesCriteres.map((ac: any) => ac.id_critere));
+  const agencyCriteres = guichet.agence.agencesCriteres
+    .map((ac: any) => ac.critere)
+    .filter((c: any) => c && !c.archive);
+  const criteresActifsAgence = new Set(agencyCriteres.map((c: any) => c.id));
   const criteresDejaRattaches = new Set<number>();
 
   return {
@@ -451,6 +458,7 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
       id: s.id,
       libelle_service: s.libelle_service,
       criteres: s.criteresServices.filter((cs: any) => {
+        if (cs.critere?.archive === true) return false;
         // Désactiver un critère pour l'agence doit le retirer de tous les
         // formulaires, y compris lorsqu'il était déjà placé dans une opération.
         if (!criteresActifsAgence.has(cs.id_critere)) return false;
@@ -1561,5 +1569,33 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
       date_reponse: r.date_reponse,
       guichet: r.guichet?.nom_guichet ?? null,
     })),
+  };
+};
+
+export const getAIStatus = async (_args: void, context: any) => {
+  requireAuth(context);
+
+  const hasApiKey = !!process.env.NVIDIA_API_KEY;
+  const baseUrl = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1';
+  const model = process.env.NVIDIA_MODEL || 'qwen/qwen3-next-80b-a3b-instruct';
+
+  const [totalAnalyses, doneAnalyses, pendingAnalyses, failedAnalyses] = await Promise.all([
+    context.entities.AnalyseAvisIA.count(),
+    context.entities.AnalyseAvisIA.count({ where: { status: 'DONE' } }),
+    context.entities.AnalyseAvisIA.count({ where: { status: 'PENDING' } }),
+    context.entities.AnalyseAvisIA.count({ where: { status: 'FAILED' } }),
+  ]);
+
+  return {
+    configured: hasApiKey,
+    provider: 'NVIDIA NIM',
+    model,
+    baseUrl,
+    stats: {
+      total: totalAnalyses,
+      done: doneAnalyses,
+      pending: pendingAnalyses,
+      failed: failedAnalyses,
+    },
   };
 };

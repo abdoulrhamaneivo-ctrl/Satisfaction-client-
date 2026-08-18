@@ -1,21 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, getCriteres, getAgenceCriteres, getAgences, toggleCritereAgence, createCritere, getServices, createService, deleteCritere, duplicateCritere } from 'wasp/client/operations';
+import { useQuery, getCriteres, getAgenceCriteres, getAgences, toggleCritereAgence, createCritere, getServices, createService, deleteCritere, duplicateCritere, archiverCritere, desarchiverCritere } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
 import { MotionCard } from '../components/MotionCard';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Checkbox } from '../components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
-import { useToast } from '../hooks/use-toast';
-import { AmbientBackground } from '../components/AmbientBackground';
-import { PageHeader } from '../components/PageHeader';
-import { Settings2, Copy, Trash2, Search } from 'lucide-react';
-import { ObjectifsPanel } from '../components/ObjectifsPanel';
-import { QuestionsParOperation } from '../components/QuestionsParOperation';
-import {
-  Select,
-  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -316,11 +306,11 @@ export const ConfigurationCriteresPage = () => {
               {criteresFiltres.map((critere: any) => {
                 const isActive = activeIds.includes(critere.id);
                 return (
-                  <MotionCard key={critere.id} className="p-5 flex items-center justify-between gap-4">
+                  <MotionCard key={critere.id} className={`p-5 flex items-center justify-between gap-4 border ${critere.archive ? 'opacity-60 bg-muted/20 border-amber-500/30' : ''}`}>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-foreground text-base">{critere.libelle_critere}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${isActive ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                           {isActive ? 'Actif' : 'Désactivé'}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-primary/10 text-primary">
@@ -329,6 +319,11 @@ export const ConfigurationCriteresPage = () => {
                         {critere.obligatoire === false && (
                           <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-secondary/15 text-secondary-muted-foreground">
                             Optionnelle
+                          </span>
+                        )}
+                        {critere.archive && (
+                          <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-amber-500/20 text-amber-400">
+                            Archivé
                           </span>
                         )}
                       </div>
@@ -342,6 +337,29 @@ export const ConfigurationCriteresPage = () => {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        onClick={async () => {
+                          try {
+                            if (critere.archive) {
+                              await desarchiverCritere({ id_critere: critere.id });
+                              toast({ variant: 'success', title: 'Question désarchivée', description: `« ${critere.libelle_critere} » est réactivée.` });
+                            } else {
+                              await archiverCritere({ id_critere: critere.id });
+                              toast({ variant: 'success', title: 'Question archivée', description: `« ${critere.libelle_critere} » a été archivée.` });
+                            }
+                          } catch (err: any) {
+                            toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Erreur inconnue' });
+                          }
+                        }}
+                        aria-label={critere.archive ? `Désarchiver « ${critere.libelle_critere} »` : `Archiver « ${critere.libelle_critere} »`}
+                        title={critere.archive ? "Désarchiver cette question" : "Archiver cette question (ne s'affichera plus dans les formulaires)"}
+                        className={critere.archive ? "text-amber-400 hover:bg-amber-500/10" : "hover:bg-accent/50"}
+                      >
+                        {critere.archive ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleDuplicateCritere(critere)}
                         disabled={duplicatingCritereId === critere.id}
                         aria-label={`Dupliquer « ${critere.libelle_critere} »`}
@@ -349,9 +367,6 @@ export const ConfigurationCriteresPage = () => {
                       >
                         <Copy className="size-4" />
                       </Button>
-                      {/* Seuls les critères propres à l'entreprise (id_entreprise non nul)
-                          sont supprimables ; les critères socle communs à toutes les
-                          entreprises ne le sont jamais (voir deleteCritere côté serveur). */}
                       {critere.id_entreprise !== null && (
                         <Button
                           type="button"

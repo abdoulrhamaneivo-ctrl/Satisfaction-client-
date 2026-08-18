@@ -49,7 +49,7 @@ export const LandingPage = () => {
                   {brandConfig?.platform_name || "Yéba"}
                 </span>
                 <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase block pt-0.5">
-                  La Poste de Côte d'Ivoire
+                  Plateforme Satisfaction Client
                 </span>
               </div>
             </div>
@@ -89,20 +89,20 @@ export const LandingPage = () => {
       {/* Main Container */}
       <main className="relative z-10 mx-auto max-w-[1440px] px-4 sm:px-6 py-10 lg:py-16 flex-1 space-y-24">
         
-        {/* HERO SECTION — LA POSTE DE CÔTE D'IVOIRE */}
+        {/* HERO SECTION */}
         <section className="text-center space-y-6 max-w-4xl mx-auto pt-4">
           <Reveal direction="down">
             <div className="flex justify-center">
               <Eyebrow tone="amber">
                 <Sparkles className="size-3" />
-                LA POSTE DE CÔTE D'IVOIRE • PILOTAGE DU SERVICE CLIENT AU GUICHET
+                YÉBA • PILOTAGE EN TEMPS RÉEL DU SERVICE CLIENT AU GUICHET
               </Eyebrow>
             </div>
           </Reveal>
 
           <Reveal delay={0.1}>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] font-satoshi text-foreground">
-              Le calme opérationnel à vos guichets postaux.{' '}
+              Le calme opérationnel à vos guichets.{' '}
               <span className="bg-gradient-to-r from-primary via-amber-300 to-secondary bg-clip-text text-transparent block sm:inline">
                 Et de la vitesse en plus.
               </span>
@@ -182,7 +182,7 @@ export const LandingPage = () => {
                   <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
                     <YebaLogo className="size-7" />
                     <div>
-                      <span className="block font-black text-xs font-satoshi text-primary">La Poste CI</span>
+                      <span className="block font-black text-xs font-satoshi text-primary">Plateforme Yéba</span>
                       <span className="block text-[10px] text-slate-400">Espace Chef d'Agence</span>
                     </div>
                   </div>
@@ -217,10 +217,10 @@ export const LandingPage = () => {
                   {/* Top Bar inside Replica */}
                   <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Vue Temps Réel • La Poste CI</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Vue Temps Réel • Guichets & Services</span>
                       <h3 className="text-base font-black font-satoshi">
                         {activeTab === 'KANBAN' && 'Suivi des Incidents Guichets & Actions Correctives'}
-                        {activeTab === 'CSAT' && 'Indicateurs Globaux CSAT — Agences Abidjan & Intérieur'}
+                        {activeTab === 'CSAT' && 'Indicateurs Globaux CSAT — Réseau d’Agences'}
                         {activeTab === 'GUICHETS' && 'Cartographie des Guichets & Kits QR/USSD'}
                       </h3>
                     </div>
@@ -414,13 +414,13 @@ export const LandingPage = () => {
               </Reveal>
 
               <Reveal delay={0.45}>
-                <Card variant="feature" className="p-6 rounded-3xl h-full space-y-3 border-amber-500/30 hover:border-amber-500/60 transition-all duration-300">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300">
-                    <Layers className="size-5" />
+                <Card variant="feature" className="p-6 rounded-3xl h-full space-y-3 border-emerald-500/30 hover:border-emerald-500/60 transition-all duration-300">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                    <Sparkles className="size-5" />
                   </div>
-                  <h3 className="text-base font-black font-satoshi text-foreground">Pilotage Sans Friction</h3>
+                  <h3 className="text-base font-black font-satoshi text-foreground">Analyse IA (NVIDIA NIM)</h3>
                   <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                    Rapports consolidés et tableaux de bord décisionnels pour le Chef d'Agence sans saisie manuelle supplémentaire.
+                    Détection automatique des sentiments, synthèses instantanées et qualification des urgences grâce aux LLM Qwen 80B.
                   </p>
                 </Card>
               </Reveal>
@@ -457,12 +457,12 @@ export const LandingPage = () => {
             <Card variant="feature" className="p-8 sm:p-12 rounded-3xl bg-card/90 border-primary/30">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 <div className="lg:col-span-8 space-y-4">
-                  <Eyebrow tone="positive">SÉCURITÉ & ARCHITECTURE POSTALE</Eyebrow>
+                  <Eyebrow tone="positive">SÉCURITÉ & ARCHITECTURE ENTREPRISE</Eyebrow>
                   <h2 className="text-2xl sm:text-4xl font-black font-satoshi">
                     Conformité Mono-Entreprise & Row Level Security (RLS)
                   </h2>
                   <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-2xl">
-                    L'architecture Yéba garantit la confidentialité stricte des données de satisfaction de La Poste de Côte d'Ivoire. Les autorisations sont attribuées selon la hiérarchie Entreprise → Agence → Guichet.
+                    L'architecture Yéba garantit la confidentialité stricte des données de satisfaction de votre entreprise. Les autorisations sont attribuées selon la hiérarchie Entreprise → Agence → Guichet.
                   </p>
                 </div>
                 <div className="lg:col-span-4 flex justify-end">
@@ -479,7 +479,7 @@ export const LandingPage = () => {
 
       </main>
 
-      {/* Senior Footer — La Poste CI */}
+      {/* Senior Footer */}
       <footer className="relative z-10 w-full border-t border-border/80 bg-card/60 py-10 px-6 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] flex flex-col sm:flex-row items-center justify-between gap-6 text-xs font-semibold text-muted-foreground">
           <div className="flex items-center gap-3">
@@ -488,7 +488,7 @@ export const LandingPage = () => {
               {brandConfig?.platform_name || "Yéba"}
             </span>
             <span className="text-muted-foreground/60">•</span>
-            <span>La Poste de Côte d'Ivoire — Service Client Guichet</span>
+            <span>Plateforme de Pilotage de la Satisfaction Client au Guichet</span>
           </div>
 
           <div className="flex items-center gap-6">
@@ -496,7 +496,7 @@ export const LandingPage = () => {
           </div>
 
           <div>
-            © {new Date().getFullYear()} La Poste de Côte d'Ivoire. Tous droits réservés.
+            © {new Date().getFullYear()} Yéba. Tous droits réservés.
           </div>
         </div>
       </footer>

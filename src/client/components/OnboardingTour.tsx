@@ -16,7 +16,7 @@ const DEFAULT_STEPS: TourStep[] = [
   {
     position: 'center',
     badge: 'Bienvenue sur Yéba',
-    title: 'Bienvenue sur la plateforme Yéba de La Poste CI !',
+    title: 'Bienvenue sur la plateforme Yéba !',
     description: 'Ce guide interactif rapide vous présente les fonctionnalités clés pour piloter la satisfaction usager et gérer vos guichets en temps réel.',
   },
   {

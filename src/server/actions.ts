@@ -571,6 +571,21 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       }
     });
     createdReponses.push(rep);
+
+    // --- ANALYSE IA ASYNCHRONE (NVIDIA NIM) ---
+    // Ne bloque JAMAIS la réponse HTTP usager. Enregistre une entrée PENDING.
+    try {
+      if (context.entities.AnalyseAvisIA) {
+        await context.entities.AnalyseAvisIA.create({
+          data: {
+            reponseId: rep.id,
+            status: 'PENDING',
+          },
+        });
+      }
+    } catch (aiErr) {
+      console.warn('[SOUMETTRE_AVIS_IA] Avertissement non-bloquant:', aiErr);
+    }
   }
 
   // --- ALERTE + NOTIFICATIONS si note critique ---
@@ -1932,6 +1947,36 @@ export const desarchiverTache = async (args: { id_tache: number }, context: any)
 
   return context.entities.TacheCorrective.update({
     where: { id: idTache },
+    data: { archive: false, date_archivage: null },
+  });
+};
+
+export const archiverCritere = async (args: { id_critere: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const critere = await context.entities.Critere.findUnique({
+    where: { id: args.id_critere },
+  });
+  if (!critere) throw new HttpError(404, 'Question/Critère introuvable.');
+
+  return context.entities.Critere.update({
+    where: { id: args.id_critere },
+    data: { archive: true, date_archivage: new Date() },
+  });
+};
+
+export const desarchiverCritere = async (args: { id_critere: number }, context: any) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const critere = await context.entities.Critere.findUnique({
+    where: { id: args.id_critere },
+  });
+  if (!critere) throw new HttpError(404, 'Question/Critère introuvable.');
+
+  return context.entities.Critere.update({
+    where: { id: args.id_critere },
     data: { archive: false, date_archivage: null },
   });
 };

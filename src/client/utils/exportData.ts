@@ -84,20 +84,18 @@ export async function exportToXLSX(sheets: Sheet[], filename: string): Promise<v
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
-// ============================================================================
-// Helper : formater une liste d'avis pour le CSV AvisPage
-// ============================================================================
-
 export function formaterAvisPourCSV(avis: any[]): Record<string, any>[] {
   return avis.map((a) => ({
-    'Date': new Date(a.date_reponse).toLocaleString('fr-FR'),
-    'Agence': a.agence || '',
-    'Guichet': a.guichet || '',
-    'Service': a.service || '',
-    'Agent': a.agent || '',
-    'Note moyenne': a.score_moyen,
-    'Commentaire': a.commentaire || '',
-    'Détail critères': a.criteres || '',
-    'ID Soumission': a.id_soumission || '',
+    'ID Soumission': a.id_soumission || 'N/A',
+    'Date & Heure': a.date_reponse ? new Date(a.date_reponse).toLocaleString('fr-FR') : 'Non renseigné',
+    'Agence': a.agence || 'Agence Principale',
+    'Guichet': a.guichet || 'Tous guichets',
+    'Service': a.service || 'Tous services',
+    'Agent en poste': a.agent || 'Non assigné',
+    'Note moyenne (/5)': typeof a.score_moyen === 'number' ? Number(a.score_moyen.toFixed(2)) : (a.score_moyen || 'N/A'),
+    'Sentiment IA': a.sentiment_ia || 'Neutre / Non analysé',
+    'Urgence IA': a.urgence_ia || 'Normal',
+    'Commentaire Client': a.commentaire && a.commentaire.trim() !== '' ? a.commentaire.trim() : 'Aucun commentaire écrit',
+    'Détail des critères': a.criteres && a.criteres.trim() !== '' ? a.criteres.trim() : 'Évaluation globale',
   }));
 }

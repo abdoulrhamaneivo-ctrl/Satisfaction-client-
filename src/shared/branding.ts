@@ -1,6 +1,6 @@
 export const BRANDING = {
-  platform_name: "Yéba — La Poste CI",
-  platform_description: "Plateforme de pilotage de la satisfaction client — La Poste de Côte d'Ivoire",
+  platform_name: "Yéba",
+  platform_description: "Plateforme de collecte et de pilotage de la satisfaction client au guichet",
   logo_url: "/yeba-logo.svg",
   logo_dark_url: null,
   
@@ -11,9 +11,9 @@ export const BRANDING = {
   color_card_foreground: "0 0% 98%",
   color_popover: "195 35% 9%",
   color_popover_foreground: "0 0% 98%",
-  color_primary: "42 96% 50%", // Jaune / Or Poste CI vibrant
+  color_primary: "42 96% 50%", // Jaune Or vibrant Yéba
   color_primary_foreground: "0 0% 8%",
-  color_secondary: "158 84% 36%", // Vert Émeraude Poste CI
+  color_secondary: "158 84% 36%", // Vert Émeraude Yéba
   color_secondary_foreground: "0 0% 98%",
   color_secondary_muted: "158 40% 18%",
   color_secondary_muted_foreground: "158 65% 78%",
@@ -23,9 +23,9 @@ export const BRANDING = {
   color_muted_foreground: "195 15% 70%",
   color_destructive: "0 84.2% 60.2%",
   color_destructive_foreground: "0 0% 98%",
-  color_success: "158 84% 36%", // Vert Poste CI
+  color_success: "158 84% 36%", // Vert Yéba
   color_success_foreground: "0 0% 98%",
-  color_warning: "42 96% 50%", // Jaune Or Poste CI
+  color_warning: "42 96% 50%", // Jaune Or Yéba
   color_warning_foreground: "0 0% 8%",
   color_border: "195 25% 18%",
   color_input: "195 25% 18%",

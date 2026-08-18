@@ -253,7 +253,7 @@ export const GuichetsPage = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
               <span>Agences</span>
               <span>/</span>
-              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "La Poste CI Plateau"}</span>
+              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
               <span>/</span>
               <span className="text-primary font-black">Guichets & Kits</span>
             </div>

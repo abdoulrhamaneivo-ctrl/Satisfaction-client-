@@ -1,6 +1,6 @@
 import type { NavigationItem } from "./NavBar";
 
-// Barre de navigation principale Yeba (La Poste de Côte d'Ivoire)
+// Barre de navigation principale Yéba
 export const demoNavigationitems: NavigationItem[] = [
   { name: "Tableau de bord", to: "/dashboard" },
   { name: "Guichets & Kits", to: "/guichets" },

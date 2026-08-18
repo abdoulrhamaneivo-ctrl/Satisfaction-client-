@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * Pictogramme Yeba — La Poste de Côte d'Ivoire.
- * Bulle de discussion Verte Émeraude + Coche de validation Or / Jaune Poste CI.
+ * Pictogramme officiel Yéba.
+ * Bulle de discussion Verte Émeraude + Coche de validation Or / Jaune Yéba.
  */
 export function YebaLogo({ className = "size-8", width = 32, height = 32 }: { className?: string; width?: number; height?: number }) {
   return (
@@ -15,13 +15,13 @@ export function YebaLogo({ className = "size-8", width = 32, height = 32 }: { cl
       height={height}
     >
       <defs>
-        {/* Vert Émeraude La Poste CI */}
+        {/* Vert Émeraude Yéba */}
         <linearGradient id="yebaLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#059669" />
           <stop offset="100%" stopColor="#047857" />
         </linearGradient>
 
-        {/* Jaune / Or Vibrant La Poste CI */}
+        {/* Jaune / Or Vibrant Yéba */}
         <linearGradient id="yebaLogoCheck" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#FBBF24" />
           <stop offset="100%" stopColor="#F59E0B" />

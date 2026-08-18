@@ -113,53 +113,54 @@ export const DashboardPage = () => {
           {
             name: 'Avis clients',
             data: avisGroupes.map((a) => ({
-              Date: new Date(a.reponses[0]?.date_reponse).toLocaleString('fr-FR'),
-              Guichet: a.reponses[0]?.guichet?.nom_guichet || '',
-              'Note moyenne': a.score_moyen,
-              Criteres: a.reponses.map((r: any) => `${r.critere?.libelle_critere}:${r.score_brut}`).join(' | '),
-              Commentaire: a.reponses[0]?.commentaire_texte || '',
+              'Date & Heure': a.reponses[0]?.date_reponse ? new Date(a.reponses[0].date_reponse).toLocaleString('fr-FR') : 'Non renseigné',
+              'Guichet': a.reponses[0]?.guichet?.nom_guichet || 'Guichet principal',
+              'Service': a.reponses[0]?.service?.libelle_service || 'Général',
+              'Note moyenne (/5)': typeof a.score_moyen === 'number' ? Number(a.score_moyen.toFixed(2)) : 'N/A',
+              'Détail critères': a.reponses.map((r: any) => `${r.critere?.libelle_critere || 'Critère'}: ${r.score_brut}/5`).join(' | '),
+              'Commentaire': a.reponses[0]?.commentaire_texte && a.reponses[0].commentaire_texte.trim() !== '' ? a.reponses[0].commentaire_texte.trim() : 'Aucun commentaire écrit',
             })),
           },
           {
             name: 'Alertes',
             data: alertesList.map((a: any) => ({
-              Date: new Date(a.date_creation).toLocaleString('fr-FR'),
-              Type: a.type_alerte,
-              Statut: a.statut_alerte,
-              Guichet: a.guichet?.nom_guichet || '',
-              'Date traitement': a.date_traitement ? new Date(a.date_traitement).toLocaleString('fr-FR') : '',
+              'Date d\'alerte': a.date_creation ? new Date(a.date_creation).toLocaleString('fr-FR') : 'N/A',
+              'Type d\'incident': a.type_alerte || 'Note insatisfaisante',
+              'Statut': a.statut_alerte === 'TRAITEE' ? 'Traitée' : 'En attente',
+              'Guichet concerné': a.guichet?.nom_guichet || 'Guichet principal',
+              'Date de résolution': a.date_traitement ? new Date(a.date_traitement).toLocaleString('fr-FR') : 'Non encore traitée',
             })),
           },
           {
             name: 'Taches correctives',
             data: tachesList.map((t: any) => ({
-              Titre: t.titre,
-              Statut: t.statut_tache,
-              'Date echéance': new Date(t.date_echeance).toLocaleString('fr-FR'),
-              'Date clôture': t.date_cloture ? new Date(t.date_cloture).toLocaleString('fr-FR') : '',
-              Responsable: t.responsable ? `${t.responsable.prenom || ''} ${t.responsable.nom || ''}`.trim() : '',
+              'Action à réaliser': t.titre || 'Tâche corrective',
+              'Statut Kanban': t.statut_tache || 'À FAIRE',
+              'Date d\'échéance': t.date_echeance ? new Date(t.date_echeance).toLocaleString('fr-FR') : 'Aucune date',
+              'Date de clôture': t.date_cloture ? new Date(t.date_cloture).toLocaleString('fr-FR') : 'En cours d\'exécution',
+              'Agent responsable': t.responsable ? `${t.responsable.prenom || ''} ${t.responsable.nom || ''}`.trim() : 'Non assigné',
             })),
           },
           {
-            name: `KPIs ${labelPeriode}`,
+            name: `Synthèse KPIs ${labelPeriode}`,
             data: kpisPeriode ? [{
-              'Satisfaction (%)': periodeActuelle?.satisfaction ?? 0,
-              'Note moyenne (/5)': periodeActuelle?.moyenne ?? 0,
-              'Volume avis': periodeActuelle?.nb ?? 0,
-              'Delta satisfaction (pts)': kpisPeriode.delta_satisfaction_pts ?? 0,
-              'Delta note (pts)': kpisPeriode.delta_note_pts ?? 0,
-              'Delta volume (%)': kpisPeriode.delta_volume_pct ?? 0,
+              'Satisfaction Usagers (%)': periodeActuelle?.satisfaction ? `${periodeActuelle.satisfaction.toFixed(1)}%` : '0%',
+              'Moyenne globale (/5)': periodeActuelle?.moyenne ? `${periodeActuelle.moyenne.toFixed(2)}/5` : '0/5',
+              'Volume total avis': periodeActuelle?.nb ?? 0,
+              'Évolution satisfaction': `${kpisPeriode.delta_satisfaction_pts >= 0 ? '+' : ''}${kpisPeriode.delta_satisfaction_pts ?? 0} pts`,
+              'Évolution moyenne': `${kpisPeriode.delta_note_pts >= 0 ? '+' : ''}${kpisPeriode.delta_note_pts ?? 0} pts`,
+              'Évolution volume': `${kpisPeriode.delta_volume_pct >= 0 ? '+' : ''}${kpisPeriode.delta_volume_pct ?? 0}%`,
             }] : [],
           },
         ],
-        `Yeba_Rapport_${new Date().toISOString().split('T')[0]}`
+        `Yeba_Rapport_Complet_${new Date().toISOString().split('T')[0]}`
       );
     } catch (err: any) {
       console.error('Erreur export XLSX', err);
     } finally {
       setExportingXLSX(false);
     }
-  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle]);
+  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode]);
 
   return (
     <RequireAuth>
@@ -170,7 +171,7 @@ export const DashboardPage = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
               <span>Agences</span>
               <span>/</span>
-              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "La Poste CI Plateau"}</span>
+              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
               <span>/</span>
               <span className="text-primary font-black">Tableau de bord</span>
             </div>

@@ -246,8 +246,7 @@
       180deg,
       hsl(var(--background) / 0.92) 0%,
       hsl(var(--background)) 100%
-    ),
-    url('/la_poste_ci_bg.png') center/cover no-repeat fixed;
+    );
 }
 
 /* Micro-animations interactives Stripe/Notion/Linear grade */
@@ -430,9 +429,9 @@
     --card-subtle-foreground: 195 25% 12%;
     --popover: 0 0% 100%;
     --popover-foreground: 195 25% 12%;
-    --primary: 42 96% 48%; /* Jaune / Or Poste CI */
+    --primary: 42 96% 48%; /* Jaune Or Yéba */
     --primary-foreground: 0 0% 8%;
-    --secondary: 158 84% 32%; /* Vert Émeraude Poste CI */
+    --secondary: 158 84% 32%; /* Vert Émeraude Yéba */
     --secondary-foreground: 0 0% 98%;
     --secondary-muted: 158 40% 92%;
     --secondary-muted-foreground: 158 84% 20%;
@@ -463,9 +462,9 @@
     --card-subtle-foreground: 0 0% 98%;
     --popover: 158 45% 9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 42 96% 50%; /* Jaune / Or Poste CI vibrant */
+    --primary: 42 96% 50%; /* Jaune Or Yéba vibrant */
     --primary-foreground: 0 0% 8%;
-    --secondary: 158 84% 38%; /* Vert Émeraude Poste CI */
+    --secondary: 158 84% 38%; /* Vert Émeraude Yéba */
     --secondary-foreground: 0 0% 98%;
     --secondary-muted: 158 40% 18%;
     --secondary-muted-foreground: 158 65% 78%;

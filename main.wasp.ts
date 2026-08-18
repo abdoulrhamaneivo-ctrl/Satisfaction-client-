@@ -17,6 +17,7 @@ import { AvisPage } from "./src/client/pages/AvisPage" with { type: "ref" };
 import { ConfigurationCriteresPage } from "./src/client/pages/ConfigurationCriteresPage" with { type: "ref" };
 import { AlertesTachesPage } from "./src/client/pages/AlertesTachesPage" with { type: "ref" };
 import { ArchivesPage } from "./src/client/pages/ArchivesPage" with { type: "ref" };
+import { SettingsPage } from "./src/client/pages/SettingsPage" with { type: "ref" };
 
 // === ACTIONS ===
 import {
@@ -53,6 +54,8 @@ import {
   desarchiverAlerte,
   archiverTache,
   desarchiverTache,
+  archiverCritere,
+  desarchiverCritere,
 } from "./src/server/actions" with { type: "ref" };
 
 // === IMPORTS JOBS CRON Yeba ===
@@ -60,6 +63,7 @@ import { detecterAlertesSilence } from "./src/server/jobs/alerteSilence" with { 
 import { relancerTachesEnRetard } from "./src/server/jobs/relanceTache" with { type: "ref" };
 import { envoyerRapportsMensuels } from "./src/server/jobs/rapportMensuel" with { type: "ref" };
 import { archiverElementsResolusAnciens } from "./src/server/jobs/archivageAutomatique" with { type: "ref" };
+import { analyserAvisIAJob } from "./src/server/jobs/analyserAvisIA" with { type: "ref" };
 
 // === QUERIES ===
 import {
@@ -92,6 +96,7 @@ import {
   getTempsTraitement,
   getRechercheGlobale,
   getArchives,
+  getAIStatus,
 } from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
@@ -112,20 +117,18 @@ const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/critere
 const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
 const archivesRoute = route("ArchivesRoute", "/archives", page(ArchivesPage));
+const settingsRoute = route("SettingsRoute", "/settings", page(SettingsPage));
 
-// === ACTIONS ===
+// === ACTIONS DEFINITIONS ===
 const createGuichetAction = action(createGuichet, {
   entities: ["Guichet", "User", "Service", "AffectationGuichet", "Agence"],
 });
-
 const assignAgentAction = action(assignAgent, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
 const updateAffectationGuichetAction = action(updateAffectationGuichet, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
 const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence"] });
-
 const soumettreAvisAction = action(soumettreAvis, {
-  entities: ["Reponse", "Critere", "AgenceCritere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "Canal"],
+  entities: ["Reponse", "Critere", "AgenceCritere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "Canal", "AnalyseAvisIA"],
 });
-
 const createAgenceAction = action(createAgence, { entities: ["Agence", "User"] });
 const updateAgentAction = action(updateAgent, { entities: ["User", "Agence"] });
 const deleteAgentAction = action(deleteAgent, { entities: ["User", "Agence"] });
@@ -135,12 +138,8 @@ const inviteAgentAction = action(inviteAgent, { entities: ["User", "Agence"] });
 const toggleCritereAgenceAction = action(toggleCritereAgence, { entities: ["AgenceCritere", "User", "Agence"] });
 const createCritereAction = action(createCritere, { entities: ["Critere", "AgenceCritere", "User", "Agence", "Service"] });
 const createServiceAction = action(createService, { entities: ["Service", "User"] });
-
-// Nouvelles actions (Module 1 — Objectifs)
 const upsertObjectifAction = action(upsertObjectif, { entities: ["Objectif", "Agence", "Critere", "User"] });
 const deleteObjectifAction = action(deleteObjectif, { entities: ["Objectif", "Agence", "User"] });
-
-// Nouvelles actions (Module 5 — Tâches correctives / Kanban)
 const createTacheCorrectiveAction = action(createTacheCorrective, {
   entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"],
 });
@@ -156,8 +155,6 @@ const removeCritereFromServiceAction = action(removeCritereFromService, { entiti
 const deleteCritereAction = action(deleteCritere, { entities: ["Critere", "Reponse", "AgenceCritere", "CritereService", "Objectif", "User"] });
 const duplicateCritereAction = action(duplicateCritere, { entities: ["Critere", "AgenceCritere", "CritereService", "User"] });
 const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User"] });
-
-// Archivage logique
 const archiverGuichetAction = action(archiverGuichet, { entities: ["Guichet", "User", "Agence"] });
 const desarchiverGuichetAction = action(desarchiverGuichet, { entities: ["Guichet", "User", "Agence"] });
 const archiverAgenceAction = action(archiverAgence, { entities: ["Agence", "Guichet", "User"] });
@@ -166,76 +163,40 @@ const archiverAlerteAction = action(archiverAlerte, { entities: ["Alerte", "Guic
 const desarchiverAlerteAction = action(desarchiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"] });
 const archiverTacheAction = action(archiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
 const desarchiverTacheAction = action(desarchiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
-// === QUERIES ===
-const getGuichetsQuery = query(getGuichets, {
-  entities: ["Guichet", "User", "Service", "Agence"],
-});
+const archiverCritereAction = action(archiverCritere, { entities: ["Critere", "User"] });
+const desarchiverCritereAction = action(desarchiverCritere, { entities: ["Critere", "User"] });
 
-const getAgentsQuery = query(getAgents, {
-  entities: ["User", "Agence"],
-});
-
-const getReponsesQuery = query(getReponses, {
-  entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"],
-});
-
-// Avis regroupés (1 formulaire soumis = 1 avis, même s'il contient plusieurs
-// critères) — voir docs/logique-avis-uniques.md pour le détail.
-const getAvisGroupesQuery = query(getAvisGroupes, {
-  entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"],
-});
-
+// === QUERIES DEFINITIONS ===
+const getGuichetsQuery = query(getGuichets, { entities: ["Guichet", "User", "Service", "Agence"] });
+const getAgentsQuery = query(getAgents, { entities: ["User", "Agence"] });
+const getReponsesQuery = query(getReponses, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User", "AnalyseAvisIA"] });
+const getAvisGroupesQuery = query(getAvisGroupes, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User", "AnalyseAvisIA"] });
 const getStatsFiltereesQuery = query(getStatsFiltrees, { entities: ["Reponse", "User", "Agence"] });
 const getAgentsByAgenceQuery = query(getAgentsByAgence, { entities: ["User", "Agence"] });
 const getAgencesQuery = query(getAgences, { entities: ["Agence", "User"] });
 const getAlertesQuery = query(getAlertes, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"] });
 const getCriteresQuery = query(getCriteres, { entities: ["Critere", "User"] });
 const getAgenceCriteresQuery = query(getAgenceCriteres, { entities: ["AgenceCritere", "User", "Agence"] });
-const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, {
-  entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise"],
-});
-const getServicesQuery = query(getServices, {
-  entities: ["Service", "User"],
-});
-const getRadarStatsQuery = query(getRadarStats, {
-  entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence"],
-});
-
-// Nouvelles queries
+const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, { entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise"] });
+const getServicesQuery = query(getServices, { entities: ["Service", "User"] });
+const getRadarStatsQuery = query(getRadarStats, { entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence"] });
 const getObjectifsQuery = query(getObjectifs, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse"] });
 const getObjectifsParAgenceQuery = query(getObjectifsParAgence, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse"] });
-const getTachesCorrectivesQuery = query(getTachesCorrectives, {
-  entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"],
-});
-const getTacheHistoriqueQuery = query(getTacheHistorique, {
-  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"],
-});
-const exportAvisGroupesQuery = query(exportAvisGroupes, {
-  entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"],
-});
-const getAffectationsDuJourQuery = query(getAffectationsDuJour, {
-  entities: ["AffectationGuichet", "Guichet", "User", "Agence"],
-});
+const getTachesCorrectivesQuery = query(getTachesCorrectives, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
+const getTacheHistoriqueQuery = query(getTacheHistorique, { entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
+const exportAvisGroupesQuery = query(exportAvisGroupes, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"] });
+const getAffectationsDuJourQuery = query(getAffectationsDuJour, { entities: ["AffectationGuichet", "Guichet", "User", "Agence"] });
 const getTendanceMensuelleQuery = query(getTendanceMensuelle, { entities: ["Reponse", "User", "Agence"] });
 const getStatsByAgentQuery = query(getStatsByAgent, { entities: ["User", "Reponse", "Agence"] });
 const getStatsByGuichetQuery = query(getStatsByGuichet, { entities: ["Guichet", "Reponse", "User", "Agence"] });
-const getActionsPrioritairesQuery = query(getActionsPrioritaires, {
-  entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "Critere", "User", "Agence"],
-});
+const getActionsPrioritairesQuery = query(getActionsPrioritaires, { entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "Critere", "User", "Agence"] });
 const getKPIsPeriodeQuery = query(getKPIsPeriode, { entities: ["Reponse", "User", "Agence"] });
-const getCriteresParOperationQuery = query(getCriteresParOperation, {
-  entities: ["Service", "Critere", "CritereService", "AgenceCritere", "User", "Agence"],
-});
+const getCriteresParOperationQuery = query(getCriteresParOperation, { entities: ["Service", "Critere", "CritereService", "AgenceCritere", "User", "Agence"] });
 const getHeatmapReponsesQuery = query(getHeatmapReponses, { entities: ["Reponse", "User", "Agence"] });
-const getTempsTraitementQuery = query(getTempsTraitement, {
-  entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "User", "Agence"],
-});
-const getRechercheGlobaleQuery = query(getRechercheGlobale, {
-  entities: ["Agence", "Guichet", "User", "Reponse"],
-});
-const getArchivesQuery = query(getArchives, {
-  entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User"],
-});
+const getTempsTraitementQuery = query(getTempsTraitement, { entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "User", "Agence"] });
+const getRechercheGlobaleQuery = query(getRechercheGlobale, { entities: ["Agence", "Guichet", "User", "Reponse"] });
+const getArchivesQuery = query(getArchives, { entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User"] });
+const getAIStatusQuery = query(getAIStatus, { entities: ["AnalyseAvisIA", "User"] });
 
 export default app({
   name: "Yeba",
@@ -273,22 +234,22 @@ export default app({
     collecteRoute,
     alertesTachesRoute,
     archivesRoute,
-    // Actions existantes
+    settingsRoute,
+    // Actions
     createGuichetAction,
     assignAgentAction,
     updateAffectationGuichetAction,
     deleteAffectationGuichetAction,
     soumettreAvisAction,
+    createAgenceAction,
     updateAgentAction,
     deleteAgentAction,
     reactivateAgentAction,
     promouvoirAgentAction,
     inviteAgentAction,
-    createAgenceAction,
     toggleCritereAgenceAction,
     createCritereAction,
     createServiceAction,
-    // Nouvelles actions
     upsertObjectifAction,
     deleteObjectifAction,
     createTacheCorrectiveAction,
@@ -308,25 +269,27 @@ export default app({
     desarchiverAlerteAction,
     archiverTacheAction,
     desarchiverTacheAction,
-    // Queries existantes
-    getStatsFiltereesQuery,
-    getAgentsByAgenceQuery,
-    getAgencesQuery,
+    archiverCritereAction,
+    desarchiverCritereAction,
+    // Queries
     getGuichetsQuery,
     getAgentsQuery,
     getReponsesQuery,
     getAvisGroupesQuery,
+    getStatsFiltereesQuery,
+    getAgentsByAgenceQuery,
+    getAgencesQuery,
     getAlertesQuery,
     getCriteresQuery,
     getAgenceCriteresQuery,
     getFormDefinitionForGuichetQuery,
     getServicesQuery,
     getRadarStatsQuery,
-    // Nouvelles queries
     getObjectifsQuery,
     getObjectifsParAgenceQuery,
     getTachesCorrectivesQuery,
     getTacheHistoriqueQuery,
+    exportAvisGroupesQuery,
     getAffectationsDuJourQuery,
     getTendanceMensuelleQuery,
     getStatsByAgentQuery,
@@ -338,26 +301,32 @@ export default app({
     getTempsTraitementQuery,
     getRechercheGlobaleQuery,
     getArchivesQuery,
-    exportAvisGroupesQuery,
+    getAIStatusQuery,
+    // Jobs PgBoss
     job(detecterAlertesSilence, {
       executor: "PgBoss",
       entities: ["Alerte", "Guichet", "AffectationGuichet", "Reponse", "User"],
-      schedule: { cron: "*/30 * * * *" }, // Toutes les 30 minutes
+      schedule: { cron: "*/30 * * * *" },
     }),
     job(relancerTachesEnRetard, {
       executor: "PgBoss",
       entities: ["TacheCorrective", "Alerte", "Guichet", "User"],
-      schedule: { cron: "0 8 * * *" }, // Tous les jours à 08h00
+      schedule: { cron: "0 8 * * *" },
     }),
     job(envoyerRapportsMensuels, {
       executor: "PgBoss",
       entities: ["Agence", "Reponse", "Alerte", "TacheCorrective", "User"],
-      schedule: { cron: "0 7 1 * *" }, // Le 1er du mois à 07h00
+      schedule: { cron: "0 7 1 * *" },
     }),
     job(archiverElementsResolusAnciens, {
       executor: "PgBoss",
       entities: ["Alerte", "TacheCorrective"],
-      schedule: { cron: "0 3 * * *" }, // Tous les jours à 03h00
+      schedule: { cron: "0 3 * * *" },
+    }),
+    job(analyserAvisIAJob, {
+      executor: "PgBoss",
+      entities: ["AnalyseAvisIA", "Reponse", "Agence", "Guichet", "Service", "Critere", "User"],
+      schedule: { cron: "* * * * *" },
     }),
   ],
 });
