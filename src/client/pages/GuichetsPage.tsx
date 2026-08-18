@@ -248,6 +248,23 @@ export const GuichetsPage = () => {
     <RequireAuth>
       <AmbientBackground>
         <div className="mx-auto max-w-[1440px] p-6 lg:p-10 space-y-8">
+          {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+              <span>Agences</span>
+              <span>/</span>
+              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "La Poste CI Plateau"}</span>
+              <span>/</span>
+              <span className="text-primary font-black">Guichets & Kits</span>
+            </div>
+            
+            <div className="flex items-center gap-6 text-xs font-bold">
+              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
+              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/alertes-taches'}>Kanban Incidents</span>
+              <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Guichets & Kits</span>
+            </div>
+          </div>
+
           <Reveal direction="down">
             <PageHeader
               icon={Store}
