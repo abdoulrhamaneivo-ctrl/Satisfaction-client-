@@ -229,20 +229,57 @@
   }
 }
 
-/* Premium brand-tinted page shell (uses existing brand tokens only) */
+/* Premium brand-tinted page shell (uses background image + ambient brand glows) */
 @utility bg-app-shell {
   background:
     radial-gradient(
       62% 48% at 100% 0%,
-      hsl(var(--secondary-muted) / 0.22) 0%,
+      hsl(var(--primary) / 0.12) 0%,
       transparent 60%
     ),
     radial-gradient(
       52% 42% at 0% 100%,
-      hsl(var(--primary) / 0.06) 0%,
+      hsl(var(--secondary) / 0.15) 0%,
       transparent 55%
     ),
-    hsl(var(--background));
+    linear-gradient(
+      180deg,
+      hsl(var(--background) / 0.92) 0%,
+      hsl(var(--background)) 100%
+    ),
+    url('/la_poste_ci_bg.png') center/cover no-repeat fixed;
+}
+
+/* Micro-animations interactives Stripe/Notion/Linear grade */
+@utility card-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+  &:hover {
+    transform: translateY(-3px);
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 12px 30px -10px hsl(var(--primary) / 0.15), 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+}
+
+@utility btn-glow-gold {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 14px hsl(var(--primary) / 0.35);
+  &:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 6px 20px hsl(var(--primary) / 0.5);
+  }
+}
+
+@utility btn-glow-emerald {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 14px hsl(var(--secondary) / 0.35);
+  &:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 6px 20px hsl(var(--secondary) / 0.5);
+  }
 }
 
 /* Soft brand hairline used on premium surfaces */
@@ -416,15 +453,15 @@
   }
 
   .dark, :root.dark, html.dark, body.dark {
-    --background: 195 40% 6%;
+    --background: 158 50% 7%; /* Vert Émeraude Sombre Luxueux (Pas de noir brut) */
     --foreground: 0 0% 98%;
-    --card: 195 35% 9%;
+    --card: 158 45% 10%;
     --card-foreground: 0 0% 98%;
     --card-accent: 42 96% 50%;
     --card-accent-foreground: 0 0% 8%;
-    --card-subtle: 195 28% 13%;
+    --card-subtle: 158 40% 13%;
     --card-subtle-foreground: 0 0% 98%;
-    --popover: 195 35% 8%;
+    --popover: 158 45% 9%;
     --popover-foreground: 0 0% 98%;
     --primary: 42 96% 50%; /* Jaune / Or Poste CI vibrant */
     --primary-foreground: 0 0% 8%;
@@ -432,8 +469,8 @@
     --secondary-foreground: 0 0% 98%;
     --secondary-muted: 158 40% 18%;
     --secondary-muted-foreground: 158 65% 78%;
-    --muted: 195 25% 15%;
-    --muted-foreground: 195 15% 72%;
+    --muted: 158 35% 14%;
+    --muted-foreground: 158 15% 72%;
     --accent: 42 90% 55%;
     --accent-foreground: 0 0% 8%;
     --destructive: 0 62.8% 63%;
@@ -442,8 +479,8 @@
     --success-foreground: 0 0% 98%;
     --warning: 42 96% 50%;
     --warning-foreground: 0 0% 8%;
-    --border: 195 25% 18%;
-    --input: 195 25% 18%;
+    --border: 158 35% 18%;
+    --input: 158 35% 18%;
     --ring: 42 96% 50%;
   }
 

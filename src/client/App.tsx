@@ -62,7 +62,7 @@ export function App() {
 
   return (
     <BrandProvider>
-      <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary">
+      <div className="min-h-screen bg-app-shell text-foreground selection:bg-primary/20 selection:text-primary">
         <OnboardingTour />
         
         {isAdminDashboard ? (
