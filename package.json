@@ -5,6 +5,11 @@
     ".wasp/out/*",
     ".wasp/out/sdk/wasp"
   ],
+  "main": ".wasp/out/server/bundle/server.js",
+  "scripts": {
+    "start": "cd .wasp/out/server && npm run start-production",
+    "build": "wasp build"
+  },
   "dependencies": {
     "oslo": "1.2.1",
     "@aws-sdk/client-s3": "^3.523.0",
