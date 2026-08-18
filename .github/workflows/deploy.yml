@@ -9,21 +9,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      WASP_VERSION: "0.24"
+      WASP_VERSION: "0.24.0"
       RAILWAY_PROJECT_NAME: cxsat-poste-ci
       RAILWAY_PROJECT_ID: aa94d855-a4a9-46d5-a2ac-d7fb35cdfb55
       RAILWAY_ENVIRONMENT_ID: 64f204d4-01e7-4000-b8c9-186cff74baa2
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
-          node-version: "24.14.1"
+          node-version: "20"
 
-      - name: Install Wasp
-        run: npm i -g @wasp.sh/wasp-cli@$WASP_VERSION
+      - name: Install Wasp CLI
+        run: |
+          curl -sSL https://get.wasp.sh | sh -s -- -v $WASP_VERSION
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -31,10 +33,7 @@ jobs:
       - name: Install project dependencies
         run: wasp install
 
-      - name: Deploy
+      - name: Deploy to Railway
         run: wasp deploy railway deploy $RAILWAY_PROJECT_NAME --existing-project-id $RAILWAY_PROJECT_ID
         env:
-          # Le token reste ici, pas au niveau du job : c'est le seul
-          # secret parmi ces variables, il ne doit pas traîner dans les
-          # logs des étapes qui n'en ont pas besoin (checkout, install...).
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }} 
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
