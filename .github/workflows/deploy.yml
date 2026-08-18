@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24.14.1"
 
       - name: Install Wasp CLI
         run: npm i -g @wasp.sh/wasp-cli@$WASP_VERSION
