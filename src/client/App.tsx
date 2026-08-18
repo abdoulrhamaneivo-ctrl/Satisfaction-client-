@@ -15,9 +15,7 @@ export function App() {
   const navigationItems = demoNavigationitems;
 
   const shouldDisplayAppNavBar = useMemo(() => {
-    // Le questionnaire QR est une expérience publique et autonome : la
-    // navigation métier (dashboard, personnel, alertes…) n'a rien à y faire.
-    // Les écrans d'authentification et la landing page gardent leur propre habillage.
+    // Le questionnaire QR est une expérience publique et autonome
     const standaloneRoutes = [
       routes.LandingPageRoute.to,
       routes.LoginRoute.to,
@@ -64,21 +62,21 @@ export function App() {
 
   return (
     <BrandProvider>
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary">
         <OnboardingTour />
         
         {isAdminDashboard ? (
           <Outlet />
         ) : shouldDisplayAppNavBar ? (
-          <div className="flex min-h-screen">
-            {/* Sidebar Sleek style Linear/Notion sur Desktop */}
-            <div className="hidden lg:block">
+          <div className="flex min-h-screen relative">
+            {/* Sidebar Sleek Notion/Linear sur Desktop */}
+            <div className="hidden lg:block shrink-0">
               <Sidebar />
             </div>
 
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-screen">
               {/* Header Top sur mobile/tablette */}
-              <div className="lg:hidden">
+              <div className="lg:hidden sticky top-0 z-50">
                 <NavBar navigationItems={navigationItems} />
               </div>
               <CommandPalette />

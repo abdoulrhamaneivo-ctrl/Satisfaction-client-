@@ -12,7 +12,11 @@ import {
   ChevronDown,
   LayoutDashboard,
   Bell,
-  Sparkles
+  Sparkles,
+  SlidersHorizontal,
+  Building2,
+  Archive,
+  MessageSquareQuote
 } from 'lucide-react';
 import { useAuth } from 'wasp/client/auth';
 import { useBrand } from '../context/BrandContext';
@@ -34,47 +38,39 @@ export function Sidebar() {
     return false;
   };
 
+  const userRole = (user as any)?.role;
+  const isDirection = userRole === 'DIRECTION';
+  const isChefAgence = userRole === 'CHEF_AGENCE';
+  const isQualite = userRole === 'QUALITE';
+  const hasAdminAccess = isDirection || isChefAgence || isQualite;
+
   return (
-    <aside className="w-64 shrink-0 border-r border-border/80 bg-card/95 backdrop-blur-md flex flex-col justify-between h-screen sticky top-0 z-40 select-none text-foreground">
-      {/* Top Header: Company / Agence Switcher Pill */}
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between p-2.5 rounded-2xl bg-muted/40 border border-border/70 hover:bg-muted/70 transition-colors cursor-pointer group">
+    <aside className="w-64 shrink-0 border-r border-border/80 bg-card/95 backdrop-blur-md flex flex-col justify-between h-screen sticky top-0 z-40 overflow-y-auto momentum-scroll select-none text-foreground">
+      {/* Top Header: Platform Brand */}
+      <div className="p-4 space-y-5">
+        <Link 
+          to="/dashboard"
+          className="flex items-center justify-between p-2.5 rounded-2xl bg-muted/40 border border-border/70 hover:bg-muted/70 transition-all cursor-pointer group"
+        >
           <div className="flex items-center gap-3">
-            <YebaLogo className="size-7" />
+            <YebaLogo className="size-7 transition-transform group-hover:scale-105" />
             <div>
               <span className="block text-xs font-black font-satoshi text-foreground tracking-tight leading-none">
                 {brandConfig?.platform_name || "La Poste CI"}
               </span>
               <span className="block text-[10px] text-muted-foreground font-semibold pt-0.5">
-                Agence Principale
+                {(user as any)?.agence?.nom_agence || "Agence Principale"}
               </span>
             </div>
           </div>
-          <ChevronDown className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-        </div>
+          <Sparkles className="size-3.5 text-primary opacity-60 group-hover:opacity-100 transition-opacity" />
+        </Link>
 
-        {/* Main Section Navigation */}
-        <nav className="space-y-1">
-          <Link
-            to="/alertes-taches"
-            data-tour="sidebar-inbox"
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-              isCurrent('/alertes-taches')
-                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2.5">
-              <Inbox className="size-4" />
-              Inbox Incidents
-            </span>
-            {alertTotal > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground shadow-sm">
-                {alertTotal}
-              </span>
-            )}
-          </Link>
+        {/* Section 1: EXPLOITATION */}
+        <div className="space-y-1">
+          <span className="block px-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+            Exploitation
+          </span>
 
           <Link
             to="/dashboard"
@@ -87,8 +83,45 @@ export function Sidebar() {
             )}
           >
             <span className="flex items-center gap-2.5">
-              <CheckSquare className="size-4" />
-              Mes tâches & Kanban
+              <LayoutDashboard className="size-4" />
+              Tableau de bord
+            </span>
+          </Link>
+
+          <Link
+            to="/alertes-taches"
+            data-tour="sidebar-inbox"
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
+              isCurrent('/alertes-taches')
+                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            )}
+          >
+            <span className="flex items-center gap-2.5">
+              <Inbox className="size-4" />
+              Incidents & Kanban
+            </span>
+            {alertTotal > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground shadow-sm animate-pulse">
+                {alertTotal}
+              </span>
+            )}
+          </Link>
+
+          <Link
+            to="/guichets"
+            data-tour="sidebar-guichets"
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
+              isCurrent('/guichets')
+                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            )}
+          >
+            <span className="flex items-center gap-2.5">
+              <Store className="size-4" />
+              Guichets & Kits QR
             </span>
           </Link>
 
@@ -103,9 +136,16 @@ export function Sidebar() {
           >
             <span className="flex items-center gap-2.5">
               <Calendar className="size-4" />
-              Planning & Présence
+              Planning Agents
             </span>
           </Link>
+        </div>
+
+        {/* Section 2: ÉCOUTE CLIENT & FORMULAIRES */}
+        <div className="pt-2 space-y-1">
+          <span className="block px-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+            Écoute Client
+          </span>
 
           <Link
             to="/avis"
@@ -117,87 +157,87 @@ export function Sidebar() {
             )}
           >
             <span className="flex items-center gap-2.5">
-              <BarChart3 className="size-4" />
-              Analyses & CSAT
+              <MessageSquareQuote className="size-4" />
+              Avis & CSAT
             </span>
           </Link>
-        </nav>
 
-        {/* Group Section: GUICHETS & KITS (Linear style with dot indicators) */}
-        <div className="pt-4 space-y-2">
-          <span className="block px-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
-            GUICHETS & KITS
-          </span>
+          <Link
+            to="/criteres"
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
+              isCurrent('/criteres')
+                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            )}
+          >
+            <span className="flex items-center gap-2.5">
+              <SlidersHorizontal className="size-4" />
+              Formulaires & Critères
+            </span>
+          </Link>
+        </div>
 
-          <div className="space-y-0.5">
+        {/* Section 3: ADMINISTRATION */}
+        {hasAdminAccess && (
+          <div className="pt-2 space-y-1">
+            <span className="block px-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+              Administration
+            </span>
+
             <Link
-              to="/guichets"
-              data-tour="sidebar-guichets"
+              to="/admin/personnel"
+              data-tour="sidebar-personnel"
               className={cn(
-                "w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200",
-                isCurrent('/guichets')
-                  ? "bg-muted text-foreground font-black"
-                  : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
+                isCurrent('/admin/personnel')
+                  ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )}
             >
               <span className="flex items-center gap-2.5">
-                <span className="size-2 rounded-full bg-primary" />
-                Caisse Courrier 1
+                <Users className="size-4" />
+                Agents & Rôles
               </span>
             </Link>
 
-            <Link
-              to="/guichets"
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-all duration-200"
-            >
-              <span className="flex items-center gap-2.5">
-                <span className="size-2 rounded-full bg-secondary" />
-                Accueil & Information
-              </span>
-            </Link>
-
-            <Link
-              to="/guichets"
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-all duration-200"
-            >
-              <span className="flex items-center gap-2.5">
-                <span className="size-2 rounded-full bg-emerald-400" />
-                Guichet Chronopost
-              </span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Group Section: ADMINISTRATION (si l'utilisateur a les rôles) */}
-        {user && ((user as any).role === 'CHEF_AGENCE' || (user as any).role === 'DIRECTION' || (user as any).role === 'QUALITE') && (
-          <div className="pt-4 space-y-2">
-            <span className="block px-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
-              ADMINISTRATION
-            </span>
-
-            <div className="space-y-0.5">
+            {isDirection && (
               <Link
-                to="/admin/personnel"
-                data-tour="sidebar-personnel"
+                to="/admin/agences"
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200",
-                  isCurrent('/admin/personnel')
+                  "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
+                  isCurrent('/admin/agences')
                     ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                 )}
               >
                 <span className="flex items-center gap-2.5">
-                  <Users className="size-4" />
-                  Agents & Rôles
+                  <Building2 className="size-4" />
+                  Réseau Agences
                 </span>
               </Link>
-            </div>
+            )}
+
+            <Link
+              to="/archives"
+              className={cn(
+                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
+                isCurrent('/archives')
+                  ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              )}
+            >
+              <span className="flex items-center gap-2.5">
+                <Archive className="size-4" />
+                Archives
+              </span>
+            </Link>
           </div>
         )}
       </div>
 
       {/* Footer Section: User profile, Dark Mode, Tutorial Trigger */}
-      <div className="p-4 border-t border-border/70 space-y-3 bg-muted/20">
+      <div className="p-4 border-t border-border/70 space-y-3 bg-muted/20 mt-auto">
         <TriggerOnboardingButton />
 
         <div className="flex items-center justify-between pt-1">
