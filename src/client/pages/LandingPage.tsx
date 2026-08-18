@@ -460,7 +460,7 @@ export const LandingPage = () => {
             <Card variant="feature" className="p-8 sm:p-12 rounded-3xl bg-card/90">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 <div className="lg:col-span-8 space-y-4">
-                  <Eyebrow tone="emerald">SÉCURITÉ & ARCHITECTURE</Eyebrow>
+                  <Eyebrow tone="positive">SÉCURITÉ & ARCHITECTURE</Eyebrow>
                   <h2 className="text-2xl sm:text-4xl font-black font-satoshi">
                     Architecture Mono-Entreprise & Row Level Security (RLS)
                   </h2>
