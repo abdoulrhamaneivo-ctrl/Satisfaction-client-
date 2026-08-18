@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, useAction } from 'wasp/client/operations';
-import { getObjectifs, getCriteres, getAgenceCriteres, getAgences } from 'wasp/client/operations';
+import { getObjectifs, getCriteres, getAgenceCriteres } from 'wasp/client/operations';
 import { upsertObjectif, deleteObjectif } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
-import { Target, TrendingUp, Save, Trash2 } from 'lucide-react';
+import { Target, Save, Trash2 } from 'lucide-react';
 import { MotionCard } from './MotionCard';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -29,7 +29,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
   const { toast } = useToast();
   const { data: criteres } = useQuery(getCriteres);
   const { data: critereIdsActifs } = useQuery(getAgenceCriteres, { id_agence: selectedAgenceId });
-  const { data: objectifs, refetch } = useQuery(getObjectifs, { id_agence: selectedAgenceId });
+  const { data: objectifs } = useQuery(getObjectifs, { id_agence: selectedAgenceId });
   const saveObjectif = useAction(upsertObjectif);
   const supprimerObjectif = useAction(deleteObjectif);
 

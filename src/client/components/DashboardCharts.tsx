@@ -68,7 +68,7 @@ export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
             labelStyle={{ fontWeight: 700 }}
           />
           <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-            {counts.map((entry, index) => (
+            {counts.map((_entry, index) => (
               <Cell
                 key={`cell-${index}`}
                 fill={CSAT_COLORS[index]}

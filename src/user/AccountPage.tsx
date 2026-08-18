@@ -159,7 +159,7 @@ function ProfilSection({ user }: { user: User }) {
   );
 }
 
-function SecuriteSection({ user }: { user: User }) {
+function SecuriteSection({ user: _user }: { user: User }) {
   const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

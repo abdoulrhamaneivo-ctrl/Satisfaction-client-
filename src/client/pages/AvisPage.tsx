@@ -99,7 +99,7 @@ export const AvisPage = () => {
   }, [avisData?.avis, page]);
 
   const hasMore = avisData?.hasMore ?? false;
-  const totalInWindow = avisData?.total ?? 0;
+
 
   const handleLoadMore = () => {
     setPage((p) => p + 1);

@@ -26,7 +26,7 @@ import { throttleWithTrailingInvocation } from "../../../shared/utils";
 import { UserDropdown } from "../../../user/UserDropdown";
 import { UserMenuItems } from "../../../user/UserMenuItems";
 import { useNotificationBadge } from "../../hooks/useNotificationBadge";
-import { YebaLogo } from '../YebaLogo';
+
 import { cn } from "../../utils";
 import { DarkModeSwitcher } from "../DarkModeSwitcher";
 import { CommandPaletteTrigger } from "../CommandPalette";
@@ -37,15 +37,7 @@ import { Button } from "../ui/button";
 export interface NavigationItem {
   name: string;
   to: string;
-  // Rôles Yeba autorisés à voir ce lien. Si absent, visible par tout le
-  // monde. Permet de cacher les entrées de menu qui pointent vers des pages
-  // restreintes (ex. "Agences" réservé à DIRECTION) au lieu de laisser un
-  // CHEF_AGENCE cliquer dessus pour atterrir sur un écran "Accès refusé".
   roles?: string[];
-  // Sous-entrées (ex. "Paramètres" regroupant Charte Graphique, Tarifs,
-  // Personnel, Critères). Rendu en menu déroulant sur desktop, et en
-  // sous-liste repliable sur mobile — pour éviter d'empiler 8 liens à plat
-  // dans la barre de navigation.
   children?: NavigationItem[];
 }
 
@@ -94,16 +86,13 @@ export function NavBar({
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85",
+          "sticky top-0 z-50 border-b border-border/80 bg-card/85 backdrop-blur-md supports-[backdrop-filter]:bg-card/75 shadow-sm transition-all duration-200",
+          isScrolled && "shadow-md bg-card/90"
         )}
       >
-        <div
-          className="mx-auto max-w-[1440px]"
-        >
+        <div className="mx-auto max-w-[1440px]">
           <nav
-            className={cn(
-              "flex h-[68px] items-center justify-between px-4 lg:px-8",
-            )}
+            className="flex h-[68px] items-center justify-between px-4 lg:px-8"
             aria-label="Global"
           >
             <div className="flex items-center gap-8">
@@ -112,7 +101,7 @@ export function NavBar({
                 className="flex items-center text-foreground transition-colors hover:text-primary"
               >
                 <NavLogo isScrolled={isScrolled} />
-                <span className="ml-2.5 text-sm font-bold leading-6 tracking-tight text-foreground">
+                <span className="ml-2.5 text-base font-black leading-6 tracking-tight text-foreground font-satoshi">
                   {brandConfig?.platform_name || "Yeba"}
                 </span>
               </WaspRouterLink>
@@ -145,24 +134,24 @@ function NavBarDesktopUserDropdown({ isScrolled }: { isScrolled: boolean }) {
           <CommandPaletteTrigger />
         </li>
         <DarkModeSwitcher />
-        {/* Badge de notification temps réel (polling 30s) */}
+        {/* Badge de notification temps réel avec style Trovy DS */}
         {!!user && total > 0 && (
           <li>
             <ReactRouterLink
               to="/alertes-taches"
               title={`${total} action${total > 1 ? 's' : ''} en attente`}
-              className="relative flex items-center justify-center"
+              className="relative flex items-center justify-center p-2 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted transition-colors"
             >
               <Bell
                 className={cn(
                   'transition-colors',
-                  isScrolled ? 'size-4' : 'size-5',
-                  hasCritical ? 'text-destructive' : 'text-warning'
+                  isScrolled ? 'size-4' : 'size-4.5',
+                  hasCritical ? 'text-destructive animate-pulse' : 'text-warning'
                 )}
               />
               <span
                 className={cn(
-                  'absolute -top-1.5 -right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-0.5 text-[10px] font-black text-white leading-none',
+                  'absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-black text-white leading-none shadow-sm',
                   hasCritical ? 'bg-destructive' : 'bg-warning'
                 )}
               >
@@ -240,7 +229,6 @@ function NavBarMobileMenu({
           side="right"
           className="flex w-[300px] flex-col p-0 sm:w-[400px]"
         >
-          {/* En-tête fixe */}
           <SheetHeader className="shrink-0 border-b border-border/60 px-6 pb-4 pt-6">
             <SheetTitle className="flex items-center">
               <WaspRouterLink to={routes.LandingPageRoute.to}>
@@ -250,10 +238,6 @@ function NavBarMobileMenu({
             </SheetTitle>
           </SheetHeader>
 
-          {/* Zone défilante : c'est ELLE qui manquait. Sans overflow-y-auto
-              ici, un utilisateur avec beaucoup d'entrées de menu (rôle
-              DIRECTION / CHEF_AGENCE) voyait son contenu déborder de la
-              hauteur de l'écran, sans aucun moyen de scroller pour y accéder. */}
           <div className="min-h-0 flex-1 overflow-y-auto momentum-scroll px-6">
             <div className="divide-border divide-y">
               <ul className="space-y-2 py-6">
@@ -278,11 +262,6 @@ function NavBarMobileMenu({
             </div>
           </div>
 
-          {/* Pied de menu FIXE (hors de la zone qui scrolle) : le bouton
-              mode sombre/clair est ainsi toujours visible et cliquable,
-              quel que soit le nombre d'éléments au-dessus. C'est ce qui
-              causait le bug : avant, ce bouton était dans le flux
-              défilant et se retrouvait poussé hors écran. */}
           <div className="flex shrink-0 flex-col gap-3 border-t border-border/60 px-6 py-4">
             <Button
               type="button"
@@ -313,9 +292,9 @@ function renderNavigationItems(
   currentPath?: string,
 ) {
   const menuStyles = cn({
-    "block rounded-lg px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-accent hover:text-accent-foreground transition-colors":
+    "block rounded-xl px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-muted hover:text-primary transition-colors":
       !!setMobileMenuOpen,
-    "rounded-lg px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground":
+    "rounded-xl px-3.5 py-2 text-sm font-bold text-muted-foreground transition-all duration-200 hover:bg-muted/70 hover:text-foreground":
       !setMobileMenuOpen,
   });
 
@@ -325,18 +304,16 @@ function renderNavigationItems(
       : currentPath === item.to || currentPath?.startsWith(`${item.to}/`);
     const activeStyles = isActive
       ? setMobileMenuOpen
-        ? 'bg-primary/10 text-primary'
-        : 'bg-primary/8 font-semibold text-primary shadow-[inset_0_-2px_0_0_hsl(var(--primary))]'
+        ? 'bg-primary/10 text-primary font-bold'
+        : 'bg-primary/10 text-primary font-bold shadow-sm border border-primary/20'
       : '';
     if (item.children && item.children.length > 0) {
-      // Mobile : sous-menu repliable, pour ne pas empiler tous les liens
-      // "Paramètres" à plat avec le reste de la navigation.
       if (setMobileMenuOpen) {
         return (
           <li key={item.name}>
             <Accordion type="single" collapsible>
               <AccordionItem value={item.name} className="border-none">
-                <AccordionTrigger className={cn("rounded-lg px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-accent hover:text-accent-foreground hover:no-underline transition-colors", activeStyles)}>
+                <AccordionTrigger className={cn("rounded-xl px-3 py-2 text-sm font-medium leading-7 text-foreground hover:bg-muted hover:text-primary hover:no-underline transition-colors", activeStyles)}>
                   {item.name}
                 </AccordionTrigger>
                 <AccordionContent className="pl-3">
@@ -345,7 +322,7 @@ function renderNavigationItems(
                       <li key={child.name}>
                         <ReactRouterLink
                           to={child.to}
-                          className={cn(menuStyles, currentPath === child.to && 'bg-primary/10 text-primary')}
+                          className={cn(menuStyles, currentPath === child.to && 'bg-primary/10 text-primary font-bold')}
                           aria-current={currentPath === child.to ? 'page' : undefined}
                           onClick={() => setMobileMenuOpen(false)}
                         >
@@ -361,20 +338,19 @@ function renderNavigationItems(
         );
       }
 
-      // Desktop : menu déroulant "Paramètres".
       return (
         <li key={item.name}>
           <DropdownMenu>
-            <DropdownMenuTrigger className={cn(menuStyles, activeStyles, "flex items-center gap-1 outline-none")}>
+            <DropdownMenuTrigger className={cn(menuStyles, activeStyles, "flex items-center gap-1.5 outline-none")}>
               {item.name}
-              <ChevronDown className="size-3.5" />
+              <ChevronDown className="size-3.5 opacity-70" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="rounded-xl border border-border/80 shadow-premium p-1">
               {item.children.map((child) => (
-                <DropdownMenuItem key={child.name} asChild>
+                <DropdownMenuItem key={child.name} asChild className="rounded-lg">
                   <ReactRouterLink
                     to={child.to}
-                    className={cn(currentPath === child.to && 'bg-primary/10 text-primary')}
+                    className={cn(currentPath === child.to && 'bg-primary/10 text-primary font-bold')}
                     aria-current={currentPath === child.to ? 'page' : undefined}
                   >
                     {child.name}
@@ -393,7 +369,7 @@ function renderNavigationItems(
           to={item.to}
           className={cn(menuStyles, activeStyles)}
           aria-current={isActive ? 'page' : undefined}
-          onClick={setMobileMenuOpen && (() => setMobileMenuOpen(false))}
+          onClick={setMobileMenuOpen ? () => setMobileMenuOpen(false) : undefined}
           target={item.to.startsWith("http") ? "_blank" : undefined}
         >
           {item.name}
@@ -403,10 +379,10 @@ function renderNavigationItems(
   });
 }
 
-function NavLogo({ isScrolled }: { isScrolled: boolean }) {
+function NavLogo({ isScrolled: _isScrolled }: { isScrolled?: boolean }) {
   return (
     <BrandLogo 
-      className="size-8"
+      className="size-8 transition-transform duration-300 hover:scale-105"
     />
   );
 }

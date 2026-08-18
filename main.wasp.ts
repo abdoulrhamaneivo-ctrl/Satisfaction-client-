@@ -3,7 +3,7 @@ import { action, app, page, query, route, job } from "@wasp.sh/spec";
 import { App } from "./src/client/App" with { type: "ref" };
 import { NotFoundPage } from "./src/client/components/NotFoundPage" with { type: "ref" };
 import { serverEnvValidationSchema } from "./src/env" with { type: "ref" };
-import { LandingRedirectPage } from "./src/client/LandingRedirectPage" with { type: "ref" };
+import { LandingPage } from "./src/client/pages/LandingPage" with { type: "ref" };
 import { seedEntrepriseUnique } from "./src/server/scripts/dbSeeds" with { type: "ref" };
 
 // === IMPORTS POUR LES GUICHETS Yeba ===
@@ -256,7 +256,7 @@ export default app({
   },
   emailSender,
   spec: [
-    route("LandingPageRoute", "/", page(LandingRedirectPage)),
+    route("LandingPageRoute", "/", page(LandingPage)),
     route("NotFoundRoute", "*", page(NotFoundPage)),
     authSpec,
     userSpec,

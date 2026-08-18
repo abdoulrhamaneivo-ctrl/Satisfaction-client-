@@ -1,0 +1,248 @@
+/**
+ * Trovy design system — global stylesheet.
+ *
+ * Single source of truth for CSS custom properties. Each Trovy app imports
+ * this file once in its root layout. The Tailwind preset maps the same
+ * names so components can use `bg-ink`, `text-fg-secondary`, `ease-out`
+ * etc. without ever touching raw hex.
+ *
+ * Direction: dark editorial, Linear-like. Nocturnal, dense, precise.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* --- Surfaces (dark-first) ---
+     * Three layers, deliberately low contrast between them so cards feel
+     * stacked rather than floating. Use Surface 1 for the page, 2 for cards
+     * that should "rise", 3 for popovers/modals. */
+    --ds-bg-0: #0a0b0d;          /* page */
+    --ds-bg-1: #0e1014;          /* subtle elevation, section alt */
+    --ds-bg-2: #11131a;          /* default card */
+    --ds-bg-3: #16181f;          /* popover / elevated */
+    --ds-bg-inset: #07080a;      /* pressed states, code blocks */
+
+    /* --- Borders & dividers ---
+     * White at very low alpha. The opacity ladder goes 4% (subtle) → 6%
+     * (default) → 10% (emphasized) → 18% (focused). */
+    --ds-border-subtle: rgba(255, 255, 255, 0.04);
+    --ds-border: rgba(255, 255, 255, 0.06);
+    --ds-border-strong: rgba(255, 255, 255, 0.10);
+    --ds-border-focus: rgba(124, 131, 255, 0.55);
+
+    /* --- Foreground (text) ---
+     * Five steps from "ink" (headings) to "ghost" (tertiary captions). */
+    --ds-fg: #e8eaed;            /* primary text */
+    --ds-fg-secondary: #9ca0a8;  /* body / description */
+    --ds-fg-tertiary: #6b6f77;   /* meta / labels */
+    --ds-fg-quaternary: #4d5159; /* placeholder / disabled */
+    --ds-fg-inverse: #0a0b0d;    /* on light surfaces / accent fills */
+
+    /* --- Accent: indigo ---
+     * Primary interactive. The "indigo glow" gives the brand its
+     * nocturnal, technical feel. Use indigo for any interactive element
+     * that needs to read as "the real action". */
+    --ds-accent: #7c83ff;
+    --ds-accent-hover: #8e95ff;
+    --ds-accent-pressed: #6a72ee;
+    --ds-accent-soft: rgba(124, 131, 255, 0.12);
+    --ds-accent-softer: rgba(124, 131, 255, 0.06);
+    --ds-accent-ring: rgba(124, 131, 255, 0.32);
+    --ds-accent-fg: #0a0b0d;
+
+    /* --- Signature: amber ---
+     * The brand's distinguishing colour. Used sparingly: highlighted stats,
+     * the "in-progress" state, the AI badge, a single accent in the hero
+     * gradient. Amber + indigo together = Trovy. */
+    --ds-amber: #f5b342;
+    --ds-amber-soft: rgba(245, 179, 66, 0.12);
+    --ds-amber-softer: rgba(245, 179, 66, 0.06);
+    --ds-amber-fg: #1a1308;
+
+    /* --- Semantic --- */
+    --ds-positive: #5fb878;
+    --ds-positive-soft: rgba(95, 184, 120, 0.10);
+    --ds-warning: #f5b342;
+    --ds-danger: #f06464;
+    --ds-danger-soft: rgba(240, 100, 100, 0.10);
+
+    /* --- Typography ---
+     * Font stacks. Display = Inter Tight (tighter tracking, taller x-height).
+     * Body = Inter. Mono = JetBrains Mono. Editorial = Source Serif 4, used
+     * on one or two accent moments (FAQ intro, customer quote). */
+    --ds-font-display: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+    --ds-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --ds-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --ds-font-editorial: "Source Serif 4", "Source Serif Pro", ui-serif, Georgia, serif;
+
+    /* Type scale — rem-anchored to 16px. */
+    --ds-text-xs: 0.75rem;       /* 12 */
+    --ds-text-sm: 0.8125rem;     /* 13 */
+    --ds-text-base: 0.875rem;    /* 14 */
+    --ds-text-md: 0.9375rem;     /* 15 */
+    --ds-text-lg: 1rem;          /* 16 */
+    --ds-text-xl: 1.125rem;      /* 18 */
+    --ds-text-2xl: 1.375rem;     /* 22 */
+    --ds-text-3xl: 1.75rem;      /* 28 */
+    --ds-text-4xl: 2.25rem;      /* 36 */
+    --ds-text-5xl: 3rem;         /* 48 */
+    --ds-text-6xl: 3.75rem;      /* 60 */
+    --ds-text-7xl: 4.75rem;      /* 76 */
+    --ds-text-8xl: 6rem;         /* 96 */
+
+    /* --- Spacing ---
+     * 4px base. Steps 0–10 cover 95% of layout; 11+ reserved for hero
+     * vertical rhythm. */
+    --ds-space-0: 0;
+    --ds-space-1: 0.25rem;       /* 4 */
+    --ds-space-2: 0.5rem;        /* 8 */
+    --ds-space-3: 0.75rem;       /* 12 */
+    --ds-space-4: 1rem;          /* 16 */
+    --ds-space-5: 1.25rem;       /* 20 */
+    --ds-space-6: 1.5rem;        /* 24 */
+    --ds-space-7: 2rem;          /* 32 */
+    --ds-space-8: 2.5rem;        /* 40 */
+    --ds-space-9: 3rem;          /* 48 */
+    --ds-space-10: 4rem;         /* 64 */
+    --ds-space-11: 5rem;         /* 80 */
+    --ds-space-12: 6rem;         /* 96 */
+    --ds-space-13: 8rem;         /* 128 */
+
+    /* --- Radius ---
+     * Two radii do the heavy lifting: `card` (12px) for the default card,
+     * `pill` (9999px) for tags/avatars. `sharp` (4px) for inputs/buttons
+     * that need a technical, IDE-like feel. */
+    --ds-radius-sharp: 4px;
+    --ds-radius-sm: 6px;
+    --ds-radius-md: 8px;
+    --ds-radius-card: 12px;
+    --ds-radius-lg: 16px;
+    --ds-radius-xl: 20px;
+    --ds-radius-pill: 9999px;
+
+    /* --- Shadows ---
+     * Shadows are used sparingly in the dark theme. Most "depth" comes from
+     * the surface contrast. When shadows appear, they're tight, dark, and
+     * tinted with the accent to feel intentional rather than decorative. */
+    --ds-shadow-1: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 1px 2px rgba(0, 0, 0, 0.3);
+    --ds-shadow-2: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+    --ds-shadow-3: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+    --ds-shadow-glow: 0 0 32px -8px rgba(124, 131, 255, 0.35);
+    --ds-shadow-glow-amber: 0 0 32px -8px rgba(245, 179, 66, 0.25);
+
+    /* --- Motion ---
+     * Two easings:
+     *  - `out-quint` for entries (overshoot-free, settled)
+     *  - `in-out-cubic` for value changes
+     *  Durations are deliberately short — the interface should feel fast. */
+    --ds-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ds-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ds-duration-fast: 120ms;
+    --ds-duration-base: 200ms;
+    --ds-duration-slow: 380ms;
+    --ds-duration-reveal: 600ms;
+
+    /* --- Layout ---
+     * Container widths. `prose` is a soft cap for readable body text. */
+    --ds-container-prose: 36rem;     /* 576 */
+    --ds-container-sm: 48rem;        /* 768 */
+    --ds-container-md: 64rem;        /* 1024 */
+    --ds-container-lg: 72rem;        /* 1152 */
+    --ds-container-xl: 80rem;        /* 1280 */
+  }
+
+  * {
+    border-color: var(--ds-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Smaller, denser default type on mobile; lets the type scale breathe on
+     * desktop without forcing a media query everywhere. */
+    font-size: 16px;
+    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--ds-bg-0);
+    color: var(--ds-fg);
+    font-family: var(--ds-font-sans);
+    font-feature-settings: "cv11", "ss01", "cv02", "cv09";
+    font-variant-numeric: tabular-nums lining-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible focus ring. Slightly tighter than browser default so it doesn't
+   * visually overpower buttons on a dark surface. */
+  *:focus-visible {
+    outline: 2px solid var(--ds-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Tighter selection so it doesn't bleed across the dense UI. */
+  ::selection {
+    background: var(--ds-accent-soft);
+    color: var(--ds-fg);
+  }
+
+  /* Honor reduced motion at the system level. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* The signature 1px coordinate grid that appears in the background of
+   * the marketing surface. Use sparingly: only on full-bleed dark sections
+   * where the grid reinforces the technical feel. */
+  .ds-grid-bg {
+    background-image:
+      linear-gradient(to right, var(--ds-border-subtle) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--ds-border-subtle) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Vertical "dotted" timeline used in how-it-works steps. */
+  .ds-step-line {
+    background-image: linear-gradient(
+      to bottom,
+      var(--ds-border-strong) 0,
+      var(--ds-border-strong) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+    background-size: 1px 8px;
+    background-repeat: repeat-y;
+  }
+
+  /* The signature "horizon" glow used behind the hero. Combines a tight
+   * indigo pool with a wide amber haze at the bottom edge. */
+  .ds-hero-glow {
+    background:
+      radial-gradient(
+        ellipse 60% 50% at 50% 30%,
+        rgba(124, 131, 255, 0.18),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 70% 40% at 50% 80%,
+        rgba(245, 179, 66, 0.06),
+        transparent 60%
+      );
+  }
+}

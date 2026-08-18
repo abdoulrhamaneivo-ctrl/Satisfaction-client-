@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, ShieldAlert, ShieldCheck, ShieldQuestion, ArrowRight } from 'lucide-react';
 import { cn } from '../utils';
+import { Eyebrow } from './ds/Badge';
 
 type Niveau = 'excellent' | 'bon' | 'attention' | 'critique';
 
@@ -22,39 +23,37 @@ const niveauFromSatisfaction = (satisfaction: number, alertesCritiques: number):
   return 'attention';
 };
 
-const NIVEAU_CONFIG: Record<Niveau, { icon: typeof ShieldCheck; label: string; accent: string; bg: string }> = {
+const NIVEAU_CONFIG: Record<Niveau, { icon: typeof ShieldCheck; label: string; accent: string; bg: string; border: string }> = {
   excellent: {
     icon: ShieldCheck,
     label: 'Votre réseau est en excellente santé.',
     accent: 'text-success',
     bg: 'bg-success/10',
+    border: 'border-success/25',
   },
   bon: {
     icon: ShieldCheck,
     label: 'Votre réseau se porte bien.',
     accent: 'text-primary',
     bg: 'bg-primary/10',
+    border: 'border-primary/25',
   },
   attention: {
     icon: ShieldQuestion,
     label: 'Quelques points méritent votre attention.',
     accent: 'text-warning',
     bg: 'bg-warning/10',
+    border: 'border-warning/25',
   },
   critique: {
     icon: ShieldAlert,
     label: 'Plusieurs alertes critiques demandent une action rapide.',
     accent: 'text-destructive',
     bg: 'bg-destructive/10',
+    border: 'border-destructive/25',
   },
 };
 
-/**
- * Résumé narratif en tête de dashboard : au lieu de commencer directement
- * par une grille de chiffres, on répond d'abord aux trois questions qu'un
- * décideur se pose en ouvrant l'app — "Que se passe-t-il ? Y a-t-il un
- * problème ? Que dois-je faire ?" — avant de dérouler le détail plus bas.
- */
 export const DashboardSummary = ({
   prenom,
   satisfaction,
@@ -65,7 +64,7 @@ export const DashboardSummary = ({
   isLoading,
 }: DashboardSummaryProps) => {
   if (isLoading) {
-    return <div className="h-40 animate-pulse rounded-3xl border border-border/70 bg-card-subtle/50" />;
+    return <div className="h-44 animate-pulse rounded-3xl border border-border/70 bg-card/50" />;
   }
 
   const niveau = niveauFromSatisfaction(satisfaction, alertesNouvelles);
@@ -75,31 +74,29 @@ export const DashboardSummary = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="relative overflow-hidden rounded-3xl border border-border/70 bg-card p-6 shadow-premium sm:p-8"
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="ds-hero-glow relative overflow-hidden rounded-3xl border border-border/80 bg-card/95 p-6 shadow-premium sm:p-8 backdrop-blur-md"
     >
-      <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-primary/5 blur-3xl" />
-
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-4">
-          <span className={cn('flex size-12 shrink-0 items-center justify-center rounded-2xl', config.bg)}>
+          <span className={cn('flex size-12 shrink-0 items-center justify-center rounded-2xl border', config.bg, config.border)}>
             <Icon className={cn('size-6', config.accent)} strokeWidth={2} />
           </span>
           <div>
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            <Eyebrow tone="amber">
               <Sparkles className="size-3" />
               Résumé du jour
-            </p>
-            <h2 className="mt-1 text-title-md2 font-bold leading-tight text-foreground">
+            </Eyebrow>
+            <h2 className="mt-1 text-2xl font-black leading-tight text-foreground font-satoshi sm:text-3xl">
               Bonjour{prenom ? ` ${prenom}` : ''}
             </h2>
-            <p className={cn('mt-1 text-sm font-semibold', config.accent)}>{config.label}</p>
+            <p className={cn('mt-1 text-sm font-bold', config.accent)}>{config.label}</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 lg:shrink-0">
+        <div className="flex flex-wrap gap-2.5 lg:shrink-0">
           <SummaryChip label={`Satisfaction (${labelPeriode})`} value={`${satisfaction}%`} />
           <SummaryChip label={`Avis reçus (${labelPeriode})`} value={String(totalAvis)} />
           {totalActions > 0 ? (
@@ -117,7 +114,7 @@ export const DashboardSummary = ({
       {totalActions > 0 && (
         <a
           href="#actions-prioritaires"
-          className="relative mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+          className="relative mt-5 inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-widest text-primary hover:underline"
         >
           Voir les actions recommandées
           <ArrowRight className="size-3.5" />
@@ -138,13 +135,13 @@ const SummaryChip = ({
 }) => (
   <div
     className={cn(
-      'flex flex-col rounded-2xl border px-4 py-2.5 min-w-[9rem]',
-      tone === 'success' && 'border-success/20 bg-success/5',
-      tone === 'warning' && 'border-warning/20 bg-warning/5',
-      tone === 'neutral' && 'border-border/70 bg-card-subtle/40'
+      'flex flex-col rounded-2xl border px-4 py-3 min-w-[9.5rem] transition-all duration-200 hover:-translate-y-0.5',
+      tone === 'success' && 'border-success/30 bg-success/10 text-success',
+      tone === 'warning' && 'border-warning/30 bg-warning/10 text-warning',
+      tone === 'neutral' && 'border-border/70 bg-muted/40 text-foreground'
     )}
   >
-    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
-    <span className="text-lg font-bold text-foreground">{value}</span>
+    <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">{label}</span>
+    <span className="text-xl font-black text-foreground font-satoshi tabular-nums">{value}</span>
   </div>
 );

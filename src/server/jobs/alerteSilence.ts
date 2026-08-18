@@ -42,7 +42,7 @@ const formatDuree = (depuis: Date, maintenant: Date): string => {
  * Handler principal du job de surveillance des silences.
  * Appelé par Wasp toutes les 30 minutes via la configuration du job.
  */
-export const detecterAlertesSilence = async (_args: unknown, context: any) => {
+export const detecterAlertesSilence = async (_args: unknown, _context: any) => {
   const maintenant = new Date();
   // La Côte d'Ivoire est en UTC toute l'année : on s'appuie explicitement
   // sur UTC afin que l'horaire du serveur ne déclenche jamais une alerte hors

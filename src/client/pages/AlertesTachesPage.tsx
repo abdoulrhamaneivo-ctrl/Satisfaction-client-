@@ -613,7 +613,7 @@ function TacheHistoriquePanel({ idTache }: { idTache: number }) {
 
         {!isLoading && historique && historique.length > 0 && (
           <ol className="relative ml-2 border-l border-border/50 pl-4 space-y-2.5">
-            {(historique as any[]).map((h, i) => (
+            {(historique as any[]).map((h) => (
               <li key={h.id} className="relative">
                 <span className="absolute -left-[1.15rem] top-0.5 flex size-3 items-center justify-center">
                   <span className="size-2 rounded-full bg-primary/60" />

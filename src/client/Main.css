@@ -314,6 +314,73 @@
   );
 }
 
+/* Trovy Design System — 1px coordinate grid pattern */
+.ds-grid-bg {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Trovy Design System — Signature hero glow pool */
+.ds-hero-glow {
+  background:
+    radial-gradient(
+      ellipse 60% 50% at 50% 25%,
+      hsl(var(--primary) / 0.16),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 70% 40% at 50% 75%,
+      hsl(var(--secondary) / 0.10),
+      transparent 60%
+    );
+}
+
+/* Trovy Design System — Step timeline line */
+.ds-step-line {
+  background-image: linear-gradient(
+    to bottom,
+    hsl(var(--border)) 0,
+    hsl(var(--border)) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  background-size: 1px 8px;
+  background-repeat: repeat-y;
+}
+
+/* Trovy Design System — Premium Glassmorphic Surface */
+.glass-panel {
+  background-color: hsl(var(--card) / 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border) / 0.7);
+}
+
+.glow-card {
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glow-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.3), transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.6;
+  transition: opacity 0.25s ease;
+}
+.glow-card:hover::before {
+  opacity: 1;
+}
+
+
 @layer base {
   :root {
     --background: 200 20% 98%;
