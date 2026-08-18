@@ -1,35 +1,33 @@
+import React from 'react';
+import { cn } from '../../utils';
+
 export const DataTable = ({
   headers,
   children,
   maxHeight,
+  className,
 }: {
   headers?: string[];
   children: React.ReactNode;
-  /** Hauteur max avec en-tête collant (ex. "60vh") — utile pour les longues listes. */
   maxHeight?: string;
+  className?: string;
 }) => (
-  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-    {/* Bug corrigé : c'est CE wrapper interne qui doit scroller
-        horizontalement sur mobile, pas l'extérieur (qui doit garder
-        overflow-hidden pour que les coins arrondis restent visibles).
-        Avant, il n'y avait aucun scroll possible : sur un petit écran, les
-        colonnes (Note, Guichet, Critères, Date...) étaient simplement
-        rognées/invisibles hors de la largeur de l'écran. */}
+  <div className={cn("overflow-hidden rounded-3xl border border-border/80 bg-card/95 shadow-premium backdrop-blur-md", className)}>
     <div
       className="overflow-x-auto momentum-scroll scroll-fade-x"
       style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}
     >
       <table className="w-full min-w-[640px] text-left text-sm">
         {headers && (
-          <thead className="sticky top-0 z-10 bg-muted/95 text-muted-foreground uppercase font-semibold text-xs backdrop-blur supports-[backdrop-filter]:bg-muted/80">
+          <thead className="sticky top-0 z-10 bg-muted/80 text-muted-foreground/80 uppercase font-black text-[10px] tracking-widest backdrop-blur-md border-b border-border/70">
             <tr>
               {headers.map((h) => (
-                <th key={h} className="whitespace-nowrap px-6 py-3">{h}</th>
+                <th key={h} className="whitespace-nowrap px-6 py-3.5 font-satoshi">{h}</th>
               ))}
             </tr>
           </thead>
         )}
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-y divide-border/60 font-medium">
           {children}
         </tbody>
       </table>
@@ -37,10 +35,6 @@ export const DataTable = ({
   </div>
 );
 
-/**
- * Ligne de tableau avec hover cohérent — à utiliser à la place de <tr> brut
- * pour que toutes les listes de l'app réagissent pareil au survol.
- */
 export const DataTableRow = ({
   children,
   onClick,
@@ -52,9 +46,11 @@ export const DataTableRow = ({
 }) => (
   <tr
     onClick={onClick}
-    className={`border-b border-border last:border-0 transition-colors hover:bg-muted/50 ${
-      onClick ? 'cursor-pointer' : ''
-    } ${className}`}
+    className={cn(
+      "border-b border-border/60 last:border-0 transition-colors duration-150 hover:bg-primary/5",
+      onClick && "cursor-pointer active:bg-primary/10",
+      className
+    )}
   >
     {children}
   </tr>
