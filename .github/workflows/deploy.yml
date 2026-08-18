@@ -23,12 +23,23 @@ jobs:
 
       - name: Install Wasp CLI
         run: |
-          curl -sSLf https://raw.githubusercontent.com/waspc/wasp/main/waspc/deploy/get.wasp.sh | bash
+          set -e
+          curl -sSLf https://wasp.sh/get.wasp.sh -o install.sh || \
+          curl -sSLf https://raw.githubusercontent.com/waspc/wasp/main/waspc/data/get.wasp.sh -o install.sh || \
+          curl -sSLf https://raw.githubusercontent.com/waspc/wasp/main/deploy/get.wasp.sh -o install.sh
+
+          chmod +x install.sh
+          ./install.sh
+
           WASPLOC=$(find $HOME -name "wasp" -type f -executable 2>/dev/null | head -n 1)
-          echo "Wasp executable located at: $WASPLOC"
-          if [ -n "$WASPLOC" ]; then
-            sudo ln -sf "$WASPLOC" /usr/local/bin/wasp
+          echo "Wasp binary found at: $WASPLOC"
+          
+          if [ -z "$WASPLOC" ]; then
+            echo "ERROR: Wasp binary was not found after installation script!"
+            exit 1
           fi
+
+          sudo ln -sf "$WASPLOC" /usr/local/bin/wasp
           wasp --version
 
       - name: Install Railway CLI
