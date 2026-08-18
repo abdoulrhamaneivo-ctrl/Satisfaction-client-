@@ -24,9 +24,12 @@ jobs:
       - name: Install Wasp CLI
         run: |
           curl -sSLf https://raw.githubusercontent.com/waspc/wasp/main/waspc/deploy/get.wasp.sh | bash
-          echo "$HOME/.wasp/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          sudo ln -sf $HOME/.wasp/bin/wasp /usr/local/bin/wasp || true
+          WASPLOC=$(find $HOME -name "wasp" -type f -executable 2>/dev/null | head -n 1)
+          echo "Wasp executable located at: $WASPLOC"
+          if [ -n "$WASPLOC" ]; then
+            sudo ln -sf "$WASPLOC" /usr/local/bin/wasp
+          fi
+          wasp --version
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
