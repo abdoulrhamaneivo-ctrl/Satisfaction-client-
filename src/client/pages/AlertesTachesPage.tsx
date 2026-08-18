@@ -213,6 +213,59 @@ export const AlertesTachesPage = () => {
     }
   };
 
+  const handleCreerTache = (alerte: any) => {
+    // L'agence de l'alerte se déduit soit de son guichet, soit — pour une
+    // alerte de type SILENCE_EVALUATION sans guichet précis — de la
+    // réponse associée. Sans cette agence, impossible de proposer la bonne
+    // liste de responsables (et le serveur rejetterait de toute façon un
+    // responsable extérieur à cette agence).
+    const idAgence = alerte.guichet?.id_agence ?? alerte.reponse?.id_agence ?? null;
+    setFormTache({
+      id_alerte: Number(alerte.id),
+      titre: `Tâche — ${alerte.message?.slice(0, 50)}...`,
+      description: alerte.message || '',
+      date_echeance: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
+      id_responsable: '',
+    });
+    setModal({ alerteId: Number(alerte.id), idAgence });
+  };
+
+  const handleSoumettreCreation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTache.id_responsable) {
+      toast({ variant: 'destructive', title: 'Responsable requis', description: 'Sélectionnez un responsable avant de créer la tâche.' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await createTache({
+        id_alerte: formTache.id_alerte,
+        titre: formTache.titre,
+        description: formTache.description,
+        date_echeance: formTache.date_echeance,
+        id_responsable: formTache.id_responsable,
+      });
+      setModal({ alerteId: null, idAgence: null });
+      toast({ variant: 'success', title: 'Tâche créée', description: 'La tâche corrective a bien été enregistrée.' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Erreur inconnue' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMoveStatut = async (tacheId: number, statut: Statut) => {
+    setMovingId(tacheId);
+    try {
+      await updateStatut({ id: tacheId, statut });
+      toast({ variant: 'success', title: 'Statut mis à jour', description: `Tâche déplacée vers « ${COLONNES.find((c) => c.statut === statut)?.label} »` });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: err.message });
+    } finally {
+      setMovingId(null);
+    }
+  };
+
   const handleMarquerTraitee = async (alerteId: number) => {
     try {
       await marquerTraitee({ id_alerte: alerteId });
@@ -224,14 +277,31 @@ export const AlertesTachesPage = () => {
 
   return (
     <RequireAuth>
-    <AmbientBackground>
-      <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
-        <PageHeader
-          icon={AlertTriangle}
-          eyebrow="Surveillance & Amélioration"
-          title="Alertes & Tâches correctives"
-          description="Suivez les alertes critiques et gérez les actions correctives associées en mode Kanban."
-        />
+      <AmbientBackground>
+        <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
+          {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+              <span>Agences</span>
+              <span>/</span>
+              <span className="text-foreground">{(currentUser as any)?.agence?.nom_agence || "La Poste CI Plateau"}</span>
+              <span>/</span>
+              <span className="text-primary font-black">Incidents & Kanban</span>
+            </div>
+            
+            <div className="flex items-center gap-6 text-xs font-bold">
+              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
+              <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Kanban Incidents</span>
+              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/guichets'}>Guichets & Kits</span>
+            </div>
+          </div>
+
+          <PageHeader
+            icon={AlertTriangle}
+            eyebrow="Surveillance & Amélioration"
+            title="Alertes & Tâches correctives"
+            description="Suivez les alertes critiques et gérez les actions correctives associées en mode Kanban."
+          />
 
         <section className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-md">
