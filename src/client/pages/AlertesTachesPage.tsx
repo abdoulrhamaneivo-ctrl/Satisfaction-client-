@@ -213,59 +213,6 @@ export const AlertesTachesPage = () => {
     }
   };
 
-  const handleCreerTache = (alerte: any) => {
-    // L'agence de l'alerte se déduit soit de son guichet, soit — pour une
-    // alerte de type SILENCE_EVALUATION sans guichet précis — de la
-    // réponse associée. Sans cette agence, impossible de proposer la bonne
-    // liste de responsables (et le serveur rejetterait de toute façon un
-    // responsable extérieur à cette agence).
-    const idAgence = alerte.guichet?.id_agence ?? alerte.reponse?.id_agence ?? null;
-    setFormTache({
-      id_alerte: Number(alerte.id),
-      titre: `Tâche — ${alerte.message?.slice(0, 50)}...`,
-      description: alerte.message || '',
-      date_echeance: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0],
-      id_responsable: '',
-    });
-    setModal({ alerteId: Number(alerte.id), idAgence });
-  };
-
-  const handleSoumettreCreation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formTache.id_responsable) {
-      toast({ variant: 'destructive', title: 'Responsable requis', description: 'Sélectionnez un responsable avant de créer la tâche.' });
-      return;
-    }
-    setSaving(true);
-    try {
-      await createTache({
-        id_alerte: formTache.id_alerte,
-        titre: formTache.titre,
-        description: formTache.description,
-        date_echeance: formTache.date_echeance,
-        id_responsable: formTache.id_responsable,
-      });
-      setModal({ alerteId: null, idAgence: null });
-      toast({ variant: 'success', title: 'Tâche créée', description: 'La tâche corrective a bien été enregistrée.' });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Erreur inconnue' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleMoveStatut = async (tacheId: number, statut: Statut) => {
-    setMovingId(tacheId);
-    try {
-      await updateStatut({ id: tacheId, statut });
-      toast({ variant: 'success', title: 'Statut mis à jour', description: `Tâche déplacée vers « ${COLONNES.find((c) => c.statut === statut)?.label} »` });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erreur', description: err.message });
-    } finally {
-      setMovingId(null);
-    }
-  };
-
   const handleMarquerTraitee = async (alerteId: number) => {
     try {
       await marquerTraitee({ id_alerte: alerteId });
