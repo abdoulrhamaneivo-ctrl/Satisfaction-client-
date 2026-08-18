@@ -127,7 +127,7 @@ const assignAgentAction = action(assignAgent, { entities: ["User", "AffectationG
 const updateAffectationGuichetAction = action(updateAffectationGuichet, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
 const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence"] });
 const soumettreAvisAction = action(soumettreAvis, {
-  entities: ["Reponse", "Critere", "AgenceCritere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "Canal", "AnalyseAvisIA"],
+  entities: ["Reponse", "Critere", "AgenceCritere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "Canal"],
 });
 const createAgenceAction = action(createAgence, { entities: ["Agence", "User"] });
 const updateAgentAction = action(updateAgent, { entities: ["User", "Agence"] });
@@ -169,8 +169,8 @@ const desarchiverCritereAction = action(desarchiverCritere, { entities: ["Criter
 // === QUERIES DEFINITIONS ===
 const getGuichetsQuery = query(getGuichets, { entities: ["Guichet", "User", "Service", "Agence"] });
 const getAgentsQuery = query(getAgents, { entities: ["User", "Agence"] });
-const getReponsesQuery = query(getReponses, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User", "AnalyseAvisIA"] });
-const getAvisGroupesQuery = query(getAvisGroupes, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User", "AnalyseAvisIA"] });
+const getReponsesQuery = query(getReponses, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"] });
+const getAvisGroupesQuery = query(getAvisGroupes, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User"] });
 const getStatsFiltereesQuery = query(getStatsFiltrees, { entities: ["Reponse", "User", "Agence"] });
 const getAgentsByAgenceQuery = query(getAgentsByAgence, { entities: ["User", "Agence"] });
 const getAgencesQuery = query(getAgences, { entities: ["Agence", "User"] });
@@ -196,7 +196,7 @@ const getHeatmapReponsesQuery = query(getHeatmapReponses, { entities: ["Reponse"
 const getTempsTraitementQuery = query(getTempsTraitement, { entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "User", "Agence"] });
 const getRechercheGlobaleQuery = query(getRechercheGlobale, { entities: ["Agence", "Guichet", "User", "Reponse"] });
 const getArchivesQuery = query(getArchives, { entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User"] });
-const getAIStatusQuery = query(getAIStatus, { entities: ["AnalyseAvisIA", "User"] });
+const getAIStatusQuery = query(getAIStatus, { entities: ["Reponse", "User"] });
 
 export default app({
   name: "Yeba",

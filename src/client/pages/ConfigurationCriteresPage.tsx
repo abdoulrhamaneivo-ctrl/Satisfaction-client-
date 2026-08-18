@@ -6,6 +6,9 @@ import { MotionCard } from '../components/MotionCard';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Checkbox } from '../components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,

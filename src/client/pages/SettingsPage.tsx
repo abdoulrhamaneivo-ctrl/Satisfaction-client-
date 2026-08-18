@@ -168,3 +168,5 @@ export const SettingsPage = () => {
     </RequireAuth>
   );
 };
+
+export default SettingsPage;
