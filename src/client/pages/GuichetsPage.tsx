@@ -410,7 +410,7 @@ export const GuichetsPage = () => {
               </div>
 
               {guichetCount > 0 && (
-                <div className="sticky top-[76px] z-20 rounded-2xl border border-border/80 bg-card/90 p-1.5 shadow-sm backdrop-blur-md">
+                <div className="sticky top-16 lg:top-4 z-20 rounded-2xl border border-border/80 bg-card/90 p-1.5 shadow-sm backdrop-blur-md">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input

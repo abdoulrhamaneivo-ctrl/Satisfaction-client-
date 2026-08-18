@@ -385,7 +385,7 @@ export const AdminPersonnelPage = () => {
 
               {/* Grille agents */}
               <div className="lg:col-span-2 space-y-4">
-                <div className="sticky top-[76px] z-20 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-2 shadow-sm backdrop-blur-md sm:flex-row sm:items-center">
+                <div className="sticky top-16 lg:top-4 z-20 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-2 shadow-sm backdrop-blur-md sm:flex-row sm:items-center">
                   <div className="relative flex-1">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input

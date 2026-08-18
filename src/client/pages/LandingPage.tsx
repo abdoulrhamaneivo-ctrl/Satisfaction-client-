@@ -38,8 +38,8 @@ export const LandingPage = () => {
         <div className="ds-hero-glow h-[550px] w-[550px] sm:h-[800px] sm:w-[800px]" />
       </div>
 
-      {/* Senior Header Navigation — La Poste CI Edition */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-card/85 border-b border-border/80 transition-all shadow-sm">
+      {/* Header Navigation Fixe */}
+      <header className="fixed top-0 left-0 right-0 z-50 w-full backdrop-blur-md bg-card/95 border-b border-border/80 transition-all shadow-sm">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
@@ -87,7 +87,7 @@ export const LandingPage = () => {
       </header>
 
       {/* Main Container */}
-      <main className="relative z-10 mx-auto max-w-[1440px] px-4 sm:px-6 py-10 lg:py-16 flex-1 space-y-24">
+      <main className="relative z-10 mx-auto max-w-[1440px] px-4 sm:px-6 py-10 lg:py-16 flex-1 space-y-24 pt-24 lg:pt-28">
         
         {/* HERO SECTION */}
         <section className="text-center space-y-6 max-w-4xl mx-auto pt-4">

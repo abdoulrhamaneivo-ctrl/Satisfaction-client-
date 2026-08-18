@@ -76,13 +76,13 @@ export function App() {
 
             {/* Contenu principal décalé avec lg:pl-64 pour s'aligner sur la Sidebar fixe */}
             <div className="flex-1 flex flex-col min-w-0 min-h-screen lg:pl-64">
-              {/* Header Top sur mobile/tablette */}
-              <div className="lg:hidden sticky top-0 z-50">
+              {/* Header Top fixe sur mobile/tablette */}
+              <div className="lg:hidden fixed top-0 left-0 right-0 z-50">
                 <NavBar navigationItems={navigationItems} />
               </div>
               <CommandPalette />
 
-              <main id="contenu-principal" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+              <main id="contenu-principal" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto pt-20 lg:pt-8">
                 <Outlet />
               </main>
             </div>

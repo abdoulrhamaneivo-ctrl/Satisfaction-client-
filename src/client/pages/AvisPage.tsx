@@ -251,7 +251,7 @@ export const AvisPage = () => {
 
           {/* Filters Dashboard Panel — flottant : reste accessible en scrollant
               la liste, potentiellement longue, des avis en dessous. */}
-          <MotionCard interactive={false} className="sticky top-[76px] z-30 p-6 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/92">
+          <MotionCard interactive={false} className="sticky top-16 lg:top-4 z-30 p-6 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/92">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Filter size={16} /> Filtres de recherche

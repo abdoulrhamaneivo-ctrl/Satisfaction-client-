@@ -67,6 +67,8 @@ export function Sidebar() {
             </div>
           </div>
           <Sparkles className="size-3.5 text-primary opacity-60 group-hover:opacity-100 transition-opacity" />
+        </Link>
+
         {/* Barre de Recherche Rapide / Command Palette */}
         <div>
           <button
@@ -290,6 +292,13 @@ export function Sidebar() {
 
           <div className="flex items-center gap-1 shrink-0">
             <DarkModeSwitcher />
+            <Link
+              to="/settings"
+              title="Paramètres de compte & IA"
+              className="size-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all cursor-pointer"
+            >
+              <Settings className="size-4" />
+            </Link>
             {user && (
               <button
                 type="button"

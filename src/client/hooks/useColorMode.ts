@@ -1,20 +1,32 @@
-import { useEffect } from "react";
-import { useLocalStorage } from "./useLocalStorage";
+import { useEffect, useState } from "react";
 
 export function useColorMode() {
-  const [colorMode, setColorMode] = useLocalStorage("color-theme", "light");
+  const [colorMode, setColorMode] = useState<'light' | 'dark'>(() => {
+    if (typeof window === "undefined") return "dark";
+    try {
+      const stored = localStorage.getItem("color-theme");
+      if (stored === "dark" || stored === '"dark"') return "dark";
+      if (stored === "light" || stored === '"light"') return "light";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "dark";
+    } catch {
+      return "dark";
+    }
+  });
 
   useEffect(() => {
-    const className = "dark";
-    const root = window.document.documentElement;
-    const body = window.document.body;
-
+    const root = document.documentElement;
+    const body = document.body;
     if (colorMode === "dark") {
-      root.classList.add(className);
-      body.classList.add(className);
+      root.classList.add("dark");
+      body.classList.add("dark");
     } else {
-      root.classList.remove(className);
-      body.classList.remove(className);
+      root.classList.remove("dark");
+      body.classList.remove("dark");
+    }
+    try {
+      localStorage.setItem("color-theme", colorMode);
+    } catch (e) {
+      console.error(e);
     }
   }, [colorMode]);
 

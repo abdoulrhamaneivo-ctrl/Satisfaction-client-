@@ -86,8 +86,8 @@ export function NavBar({
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 border-b border-border/80 bg-card/85 backdrop-blur-md supports-[backdrop-filter]:bg-card/75 shadow-sm transition-all duration-200",
-          isScrolled && "shadow-md bg-card/90"
+          "fixed top-0 left-0 right-0 z-50 w-full border-b border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/85 shadow-sm transition-all duration-200",
+          isScrolled && "shadow-md bg-card/95"
         )}
       >
         <div className="mx-auto max-w-[1440px]">

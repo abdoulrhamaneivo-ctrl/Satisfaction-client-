@@ -103,7 +103,7 @@ function ArchivesContent() {
   return (
     <div>
       {/* Onglets + recherche : flottants pendant le scroll de la liste */}
-      <div className="sticky top-[76px] z-20 mb-6 rounded-2xl border border-border/70 bg-card/95 p-4 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/85">
+      <div className="sticky top-16 lg:top-4 z-20 mb-6 rounded-2xl border border-border/70 bg-card/95 p-4 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/85">
         <div className="flex flex-wrap gap-2 border-b border-border/70 pb-3">
           {ONGLETS.map((o) => (
             <Button
