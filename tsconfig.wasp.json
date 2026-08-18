@@ -15,7 +15,7 @@
     "allowJs": true,
     "noEmit": true,
 
-    "lib": ["dom", "dom.iterable", "ES2023"],
+    "lib": ["ES2023"],
     "types": ["node", "react"]
   },
   "include": ["**/*.wasp.ts", ".wasp/out/types/spec"]
