@@ -1,11 +1,47 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, getCriteres, getAgenceCriteres, getAgences, toggleCritereAgence, createCritere, getServices, createService, deleteCritere, duplicateCritere, archiverCritere, desarchiverCritere } from 'wasp/client/operations';
+import { 
+  useQuery, 
+  getCriteres, 
+  getAgenceCriteres, 
+  getAgences, 
+  toggleCritereAgence, 
+  createCritere, 
+  getServices, 
+  createService, 
+  deleteCritere, 
+  duplicateCritere, 
+  archiverCritere, 
+  desarchiverCritere 
+} from 'wasp/client/operations';
 import { motion } from 'framer-motion';
+import {
+  Settings2,
+  Search,
+  RotateCcw,
+  Archive,
+  Copy,
+  Trash2,
+  Plus,
+  HelpCircle,
+  Sliders,
+  Sparkles,
+  Layers
+} from 'lucide-react';
+import { AmbientBackground } from '../components/AmbientBackground';
+import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
+import { QuestionsParOperation } from '../components/QuestionsParOperation';
+import { ObjectifsPanel } from '../components/ObjectifsPanel';
+import { RequireAuth } from '../components/RequireAuth';
+import { useToast } from '../hooks/use-toast';
+
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Checkbox } from '../components/ui/checkbox';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -13,8 +49,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { RequireAuth } from '../components/RequireAuth';
-import { Input } from '../components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
