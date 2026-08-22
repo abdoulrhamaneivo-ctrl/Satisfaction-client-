@@ -34,8 +34,12 @@ jobs:
       - name: Build Wasp project
         run: wasp build
 
-      - name: Inject Railway Dockerfile config
-        run: cp railway.json .wasp/out/railway.json
+      - name: Inject Railway Dockerfile config & ignore rules
+        run: |
+          cp railway.json .wasp/out/railway.json
+          echo "**/node_modules" > .wasp/out/.ignore
+          echo "**/.git" >> .wasp/out/.ignore
+          echo "node_modules" >> .wasp/out/.ignore
 
       - name: Deploy to Railway
         run: wasp deploy railway deploy $RAILWAY_PROJECT_NAME --existing-project-id $RAILWAY_PROJECT_ID
