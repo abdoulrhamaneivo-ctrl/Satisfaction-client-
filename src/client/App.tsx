@@ -17,7 +17,6 @@ export function App() {
   const shouldDisplayAppNavBar = useMemo(() => {
     // Le questionnaire QR est une expérience publique et autonome
     const standaloneRoutes = [
-      routes.LandingPageRoute.to,
       routes.LoginRoute.to,
       '/apres-connexion',
       '/request-password-reset',

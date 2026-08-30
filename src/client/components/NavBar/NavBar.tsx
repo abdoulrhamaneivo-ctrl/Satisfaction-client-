@@ -97,7 +97,7 @@ export function NavBar({
           >
             <div className="flex items-center gap-8">
               <WaspRouterLink
-                to={routes.LandingPageRoute.to}
+                to={currentUser ? routes.DashboardRoute.to : routes.LoginRoute.to}
                 className="flex items-center text-foreground transition-colors hover:text-primary"
               >
                 <NavLogo isScrolled={isScrolled} />
@@ -231,7 +231,7 @@ function NavBarMobileMenu({
         >
           <SheetHeader className="shrink-0 border-b border-border/60 px-6 pb-4 pt-6">
             <SheetTitle className="flex items-center">
-              <WaspRouterLink to={routes.LandingPageRoute.to}>
+              <WaspRouterLink to={user ? routes.DashboardRoute.to : routes.LoginRoute.to}>
                 <span className="sr-only">{brandConfig?.platform_name || "Yeba"}</span>
                 <NavLogo isScrolled={false} />
               </WaspRouterLink>
