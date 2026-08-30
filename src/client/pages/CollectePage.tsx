@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { Input } from '../components/ui/input';
 import confetti from 'canvas-confetti';
-import { ChevronRight, MessageSquare, Phone, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { ChevronRight, MessageSquare, Phone, ArrowLeft, Loader2, ShieldCheck, Lock } from 'lucide-react';
 import { useBrand } from '../context/BrandContext';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { Card, Eyebrow } from '../components/ds';
@@ -20,8 +20,16 @@ type ServiceType = {
 export const CollectePage = () => {
   const { guichetId } = useParams<{ guichetId: string }>();
   const idGuichetNum = Number(guichetId);
+  // Un identifiant non numérique (vieux QR, URL tronquée…) ne doit jamais
+  // partir vers le serveur : la requête échouerait et retenterait en boucle,
+  // laissant le spinner tourner indéfiniment.
+  const idGuichetValide = Number.isSafeInteger(idGuichetNum) && idGuichetNum > 0;
 
-  const { data: formDef, isLoading, isError } = useQuery(getFormDefinitionForGuichet, { id_guichet: idGuichetNum });
+  const { data: formDef, isLoading, isError } = useQuery(
+    getFormDefinitionForGuichet,
+    { id_guichet: idGuichetValide ? idGuichetNum : 0 },
+    { enabled: idGuichetValide }
+  );
   const { brandConfig } = useBrand();
 
   const [step, setStep] = useState<'SERVICE_SELECT' | 'QUESTIONS' | 'COMMENT_STEP' | 'SUCCESS'>('SERVICE_SELECT');
@@ -205,35 +213,37 @@ export const CollectePage = () => {
   };
 
   return (
-    <AmbientBackground className="ds-grid-bg">
+    <AmbientBackground className="">
       <div className="flex min-h-[100dvh] w-full max-w-lg mx-auto flex-col justify-between px-3 py-3 sm:px-6 overflow-x-hidden">
         {/* Header */}
-        <div className="w-full flex items-center justify-between py-2 sm:py-4 px-1">
-          {canGoBack && (
+        <header className="w-full flex items-center justify-between py-2 sm:py-4 px-1">
+          {canGoBack ? (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={handleBack}
-              className="text-muted-foreground hover:text-foreground rounded-xl"
+              className="text-muted-foreground hover:text-foreground rounded-xl min-h-11 cursor-pointer"
             >
-              <ArrowLeft size={16} className="mr-1" /> Retour
+              <ArrowLeft size={16} className="mr-1" aria-hidden /> Retour
             </Button>
+          ) : (
+            <span className="size-11" aria-hidden />
           )}
           <div className="text-right ml-auto">
             {brandConfig?.logo_url ? (
               <img 
                 src={brandConfig.logo_url} 
                 alt={brandConfig.platform_name} 
-                className="h-8 max-w-[120px] object-contain"
+                className="h-9 max-w-[140px] object-contain"
               />
             ) : (
-              <span className="text-xs font-black uppercase tracking-widest text-primary font-satoshi">
-                {brandConfig?.platform_name || "Yeba"}
+              <span className="text-xs font-bold uppercase tracking-widest text-primary font-satoshi">
+                {brandConfig?.platform_name || "Yéba"}
               </span>
             )}
           </div>
-        </div>
+        </header>
 
         {/* Main Content Card */}
         <div className="w-full flex-1 flex items-center justify-center my-auto py-2">
@@ -247,18 +257,23 @@ export const CollectePage = () => {
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className="w-full"
               >
-                <Card variant="feature" className="w-full p-6 sm:p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card/95 backdrop-blur-md">
+                <Card variant="feature" className="w-full p-6 sm:p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card ">
                   <div>
                     <Eyebrow tone="amber">
-                      <Sparkles className="size-3" />
+                      
                       {formDef.guichetName}
                     </Eyebrow>
-                    <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-foreground font-satoshi">
+                    <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-satoshi">
                       {brandConfig?.form_title || "Bienvenue au guichet"}
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-2 font-medium">
+                    <p className="text-xs text-muted-foreground mt-2 font-medium max-w-sm mx-auto">
                       {brandConfig?.form_subtitle || "Quelle opération venez-vous d'effectuer ?"}
                     </p>
+                  </div>
+
+                  <div className="inline-flex items-center gap-2 rounded-full border border-secondary/25 bg-secondary/10 px-3 py-1.5 text-[11px] font-bold text-secondary mx-auto">
+                    <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
+                    Avis anonyme · données protégées
                   </div>
 
                   <div className="flex flex-col gap-3 pt-2">
@@ -268,7 +283,7 @@ export const CollectePage = () => {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleServiceSelect(service)}
-                        className="w-full p-4 text-left rounded-2xl border border-border/80 bg-background/90 hover:bg-muted hover:border-primary/50 shadow-sm transition-all flex items-center justify-between group"
+                        className="w-full p-4 text-left rounded-2xl border border-border/80 bg-background/90 hover:bg-muted hover:border-primary/50 shadow-sm transition-all flex items-center justify-between group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 min-h-[52px]"
                       >
                         <span className="font-bold text-foreground group-hover:text-primary transition-colors">
                           {service.libelle_service}
@@ -293,7 +308,7 @@ export const CollectePage = () => {
                 className="w-full"
               >
                 <Card className="w-full p-6 sm:p-8 text-center space-y-3 rounded-3xl">
-                  <h1 className="text-xl font-black text-foreground font-satoshi">Questionnaire momentanément indisponible</h1>
+                  <h1 className="text-xl font-bold text-foreground font-satoshi">Questionnaire momentanément indisponible</h1>
                   <p className="text-sm text-muted-foreground">
                     Aucun critère n’est encore configuré pour ce guichet. Merci de contacter l’agence.
                   </p>
@@ -310,7 +325,7 @@ export const CollectePage = () => {
                 transition={{ duration: 0.3 }}
                 className="w-full"
               >
-                <Card variant="feature" className="w-full p-6 sm:p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card/95 backdrop-blur-md">
+                <Card variant="feature" className="w-full p-6 sm:p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card ">
                   {/* Progress bar */}
                   <div
                     className="w-full bg-muted/80 h-2 rounded-full overflow-hidden border border-border/40"
@@ -331,7 +346,7 @@ export const CollectePage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <h2 className="text-xl sm:text-2xl font-black text-foreground leading-tight font-satoshi">
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground leading-tight font-satoshi">
                       {currentCritere.libelle_critere}
                     </h2>
                     {currentCritere.description && (
@@ -351,7 +366,7 @@ export const CollectePage = () => {
                           whileTap={{ scale: 0.85 }}
                           onClick={() => handleAnswer(s.note)}
                           aria-label={s.label}
-                          className="text-3xl sm:text-4xl p-2 sm:p-3 flex-1 max-w-[64px] flex justify-center items-center rounded-2xl hover:bg-muted/80 border border-transparent hover:border-border/60 transition-all"
+                          className="text-3xl sm:text-4xl p-2 sm:p-3 flex-1 max-w-[72px] min-h-[52px] min-w-[44px] flex justify-center items-center rounded-2xl hover:bg-muted/80 border border-transparent hover:border-border/60 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                         >
                           {s.icon}
                         </motion.button>
@@ -366,7 +381,7 @@ export const CollectePage = () => {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.96 }}
                         onClick={() => handleAnswer(5)}
-                        className="bg-success/10 hover:bg-success/20 text-success border border-success/30 font-extrabold py-5 rounded-2xl text-base sm:text-lg transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                        className="bg-success/10 hover:bg-success/20 text-success border border-success/30 font-bold py-5 rounded-2xl text-base sm:text-lg transition-all flex flex-col items-center justify-center gap-1 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 min-h-[88px]"
                       >
                         <span className="text-3xl">👍</span>
                         <span>Oui</span>
@@ -375,7 +390,7 @@ export const CollectePage = () => {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.96 }}
                         onClick={() => handleAnswer(1)}
-                        className="bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/30 font-extrabold py-5 rounded-2xl text-base sm:text-lg transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                        className="bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/30 font-bold py-5 rounded-2xl text-base sm:text-lg transition-all flex flex-col items-center justify-center gap-1 shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 min-h-[88px]"
                       >
                         <span className="text-3xl">👎</span>
                         <span>Non</span>
@@ -392,7 +407,7 @@ export const CollectePage = () => {
                           whileHover={{ x: 4 }}
                           whileTap={{ scale: 0.99 }}
                           onClick={() => handleAnswer(index + 1)}
-                          className="w-full text-left p-4 border border-border/80 rounded-2xl hover:bg-muted text-foreground text-sm font-bold transition-all flex items-center gap-3"
+                          className="w-full text-left p-4 border border-border/80 rounded-2xl hover:bg-muted text-foreground text-sm font-bold transition-all flex items-center gap-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 min-h-[52px]"
                         >
                           <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0" />
                           <span>{option.trim()}</span>
@@ -408,13 +423,14 @@ export const CollectePage = () => {
                         value={texteReponseCourante}
                         placeholder="Votre réponse ici..."
                         rows={4}
+                        maxLength={1000}
                         className="text-base text-left rounded-2xl border-border/80"
                         onChange={(e) => setTexteReponseCourante(e.target.value)}
                       />
                       <Button
                         onClick={() => handleAnswer(3, texteReponseCourante.trim())}
                         disabled={texteReponseCourante.trim().length === 0}
-                        className="w-full py-6 rounded-2xl text-base font-extrabold shadow-premium-md"
+                        className="w-full py-6 rounded-2xl text-base font-bold shadow-sm"
                       >
                         Continuer <ChevronRight size={18} className="ml-1" />
                       </Button>
@@ -436,7 +452,7 @@ export const CollectePage = () => {
                             whileHover={{ scale: 1.06 }}
                             whileTap={{ scale: 0.92 }}
                             onClick={() => handleAnswer(v)}
-                            className="w-full h-12 rounded-2xl border border-border/80 bg-background/90 hover:bg-primary/15 hover:border-primary/50 text-base font-extrabold text-foreground transition-all flex items-center justify-center font-satoshi"
+                            className="w-full h-12 rounded-2xl border border-border/80 bg-background/90 hover:bg-primary/15 hover:border-primary/50 text-base font-bold text-foreground transition-all flex items-center justify-center font-satoshi"
                           >
                             {v}
                           </motion.button>
@@ -461,7 +477,7 @@ export const CollectePage = () => {
                                   checked ? prev.filter((v) => v !== label) : [...prev, label]
                                 )
                               }
-                              className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-all flex items-center gap-3 ${
+                              className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-all flex items-center gap-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 min-h-[52px] ${
                                 checked
                                   ? 'border-primary bg-primary/15 text-primary'
                                   : 'border-border/80 hover:bg-muted text-foreground'
@@ -482,7 +498,7 @@ export const CollectePage = () => {
                       <Button
                         onClick={() => handleAnswer(3, casesSelectionnees.join(' • '))}
                         disabled={casesSelectionnees.length === 0}
-                        className="w-full py-6 rounded-2xl text-base font-extrabold shadow-premium-md"
+                        className="w-full py-6 rounded-2xl text-base font-bold shadow-sm"
                       >
                         Continuer <ChevronRight size={18} className="ml-1" />
                       </Button>
@@ -500,7 +516,8 @@ export const CollectePage = () => {
                     </Button>
                   )}
 
-                  <p className="text-xs text-muted-foreground font-medium">
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground font-medium">
+                    <Lock className="size-3 shrink-0" aria-hidden />
                     Votre retour est confidentiel et anonyme
                   </p>
                 </Card>
@@ -516,9 +533,9 @@ export const CollectePage = () => {
                 transition={{ duration: 0.3 }}
                 className="w-full"
               >
-                <Card variant="feature" className="w-full p-6 sm:p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card/95 backdrop-blur-md">
+                <Card variant="feature" className="w-full p-6 sm:p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card ">
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-foreground leading-tight font-satoshi">
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground leading-tight font-satoshi">
                       Finaliser votre avis
                     </h2>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-1 font-medium">
@@ -534,7 +551,7 @@ export const CollectePage = () => {
 
                   <div className="space-y-4 pt-1">
                     <div className="text-left space-y-1.5">
-                      <label className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                         <MessageSquare size={13} /> Message ou suggestion
                       </label>
                       <Textarea
@@ -542,12 +559,13 @@ export const CollectePage = () => {
                         onChange={(e) => setCommentaire(e.target.value)}
                         placeholder="Des détails à partager ? Un problème rencontré ?"
                         rows={3}
+                        maxLength={1000}
                         className="text-base rounded-2xl border-border/80"
                       />
                     </div>
 
                     <div className="text-left space-y-1.5">
-                      <label className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                         <Phone size={13} /> Téléphone (facultatif)
                       </label>
                       <Input
@@ -565,7 +583,7 @@ export const CollectePage = () => {
                     <Button 
                       onClick={finalSubmit} 
                       disabled={envoiEnCours} 
-                      className="w-full py-6 rounded-2xl text-base font-black shadow-premium-md flex items-center justify-center gap-2"
+                      className="w-full py-6 rounded-2xl text-base font-bold shadow-sm flex items-center justify-center gap-2 btn-glow-gold"
                     >
                       {envoiEnCours ? (
                         <>
@@ -589,12 +607,12 @@ export const CollectePage = () => {
                 transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 className="w-full"
               >
-                <Card variant="feature" className="w-full p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card/95 backdrop-blur-md">
+                <Card variant="feature" className="w-full p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card ">
                   <div className="w-20 h-20 bg-success/15 rounded-full flex items-center justify-center mx-auto text-4xl shadow-sm border border-success/30">
                     🎉
                   </div>
                   <div className="space-y-2">
-                    <h2 className="text-2xl sm:text-3xl font-black text-foreground font-satoshi">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground font-satoshi">
                       {brandConfig?.form_thank_you || "Merci pour votre avis !"}
                     </h2>
                     <p className="text-sm text-muted-foreground max-w-[280px] mx-auto font-medium">
@@ -613,7 +631,7 @@ export const CollectePage = () => {
         {/* Footer Branding */}
         {!brandConfig?.hide_yeba_branding && (
           <div className="py-2 text-center">
-            <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               Propulsé par {brandConfig?.platform_name || "Yeba"}
             </p>
           </div>

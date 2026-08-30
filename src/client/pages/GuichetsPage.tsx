@@ -57,7 +57,7 @@ const GuichetQrPreview = ({ guichet }: { guichet: any }) => {
           <QrCode className="size-6" />
         </span>
         <span>
-          <span className="block text-xs font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary">
+          <span className="block text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-primary">
             Voir le kit QR
           </span>
           <span className="block text-[11px] font-medium text-muted-foreground">
@@ -69,7 +69,7 @@ const GuichetQrPreview = ({ guichet }: { guichet: any }) => {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto momentum-scroll sm:max-w-2xl rounded-3xl border-border/80">
           <DialogHeader>
-            <DialogTitle className="font-satoshi text-xl font-black">Kit de collecte — {guichet.nom_guichet}</DialogTitle>
+            <DialogTitle className="font-satoshi text-xl font-bold">Kit de collecte — {guichet.nom_guichet}</DialogTitle>
             <DialogDescription>
               QR Code, code USSD et affiches téléchargeables pour ce guichet.
             </DialogDescription>
@@ -218,7 +218,7 @@ export const GuichetsPage = () => {
             <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">
               <AlertCircle className="size-6" />
             </span>
-            <p className="mb-2 text-lg font-black text-foreground font-satoshi">
+            <p className="mb-2 text-lg font-bold text-foreground font-satoshi">
               Compte non rattaché à une agence
             </p>
             <p className="mb-6 text-sm text-muted-foreground font-medium">
@@ -255,13 +255,13 @@ export const GuichetsPage = () => {
               <span>/</span>
               <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
               <span>/</span>
-              <span className="text-primary font-black">Guichets & Kits</span>
+              <span className="text-primary font-bold">Guichets & Kits</span>
             </div>
             
             <div className="flex items-center gap-6 text-xs font-bold">
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/alertes-taches'}>Kanban Incidents</span>
-              <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Guichets & Kits</span>
+              <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Guichets & Kits</span>
             </div>
           </div>
 
@@ -274,7 +274,7 @@ export const GuichetsPage = () => {
               actions={
                 guichetCount > 0 && (
                   <motion.div whileTap={{ scale: 0.97 }}>
-                    <Button onClick={handlePrint} className="rounded-xl font-extrabold">
+                    <Button onClick={handlePrint} className="rounded-xl font-bold">
                       <Printer className="size-4" /> Imprimer le Kit complet
                     </Button>
                   </motion.div>
@@ -292,7 +292,7 @@ export const GuichetsPage = () => {
                     <span className="flex size-9 items-center justify-center rounded-xl bg-secondary/15 text-secondary border border-secondary/30">
                       <PlusCircle className="size-5" />
                     </span>
-                    <h2 className="text-lg font-black text-foreground font-satoshi">
+                    <h2 className="text-lg font-bold text-foreground font-satoshi">
                       Créer une Caisse
                     </h2>
                   </div>
@@ -381,7 +381,7 @@ export const GuichetsPage = () => {
                     </FormField>
 
                     <motion.div whileTap={{ scale: 0.98 }}>
-                      <Button type="submit" disabled={loading} className="w-full py-6 rounded-2xl font-black text-base shadow-premium-md">
+                      <Button type="submit" disabled={loading} className="w-full py-6 rounded-2xl font-bold text-base btn-glow-gold">
                         {loading ? 'Création...' : 'Ajouter le guichet'}
                       </Button>
                     </motion.div>
@@ -391,7 +391,7 @@ export const GuichetsPage = () => {
             ) : (
               <Card className="h-fit p-6 lg:sticky lg:top-8 text-center rounded-3xl">
                 <Store className="mx-auto mb-3 size-8 text-muted-foreground" />
-                <p className="font-extrabold text-foreground font-satoshi">Gestion réservée au Chef d'Agence</p>
+                <p className="font-bold text-foreground font-satoshi">Gestion réservée au Chef d'Agence</p>
                 <p className="mt-1 text-xs text-muted-foreground font-medium">
                   La création des guichets se fait désormais par le Chef d'Agence, agence par agence.
                 </p>
@@ -410,7 +410,7 @@ export const GuichetsPage = () => {
               </div>
 
               {guichetCount > 0 && (
-                <div className="sticky top-16 lg:top-4 z-20 rounded-2xl border border-border/80 bg-card/90 p-1.5 shadow-sm backdrop-blur-md">
+                <div className="sticky top-16 lg:top-4 z-20 rounded-2xl border border-border/80 bg-card/90 p-1.5 shadow-sm ">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -475,16 +475,16 @@ export const GuichetsPage = () => {
                       <div className="flex flex-col items-start justify-between gap-6 md:flex-row border-b border-border/60 pb-5 mb-5">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="inline-block rounded-full bg-secondary/15 border border-secondary/30 px-2.5 py-0.5 text-[11px] font-black text-secondary">
+                            <span className="inline-block rounded-full bg-secondary/15 border border-secondary/30 px-2.5 py-0.5 text-[11px] font-bold text-secondary">
                               {g.type_guichet}
                             </span>
                             {g.services && g.services.length > 0 && (
-                              <span className="inline-block rounded-full bg-primary/15 border border-primary/30 px-2.5 py-0.5 text-[11px] font-black text-primary">
+                              <span className="inline-block rounded-full bg-primary/15 border border-primary/30 px-2.5 py-0.5 text-[11px] font-bold text-primary">
                                 {g.services.length} opération{g.services.length > 1 ? 's' : ''}
                               </span>
                             )}
                           </div>
-                          <h3 className="text-xl font-black text-foreground font-satoshi">
+                          <h3 className="text-xl font-bold text-foreground font-satoshi">
                             {g.nom_guichet}
                           </h3>
                         </div>
@@ -509,7 +509,7 @@ export const GuichetsPage = () => {
                       <div className="bg-muted/30 p-4 rounded-2xl border border-dashed border-border/60">
                         {editingGuichetId === g.id ? (
                           <div className="space-y-3">
-                            <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                            <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                               <Settings2 size={14} /> Configurer les opérations
                             </h4>
                             <div className="grid grid-cols-1 gap-2 py-1 sm:grid-cols-2">
@@ -556,7 +556,7 @@ export const GuichetsPage = () => {
                         ) : (
                           <div className="flex items-center justify-between gap-4">
                             <div>
-                              <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                              <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                                 Opérations gérées
                               </h4>
                               <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -578,7 +578,7 @@ export const GuichetsPage = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => startEditingServices(g)}
-                                className="h-8 text-xs font-extrabold shrink-0 gap-1 rounded-xl border-border/80 hover:border-primary/50 hover:text-primary transition-all"
+                                className="h-8 text-xs font-bold shrink-0 gap-1 rounded-xl border-border/80 hover:border-primary/50 hover:text-primary transition-all"
                               >
                                 <Settings2 size={12} /> Modifier
                               </Button>
@@ -616,7 +616,7 @@ export const GuichetsPage = () => {
       >
         <AlertDialogContent className="rounded-3xl border-border/80">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-satoshi font-black">Appliquer ces opérations ?</AlertDialogTitle>
+            <AlertDialogTitle className="font-satoshi font-bold">Appliquer ces opérations ?</AlertDialogTitle>
             <AlertDialogDescription>
               {guichetAConfirmer && (
                 <>
@@ -648,7 +648,7 @@ export const GuichetsPage = () => {
       >
         <AlertDialogContent className="rounded-3xl border-border/80">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-satoshi font-black text-destructive">Fermer définitivement ce guichet ?</AlertDialogTitle>
+            <AlertDialogTitle className="font-satoshi font-bold text-destructive">Fermer définitivement ce guichet ?</AlertDialogTitle>
             <AlertDialogDescription>
               {guichetAArchiver && (
                 <>

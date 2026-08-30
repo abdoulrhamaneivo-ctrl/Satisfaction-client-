@@ -1,505 +1,462 @@
-import React, { useState } from 'react';
-import { useAuth } from 'wasp/client/auth';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  QrCode, 
-  BarChart3, 
-  ShieldCheck, 
-  ArrowRight, 
-  LogIn, 
+import React, { useEffect, useRef, useState } from 'react'
+import { useAuth } from 'wasp/client/auth'
+import {
+  QrCode,
+  MessageSquareQuote,
+  BellRing,
+  ArrowRight,
+  LogIn,
   LayoutDashboard,
-  Zap,
-  Clock,
+  ShieldCheck,
   Sparkles,
-  Search,
-  CheckCircle2,
-  TrendingUp,
-  Building2,
-  Shield,
-  Layers,
-  MapPin,
-  CheckCircle
-} from 'lucide-react';
-import { AmbientBackground } from '../components/AmbientBackground';
-import { Card, Eyebrow, Reveal, Button } from '../components/ds';
-import { useBrand } from '../context/BrandContext';
-import { YebaLogo } from '../components/YebaLogo';
+  Zap,
+  Timer,
+  Smartphone,
+  ChevronRight,
+  Menu,
+  X,
+  BarChart3,
+} from 'lucide-react'
+import { AmbientBackground } from '../components/AmbientBackground'
+import { Button } from '../components/ds'
+import { useBrand } from '../context/BrandContext'
+import { YebaLogo } from '../components/YebaLogo'
+import { BandeauInstitutionnel } from '../components/BandeauInstitutionnel'
+import { motion, useReducedMotion, useInView } from 'framer-motion'
+
+// Photos du terrain (guichets / agence) fournies dans docs/, servies depuis public/.
+const HERO_IMAGES = [
+  '/hero-1.jpg',
+  '/hero-2.jpg',
+  '/hero-3.jpg',
+  '/hero-4.jpg',
+  '/hero-5.jpg',
+]
+
+// Compteur animé : la valeur défile de 0 à sa cible quand elle entre à l'écran.
+function Counter({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-40px' })
+  const reduce = useReducedMotion()
+  const [display, setDisplay] = useState(0)
+
+  useEffect(() => {
+    if (!inView) return
+    if (reduce || value === 0) { setDisplay(value); return }
+    const duration = 1200
+    const start = performance.now()
+    let raf: number
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(Math.round(eased * value))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [inView, value, reduce])
+
+  return <span ref={ref}>{prefix}{display}{suffix}</span>
+}
 
 export const LandingPage = () => {
-  const { data: user } = useAuth();
-  const { brandConfig } = useBrand();
+  const { data: user } = useAuth()
+  const { brandConfig } = useBrand()
+  const nom = brandConfig?.platform_name || 'Yéba'
+  const reduce = useReducedMotion()
+  const [scrolled, setScrolled] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<'KANBAN' | 'CSAT' | 'GUICHETS'>('KANBAN');
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 80)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const scrollTo = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault()
+    setMobileOpen(false)
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const NAV_LINKS = [
+    { hash: 'produit', label: 'LE PRODUIT' },
+    { hash: 'fonctionnement', label: 'COMMENT ÇA MARCHE' },
+    { hash: 'equipes', label: 'PENSÉ POUR VOS ÉQUIPES' },
+    { hash: 'contact', label: 'ESPACE ÉQUIPES' },
+  ]
 
   return (
-    <AmbientBackground className="ds-grid-bg min-h-screen text-foreground overflow-x-hidden flex flex-col justify-between">
-      {/* Hero Ambient Radial Glow (Jaune Or + Vert Émeraude) */}
-      <div className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center">
-        <div className="ds-hero-glow h-[550px] w-[550px] sm:h-[800px] sm:w-[800px]" />
-      </div>
-
-      {/* Header Navigation Fixe */}
-      <header className="fixed top-0 left-0 right-0 z-50 w-full backdrop-blur-md bg-card/95 border-b border-border/80 transition-all shadow-sm">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <YebaLogo className="size-9" />
-              <div>
-                <span className="text-xl font-black tracking-tight text-foreground font-satoshi block leading-none">
-                  {brandConfig?.platform_name || "Yéba"}
-                </span>
-                <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase block pt-0.5">
-                  Plateforme Satisfaction Client
-                </span>
-              </div>
-            </div>
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-              <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-              Mono-Entreprise Live
-            </span>
+    <AmbientBackground className="min-h-screen text-foreground overflow-x-hidden flex flex-col">
+      {/* ===== Header Mint ===== */}
+      <header
+        className={`fixed top-0 inset-x-0 z-50 bg-white transition-all duration-300 ${
+          scrolled ? 'py-1.5 shadow-card' : 'py-4'
+        }`}
+      >
+        <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <YebaLogo className={scrolled ? 'size-7' : 'size-9'} />
+            <span className="text-lg font-bold tracking-tight font-satoshi">{nom}</span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-xs font-bold text-muted-foreground">
-            <a href="#aperçu" className="hover:text-foreground transition-colors">Produit</a>
-            <a href="#benefices" className="hover:text-foreground transition-colors">Bénéfices Guichets</a>
-            <a href="#fonctionnalites" className="hover:text-foreground transition-colors">Suivi & Kanban</a>
-            <a href="#securite" className="hover:text-foreground transition-colors">Sécurité RLS</a>
+          <nav aria-label="Navigation principale" className="hidden items-center md:flex">
+            <ul className="flex items-center gap-2 lg:gap-4">
+              {NAV_LINKS.map((l) => (
+                <li key={l.hash} className="mx-2 lg:mx-4">
+                  <a
+                    href={`#${l.hash}`}
+                    onClick={(e) => scrollTo(e, l.hash)}
+                    className="px-2 py-8 text-sm font-medium uppercase tracking-wide text-foreground transition-colors hover:text-warning"
+                  >
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+              <li className="ml-2 lg:ml-4">
+                {user ? (
+                  <a href="/dashboard">
+                    <Button size="sm" className="rounded-xl gap-2">
+                      <LayoutDashboard className="size-4" /> Tableau de bord
+                    </Button>
+                  </a>
+                ) : (
+                  <a href="/login">
+                    <Button size="sm" className="rounded-xl gap-2">
+                      <LogIn className="size-4" /> Espace équipe
+                    </Button>
+                  </a>
+                )}
+              </li>
+            </ul>
           </nav>
 
-          <div className="flex items-center gap-3">
-            {user ? (
-              <a href="/dashboard">
-                <Button size="sm" className="rounded-xl font-extrabold gap-2 shadow-premium bg-primary text-primary-foreground hover:bg-primary/90">
-                  <LayoutDashboard className="size-4" />
-                  Tableau de bord
-                </Button>
-              </a>
+          <button
+            type="button"
+            aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 md:hidden"
+          >
+            {mobileOpen ? (
+              <X size={28} aria-hidden="true" className="text-foreground" />
             ) : (
-              <a href="/login">
-                <Button size="sm" className="rounded-xl font-extrabold gap-2 shadow-premium bg-primary text-primary-foreground hover:bg-primary/90">
-                  <LogIn className="size-4" />
-                  Espace Agent / Chef
-                </Button>
-              </a>
+              <>
+                <span className="h-0.5 w-6 bg-foreground" />
+                <span className="h-0.5 w-6 bg-foreground" />
+                <span className="h-0.5 w-6 bg-foreground" />
+              </>
             )}
-          </div>
+          </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="relative z-10 mx-auto max-w-[1440px] px-4 sm:px-6 py-10 lg:py-16 flex-1 space-y-24 pt-24 lg:pt-28">
-        
-        {/* HERO SECTION */}
-        <section className="text-center space-y-6 max-w-4xl mx-auto pt-4">
-          <Reveal direction="down">
-            <div className="flex justify-center">
-              <Eyebrow tone="amber">
-                <Sparkles className="size-3" />
-                YÉBA • PILOTAGE EN TEMPS RÉEL DU SERVICE CLIENT AU GUICHET
-              </Eyebrow>
-            </div>
-          </Reveal>
+      {/* Mobile drawer NOIR */}
+      {mobileOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Fermer le menu"
+            onClick={() => setMobileOpen(false)}
+            className="fixed inset-0 z-40 bg-background/80 md:hidden"
+          />
+          <motion.aside
+            className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-[hsl(216_40%_12%)] p-5 transition-colors sm:w-2/3 md:hidden"
+            initial={{ right: '-100%' }}
+            animate={{ right: 0 }}
+            exit={{ right: '-100%' }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+          >
+            <button
+              type="button"
+              aria-label="Fermer le menu"
+              onClick={() => setMobileOpen(false)}
+              className="ml-auto flex h-11 w-11 items-center justify-center text-white"
+            >
+              <X size={28} aria-hidden="true" />
+            </button>
+            <ul className="mt-6 space-y-2">
+              {NAV_LINKS.map((l) => (
+                <li key={l.hash}>
+                  <a
+                    href={`#${l.hash}`}
+                    onClick={(e) => scrollTo(e, l.hash)}
+                    className="block py-3 text-2xl font-semibold text-white transition-colors hover:text-warning"
+                  >
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <a href="/login" className="btn-mint mt-8 w-full rounded-xl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              Espace équipe
+            </a>
+          </motion.aside>
+        </>
+      )}
 
-          <Reveal delay={0.1}>
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] font-satoshi text-foreground">
-              Le calme opérationnel à vos guichets.{' '}
-              <span className="bg-gradient-to-r from-primary via-amber-300 to-secondary bg-clip-text text-transparent block sm:inline">
-                Et de la vitesse en plus.
-              </span>
+      {/* Bandeau institutionnel Poste CI */}
+      <BandeauInstitutionnel />
+
+      <main className="flex-1 pt-28 md:pt-36">
+        {/* ===== Hero ===== */}
+        <section id="produit" className="relative flex min-h-[100svh] items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 hero-carousel" aria-hidden="true">
+            {HERO_IMAGES.map((src) => (
+              <img key={src} src={src} alt="" loading="eager" decoding="async" />
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-b from-[#052e1c]/95 via-[#0a4026]/85 to-background" aria-hidden="true" />
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(3,20,12,0.45) 100%)' }} aria-hidden="true" />
+
+          <div className="relative z-10 mx-auto max-w-4xl px-6 py-32 text-center text-white">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-white">
+              <span className="size-1.5 rounded-full bg-warning" />
+              Satisfaction client au guichet
+            </span>
+
+            <h1 className="mt-7 text-4xl sm:text-6xl font-bold tracking-tight leading-[1.08] font-satoshi drop-shadow-sm">
+              Écoutez vos usagers.
+              <span className="block text-warning">Réagissez en temps réel.</span>
             </h1>
-          </Reveal>
 
-          <Reveal delay={0.2}>
-            <p className="text-base sm:text-xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">
-              Mesurez en temps réel la satisfaction des usagers dans vos agences via QR Code & USSD. Neutralisez les insatisfactions avant qu'elles ne remontent au niveau supérieur.
+            <p className="mt-6 text-lg text-white/85 max-w-2xl mx-auto leading-relaxed">
+              QR code et USSD au guichet, tableau de bord et alertes pour vos équipes.
+              Détectez les insatisfactions avant qu'elles ne remontent.
             </p>
-          </Reveal>
 
-          <Reveal delay={0.25}>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
               {user ? (
-                <a href="/dashboard" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full sm:w-auto rounded-2xl py-6 px-8 text-base font-black gap-2 shadow-premium bg-primary text-primary-foreground hover:bg-primary/90">
-                    Accéder au Tableau de bord <ArrowRight className="size-5" />
+                <a href="/dashboard">
+                  <Button size="lg" className="w-full sm:w-auto rounded-2xl bg-white text-primary hover:bg-white/95 px-8 gap-2 shadow-lg">
+                    Accéder au tableau de bord <ArrowRight className="size-5" />
                   </Button>
                 </a>
               ) : (
-                <a href="/login" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full sm:w-auto rounded-2xl py-6 px-8 text-base font-black gap-2 shadow-premium bg-primary text-primary-foreground hover:bg-primary/90">
-                    Se connecter à l'Espace Agence <ArrowRight className="size-5" />
+                <a href="/login">
+                  <Button size="lg" className="w-full sm:w-auto rounded-2xl bg-white text-primary hover:bg-white/95 px-8 gap-2 shadow-lg">
+                    Se connecter <ArrowRight className="size-5" />
                   </Button>
                 </a>
               )}
             </div>
-          </Reveal>
 
-          <Reveal delay={0.3}>
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground font-semibold">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="size-4 text-primary" /> Multi-guichets illimités
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/75 font-medium">
+              <span className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-warning" /> Multi-guichets illimités
               </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="size-4 text-secondary" /> Scan QR & USSD sans application
+              <span className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-warning" /> Scan QR & USSD sans application
               </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="size-4 text-primary" /> RLS Mono-Entreprise Sécurisé
+              <span className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-warning" /> Données isolées par entreprise
               </span>
             </div>
-          </Reveal>
+          </div>
         </section>
 
-        {/* BESPOKE MAC-STYLE INTERACTIVE WINDOW SHOWCASE */}
-        <section id="aperçu" className="pt-2">
-          <Reveal delay={0.35}>
-            <div className="relative mx-auto max-w-5xl rounded-[28px] border border-border/80 bg-[#071114] p-2.5 sm:p-4 shadow-2xl ring-1 ring-white/10 overflow-hidden">
-              
-              {/* Window Controls Bar */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-3 px-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="size-3 rounded-full bg-rose-500/80 inline-block" />
-                  <span className="size-3 rounded-full bg-amber-500/80 inline-block" />
-                  <span className="size-3 rounded-full bg-emerald-500/80 inline-block" />
-                </div>
-                
-                <div className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-1.5 text-xs text-slate-400 w-64 sm:w-80 justify-between">
-                  <span className="flex items-center gap-2 font-mono text-[11px]">
-                    <Search className="size-3.5 text-slate-500" />
-                    Rechercher une agence ou un guichet...
-                  </span>
-                  <span className="text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded text-slate-300">⌘K</span>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                  <MapPin className="size-3.5 text-primary" />
-                  <span className="hidden sm:inline">Agence Plateau — Abidjan</span>
-                </div>
-              </div>
-
-              {/* Window Inner App Replica */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 text-white p-2">
-                {/* Left Sidebar Replica */}
-                <div className="md:col-span-3 space-y-4 border-r border-white/10 pr-3 hidden md:block">
-                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
-                    <YebaLogo className="size-7" />
-                    <div>
-                      <span className="block font-black text-xs font-satoshi text-primary">Plateforme Yéba</span>
-                      <span className="block text-[10px] text-slate-400">Espace Chef d'Agence</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 text-xs font-bold text-slate-400">
-                    <button 
-                      onClick={() => setActiveTab('KANBAN')}
-                      className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-colors ${activeTab === 'KANBAN' ? 'bg-primary/20 text-primary border border-primary/30 font-black' : 'hover:bg-white/5'}`}
-                    >
-                      <span className="flex items-center gap-2"><Zap className="size-4" /> Alertes & Incidents</span>
-                      <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-full font-bold">3</span>
-                    </button>
-                    <button 
-                      onClick={() => setActiveTab('CSAT')}
-                      className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-colors ${activeTab === 'CSAT' ? 'bg-secondary/20 text-secondary border border-secondary/30 font-black' : 'hover:bg-white/5'}`}
-                    >
-                      <span className="flex items-center gap-2"><BarChart3 className="size-4" /> Taux de Satisfaction</span>
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold">96.2%</span>
-                    </button>
-                    <button 
-                      onClick={() => setActiveTab('GUICHETS')}
-                      className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-colors ${activeTab === 'GUICHETS' ? 'bg-white/10 text-white border border-white/20 font-black' : 'hover:bg-white/5'}`}
-                    >
-                      <span className="flex items-center gap-2"><Building2 className="size-4" /> Guichets & Kits QR</span>
-                      <span className="text-[10px] bg-white/10 text-slate-300 px-1.5 py-0.5 rounded-full font-bold">8</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Main Content Replica */}
-                <div className="md:col-span-9 space-y-4">
-                  {/* Top Bar inside Replica */}
-                  <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Vue Temps Réel • Guichets & Services</span>
-                      <h3 className="text-base font-black font-satoshi">
-                        {activeTab === 'KANBAN' && 'Suivi des Incidents Guichets & Actions Correctives'}
-                        {activeTab === 'CSAT' && 'Indicateurs Globaux CSAT — Réseau d’Agences'}
-                        {activeTab === 'GUICHETS' && 'Cartographie des Guichets & Kits QR/USSD'}
-                      </h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold bg-secondary/20 text-secondary border border-secondary/30 px-3 py-1 rounded-xl flex items-center gap-1.5">
-                        <span className="size-1.5 rounded-full bg-secondary animate-pulse" />
-                        Guichets Actifs
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Dynamic Switchable Content */}
-                  <AnimatePresence mode="wait">
-                    {activeTab === 'KANBAN' && (
-                      <motion.div 
-                        key="kanban"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-                      >
-                        {/* Column 1: A Traiter */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
-                          <div className="flex justify-between items-center text-xs font-bold text-slate-400 pb-1">
-                            <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-amber-400" /> À Traiter</span>
-                            <span className="text-[10px] font-bold">2</span>
-                          </div>
-                          <div className="bg-slate-900/90 border border-amber-500/40 p-3 rounded-xl space-y-1.5">
-                            <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">Caisse Courrier 2</span>
-                            <p className="text-xs font-bold text-slate-200">Temps d'attente estimé élevé</p>
-                            <span className="text-[10px] text-slate-400 block pt-1">Signalé par Usager à 14:10</span>
-                          </div>
-                          <div className="bg-slate-900/90 border border-white/10 p-3 rounded-xl space-y-1.5">
-                            <span className="text-[10px] font-bold bg-secondary/20 text-secondary px-2 py-0.5 rounded-full border border-secondary/30">Accueil Colis</span>
-                            <p className="text-xs font-bold text-slate-200">Demande d'information tarifaire</p>
-                            <span className="text-[10px] text-slate-400 block pt-1">Il y a 22 minutes</span>
-                          </div>
-                        </div>
-
-                        {/* Column 2: En Cours */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
-                          <div className="flex justify-between items-center text-xs font-bold text-slate-400 pb-1">
-                            <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-primary animate-pulse" /> En Cours</span>
-                            <span className="text-[10px] font-bold">1</span>
-                          </div>
-                          <div className="bg-slate-900/90 border border-primary/40 p-3 rounded-xl space-y-1.5">
-                            <span className="text-[10px] font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full border border-primary/30">Guichet Chronopost</span>
-                            <p className="text-xs font-bold text-slate-200">Réapprovisionnement de reçus</p>
-                            <span className="text-[10px] text-slate-400 block pt-1">Pris en charge par Agent Y.</span>
-                          </div>
-                        </div>
-
-                        {/* Column 3: Résolu */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-3 space-y-2">
-                          <div className="flex justify-between items-center text-xs font-bold text-slate-400 pb-1">
-                            <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-400" /> Résolu</span>
-                            <span className="text-[10px] font-bold">8</span>
-                          </div>
-                          <div className="bg-slate-900/90 border border-emerald-500/40 p-3 rounded-xl space-y-1.5">
-                            <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">Caisse Mandat 1</span>
-                            <p className="text-xs font-bold text-slate-200">Fluidité rétablie avec succès</p>
-                            <span className="text-[10px] text-slate-400 block pt-1">Résolu à 12:45</span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {activeTab === 'CSAT' && (
-                      <motion.div 
-                        key="csat"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="space-y-3"
-                      >
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="bg-white/5 border border-white/10 p-3.5 rounded-2xl text-center">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Score CSAT Global</span>
-                            <span className="block text-2xl font-black text-emerald-400 font-satoshi">96.2%</span>
-                          </div>
-                          <div className="bg-white/5 border border-white/10 p-3.5 rounded-2xl text-center">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Avis Usagers Collectés</span>
-                            <span className="block text-2xl font-black text-primary font-satoshi">3 840</span>
-                          </div>
-                          <div className="bg-white/5 border border-white/10 p-3.5 rounded-2xl text-center">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Délai Traitement</span>
-                            <span className="block text-2xl font-black text-secondary font-satoshi">1.2h</span>
-                          </div>
-                        </div>
-                        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl text-center py-6">
-                          <TrendingUp className="size-8 text-primary mx-auto mb-2" />
-                          <p className="text-xs font-bold text-slate-200">Satisfaction usagers en hausse constante (+5.8% ce trimestre dans les agences d'Abidjan)</p>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {activeTab === 'GUICHETS' && (
-                      <motion.div 
-                        key="guichets"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="grid grid-cols-2 gap-3"
-                      >
-                        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-3">
-                          <div className="p-3 bg-primary/20 text-primary rounded-xl border border-primary/30">
-                            <QrCode className="size-6" />
-                          </div>
-                          <div>
-                            <span className="font-bold text-xs block text-slate-100">Guichet Caisse 1 — Plateau</span>
-                            <span className="text-[10px] text-slate-400">Kit QR Code & Code USSD configurés</span>
-                          </div>
-                        </div>
-                        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-3">
-                          <div className="p-3 bg-secondary/20 text-secondary rounded-xl border border-secondary/30">
-                            <QrCode className="size-6" />
-                          </div>
-                          <div>
-                            <span className="font-bold text-xs block text-slate-100">Guichet Envoi Colis — Cocody</span>
-                            <span className="text-[10px] text-slate-400">Kit QR Code & Code USSD configurés</span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-            </div>
-          </Reveal>
-        </section>
-
-        {/* BESPOKE BENTO FEATURE CARDS GRID — LA POSTE CI */}
-        <section id="benefices" className="pt-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-            
-            {/* Left Big Editorial Column */}
-            <div className="lg:col-span-5 space-y-6">
-              <Reveal direction="down">
-                <Eyebrow tone="amber">BÉNÉFICES OPÉRATIONNELS</Eyebrow>
-              </Reveal>
-              <Reveal delay={0.1}>
-                <h2 className="text-3xl sm:text-5xl font-black font-satoshi tracking-tight leading-[1.15] text-foreground">
-                  Le calme au guichet. <br />
-                  <span className="text-muted-foreground font-semibold">Une excellence de service mesurable.</span>
-                </h2>
-              </Reveal>
-              <Reveal delay={0.2}>
-                <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
-                  Offrez à vos chefs d'agence et agents de guichet un outil clair de suivi de la qualité de service, adapté aux contraintes du terrain.
-                </p>
-              </Reveal>
-            </div>
-
-            {/* Right 4 Bento Feature Cards Grid */}
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Reveal delay={0.15}>
-                <Card variant="feature" className="p-6 rounded-3xl h-full space-y-3 border-primary/30 hover:border-primary/60 transition-all duration-300">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 border border-primary/30 text-primary">
-                    <Clock className="size-5" />
-                  </div>
-                  <h3 className="text-base font-black font-satoshi text-foreground">Gain de temps au guichet</h3>
-                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                    Recueil immédiat des retours usagers en 10 secondes via QR Code ou USSD sans ralentir les opérations.
-                  </p>
-                </Card>
-              </Reveal>
-
-              <Reveal delay={0.25}>
-                <Card variant="feature" className="p-6 rounded-3xl h-full space-y-3 border-secondary/30 hover:border-secondary/60 transition-all duration-300">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-secondary/15 border border-secondary/30 text-secondary">
-                    <Zap className="size-5" />
-                  </div>
-                  <h3 className="text-base font-black font-satoshi text-foreground">Réactivité Instantanée</h3>
-                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                    Détection automatique des insatisfactions et création instantanée de cartes de suivi sur le tableau Kanban agence.
-                  </p>
-                </Card>
-              </Reveal>
-
-              <Reveal delay={0.35}>
-                <Card variant="feature" className="p-6 rounded-3xl h-full space-y-3 border-emerald-500/30 hover:border-emerald-500/60 transition-all duration-300">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                    <ShieldCheck className="size-5" />
-                  </div>
-                  <h3 className="text-base font-black font-satoshi text-foreground">Isolation RLS des Données</h3>
-                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                    Chaque agence accède exclusivement aux métriques de ses propres guichets grâce à la sécurité au niveau des lignes.
-                  </p>
-                </Card>
-              </Reveal>
-
-              <Reveal delay={0.45}>
-                <Card variant="feature" className="p-6 rounded-3xl h-full space-y-3 border-emerald-500/30 hover:border-emerald-500/60 transition-all duration-300">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                    <Sparkles className="size-5" />
-                  </div>
-                  <h3 className="text-base font-black font-satoshi text-foreground">Analyse IA (NVIDIA NIM)</h3>
-                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-                    Détection automatique des sentiments, synthèses instantanées et qualification des urgences grâce aux LLM Qwen 80B.
-                  </p>
-                </Card>
-              </Reveal>
-            </div>
-
+        {/* ===== Comment ça marche ===== */}
+        <motion.section
+          id="fonctionnement"
+          initial={reduce ? false : { opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="mx-auto max-w-6xl px-6 py-20"
+        >
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight font-satoshi">
+              Comment ça marche
+            </h2>
+            <p className="mt-3 text-muted-foreground">Trois étapes, du guichet au pilotage.</p>
           </div>
 
-          {/* Bottom Key Metrics Bar — Signature La Poste CI */}
-          <Reveal delay={0.5}>
-            <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card variant="feature" className="p-6 rounded-3xl text-left space-y-1 border-primary/30">
-                <span className="block text-3xl sm:text-4xl font-black text-primary font-satoshi">96.2%</span>
-                <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">CSAT MOYEN AGENCES</span>
-              </Card>
-              <Card variant="feature" className="p-6 rounded-3xl text-left space-y-1 border-secondary/30">
-                <span className="block text-3xl sm:text-4xl font-black text-secondary font-satoshi">&lt; 2 min</span>
-                <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">DÉTECTION INCIDENTS</span>
-              </Card>
-              <Card variant="feature" className="p-6 rounded-3xl text-left space-y-1 border-primary/30">
-                <span className="block text-3xl sm:text-4xl font-black text-foreground font-satoshi">100%</span>
-                <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">MONO-ENTREPRISE SECURE</span>
-              </Card>
-              <Card variant="feature" className="p-6 rounded-3xl text-left space-y-1 border-secondary/30">
-                <span className="block text-3xl sm:text-4xl font-black text-emerald-400 font-satoshi">0</span>
-                <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">APPLICATION À TÉLÉCHARGER</span>
-              </Card>
-            </div>
-          </Reveal>
-        </section>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { icon: QrCode, step: '1', title: 'Scannez', desc: 'Un QR code au guichet, ou USSD sans internet. L\'usager répond en 10 secondes.' },
+              { icon: MessageSquareQuote, step: '2', title: 'L\'avis remonte', desc: 'Chaque note et commentaire arrive en temps réel, classé par agence et guichet.' },
+              { icon: BellRing, step: '3', title: 'Vous réagissez', desc: 'Alerte automatique sur les notes critiques, analyse IA des commentaires.' },
+            ].map(({ icon: Icon, step, title, desc }, i) => (
+              <motion.div
+                key={step}
+                initial={reduce ? false : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-80px' }}
+                transition={{ duration: 0.5, delay: i * 0.1, ease: 'easeOut' }}
+                className="relative rounded-3xl border border-border/80 bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40 hover-lift"
+              >
+                <span className="absolute top-6 right-6 text-5xl font-bold text-muted-foreground/15 font-satoshi">{step}</span>
+                <div className={`flex size-12 items-center justify-center rounded-2xl border ${i % 2 === 1 ? 'bg-warning/10 border-warning/25 text-warning' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+                  <Icon className="size-6" />
+                </div>
+                <h3 className="mt-5 text-lg font-bold font-satoshi">{title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </motion.div>
+            ))}
+          </div>
 
-        {/* SECURITY & RLS SECTION */}
-        <section id="securite">
-          <Reveal delay={0.2}>
-            <Card variant="feature" className="p-8 sm:p-12 rounded-3xl bg-card/90 border-primary/30">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div className="lg:col-span-8 space-y-4">
-                  <Eyebrow tone="positive">SÉCURITÉ & ARCHITECTURE ENTREPRISE</Eyebrow>
-                  <h2 className="text-2xl sm:text-4xl font-black font-satoshi">
-                    Conformité Mono-Entreprise & Row Level Security (RLS)
-                  </h2>
-                  <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-2xl">
-                    L'architecture Yéba garantit la confidentialité stricte des données de satisfaction de votre entreprise. Les autorisations sont attribuées selon la hiérarchie Entreprise → Agence → Guichet.
-                  </p>
+          {/* Démonstration vidéo — crossfade hero conservé, ici on garde la vidéo existante */}
+          <div className="mt-14 mx-auto max-w-4xl">
+            <video
+              src="/yeba-howto.mp4"
+              poster="/hero-3.jpg"
+              controls
+              playsInline
+              preload="none"
+              className="w-full rounded-3xl border border-border/80 shadow-lg bg-black hover-lift"
+              aria-label="Vidéo de démonstration : comment fonctionne Yéba, du scan du QR code à l'action de la direction"
+            />
+            <div className="lisere-tricolore mt-4" aria-hidden="true" />
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Le parcours complet en 14 secondes — du guichet à la décision.
+            </p>
+          </div>
+        </motion.section>
+
+        {/* ===== Pensé pour vos équipes ===== */}
+        <motion.section
+          id="equipes"
+          initial={reduce ? false : { opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="mx-auto max-w-6xl px-6 py-20 border-t border-border/60"
+        >
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight font-satoshi">
+              Pensé pour vos équipes
+            </h2>
+            <p className="mt-3 text-muted-foreground">L'essentiel, sans surcharge.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { icon: BarChart3, title: 'Pilotage en temps réel', desc: 'CSAT, tendances et thèmes récurrents sur un tableau de bord clair.' },
+              { icon: BellRing, title: 'Alertes immédiates', desc: 'SMS ou WhatsApp au chef d\'agence dès qu\'une note est critique.' },
+              { icon: Sparkles, title: 'Analyse IA', desc: 'Le modèle lit les commentaires : sentiment, thèmes et urgence.' },
+            ].map(({ icon: Icon, title, desc }, i) => (
+              <motion.div
+                key={title}
+                initial={reduce ? false : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-80px' }}
+                transition={{ duration: 0.5, delay: i * 0.1, ease: 'easeOut' }}
+                className="relative rounded-3xl border border-border/80 bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/40 hover-lift"
+              >
+                <span className="absolute top-6 right-6 text-5xl font-bold text-muted-foreground/15 font-satoshi">{i + 1}</span>
+                <div className={`flex size-12 items-center justify-center rounded-2xl border ${i % 2 === 1 ? 'bg-warning/10 border-warning/25 text-warning' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+                  <Icon className="size-6" />
                 </div>
-                <div className="lg:col-span-4 flex justify-end">
-                  <div className="p-6 rounded-2xl bg-primary/10 border border-primary/30 text-center w-full space-y-2">
-                    <Shield className="size-10 text-primary mx-auto" />
-                    <span className="block text-sm font-black font-satoshi">Comptes sur Invitation</span>
-                    <span className="text-[11px] text-muted-foreground font-medium block">Gestion stricte du personnel agence par le Chef d'Agence.</span>
-                  </div>
+                <h3 className="mt-5 text-lg font-bold font-satoshi">{title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Chiffres clés — Counter existant */}
+          <div className="mt-14 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: Zap, value: 10, suffix: 's', label: 'pour répondre' },
+              { icon: Timer, prefix: '< ', value: 2, suffix: ' min', label: 'détection d\'un incident' },
+              { icon: ShieldCheck, value: 100, suffix: '%', label: 'isolation des données' },
+              { icon: Smartphone, value: 0, suffix: '', label: 'application à installer' },
+            ].map(({ icon: Icon, value, prefix = '', suffix = '', label }, i) => (
+              <motion.div
+                key={label}
+                initial={reduce ? false : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-80px' }}
+                transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
+                className="group relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover-lift"
+              >
+                <div className={`absolute inset-x-0 top-0 h-1 ${i % 2 === 1 ? 'bg-warning' : 'bg-primary'}`} />
+                <div className={`mx-auto flex size-11 items-center justify-center rounded-2xl border ${i % 2 === 1 ? 'bg-warning/10 border-warning/25 text-warning' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+                  <Icon className="size-5" />
                 </div>
+                <div className={`mt-3 text-3xl sm:text-4xl font-bold font-satoshi ${i % 2 === 1 ? 'text-warning' : 'text-primary'}`}>
+                  <Counter value={value} prefix={prefix} suffix={suffix} />
+                </div>
+                <span className="mt-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* ===== CTA final ===== */}
+        <motion.section
+          id="contact"
+          initial={reduce ? false : { opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="mx-auto max-w-6xl px-6 py-10"
+        >
+          <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-primary to-brand-green-deep px-8 py-16 text-center text-primary-foreground">
+            <div aria-hidden className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-warning/25 blur-3xl" />
+            <div aria-hidden className="absolute -bottom-28 -left-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+            <div className="relative">
+              <ShieldCheck className="size-10 mx-auto opacity-80" />
+              <h2 className="mt-5 text-3xl sm:text-4xl font-bold tracking-tight font-satoshi">
+                Prêt à écouter vos usagers ?
+              </h2>
+              <p className="mt-3 text-primary-foreground/85 max-w-xl mx-auto">
+                Déployez les QR codes sur vos guichets et suivez la satisfaction en temps réel, dès aujourd'hui.
+              </p>
+              <div className="mt-8">
+                {user ? (
+                  <a href="/dashboard">
+                    <Button size="lg" className="rounded-2xl bg-white text-primary hover:bg-white/90 px-8 gap-2 shadow-lg">
+                      Ouvrir le tableau de bord <ArrowRight className="size-5" />
+                    </Button>
+                  </a>
+                ) : (
+                  <a href="/login">
+                    <Button size="lg" className="btn-mint rounded-2xl px-8 gap-2 shadow-lg">
+                      Commencer <ArrowRight className="size-5" />
+                    </Button>
+                  </a>
+                )}
               </div>
-            </Card>
-          </Reveal>
-        </section>
-
+            </div>
+          </div>
+        </motion.section>
       </main>
 
-      {/* Senior Footer */}
-      <footer className="relative z-10 w-full border-t border-border/80 bg-card/60 py-10 px-6 backdrop-blur-md">
-        <div className="mx-auto max-w-[1440px] flex flex-col sm:flex-row items-center justify-between gap-6 text-xs font-semibold text-muted-foreground">
+      {/* ===== Footer NOIR Mint ===== */}
+      <footer className="border-t border-border/80 py-10 px-6 bg-[hsl(216_40%_12%)] text-white">
+        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
           <div className="flex items-center gap-3">
             <YebaLogo className="size-6" />
-            <span className="font-extrabold text-foreground font-satoshi text-sm">
-              {brandConfig?.platform_name || "Yéba"}
-            </span>
-            <span className="text-muted-foreground/60">•</span>
-            <span>Plateforme de Pilotage de la Satisfaction Client au Guichet</span>
+            <span className="font-bold font-satoshi">{nom}</span>
+            <span className="text-white/50">·</span>
+            <span>Pilotage de la satisfaction client au guichet</span>
           </div>
-
           <div className="flex items-center gap-6">
-            <a href="/login" className="hover:text-primary transition-colors font-bold">Espace Agent / Connexion</a>
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="group inline-flex items-center gap-3"
+              aria-label="Retour en haut de page"
+            >
+              <span className="text-sm font-medium uppercase tracking-wide text-white transition-colors group-hover:text-warning">
+                Back to top
+              </span>
+              <ChevronRight size={20} className="text-white transition-colors group-hover:text-warning" aria-hidden="true" />
+            </button>
+            <a href="/login" className="hover:text-warning font-semibold transition-colors">
+              Espace équipe
+            </a>
           </div>
-
-          <div>
-            © {new Date().getFullYear()} Yéba. Tous droits réservés.
-          </div>
+          <span className="text-white/40 text-xs">© {new Date().getFullYear()} {nom}</span>
         </div>
+        <BandeauInstitutionnel />
+        <div className="lisere-tricolore" aria-hidden="true" />
       </footer>
     </AmbientBackground>
-  );
-};
+  )
+}

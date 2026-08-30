@@ -41,7 +41,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
     <div ref={ref} className="p-12 bg-white text-slate-900 font-sans space-y-10 print:p-8" style={{ width: '210mm' }}>
       <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Yeba • Rapport de Performance</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 uppercase">Yeba • Rapport de Performance</h1>
           <p className="text-xs font-mono text-slate-500 mt-1">Généré le {dateGeneration}</p>
         </div>
         <div className="text-right">
@@ -60,15 +60,15 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
       <div className="grid grid-cols-3 gap-6">
         <div className="border border-slate-200 p-4 rounded-xl text-center space-y-1">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Avis Collectés</p>
-          <p className="text-2xl font-black text-slate-900">{totalAvis}</p>
+          <p className="text-2xl font-bold text-slate-900">{totalAvis}</p>
         </div>
         <div className="border border-slate-200 p-4 rounded-xl text-center space-y-1">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note Moyenne</p>
-          <p className="text-2xl font-black text-slate-900">{noteMoyenne} / 5</p>
+          <p className="text-2xl font-bold text-slate-900">{noteMoyenne} / 5</p>
         </div>
         <div className="border border-slate-200 p-4 rounded-xl text-center space-y-1">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Satisfaction Globale</p>
-          <p className="text-2xl font-black text-slate-900">{tauxSatisfaction}%</p>
+          <p className="text-2xl font-bold text-slate-900">{tauxSatisfaction}%</p>
         </div>
       </div>
 

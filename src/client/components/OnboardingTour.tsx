@@ -107,7 +107,7 @@ export function OnboardingTour() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/75 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/75 "
           onClick={handleComplete}
         />
 
@@ -135,7 +135,7 @@ export function OnboardingTour() {
               <YebaLogo className="size-6" />
             </div>
             <div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-widest text-primary">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-primary">
                 <Sparkles className="size-3" />
                 {currentStep.badge || 'Tutoriel interactif'}
               </span>
@@ -147,7 +147,7 @@ export function OnboardingTour() {
 
           {/* Titre & Description */}
           <div className="space-y-2 mb-6">
-            <h3 className="text-xl font-black font-satoshi text-foreground leading-snug">
+            <h3 className="text-xl font-bold font-satoshi text-foreground leading-snug">
               {currentStep.title}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed font-medium">

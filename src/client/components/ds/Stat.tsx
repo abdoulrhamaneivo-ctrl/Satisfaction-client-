@@ -25,7 +25,7 @@ export function Stat({
     <div className={cn("p-4 sm:p-6", className)}>
       <div
         className={cn(
-          "font-satoshi text-3xl font-black tracking-tight sm:text-4xl tabular-nums",
+          "font-satoshi text-3xl font-bold tracking-tight sm:text-4xl tabular-nums",
           toneClass
         )}
       >

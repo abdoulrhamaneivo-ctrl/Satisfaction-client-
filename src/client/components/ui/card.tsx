@@ -4,17 +4,17 @@ import * as React from "react";
 import { cn } from "../../utils";
 
 const cardVariants = cva(
-  "rounded-lg border border-border bg-card shadow-sm",
+  "rounded-lg border border-border/80 bg-card shadow-sm",
   {
     variants: {
       variant: {
         default: "bg-card text-card-foreground",
-        accent: "bg-card-accent text-card-accent-foreground",
+        accent: "bg-card-accent text-card-accent-foreground ring-1 ring-primary/10",
         faded: "text-card-faded-foreground scale-95 opacity-50",
-        bento: "bg-card-subtle/40 border-dashed",
-        bentoHighlight: "bg-card-subtle text-card-subtle-foreground border-none shadow-none",
-        outer: "bg-card text-card-foreground",
-        inner: "bg-card text-card-foreground",
+        bento: "bg-card-subtle/40 border-dashed border-secondary/20",
+        bentoHighlight: "bg-card-subtle text-card-subtle-foreground border-none shadow-none ring-1 ring-primary/10",
+        outer: "bg-card text-card-foreground shadow-premium",
+        inner: "bg-muted/40 text-foreground border-border/60",
       },
     },
   },

@@ -12,14 +12,14 @@ export const DataTable = ({
   maxHeight?: string;
   className?: string;
 }) => (
-  <div className={cn("overflow-hidden rounded-3xl border border-border/80 bg-card/95 shadow-premium backdrop-blur-md", className)}>
+  <div className={cn("overflow-hidden rounded-3xl border border-border/80 bg-card shadow-sm ring-1 ring-border/50", className)}>
     <div
       className="overflow-x-auto momentum-scroll scroll-fade-x"
       style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}
     >
       <table className="w-full min-w-[640px] text-left text-sm">
         {headers && (
-          <thead className="sticky top-0 z-10 bg-muted/80 text-muted-foreground/80 uppercase font-black text-[10px] tracking-widest backdrop-blur-md border-b border-border/70">
+          <thead className="sticky top-0 z-10 bg-muted/60 text-muted-foreground uppercase font-semibold text-[11px] tracking-wider border-b border-border/70">
             <tr>
               {headers.map((h) => (
                 <th key={h} className="whitespace-nowrap px-6 py-3.5 font-satoshi">{h}</th>

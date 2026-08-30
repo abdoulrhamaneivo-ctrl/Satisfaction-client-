@@ -35,7 +35,7 @@ export function AccountPage({ user }: { user: User }) {
           description="Gérez vos informations personnelles et la sécurité de votre compte."
         />
         {mustChangePassword && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground dark:text-warning">
             <strong>Action requise :</strong> pour des raisons de sécurité, vous devez définir un nouveau
             mot de passe avant de pouvoir accéder au reste de l'application.
           </div>

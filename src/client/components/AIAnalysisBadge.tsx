@@ -1,6 +1,28 @@
 import React from 'react';
-import { Sparkles, AlertTriangle, CheckCircle2, Info, ArrowRight } from 'lucide-react';
+import { Sparkles, AlertTriangle, CheckCircle2, Info, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '../utils';
+
+export const THEMES_LABELS: Record<string, string> = {
+  TEMPS_ATTENTE: "Temps d'attente",
+  ACCUEIL: "Accueil",
+  PERSONNEL: "Personnel",
+  COMPORTEMENT_AGENT: "Comportement agent",
+  SERVICE: "Service",
+  PRODUIT: "Produit",
+  QUALITE: "Qualité",
+  PRIX: "Prix",
+  PROCEDURE: "Procédure",
+  ADMINISTRATION: "Administration",
+  INFORMATIQUE: "Informatique",
+  PAIEMENT: "Paiement",
+  LIVRAISON: "Livraison",
+  ACCESSIBILITE: "Accessibilité",
+  PROPRETE: "Propreté",
+  SECURITE: "Sécurité",
+  INFORMATION: "Information",
+  DISPONIBILITE: "Disponibilité",
+  AUTRE: "Autre",
+};
 
 export type AIAnalysisProps = {
   analyse?: {
@@ -21,8 +43,8 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
 
   if (analyse.status === 'PENDING' || analyse.status === 'PROCESSING') {
     return (
-      <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20 animate-pulse", className)}>
-        <Sparkles className="size-3.5 animate-spin" />
+      <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20", className)}>
+        <Loader2 className="size-3.5 animate-spin" />
         <span>Analyse IA en cours…</span>
       </div>
     );
@@ -44,13 +66,13 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
   const getSentimentConfig = (s: string) => {
     switch (s) {
       case 'POSITIVE':
-        return { label: 'Positif', bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' };
+        return { label: 'Positif', bg: 'bg-success/10 text-success border-success/25' };
       case 'NEGATIVE':
-        return { label: 'Négatif', bg: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' };
+        return { label: 'Négatif', bg: 'bg-destructive/10 text-destructive border-destructive/25' };
       case 'MIXED':
-        return { label: 'Mitigé', bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' };
+        return { label: 'Mitigé', bg: 'bg-warning/10 text-warning border-warning/25' };
       default:
-        return { label: 'Neutre', bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' };
+        return { label: 'Neutre', bg: 'bg-secondary/10 text-secondary border-secondary/25' };
     }
   };
 
@@ -59,13 +81,13 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
   const getUrgenceConfig = (u: string) => {
     switch (u) {
       case 'CRITICAL':
-        return { label: 'Urgence Critique', bg: 'bg-red-600 text-white font-black animate-pulse' };
+        return { label: 'Urgence Critique', bg: 'bg-destructive text-destructive-foreground font-bold animate-pulse' };
       case 'HIGH':
-        return { label: 'Urgence Élevée', bg: 'bg-rose-500/20 text-rose-600 dark:text-rose-300 font-bold border border-rose-500/30' };
+        return { label: 'Urgence Élevée', bg: 'bg-destructive/15 text-destructive font-bold border border-destructive/30' };
       case 'MEDIUM':
-        return { label: 'Urgence Modérée', bg: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold border border-amber-500/30' };
+        return { label: 'Urgence Modérée', bg: 'bg-warning/15 text-warning font-semibold border border-warning/30' };
       default:
-        return { label: 'Urgence Faible', bg: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 font-medium border border-slate-500/20' };
+        return { label: 'Urgence Faible', bg: 'bg-muted/80 text-muted-foreground font-medium border border-border/60' };
     }
   };
 
@@ -105,9 +127,9 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
         {themesList.map((theme, idx) => (
           <span
             key={idx}
-            className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-card-subtle text-foreground/80 border border-border/60"
+            className="px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide bg-card-subtle text-foreground/80 border border-border/60"
           >
-            #{theme}
+            {THEMES_LABELS[theme] ?? theme}
           </span>
         ))}
       </div>
@@ -116,11 +138,11 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
       {analyse.resume && (
         <div className="rounded-xl bg-card-subtle/80 border border-border/60 p-3 text-xs space-y-1.5">
           <div className="flex items-center justify-between text-muted-foreground font-bold text-[11px] uppercase tracking-wider">
-            <span className="flex items-center gap-1.5 text-primary font-black">
+            <span className="flex items-center gap-1.5 text-primary font-bold">
               <Sparkles className="size-3" /> Synthèse IA
             </span>
             {analyse.problemePrincipal && (
-              <span className="text-rose-500 font-semibold text-[10px]">
+              <span className="text-destructive font-semibold text-[10px]">
                 Problème : {analyse.problemePrincipal}
               </span>
             )}
@@ -130,7 +152,7 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
           </p>
 
           {analyse.actionRecommandee && (
-            <div className="pt-1.5 flex items-start gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+            <div className="pt-1.5 flex items-start gap-1.5 text-success font-medium">
               <ArrowRight className="size-3.5 shrink-0 mt-0.5" />
               <span><strong className="font-bold">Action suggérée :</strong> {analyse.actionRecommandee}</span>
             </div>

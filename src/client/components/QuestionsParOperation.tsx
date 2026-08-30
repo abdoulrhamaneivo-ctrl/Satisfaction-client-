@@ -28,8 +28,9 @@ import {
   createCritere,
   deleteCritere,
   duplicateCritere,
+  updateCritere,
 } from 'wasp/client/operations';
-import { GripVertical, Inbox, Plus, X, Copy, Trash2 } from 'lucide-react';
+import { GripVertical, Inbox, Plus, X, Copy, Trash2, Pencil } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -50,6 +51,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 
 // QCM et CASES exigent une liste de choix (voir createCritere côté serveur)
 // qu'il n'y a pas la place de saisir proprement dans ce formulaire rapide :
@@ -63,11 +72,25 @@ const typeReponseOptions: { value: string; label: string }[] = [
   { value: 'TEXTE', label: '✍️ Texte libre' },
 ];
 
+// Tous les types disponibles, pour la modale d'édition d'une question.
+// QCM et CASES demandent une liste de choix (séparés par des virgules) ;
+// ECHELLE accepte « min,max » (ex. « 1,10 »).
+const allTypeReponseOptions: { value: string; label: string }[] = [
+  { value: 'SMILEY', label: '⭐ Note / Smileys' },
+  { value: 'OUI_NON', label: '👍 Oui / Non' },
+  { value: 'QCM', label: '📝 Choix unique (QCM)' },
+  { value: 'CASES', label: '☑️ Choix multiples (cases)' },
+  { value: 'ECHELLE', label: '🔢 Échelle (1 à 5 par défaut)' },
+  { value: 'TEXTE', label: '✍️ Texte libre' },
+];
+
 type Critere = {
   id: number;
   libelle_critere: string;
   description?: string | null;
   type_reponse: string;
+  options_reponse?: string | null;
+  obligatoire?: boolean;
   actif?: boolean;
 };
 
@@ -111,11 +134,49 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
   // l'autre au moment de la restauration en cas d'erreur.
   const [isSaving, setIsSaving] = useState(false);
 
+  // Édition d'une question existante (modale).
+  const [editingCritere, setEditingCritere] = useState<Critere | null>(null);
+  const [editLibelle, setEditLibelle] = useState('');
+  const [editType, setEditType] = useState('SMILEY');
+  const [editOptions, setEditOptions] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEdit = (critere: Critere) => {
+    setEditingCritere(critere);
+    setEditLibelle(critere.libelle_critere);
+    setEditType(critere.type_reponse);
+    setEditOptions(critere.options_reponse || '');
+  };
+
+  const saveEdit = async () => {
+    if (!editingCritere || savingEdit) return;
+    const libelle = editLibelle.trim();
+    if (!libelle) {
+      toast({ variant: 'destructive', title: 'Libellé requis', description: 'La question doit avoir un libellé.' });
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateCritere({
+        id_critere: editingCritere.id,
+        libelle_critere: libelle,
+        type_reponse: editType,
+        options_reponse: editOptions.trim() || undefined,
+      });
+      toast({ variant: 'success', title: 'Question modifiée', description: 'Les changements ont été enregistrés.' });
+      setEditingCritere(null);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Modification impossible', description: err?.message || 'Erreur inconnue' });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   // Synchronise l'état local (éditable en glisser-déposer) avec les données
   // serveur, sauf pendant un drag en cours (pour ne pas "sauter" sous le doigt).
   const [isDragging, setIsDragging] = useState(false);
   useEffect(() => {
-    if (isDragging || !data) return;
+    if (isDragging || isSaving || !data) return;
     const cols: Column[] = [
       {
         key: UNASSIGNED_KEY,
@@ -131,7 +192,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
       })),
     ];
     setColumns(cols);
-  }, [data, isDragging]);
+  }, [data, isDragging, isSaving]);
 
   // Sur tactile, on attend un appui intentionnel avant le déplacement : le
   // défilement horizontal reste ainsi naturel. La souris garde un démarrage
@@ -387,6 +448,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
             creatingInline={creatingInline}
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
+            onEdit={openEdit}
             deletingId={deletingId}
             duplicatingId={duplicatingId}
           />
@@ -413,6 +475,58 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <Dialog open={editingCritere !== null} onOpenChange={(open) => !open && setEditingCritere(null)}>
+      <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>Modifier la question</DialogTitle>
+          <DialogDescription>Ajustez le libellé et le type de réponse attendu.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground">Libellé de la question</label>
+            <Input
+              value={editLibelle}
+              onChange={(e) => setEditLibelle(e.target.value)}
+              maxLength={300}
+              placeholder="Ex. : L'accueil a-t-il été rapide ?"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground">Type de réponse attendu</label>
+            <Select value={editType} onValueChange={setEditType}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {allTypeReponseOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {(editType === 'QCM' || editType === 'CASES' || editType === 'ECHELLE') && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">
+                {editType === 'ECHELLE' ? 'Plage de l’échelle (min,max)' : 'Choix proposés (séparés par des virgules)'}
+              </label>
+              <Input
+                value={editOptions}
+                onChange={(e) => setEditOptions(e.target.value)}
+                placeholder={editType === 'ECHELLE' ? '1,5' : 'Rapide, Correct, Lent'}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                {editType === 'ECHELLE' ? 'Exemple : 1,10 pour une échelle de 1 à 10.' : 'Exemple : Oui, Non, Partiellement'}
+              </p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditingCritere(null)} disabled={savingEdit}>Annuler</Button>
+          <Button onClick={saveEdit} disabled={savingEdit}>
+            {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 };
@@ -431,6 +545,7 @@ function ColumnView({
   creatingInline,
   onDelete,
   onDuplicate,
+  onEdit,
   deletingId,
   duplicatingId,
 }: {
@@ -447,6 +562,7 @@ function ColumnView({
   creatingInline: boolean;
   onDelete: (critere: Critere) => void;
   onDuplicate: (critere: Critere) => void;
+  onEdit: (critere: Critere) => void;
   deletingId: number | null;
   duplicatingId: number | null;
 }) {
@@ -566,6 +682,7 @@ function ColumnView({
               onMoveTo={onMoveTo}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
+              onEdit={onEdit}
               isDeleting={deletingId === q.id}
               isDuplicating={duplicatingId === q.id}
             />
@@ -583,6 +700,7 @@ function SortableQuestionCard({
   onMoveTo,
   onDelete,
   onDuplicate,
+  onEdit,
   isDeleting,
   isDuplicating,
 }: {
@@ -592,6 +710,7 @@ function SortableQuestionCard({
   onMoveTo: (activeId: number, destKey: string) => void;
   onDelete: (critere: Critere) => void;
   onDuplicate: (critere: Critere) => void;
+  onEdit: (critere: Critere) => void;
   isDeleting: boolean;
   isDuplicating: boolean;
 }) {
@@ -615,6 +734,7 @@ function SortableQuestionCard({
         onMoveTo={onMoveTo}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
+        onEdit={onEdit}
         isDeleting={isDeleting}
         isDuplicating={isDuplicating}
       />
@@ -631,6 +751,7 @@ function QuestionCard({
   onMoveTo,
   onDelete,
   onDuplicate,
+  onEdit,
   isDeleting,
   isDuplicating,
 }: {
@@ -642,6 +763,7 @@ function QuestionCard({
   onMoveTo?: (activeId: number, destKey: string) => void;
   onDelete?: (critere: Critere) => void;
   onDuplicate?: (critere: Critere) => void;
+  onEdit?: (critere: Critere) => void;
   isDeleting?: boolean;
   isDuplicating?: boolean;
 }) {
@@ -702,8 +824,25 @@ function QuestionCard({
           </Select>
         )}
 
-        {(onDelete || onDuplicate) && (
-          <div className="mt-1.5 flex items-center gap-1">
+        {(onEdit || onDelete || onDuplicate) && (
+          <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+            {onEdit && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(critere);
+                }}
+                className="h-6 px-1.5 text-[11px] font-medium"
+                aria-label={`Modifier « ${critere.libelle_critere} »`}
+                title="Modifier cette question"
+              >
+                <Pencil className="size-3" />
+                Modifier
+              </Button>
+            )}
             {onDuplicate && (
               <Button
                 type="button"

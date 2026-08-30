@@ -1,5 +1,5 @@
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "../../utils";
 
 export interface RevealProps {
@@ -15,26 +15,25 @@ export function Reveal({
   delay = 0,
   direction = "up",
   className,
-  duration = 0.4,
+  duration = 0.3,
 }: RevealProps) {
-  const getOffset = () => {
-    switch (direction) {
-      case "up":
-        return { y: 16 };
-      case "down":
-        return { y: -16 };
-      case "left":
-        return { x: 16 };
-      case "right":
-        return { x: -16 };
-      default:
-        return {};
-    }
-  };
+  const reduce = useReducedMotion();
+
+  const offset = reduce
+    ? {}
+    : direction === "up"
+      ? { y: 12 }
+      : direction === "down"
+        ? { y: -12 }
+        : direction === "left"
+          ? { x: 12 }
+          : direction === "right"
+            ? { x: -12 }
+            : {};
 
   return (
     <motion.div
-      initial={{ opacity: 0, ...getOffset() }}
+      initial={reduce ? false : { opacity: 0, ...offset }}
       animate={{ opacity: 1, x: 0, y: 0 }}
       transition={{ duration, delay, ease: [0.16, 1, 0.3, 1] }}
       className={cn(className)}

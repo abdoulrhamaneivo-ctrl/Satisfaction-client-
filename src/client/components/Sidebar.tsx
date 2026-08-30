@@ -1,25 +1,18 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router';
-import { 
-  Inbox, 
-  CheckSquare, 
-  Calendar, 
-  BarChart3, 
-  Store, 
-  Users, 
-  Settings, 
-  HelpCircle, 
-  ChevronDown,
+import {
+  Inbox,
+  Calendar,
+  Store,
+  Users,
+  Settings,
   LayoutDashboard,
-  Bell,
-  Sparkles,
   SlidersHorizontal,
   Building2,
   Archive,
   MessageSquareQuote,
   Search,
   LogOut,
-  Cpu
 } from 'lucide-react';
 import { useAuth, logout } from 'wasp/client/auth';
 import { useBrand } from '../context/BrandContext';
@@ -27,9 +20,64 @@ import { YebaLogo } from './YebaLogo';
 import { DarkModeSwitcher } from './DarkModeSwitcher';
 import { TriggerOnboardingButton } from './OnboardingTour';
 import { useNotificationBadge } from '../hooks/useNotificationBadge';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from './ui/sheet';
 import { cn } from '../utils';
 
-export function Sidebar() {
+function navLinkClass(isActive: boolean) {
+  return cn(
+    'relative w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-card',
+    isActive
+      ? 'bg-primary/15 text-primary border border-primary/25 shadow-sm font-bold before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-r-full before:bg-primary'
+      : 'text-muted-foreground border border-transparent hover:bg-muted/60 hover:text-foreground hover:border-border/50',
+  );
+}
+
+interface NavItemProps {
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  isActive: boolean;
+  badge?: number;
+  tourId?: string;
+  onNavigate?: () => void;
+}
+
+function NavItem({ to, icon: Icon, label, isActive, badge, tourId, onNavigate }: NavItemProps) {
+  return (
+    <Link
+      to={to}
+      data-tour={tourId}
+      aria-current={isActive ? 'page' : undefined}
+      className={navLinkClass(isActive)}
+      onClick={onNavigate}
+    >
+      <span className="flex items-center gap-2.5 pl-1">
+        <Icon className="size-4 shrink-0" aria-hidden />
+        {label}
+      </span>
+      {badge !== undefined && badge > 0 && (
+        <span
+          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground shadow-sm motion-safe:animate-pulse"
+          aria-label={`${badge} notification${badge > 1 ? 's' : ''}`}
+        >
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+interface SidebarContentProps {
+  onNavigate?: () => void;
+  className?: string;
+}
+
+export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
   const location = useLocation();
   const { data: user } = useAuth();
   const { brandConfig } = useBrand();
@@ -48,33 +96,34 @@ export function Sidebar() {
   const hasAdminAccess = isDirection || isChefAgence || isQualite;
 
   return (
-    <aside className="w-64 shrink-0 border-r border-border/80 bg-card/95 backdrop-blur-md flex flex-col justify-between h-screen fixed top-0 left-0 z-40 overflow-y-auto momentum-scroll select-none text-foreground shadow-sm">
-      {/* Top Header: Platform Brand */}
+    <div className={cn('flex h-full flex-col justify-between overflow-y-auto momentum-scroll select-none text-foreground', className)}>
       <div className="p-4 space-y-5">
-        <Link 
+        <Link
           to="/dashboard"
-          className="flex items-center justify-between p-2.5 rounded-2xl bg-muted/40 border border-border/70 hover:bg-muted/70 transition-all cursor-pointer group"
+          onClick={onNavigate}
+          className="flex items-center justify-between p-2.5 rounded-2xl bg-muted/40 border border-border/70 hover:bg-muted/70 transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           <div className="flex items-center gap-3">
             <YebaLogo className="size-7 transition-transform group-hover:scale-105" />
             <div>
-              <span className="block text-xs font-black font-satoshi text-foreground tracking-tight leading-none">
-                {brandConfig?.platform_name || "Yéba"}
+              <span className="block text-xs font-bold font-satoshi text-foreground tracking-tight leading-none">
+                {brandConfig?.platform_name || 'Yéba'}
               </span>
               <span className="block text-[10px] text-muted-foreground font-semibold pt-0.5">
-                {(user as any)?.agence?.nom_agence || "Agence Principale"}
+                {(user as any)?.agence?.nom_agence || 'Agence Principale'}
               </span>
             </div>
           </div>
-          <Sparkles className="size-3.5 text-primary opacity-60 group-hover:opacity-100 transition-opacity" />
         </Link>
 
-        {/* Barre de Recherche Rapide / Command Palette */}
         <div>
           <button
             type="button"
-            onClick={() => window.dispatchEvent(new Event('yeba:open-command-palette'))}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium border border-border/80 bg-card-subtle/80 text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all group shadow-2xs"
+            onClick={() => {
+              onNavigate?.();
+              window.dispatchEvent(new Event('yeba:open-command-palette'));
+            }}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border border-border/80 bg-card-subtle/80 text-muted-foreground hover:text-foreground hover:bg-muted/70 hover:border-primary/20 transition-all group shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <span className="flex items-center gap-2.5">
               <Search className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -86,202 +135,67 @@ export function Sidebar() {
           </button>
         </div>
 
-        {/* Section 1: EXPLOITATION */}
         <div className="space-y-1">
-          <span className="block px-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+          <span className="block px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
             Exploitation
           </span>
 
-          <Link
-            to="/dashboard"
-            data-tour="sidebar-kanban"
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-              isCurrent('/dashboard')
-                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2.5">
-              <LayoutDashboard className="size-4" />
-              Tableau de bord
-            </span>
-          </Link>
+          <NavItem to="/dashboard" icon={LayoutDashboard} label="Tableau de bord" isActive={isCurrent('/dashboard')} tourId="sidebar-kanban" onNavigate={onNavigate} />
 
-          <Link
+          <NavItem
             to="/alertes-taches"
-            data-tour="sidebar-inbox"
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-              isCurrent('/alertes-taches')
-                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2.5">
-              <Inbox className="size-4" />
-              Incidents & Kanban
-            </span>
-            {alertTotal > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground shadow-sm animate-pulse">
-                {alertTotal}
-              </span>
-            )}
-          </Link>
+            icon={Inbox}
+            label="Incidents & Kanban"
+            isActive={isCurrent('/alertes-taches')}
+            badge={alertTotal}
+            tourId="sidebar-inbox"
+            onNavigate={onNavigate}
+          />
 
-          <Link
-            to="/guichets"
-            data-tour="sidebar-guichets"
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-              isCurrent('/guichets')
-                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2.5">
-              <Store className="size-4" />
-              Guichets & Kits QR
-            </span>
-          </Link>
+          <NavItem to="/guichets" icon={Store} label="Guichets & Kits QR" isActive={isCurrent('/guichets')} tourId="sidebar-guichets" onNavigate={onNavigate} />
 
-          <Link
-            to="/planning"
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-              isCurrent('/planning')
-                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2.5">
-              <Calendar className="size-4" />
-              Planning Agents
-            </span>
-          </Link>
+          <NavItem to="/planning" icon={Calendar} label="Planning Agents" isActive={isCurrent('/planning')} onNavigate={onNavigate} />
         </div>
 
-        {/* Section 2: ÉCOUTE CLIENT & FORMULAIRES */}
         <div className="pt-2 space-y-1">
-          <span className="block px-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+          <span className="block px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
             Écoute Client
           </span>
 
-          <Link
-            to="/avis"
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-              isCurrent('/avis')
-                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2.5">
-              <MessageSquareQuote className="size-4" />
-              Avis & CSAT
-            </span>
-          </Link>
+          <NavItem to="/avis" icon={MessageSquareQuote} label="Avis & CSAT" isActive={isCurrent('/avis')} onNavigate={onNavigate} />
 
-          <Link
-            to="/criteres"
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-              isCurrent('/criteres')
-                ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            )}
-          >
-            <span className="flex items-center gap-2.5">
-              <SlidersHorizontal className="size-4" />
-              Formulaires & Critères
-            </span>
-          </Link>
+          <NavItem to="/criteres" icon={SlidersHorizontal} label="Formulaires & Critères" isActive={isCurrent('/criteres')} onNavigate={onNavigate} />
         </div>
 
-        {/* Section 3: ADMINISTRATION */}
         {hasAdminAccess && (
           <div className="pt-2 space-y-1">
-            <span className="block px-3 pb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
+            <span className="block px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
               Administration
             </span>
 
-            <Link
-              to="/admin/personnel"
-              data-tour="sidebar-personnel"
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-                isCurrent('/admin/personnel')
-                  ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-            >
-              <span className="flex items-center gap-2.5">
-                <Users className="size-4" />
-                Agents & Rôles
-              </span>
-            </Link>
+            <NavItem to="/admin/personnel" icon={Users} label="Agents & Rôles" isActive={isCurrent('/admin/personnel')} tourId="sidebar-personnel" onNavigate={onNavigate} />
 
             {isDirection && (
-              <Link
-                to="/admin/agences"
-                className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-                  isCurrent('/admin/agences')
-                    ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                )}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Building2 className="size-4" />
-                  Réseau Agences
-                </span>
-              </Link>
+              <NavItem to="/admin/agences" icon={Building2} label="Réseau Agences" isActive={isCurrent('/admin/agences')} onNavigate={onNavigate} />
             )}
 
-            <Link
-              to="/archives"
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-                isCurrent('/archives')
-                  ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-            >
-              <span className="flex items-center gap-2.5">
-                <Archive className="size-4" />
-                Archives
-              </span>
-            </Link>
+            <NavItem to="/archives" icon={Archive} label="Archives" isActive={isCurrent('/archives')} onNavigate={onNavigate} />
 
-            <Link
-              to="/settings"
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200",
-                isCurrent('/settings')
-                  ? "bg-primary/20 text-primary border border-primary/30 font-black shadow-sm"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-            >
-              <span className="flex items-center gap-2.5">
-                <Cpu className="size-4 text-emerald-400" />
-                Moteur IA & Clés
-              </span>
-            </Link>
+            <NavItem to="/settings" icon={Settings} label="Paramètres" isActive={isCurrent('/settings')} onNavigate={onNavigate} />
           </div>
         )}
       </div>
 
-      {/* Footer Section: User profile, Dark Mode & Logout */}
       <div className="p-4 border-t border-border/70 space-y-3 bg-muted/20 mt-auto">
         <TriggerOnboardingButton />
 
-        <div className="flex items-center justify-between pt-1 gap-2">
+        <div className="flex items-center gap-2.5 pt-1">
           <div className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0">
-            <div className="size-8 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-black text-xs shrink-0">
+            <div className="size-8 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-xs shrink-0">
               {user ? (user as any).email?.[0]?.toUpperCase() : 'A'}
             </div>
             <div className="truncate flex-1 min-w-0">
-              <span className="block text-xs font-black font-satoshi truncate leading-none">
+              <span className="block text-xs font-bold font-satoshi truncate leading-none">
                 {user ? ((user as any).nom ? `${(user as any).prenom || ''} ${(user as any).nom}`.trim() : (user as any).email) : 'Agent Agence'}
               </span>
               <span className="block text-[10px] text-muted-foreground font-semibold truncate pt-0.5">
@@ -289,29 +203,68 @@ export function Sidebar() {
               </span>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center justify-between gap-1 pt-1">
+          <div className="flex items-center gap-1">
             <DarkModeSwitcher />
             <Link
               to="/settings"
-              title="Paramètres de compte & IA"
-              className="size-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all cursor-pointer"
+              title="Paramètres"
+              aria-label="Paramètres"
+              onClick={onNavigate}
+              className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
-              <Settings className="size-4" />
+              <Settings className="size-4" aria-hidden />
             </Link>
             {user && (
               <button
                 type="button"
                 onClick={() => logout()}
                 title="Se déconnecter"
-                className="size-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer"
+                aria-label="Se déconnecter"
+                className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               >
-                <LogOut className="size-4" />
+                <LogOut className="size-4" aria-hidden />
               </button>
             )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside
+      aria-label="Navigation principale"
+      className="w-64 shrink-0 border-r border-border/80 bg-card h-screen fixed top-0 left-0 z-40 shadow-sm"
+    >
+      <SidebarContent />
     </aside>
+  );
+}
+
+interface MobileSidebarDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function MobileSidebarDrawer({ open, onOpenChange }: MobileSidebarDrawerProps) {
+  const closeDrawer = () => onOpenChange(false);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        id="mobile-sidebar"
+        side="left"
+        aria-describedby={undefined}
+        className="w-64 max-w-[85vw] p-0 border-r border-border/80 bg-card [&>button]:hidden"
+      >
+        <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+        <SidebarContent onNavigate={closeDrawer} className="h-full" />
+      </SheetContent>
+    </Sheet>
   );
 }

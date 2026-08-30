@@ -38,7 +38,12 @@ export const ObjectifsProgress = ({ data }: { data: Objectif[] }) => {
           return (
             <div key={obj.id}>
               <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">{label}</span>
+                <span className="font-medium text-foreground">
+                  {label}
+                  {obj.nb_avis > 0 && (
+                    <span className="ml-2 text-[11px] text-muted-foreground">({obj.nb_avis} avis)</span>
+                  )}
+                </span>
                 {obj.statut === 'PAS_DE_DONNEES' ? (
                   <span className="text-xs text-muted-foreground">Pas encore de données</span>
                 ) : (

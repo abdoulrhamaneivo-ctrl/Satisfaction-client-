@@ -7,3 +7,5 @@ node_modules/
 .env.test
 claud.zip
 
+# Kernel runtime data — session memory and locks
+.kernel/

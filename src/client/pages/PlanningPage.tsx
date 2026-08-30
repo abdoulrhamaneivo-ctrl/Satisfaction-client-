@@ -189,13 +189,13 @@ export const PlanningPage = () => {
               <span>/</span>
               <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
               <span>/</span>
-              <span className="text-primary font-black">Planning Guichets</span>
+              <span className="text-primary font-bold">Planning Guichets</span>
             </div>
             
             <div className="flex items-center gap-6 text-xs font-bold">
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/guichets'}>Guichets</span>
-              <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Planning du jour</span>
+              <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Planning du jour</span>
             </div>
           </div>
 

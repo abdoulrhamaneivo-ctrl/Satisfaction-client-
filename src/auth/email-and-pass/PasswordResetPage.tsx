@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useLocation } from "react-router";
 import { resetPassword } from "wasp/client/auth";
 import { Link as WaspRouterLink, routes } from "wasp/client/router";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthPageLayout } from "../AuthPageLayout";
 import { FormField } from "../../client/components/FormField";
@@ -53,7 +53,10 @@ export function PasswordResetPage() {
       title="Choisir un nouveau mot de passe"
       subtitle="Définissez un nouveau mot de passe sécurisé pour votre compte Yeba."
       footer={
-        <WaspRouterLink to={routes.LoginRoute.to} className="font-semibold text-primary underline">
+        <WaspRouterLink
+          to={routes.LoginRoute.to}
+          className="font-semibold text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary"
+        >
           Retour à la connexion
         </WaspRouterLink>
       }
@@ -78,36 +81,47 @@ export function PasswordResetPage() {
           )}
 
           <FormField label="Nouveau mot de passe" htmlFor="password" hint="8 caractères minimum." required>
-            <PasswordInput
-              id="password"
-              name="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="h-11"
-              disabled={loading}
-            />
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+              <PasswordInput
+                id="password"
+                name="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40"
+                disabled={loading}
+              />
+            </div>
           </FormField>
 
           <FormField label="Confirmer le mot de passe" htmlFor="confirmation" required>
-            <PasswordInput
-              id="confirmation"
-              name="confirmation"
-              autoComplete="new-password"
-              required
-              value={confirmation}
-              onChange={(e) => setConfirmation(e.target.value)}
-              placeholder="••••••••"
-              className="h-11"
-              disabled={loading}
-            />
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+              <PasswordInput
+                id="confirmation"
+                name="confirmation"
+                autoComplete="new-password"
+                required
+                value={confirmation}
+                onChange={(e) => setConfirmation(e.target.value)}
+                placeholder="••••••••"
+                className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40"
+                disabled={loading}
+              />
+            </div>
           </FormField>
 
-          <motion.div whileTap={{ scale: 0.98 }}>
-            <Button type="submit" size="lg" disabled={loading} className="w-full">
+          <motion.div whileTap={loading ? undefined : { scale: 0.98 }}>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={loading}
+              className="w-full gap-2 rounded-xl btn-glow-gold font-bold h-11"
+            >
               {loading ? "Réinitialisation..." : "Réinitialiser le mot de passe"}
             </Button>
           </motion.div>

@@ -1,19 +1,22 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 export function useColorMode() {
   const [colorMode, setColorMode] = useState<'light' | 'dark'>(() => {
-    if (typeof window === "undefined") return "dark";
+    if (typeof window === "undefined") return "light";
     try {
-      const stored = localStorage.getItem("color-theme");
+      const stored = localStorage.getItem("yeba-color-theme");
       if (stored === "dark" || stored === '"dark"') return "dark";
       if (stored === "light" || stored === '"light"') return "light";
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "dark";
+      // Défaut : thème clair.
+      return "light";
     } catch {
-      return "dark";
+      return "light";
     }
   });
 
-  useEffect(() => {
+  // useLayoutEffect (et non useEffect) : la classe .dark est appliquée AVANT
+  // le premier rendu visible, ce qui évite le flash de thème au chargement.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const body = document.body;
     if (colorMode === "dark") {
@@ -24,7 +27,7 @@ export function useColorMode() {
       body.classList.remove("dark");
     }
     try {
-      localStorage.setItem("color-theme", colorMode);
+      localStorage.setItem("yeba-color-theme", colorMode);
     } catch (e) {
       console.error(e);
     }

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { routes } from 'wasp/client/router';
 import { AlertOctagon, Clock, CheckCircle2, ChevronRight, Siren } from 'lucide-react';
 import { cn } from '../utils';
+import { Skeleton } from './ui/skeleton';
 
 type AlerteItem = {
   id: string;
@@ -37,7 +38,22 @@ export const ActionsPrioritaires = ({
   const total = alertesNouvelles.length + tachesEnRetard.length;
 
   if (isLoading) {
-    return <div className="h-32 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        aria-label="Chargement des actions prioritaires"
+        className="rounded-2xl border border-border/70 bg-card p-5 shadow-premium"
+      >
+        <span className="sr-only">Chargement des actions prioritaires</span>
+        <Skeleton className="mb-4 h-4 w-48 rounded-md" />
+        <div className="space-y-3">
+          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl bg-primary/10" />
+        </div>
+      </div>
+    );
   }
 
   if (total === 0) {

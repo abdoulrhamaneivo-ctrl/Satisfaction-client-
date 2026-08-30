@@ -1066,7 +1066,7 @@ export const getActionsPrioritaires = async (_args: void, context: any) => {
       type_alerte: a.type_alerte,
       date_creation: a.date_creation,
       guichet: a.guichet?.nom_guichet || a.reponse?.critere?.libelle_critere || null,
-      gravite: a.type_alerte === 'NOTE_CRITIQUE' ? 'HAUTE' : 'MOYENNE',
+      gravite: a.type_alerte === 'NOTE_CRITIQUE' || a.type_alerte === 'IA_URGENCE' ? 'HAUTE' : 'MOYENNE',
     })),
     tachesEnRetard: tachesEnRetard.map((t: any) => ({
       id: t.id.toString(),
@@ -1575,9 +1575,16 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
 export const getAIStatus = async (_args: void, context: any) => {
   requireAuth(context);
 
-  const hasApiKey = !!process.env.NVIDIA_API_KEY;
-  const baseUrl = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1';
-  const model = process.env.NVIDIA_MODEL || 'qwen/qwen3-next-80b-a3b-instruct';
+  const usingDeepseek = process.env.AI_PROVIDER === 'deepseek';
+  const hasApiKey = !!(
+    (usingDeepseek ? process.env.DEEPSEEK_API_KEY : process.env.OPENROUTER_API_KEY) ?? ''
+  ).trim();
+  const baseUrl = usingDeepseek
+    ? process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
+    : process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+  const model = usingDeepseek
+    ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+    : process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free';
 
   const [totalAnalyses, doneAnalyses, pendingAnalyses, failedAnalyses] = await Promise.all([
     context.entities.AnalyseAvisIA.count(),
@@ -1588,7 +1595,7 @@ export const getAIStatus = async (_args: void, context: any) => {
 
   return {
     configured: hasApiKey,
-    provider: 'NVIDIA NIM',
+    provider: usingDeepseek ? 'DeepSeek' : 'OpenRouter',
     model,
     baseUrl,
     stats: {
@@ -1598,4 +1605,40 @@ export const getAIStatus = async (_args: void, context: any) => {
       failed: failedAnalyses,
     },
   };
+};
+// Agrégation des thèmes récurrents sur les avis analysés (valeur entreprise :
+// « de quoi se plaignent nos clients ? »). Les thèmes sont stockés en JSON
+// dans AnalyseAvisIA.themes ; on les parse et on les compte côté serveur.
+export const getThemesStats = async (args: { nbJours?: number }, context: any) => {
+  requireAuth(context);
+
+  const nbJours = args?.nbJours ?? 90;
+  const depuis = new Date();
+  depuis.setDate(depuis.getDate() - nbJours);
+
+  const analyses = await context.entities.AnalyseAvisIA.findMany({
+    where: { status: 'DONE', themes: { not: null }, processedAt: { gte: depuis } },
+    select: { themes: true },
+  });
+
+  const counts: Record<string, number> = {};
+  for (const a of analyses) {
+    try {
+      const themes = JSON.parse(a.themes);
+      if (Array.isArray(themes)) {
+        for (const t of themes) {
+          if (typeof t === 'string') counts[t] = (counts[t] || 0) + 1;
+        }
+      }
+    } catch {
+      // thème mal formé — ignoré
+    }
+  }
+
+  const total = Object.values(counts).reduce((s, c) => s + c, 0);
+  const topThemes = Object.entries(counts)
+    .map(([theme, count]) => ({ theme, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return { total, topThemes };
 };

@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 
+import { HeatmapReponsesSkeleton } from './DashboardCharts';
+
 type Cellule = {
   jour: number;
   jour_label: string;
@@ -63,7 +65,7 @@ export const HeatmapReponses = ({ data, isLoading }: { data?: HeatmapData; isLoa
   }, [data]);
 
   if (isLoading) {
-    return <div className="h-96 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />;
+    return <HeatmapReponsesSkeleton />;
   }
 
   if (!data || data.total_avis === 0) {

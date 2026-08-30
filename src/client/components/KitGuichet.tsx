@@ -42,7 +42,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       containerStyle: { width: '595px', minHeight: '842px', padding: '48px' },
       qrWrapperStyle: { height: '410px', width: '410px' },
       qrSizeClass: "h-96 w-96",
-      titleClass: "text-3xl font-black mb-2",
+      titleClass: "text-3xl font-bold mb-2",
       subtitleClass: "text-lg mb-6",
       logoSize: 40,
       logoClass: "h-10 max-w-[160px]",
@@ -153,7 +153,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
             type="button"
             variant={selectedFormat === fmt ? 'default' : 'outline'}
             onClick={() => setSelectedFormat(fmt)}
-            className={selectedFormat === fmt ? 'rounded-xl shadow-premium-sm font-bold' : 'rounded-xl'}
+            className={selectedFormat === fmt ? 'rounded-xl shadow-sm font-bold' : 'rounded-xl'}
           >
             {formatConfigs[fmt].label}
           </Button>
@@ -175,7 +175,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
               </span>
             </div>
 
-            <h2 className={`${currentConfig.titleClass} font-extrabold leading-tight text-neutral-900`}>
+            <h2 className={`${currentConfig.titleClass} font-bold leading-tight text-neutral-900`}>
               {brandConfig?.form_title || "Votre avis compte !"}
             </h2>
             <p className={`${currentConfig.subtitleClass} font-semibold text-neutral-600`}>
@@ -204,7 +204,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
               )}
             </div>
 
-            <p className={`${currentConfig.scanTextClass} font-extrabold uppercase tracking-wide text-neutral-900`}>
+            <p className={`${currentConfig.scanTextClass} font-bold uppercase tracking-wide text-neutral-900`}>
               {brandConfig?.qr_slogan || "Scannez ce QR Code"}
             </p>
             <p className={`${currentConfig.scanDescClass} font-medium text-neutral-600`}>
@@ -216,7 +216,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
                 {brandConfig?.ussd_help_text || "Pas de connexion internet ?"}
               </p>
               <p className="text-sm font-bold tracking-wide text-neutral-900 mt-1">
-                Composez <span className="font-extrabold text-primary">{ussdCode}</span>
+                Composez <span className="font-bold text-primary">{ussdCode}</span>
               </p>
             </div>
           </div>
@@ -226,7 +226,7 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-center print:hidden pt-2">
         <motion.div whileTap={{ scale: loadingQr ? 1 : 0.95 }}>
-          <Button onClick={downloadKit} disabled={loadingQr} className="gap-2 rounded-xl shadow-premium-sm px-5 py-5 text-sm font-bold">
+          <Button onClick={downloadKit} disabled={loadingQr} className="gap-2 rounded-xl shadow-sm px-5 py-5 text-sm font-bold">
             {loadingQr ? (
               <>
                 <Loader2 size={16} className="animate-spin" />

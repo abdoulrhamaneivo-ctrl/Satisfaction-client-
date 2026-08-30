@@ -7,7 +7,7 @@ const buttonStyles = cva(
   [
     "inline-flex items-center justify-center gap-2",
     "font-semibold tracking-tight select-none whitespace-nowrap",
-    "transition-all duration-200 ease-out",
+    "transition-colors duration-150 ease-out",
     "disabled:pointer-events-none disabled:opacity-50",
     "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   ].join(" "),
@@ -16,27 +16,25 @@ const buttonStyles = cva(
       intent: {
         primary: [
           "bg-primary text-primary-foreground",
-          "shadow-sm hover:shadow-md",
-          "hover:-translate-y-0.5 hover:bg-primary/90",
-          "active:translate-y-0",
+          "shadow-sm",
+          "hover:bg-primary/90",
         ],
         secondary: [
           "bg-secondary text-secondary-foreground",
           "shadow-sm",
-          "hover:-translate-y-0.5 hover:bg-secondary/90",
+          "hover:bg-secondary/90",
         ],
         accent: [
           "bg-primary/10 text-primary border border-primary/20",
-          "hover:-translate-y-0.5 hover:bg-primary/20",
+          "hover:bg-primary/20",
         ],
         ghost: [
           "text-muted-foreground",
           "hover:bg-muted hover:text-foreground",
         ],
         outline: [
-          "border border-border bg-card/60 text-foreground",
-          "backdrop-blur-sm",
-          "hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card",
+          "border border-border bg-card text-foreground",
+          "hover:border-primary/40 hover:bg-card",
         ],
         danger: [
           "bg-destructive/10 text-destructive border border-destructive/20",
@@ -46,7 +44,7 @@ const buttonStyles = cva(
       size: {
         sm: "h-8 rounded-lg px-3 text-xs",
         md: "h-10 rounded-xl px-4 text-sm",
-        lg: "h-12 rounded-xl px-6 text-sm font-bold",
+        lg: "h-12 rounded-xl px-6 text-sm font-semibold",
         icon: "size-9 rounded-lg p-0",
       },
     },

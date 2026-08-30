@@ -52,17 +52,10 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
       document.head.appendChild(styleElement);
     }
 
-    const cardAccent = BRANDING.color_accent;
-    const cardAccentForeground = BRANDING.color_accent_foreground;
-    const cardSubtle = BRANDING.color_muted;
-    const cardSubtleForeground = BRANDING.color_muted_foreground;
-    // Bug corrigé : secondary-muted (fond des badges "doux") était mappé
-    // directement sur color_secondary, donc un badge "muted" affichait la
-    // couleur secondaire pleine saturation au lieu d'une teinte discrète —
-    // BRANDING expose maintenant ses propres champs dédiés.
-    const secondaryMuted = BRANDING.color_secondary_muted;
-    const secondaryMutedForeground = BRANDING.color_secondary_muted_foreground;
-
+    /* Injection CSS : seule la palette mode clair est injectée ici.
+       La palette mode sombre (.dark) vit exclusivement dans Main.css et
+       n'est PAS écrasée par branding.ts — cela évite le bug critique où
+       des valeurs sombres se retrouvaient appliquées en mode clair. */
     styleElement.innerHTML = `
       ${BRANDING.font_url ? `@import url('${BRANDING.font_url}');` : ''}
       :root:not(.dark) {
@@ -70,18 +63,18 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
         --foreground: ${BRANDING.color_foreground};
         --card: ${BRANDING.color_card};
         --card-foreground: ${BRANDING.color_card_foreground};
-        --card-accent: ${cardAccent};
-        --card-accent-foreground: ${cardAccentForeground};
-        --card-subtle: ${cardSubtle};
-        --card-subtle-foreground: ${cardSubtleForeground};
+        --card-accent: ${BRANDING.color_accent};
+        --card-accent-foreground: ${BRANDING.color_accent_foreground};
+        --card-subtle: ${BRANDING.color_muted};
+        --card-subtle-foreground: ${BRANDING.color_muted_foreground};
         --popover: ${BRANDING.color_popover};
         --popover-foreground: ${BRANDING.color_popover_foreground};
         --primary: ${BRANDING.color_primary};
         --primary-foreground: ${BRANDING.color_primary_foreground};
         --secondary: ${BRANDING.color_secondary};
         --secondary-foreground: ${BRANDING.color_secondary_foreground};
-        --secondary-muted: ${secondaryMuted};
-        --secondary-muted-foreground: ${secondaryMutedForeground};
+        --secondary-muted: ${BRANDING.color_secondary_muted};
+        --secondary-muted-foreground: ${BRANDING.color_secondary_muted_foreground};
         --accent: ${BRANDING.color_accent};
         --accent-foreground: ${BRANDING.color_accent_foreground};
         --muted: ${BRANDING.color_muted};

@@ -17,8 +17,12 @@ const badgeStyles = cva(
           "shadow-sm",
         ],
         amber: [
-          "bg-secondary/15 text-secondary",
-          "border border-secondary/30",
+          "bg-primary/12 text-primary",
+          "border border-primary/25",
+        ],
+        navy: [
+          "bg-secondary/12 text-secondary",
+          "border border-secondary/25",
         ],
         positive: [
           "bg-success/15 text-success",
@@ -50,7 +54,8 @@ const badgeStyles = cva(
     compoundVariants: [
       { tone: "neutral", variant: "solid", class: "bg-muted text-foreground" },
       { tone: "accent", variant: "solid", class: "bg-primary text-primary-foreground" },
-      { tone: "amber", variant: "solid", class: "bg-secondary text-secondary-foreground" },
+      { tone: "amber", variant: "solid", class: "bg-primary text-primary-foreground" },
+      { tone: "navy", variant: "solid", class: "bg-secondary text-secondary-foreground" },
       { tone: "positive", variant: "solid", class: "bg-success text-success-foreground" },
       { tone: "danger", variant: "solid", class: "bg-destructive text-destructive-foreground" },
     ],
@@ -93,24 +98,26 @@ export function Eyebrow({
 }) {
   const toneClass =
     tone === "amber"
-      ? "text-secondary"
+      ? "text-primary"
       : tone === "positive"
         ? "text-success"
         : tone === "neutral"
           ? "text-muted-foreground"
-          : "text-primary";
+          : "text-secondary";
 
   const dotBg =
     tone === "amber"
-      ? "bg-secondary"
+      ? "bg-primary"
       : tone === "positive"
         ? "bg-success"
-        : "bg-primary";
+        : tone === "neutral"
+          ? "bg-muted-foreground"
+          : "bg-secondary";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest",
+        "inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest",
         toneClass,
         className
       )}
@@ -118,7 +125,7 @@ export function Eyebrow({
       {tone !== "neutral" && (
         <span
           aria-hidden
-          className={cn("h-1.5 w-1.5 rounded-full animate-pulse", dotBg)}
+          className={cn("h-1.5 w-1.5 rounded-full", dotBg)}
         />
       )}
       {children}

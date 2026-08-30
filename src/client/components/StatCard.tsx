@@ -35,51 +35,69 @@ export const StatCard = ({
 }: StatCardProps) => {
   const TrendIcon = trendDirection === 'up' ? TrendingUp : TrendingDown;
 
+  const accentTopBar: Record<Accent, string> = {
+    primary: 'from-primary/60 via-primary/30 to-transparent',
+    secondary: 'from-secondary/60 via-secondary/30 to-transparent',
+    success: 'from-success/60 via-success/30 to-transparent',
+    destructive: 'from-destructive/60 via-destructive/30 to-transparent',
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.05, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -4 }}
-      className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card/90 p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:border-border hover:shadow-premium-lg"
+      whileHover={{ y: -3 }}
+      className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card/95 p-5 sm:p-6 shadow-sm transition-[border-color,box-shadow] duration-300 hover:border-primary/25 hover:shadow-premium"
     >
-      <div className="flex items-start justify-between gap-4">
-        <span className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground">
+      {/* Accent top bar — executive KPI feel */}
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-x-0 top-0 h-1 bg-gradient-to-r opacity-80',
+          accentTopBar[accent],
+        )}
+      />
+
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground leading-snug">
           {title}
         </span>
         {Icon && (
           <span
             className={cn(
-              'flex size-10 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-105',
+              'flex size-10 shrink-0 items-center justify-center rounded-xl border transition-transform duration-300 motion-safe:group-hover:scale-105',
               accentSurface[accent],
             )}
           >
-            <Icon className="size-5" strokeWidth={2} />
+            <Icon className="size-[18px]" strokeWidth={2} aria-hidden />
           </span>
         )}
       </div>
 
-      <div className="mt-4 flex items-baseline gap-3">
-        <p className="text-3xl font-black tracking-tight text-foreground sm:text-4xl tabular-nums font-satoshi">
+      <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className="text-3xl font-bold tracking-tight text-foreground sm:text-[2.125rem] tabular-nums font-display">
           {value}
         </p>
         {trend && (
           <span
             className={cn(
-              'mb-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold',
+              'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold tabular-nums',
               trendDirection === 'up'
-                ? 'bg-success/10 text-success border-success/20'
-                : 'bg-destructive/10 text-destructive border-destructive/20',
+                ? 'bg-success/10 text-success border-success/25'
+                : 'bg-destructive/10 text-destructive border-destructive/25',
             )}
           >
-            <TrendIcon className="size-3" />
+            <TrendIcon className="size-3" aria-hidden />
             {trend}
           </span>
         )}
       </div>
 
-      {/* Signature Trovy DS hover hairline gradient */}
-      <span className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-primary via-secondary to-primary transition-transform duration-300 group-hover:scale-x-100" />
+      <span
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-primary via-secondary to-primary transition-transform duration-300 motion-safe:group-hover:scale-x-100"
+      />
     </motion.div>
   );
 };

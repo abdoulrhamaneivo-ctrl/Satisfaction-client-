@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0B120E; }
+      #root { position: relative; width: 1920px; height: 1080px; background: #0B120E; overflow: hidden; }
+      .blob { position: absolute; border-radius: 50%; filter: blur(110px); will-change: transform; }
+      /* Beaucoup plus discret : opacités faibles, teintes désaturées */
+      #blob-green { width: 950px; height: 950px; left: -250px; top: -200px; background: #145C3C; opacity: 0.30; }
+      #blob-gold  { width: 640px; height: 640px; right: -180px; top: 340px; background: #8A6A1C; opacity: 0.18; }
+      #blob-deep  { width: 1100px; height: 1100px; left: 480px; bottom: -450px; background: #0E2A1E; opacity: 0.9; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="8" data-width="1920" data-height="1080">
+      <div id="scene-bg" class="clip" data-start="0" data-duration="8" data-track-index="1">
+        <div class="blob" id="blob-green"></div>
+        <div class="blob" id="blob-gold"></div>
+        <div class="blob" id="blob-deep"></div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const CYCLE = 8;
+
+      // Allers-retours symétriques -> boucle parfaite à 8s
+      tl.to("#blob-green", { x: 300, y: 130, scale: 1.12, duration: CYCLE / 2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.to("#blob-gold",  { x: -240, y: -160, scale: 1.2, duration: CYCLE / 2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.to("#blob-deep",  { x: -160, y: -90, scale: 1.06, duration: CYCLE / 2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.to("#blob-green", { opacity: 0.20, duration: CYCLE / 2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.to("#blob-gold",  { opacity: 0.13, duration: CYCLE / 2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

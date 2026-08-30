@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { requestPasswordReset } from "wasp/client/auth";
 import { Link as WaspRouterLink, routes } from "wasp/client/router";
-import { AlertCircle, MailCheck } from "lucide-react";
+import { AlertCircle, MailCheck, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthPageLayout } from "../AuthPageLayout";
 import { FormField } from "../../client/components/FormField";
@@ -38,7 +38,10 @@ export function RequestPasswordResetPage() {
       title="Réinitialiser votre mot de passe"
       subtitle="Indiquez votre e-mail, nous vous enverrons un lien sécurisé pour choisir un nouveau mot de passe."
       footer={
-        <WaspRouterLink to={routes.LoginRoute.to} className="font-semibold text-primary underline">
+        <WaspRouterLink
+          to={routes.LoginRoute.to}
+          className="font-semibold text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary"
+        >
           Retour à la connexion
         </WaspRouterLink>
       }
@@ -66,22 +69,30 @@ export function RequestPasswordResetPage() {
           )}
 
           <FormField label="Adresse e-mail" htmlFor="email" required>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="vous@entreprise.ci"
-              className="h-11"
-              disabled={loading}
-            />
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="vous@entreprise.ci"
+                className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40"
+                disabled={loading}
+              />
+            </div>
           </FormField>
 
-          <motion.div whileTap={{ scale: 0.98 }}>
-            <Button type="submit" size="lg" disabled={loading} className="w-full">
+          <motion.div whileTap={loading ? undefined : { scale: 0.98 }}>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={loading}
+              className="w-full gap-2 rounded-xl btn-glow-gold font-bold h-11"
+            >
               {loading ? "Envoi en cours..." : "Envoyer le lien de réinitialisation"}
             </Button>
           </motion.div>

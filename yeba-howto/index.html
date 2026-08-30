@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Epilogue:wght@600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #101613; }
+      body { font-family: "DM Sans", sans-serif; }
+      #root { position: relative; width: 1920px; height: 1080px; background: #101613; }
+
+      .scene { position: absolute; inset: 0; }
+      .scene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+      /* Voile dégradé en bas pour la lisibilité du texte (pas un bloc coloré) */
+      .scene::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(to top, rgba(10,14,12,0.88) 0%, rgba(10,14,12,0.45) 30%, rgba(10,14,12,0) 55%);
+      }
+
+      /* Carte de légende */
+      .caption {
+        position: absolute; left: 120px; bottom: 110px; z-index: 2;
+        max-width: 1150px;
+      }
+      .step-badge {
+        display: inline-block; background: #F6F5F1; color: #101613;
+        font-family: "Epilogue"; font-weight: 700; font-size: 26px;
+        border-radius: 999px; padding: 10px 30px; margin-bottom: 22px;
+      }
+      .step-badge b { color: #00A651; }
+      .caption h2 {
+        font-family: "Epilogue"; font-weight: 700; font-size: 72px;
+        line-height: 1.12; color: #fff; letter-spacing: -0.01em;
+      }
+      .caption h2 u {
+        text-decoration: none;
+        border-bottom: 10px solid #FFC72C;
+      }
+
+      /* Barre de progression discrète en haut */
+      #steps-bar { position: absolute; top: 0; left: 0; width: 100%; height: 10px; display: flex; z-index: 3; }
+      #steps-bar i { flex: 1; background: rgba(246,245,241,0.25); display: block; }
+      #steps-bar i.on { background: #00A651; }
+
+      /* Logo discret en haut à droite */
+      #mini-brand {
+        position: absolute; top: 48px; right: 80px; z-index: 3;
+        display: flex; align-items: center; gap: 16px;
+      }
+      #mini-brand .mark {
+        width: 56px; height: 56px; border-radius: 14px; background: #00A651;
+        display: flex; align-items: center; justify-content: center;
+        font-family: "Epilogue"; font-weight: 800; font-size: 30px; color: #fff;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+      }
+      #mini-brand .name { font-family: "Epilogue"; font-weight: 700; font-size: 30px; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.55); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="14" data-width="1920" data-height="1080">
+
+      <!-- Barre de progression + logo persistants -->
+      <div id="chrome" class="clip" data-start="0" data-duration="14" data-track-index="1">
+        <div id="steps-bar"><i class="on" data-seg="1"></i><i data-seg="2"></i><i data-seg="3"></i><i data-seg="4"></i></div>
+        <div id="mini-brand"><span class="name">Yéba</span><span class="mark">Y</span></div>
+      </div>
+
+      <!-- Scène 1 (0-3.5s) : la cliente au guichet scanne le QR -->
+      <div id="scene-s1" class="scene clip" data-start="0" data-duration="3.5" data-track-index="2">
+        <img src="hero-3.jpg" alt="" />
+        <div class="caption">
+          <span class="step-badge">Étape <b>1</b></span>
+          <h2>Au guichet, la cliente scanne le <u>QR code</u></h2>
+        </div>
+      </div>
+
+      <!-- Scène 2 (3.5-7s) : elle note sur son téléphone -->
+      <div id="scene-s2" class="scene clip" data-start="3.5" data-duration="3.5" data-track-index="3">
+        <img src="hero-5.jpg" alt="" />
+        <div class="caption">
+          <span class="step-badge">Étape <b>2</b></span>
+          <h2>Elle note son expérience en <u>30 secondes</u></h2>
+        </div>
+      </div>
+
+      <!-- Scène 3 (7-10.5s) : le livreur, l'IA analyse -->
+      <div id="scene-s3" class="scene clip" data-start="7" data-duration="3.5" data-track-index="4">
+        <img src="hero-2.jpg" alt="" />
+        <div class="caption">
+          <span class="step-badge">Étape <b>3</b></span>
+          <h2>L'IA lit chaque avis et détecte les <u>urgences</u></h2>
+        </div>
+      </div>
+
+      <!-- Scène 4 (10.5-14s) : la directrice agit -->
+      <div id="scene-s4" class="scene clip" data-start="10.5" data-duration="3.5" data-track-index="5">
+        <img src="hero-5.jpg" alt="" />
+        <div class="caption">
+          <span class="step-badge">Étape <b>4</b></span>
+          <h2>La directrice voit tout et <u>agit</u> — Yéba</h2>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Ken Burns doux sur chaque photo (zoom lent, entrée/sortie propres)
+      const kb = (sel, t0) => {
+        tl.fromTo(sel + " img", { scale: 1.08 }, { scale: 1.0, duration: 3.6, ease: "sine.out" }, t0);
+      };
+      kb("#scene-s1", 0); kb("#scene-s2", 3.5); kb("#scene-s3", 7); kb("#scene-s4", 10.5);
+
+      // Légendes : entrée en montée douce
+      const cap = (sel, t0) => {
+        tl.from(sel + " .step-badge", { opacity: 0, y: 24, duration: 0.45, ease: "power3.out" }, t0 + 0.15);
+        tl.from(sel + " h2", { opacity: 0, y: 34, duration: 0.55, ease: "power3.out" }, t0 + 0.3);
+      };
+      cap("#scene-s1", 0); cap("#scene-s2", 3.5); cap("#scene-s3", 7); cap("#scene-s4", 10.5);
+
+      // Barre de progression : chaque segment s'allume au début de son acte
+      tl.to('#steps-bar i[data-seg="2"]', { backgroundColor: "#00A651", duration: 0.01 }, 3.5);
+      tl.to('#steps-bar i[data-seg="3"]', { backgroundColor: "#00A651", duration: 0.01 }, 7);
+      tl.to('#steps-bar i[data-seg="4"]', { backgroundColor: "#00A651", duration: 0.01 }, 10.5);
+
+      // Logo : entrée unique
+      tl.from("#mini-brand", { opacity: 0, y: -16, duration: 0.4, ease: "power2.out" }, 0.2);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

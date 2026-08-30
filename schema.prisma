@@ -279,13 +279,14 @@ model Reponse {
 }
 
 // ============================================================================
-// ANALYSE IA SÉMANTIQUE (NVIDIA NIM — Async Job PgBoss)
+// ANALYSE IA SÉMANTIQUE (DeepSeek — Async Job PgBoss)
 // ============================================================================
 
 model AnalyseAvisIA {
   id                 BigInt   @id @default(autoincrement())
   reponseId          BigInt   @unique
   reponse            Reponse  @relation(fields: [reponseId], references: [id], onDelete: Cascade)
+  commentaireTexte   String?
   
   status             String   @default("PENDING") // PENDING, PROCESSING, DONE, FAILED
   sentiment          String?  // POSITIVE, NEUTRAL, NEGATIVE, MIXED
@@ -296,8 +297,8 @@ model AnalyseAvisIA {
   resume             String?
   actionRecommandee  String?
   
-  model              String   @default("qwen/qwen3-next-80b-a3b-instruct")
-  provider           String   @default("nvidia")
+  model              String   @default("deepseek-chat")
+  provider           String   @default("deepseek")
   attempts           Int      @default(0)
   error              String?
   

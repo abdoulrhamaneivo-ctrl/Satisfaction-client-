@@ -9,7 +9,6 @@
 @theme inline {
   --color-current: currentColor;
   --color-transparent: transparent;
-  --color-black-2: #010101;
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
 
@@ -48,6 +47,10 @@
 
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
+
+  --color-brand-green: hsl(var(--brand-green));
+  --color-brand-green-deep: hsl(var(--brand-green-deep));
+  --color-brand-green-deeper: hsl(var(--brand-green-deeper));
 
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
@@ -111,9 +114,9 @@
   --shadow-4: 0px 4px 10px rgba(0, 0, 0, 0.12);
   --shadow-5: 0px 1px 1px rgba(0, 0, 0, 0.15);
   --shadow-6: 0px 3px 15px rgba(0, 0, 0, 0.1);
-  --shadow-7: -5px 0 0 #313d4a, 5px 0 0 #313d4a;
+  --shadow-7: -5px 0 0 hsl(var(--secondary)), 5px 0 0 hsl(var(--secondary));
   --shadow-8:
-    1px 0 0 #313d4a, -1px 0 0 #313d4a, 0 1px 0 #313d4a, 0 -1px 0 #313d4a,
+    1px 0 0 hsl(var(--secondary)), -1px 0 0 hsl(var(--secondary)), 0 1px 0 hsl(var(--secondary)), 0 -1px 0 hsl(var(--secondary)),
     0 3px 13px rgb(0 0 0 / 8%);
   --shadow-default: 0px 8px 13px -3px rgba(0, 0, 0, 0.07);
   --shadow-card: 0px 1px 3px rgba(0, 0, 0, 0.12);
@@ -142,11 +145,10 @@
     0px 2px 4px 0px hsl(var(--background)/0.06) inset,
     0px 4px 8px 0px hsl(var(--background)/0.06) inset;
 
-  --drop-shadow-1: 0px 1px 0px #e2e8f0;
+  --drop-shadow-1: 0px 1px 0px hsl(var(--border));
   --drop-shadow-2: 0px 1px 4px rgba(0, 0, 0, 0.12);
 
   --animate-ping-once: ping 5s cubic-bezier(0, 0, 0.2, 1);
-  --animate-rotating: rotating 30s linear infinite;
   --animate-spin-1_5: spin 1.5s linear infinite;
   --animate-spin-2: spin 2s linear infinite;
   --animate-spin-3: spin 3s linear infinite;
@@ -157,40 +159,17 @@
 
   --font-satoshi: "Satoshi", system-ui, sans-serif;
 
-  /* Premium elevation (kept color-neutral, works over any brand hue) */
-  --shadow-premium:
-    0px 1px 2px rgba(16, 24, 40, 0.06),
-    0px 14px 34px -14px rgba(16, 24, 40, 0.2);
-  --shadow-premium-lg:
-    0px 2px 6px rgba(16, 24, 40, 0.08),
-    0px 28px 56px -18px rgba(16, 24, 40, 0.28);
+  /* Polices complémentaires (design Stitch) :
+  /* Satoshi = SEULE police (locale, public/fonts/). DM Sans/Epilogue
+     (liens externes timeout) retirées — Doc 03-mint règle 5 */
+  --font-display: "Satoshi", system-ui, sans-serif;
+  --font-body: "Satoshi", system-ui, sans-serif;
 
-  /* Ambient background motion */
-  --animate-float-slow: floatSlow 16s ease-in-out infinite;
-  --animate-float-slower: floatSlow 24s ease-in-out infinite;
+  /* Élévation sobre (fidèle aux surfaces 1px de la marque) */
+  --shadow-premium: 0px 1px 2px rgba(16, 24, 40, 0.06), 0px 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-premium-lg: 0px 2px 4px rgba(16, 24, 40, 0.06), 0px 4px 12px rgba(16, 24, 40, 0.06);
 
-  @keyframes rotating {
-    0%,
-    100% {
-      transform: rotate(360deg);
-    }
-    50% {
-      transform: rotate(0deg);
-    }
-  }
 
-  @keyframes floatSlow {
-    0%,
-    100% {
-      transform: translate(0px, 0px) scale(1);
-    }
-    33% {
-      transform: translate(26px, -20px) scale(1.06);
-    }
-    66% {
-      transform: translate(-20px, 14px) scale(0.96);
-    }
-  }
 }
 
 @layer base {
@@ -212,6 +191,17 @@
   scrollbar-width: none; /* Firefox */
 }
 
+/* Police d'affichage Stitch (titres de sections, chiffres KPI) :
+   Epilogue, avec repli sur Satoshi si le CDN Google Fonts est bloqué. */
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+/* Police corps Stitch (descriptions, cartes) : DM Sans, repli Satoshi. */
+@utility font-body {
+  font-family: var(--font-body);
+}
+
 /* Respecte le réglage système des personnes sensibles aux mouvements. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -229,63 +219,40 @@
   }
 }
 
-/* Premium brand-tinted page shell (uses background image + ambient brand glows) */
+/* Coquille de page sobre : fond crème uni de la marque */
 @utility bg-app-shell {
-  background:
-    radial-gradient(
-      62% 48% at 100% 0%,
-      hsl(var(--primary) / 0.12) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      52% 42% at 0% 100%,
-      hsl(var(--secondary) / 0.15) 0%,
-      transparent 55%
-    ),
-    linear-gradient(
-      180deg,
-      hsl(var(--background) / 0.92) 0%,
-      hsl(var(--background)) 100%
-    );
+  background-color: hsl(var(--background));
 }
 
-/* Micro-animations interactives Stripe/Notion/Linear grade */
+/* Survol sobre des cartes interactives (pas de lévitation) */
 @utility card-interactive {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   &:hover {
-    transform: translateY(-3px);
-    border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 12px 30px -10px hsl(var(--primary) / 0.15), 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-color: hsl(var(--border));
+    box-shadow: var(--shadow-1);
+    background-color: hsl(var(--card));
   }
 }
 
 @utility btn-glow-gold {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 14px hsl(var(--primary) / 0.35);
+  box-shadow: var(--shadow-1);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
   &:hover {
-    transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 6px 20px hsl(var(--primary) / 0.5);
+    box-shadow: var(--shadow-2);
   }
 }
 
-@utility btn-glow-emerald {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 14px hsl(var(--secondary) / 0.35);
+@utility btn-glow-navy {
+  box-shadow: var(--shadow-1);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
   &:hover {
-    transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 6px 20px hsl(var(--secondary) / 0.5);
+    box-shadow: var(--shadow-2);
   }
 }
 
-/* Soft brand hairline used on premium surfaces */
+/* Liseré 1px sobre */
 @utility ring-premium {
-  box-shadow:
-    0 0 0 1px hsl(var(--border) / 0.7),
-    var(--shadow-premium);
+  box-shadow: 0 0 0 1px hsl(var(--border) / 0.7);
 }
 
 @utility chat-height {
@@ -297,81 +264,27 @@
 }
 
 @utility text-gradient-primary {
-  /* Text gradient utilities */
-  background: linear-gradient(
-    to right,
-    hsl(var(--secondary-muted)),
-    hsl(var(--secondary))
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: hsl(var(--primary));
 }
 
 @utility text-gradient-primary-diagonal {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--secondary-muted)),
-    hsl(var(--secondary))
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: hsl(var(--primary));
 }
 
 @utility border-gradient-primary {
-  /* Border gradient utilities */
-  background: linear-gradient(
-    to right,
-    hsl(var(--secondary-muted)),
-    hsl(var(--secondary))
-  );
-  padding: 1px;
-
-  & > * {
-    background: hsl(var(--background));
-  }
+  border: 1px solid hsl(var(--primary) / 0.3);
 }
 
-/* Radial gradient utilities */
+/* Fond radial aplati en surface unie */
 .bg-radial-gradient {
-  background: radial-gradient(
-    circle at 30% 30%,
-    hsl(var(--card-accent) / 0.5) 0%,
-    hsl(var(--accent) / 0.15) 100%
-  );
+  background: hsl(var(--card-accent));
 }
 
 .dark .bg-radial-gradient {
-  background: radial-gradient(
-    circle at 30% 30%,
-    hsl(var(--card-subtle) / 0.8) 0%,
-    hsl(var(--card)) 100%
-  );
+  background: hsl(var(--card-subtle));
 }
 
-/* Trovy Design System — 1px coordinate grid pattern */
-.ds-grid-bg {
-  background-image:
-    linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
-    linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
-  background-size: 48px 48px;
-}
 
-/* Trovy Design System — Signature hero glow pool */
-.ds-hero-glow {
-  background:
-    radial-gradient(
-      ellipse 60% 50% at 50% 25%,
-      hsl(var(--primary) / 0.16),
-      transparent 65%
-    ),
-    radial-gradient(
-      ellipse 70% 40% at 50% 75%,
-      hsl(var(--secondary) / 0.10),
-      transparent 60%
-    );
-}
 
 /* Trovy Design System — Step timeline line */
 .ds-step-line {
@@ -386,101 +299,92 @@
   background-repeat: repeat-y;
 }
 
-/* Trovy Design System — Premium Glassmorphic Surface */
+/* Surface opaque sobre (remplace l'ancien verre dépoli) */
 .glass-panel {
-  background-color: hsl(var(--card) / 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border) / 0.7);
 }
 
 .glow-card {
   position: relative;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid hsl(var(--border) / 0.7);
 }
-.glow-card::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, hsl(var(--primary) / 0.3), transparent 60%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  opacity: 0.6;
-  transition: opacity 0.25s ease;
-}
-.glow-card:hover::before {
-  opacity: 1;
+.glow-card:hover {
+  border-color: hsl(var(--border));
+  box-shadow: var(--shadow-1);
 }
 
 
 @layer base {
   :root {
-    --background: 195 20% 98%;
-    --foreground: 195 25% 12%;
+    /* Brand anchors — Jaune Postal #F5A623 · Bleu Navy #1B365D */
+    --brand-green: 149 100% 33%;
+    --brand-green-deep: 148 100% 26%;
+    --brand-green-deeper: 148 80% 14%;
+
+    --background: 45 28% 97%;
+    --foreground: 216 40% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 195 25% 12%;
-    --card-accent: 42 90% 97%;
-    --card-accent-foreground: 195 25% 12%;
-    --card-subtle: 195 20% 95%;
-    --card-subtle-foreground: 195 25% 12%;
+    --card-foreground: 216 40% 12%;
+    --card-accent: 36 85% 96%;
+    --card-accent-foreground: 216 40% 12%;
+    --card-subtle: 216 18% 94%;
+    --card-subtle-foreground: 216 40% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 195 25% 12%;
-    --primary: 42 96% 48%; /* Jaune Or Yéba */
-    --primary-foreground: 0 0% 8%;
-    --secondary: 158 84% 32%; /* Vert Émeraude Yéba */
+    --popover-foreground: 216 40% 12%;
+    --primary: var(--brand-green);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--brand-green-deep);
     --secondary-foreground: 0 0% 98%;
-    --secondary-muted: 158 40% 92%;
-    --secondary-muted-foreground: 158 84% 20%;
-    --muted: 195 18% 94%;
-    --muted-foreground: 195 15% 40%;
-    --accent: 42 90% 92%;
-    --accent-foreground: 42 96% 25%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary-muted: 216 28% 92%;
+    --secondary-muted-foreground: 216 53% 24%;
+    --muted: 216 16% 93%;
+    --muted-foreground: 216 14% 42%;
+    --accent: 149 60% 92%;
+    --accent-foreground: 36 91% 32%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --success: 158 84% 32%;
+    --success: 149 80% 34%;
     --success-foreground: 0 0% 98%;
-    --warning: 42 96% 48%;
-    --warning-foreground: 0 0% 8%;
-    --border: 195 18% 88%;
-    --input: 195 18% 84%;
-    --ring: 42 96% 48%;
+    --warning: 45 100% 50%;
+    --warning-foreground: 216 40% 12%;
+    --border: 216 16% 88%;
+    --input: 216 16% 84%;
+    --ring: var(--brand-green);
     --radius: 0.75rem;
   }
 
   .dark, :root.dark, html.dark, body.dark {
-    --background: 158 50% 7%; /* Vert Émeraude Sombre Luxueux (Pas de noir brut) */
-    --foreground: 0 0% 98%;
-    --card: 158 45% 10%;
-    --card-foreground: 0 0% 98%;
-    --card-accent: 42 96% 50%;
-    --card-accent-foreground: 0 0% 8%;
-    --card-subtle: 158 40% 13%;
-    --card-subtle-foreground: 0 0% 98%;
-    --popover: 158 45% 9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 42 96% 50%; /* Jaune Or Yéba vibrant */
-    --primary-foreground: 0 0% 8%;
-    --secondary: 158 84% 38%; /* Vert Émeraude Yéba */
-    --secondary-foreground: 0 0% 98%;
-    --secondary-muted: 158 40% 18%;
-    --secondary-muted-foreground: 158 65% 78%;
-    --muted: 158 35% 14%;
-    --muted-foreground: 158 15% 72%;
-    --accent: 42 90% 55%;
-    --accent-foreground: 0 0% 8%;
-    --destructive: 0 62.8% 63%;
+    --background: 220 14% 8%;
+    --foreground: 220 14% 92%;
+    --card: 220 14% 11%;
+    --card-foreground: 220 14% 92%;
+    --card-accent: 220 12% 15%;
+    --card-accent-foreground: 220 14% 92%;
+    --card-subtle: 220 12% 14%;
+    --card-subtle-foreground: 220 14% 92%;
+    --popover: 220 14% 11%;
+    --popover-foreground: 220 14% 92%;
+    --primary: 149 60% 50%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 149 40% 60%;
+    --secondary-foreground: 220 16% 10%;
+    --secondary-muted: 220 12% 18%;
+    --secondary-muted-foreground: 220 12% 78%;
+    --muted: 220 12% 16%;
+    --muted-foreground: 220 10% 64%;
+    --accent: 220 12% 20%;
+    --accent-foreground: 220 14% 88%;
+    --destructive: 0 62% 63%;
     --destructive-foreground: 0 0% 98%;
-    --success: 158 84% 38%;
+    --success: 149 60% 45%;
     --success-foreground: 0 0% 98%;
-    --warning: 42 96% 50%;
-    --warning-foreground: 0 0% 8%;
-    --border: 158 35% 18%;
-    --input: 158 35% 18%;
-    --ring: 42 96% 50%;
+    --warning: 45 90% 56%;
+    --warning-foreground: 220 16% 10%;
+    --border: 220 12% 18%;
+    --input: 220 12% 18%;
+    --ring: 149 60% 50%;
   }
 
   * {
@@ -507,6 +411,21 @@
     @apply bg-background text-foreground;
     overflow-x: hidden;
     max-width: 100vw;
+  }
+
+  /* Affordances globales : curseur, focus, touch (ui-ux-pro-max) */
+  :where(a[href], button:not(:disabled), [role="button"], label[for], summary) {
+    cursor: pointer;
+  }
+
+  :where(a, button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Réduit le délai tactile sur mobile */
+  :where(button, a, [role="button"]) {
+    touch-action: manipulation;
   }
   /* Utilitaire à poser sur toute zone de défilement interne (modale longue,
      rangée de colonnes horizontale...) : rétablit un défilement inertiel
@@ -537,12 +456,15 @@
   }
   /* Global typography styles */
   h1,
-  h2,
+  h2 {
+    @apply font-satoshi font-bold leading-tight tracking-tight;
+  }
+
   h3,
   h4,
   h5,
   h6 {
-    @apply font-satoshi font-black leading-tight;
+    @apply font-satoshi font-semibold leading-tight;
   }
 
   p {
@@ -631,4 +553,143 @@
 
 .navbar-maxwidth-transition {
   transition: max-width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ----------------------------------------------------------------------
+   Carrousel du hero (landing) : crossfade automatique entre les images.
+   Chaque image est visible ~25 % du cycle puis s'estompe vers la suivante.
+   Les images sont en object-cover derrière un dégradé vert -> fond de page,
+   le contenu (titre + CTA) reste par-dessus, lisible.
+   ---------------------------------------------------------------------- */
+.hero-carousel img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  animation: hero-carousel-fade 25s infinite;
+}
+.hero-carousel img:nth-child(1) { animation-delay: 0s; }
+.hero-carousel img:nth-child(2) { animation-delay: 5s; }
+.hero-carousel img:nth-child(3) { animation-delay: 10s; }
+.hero-carousel img:nth-child(4) { animation-delay: 15s; }
+.hero-carousel img:nth-child(5) { animation-delay: 20s; }
+
+@keyframes hero-carousel-fade {
+  0% { opacity: 0; }
+  4% { opacity: 1; }
+  20% { opacity: 1; }
+  24% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* Respect des préférences d'accessibilité : pas de défilement animé. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-carousel img {
+    animation: none;
+    opacity: 0;
+  }
+  .hero-carousel img:first-child {
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   Design System Mint × Poste CI (docs/frontend/03-design-system-mint.md)
+   ============================================================ */
+
+/* Boutons « à bordure inversée » — grammaire Mint (button.scss) */
+.btn-mint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: hsl(var(--warning));
+  border: 2px solid hsl(var(--warning));
+  padding: 0.875rem 1.75rem;
+  font-weight: 800;
+  color: hsl(var(--warning-foreground));
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  border-radius: 0.75rem;
+}
+.btn-mint:hover {
+  background-color: transparent;
+  color: hsl(45 100% 50%);
+}
+.btn-mint-vert {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(0 0% 100%);
+}
+.btn-mint-vert:hover {
+  background-color: transparent;
+  color: hsl(var(--primary));
+}
+
+/* Liseré tricolore Yeba × Poste CI (signature, Doc 04 §6) */
+.lisere-tricolore {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0 40%,
+    hsl(45 100% 50%) 40% 70%,
+    hsl(216 40% 12%) 70% 100%
+  );
+}
+
+/* Hover cartes Mint : lift + ombre */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(17, 17, 17, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift:hover { transform: none; }
+}
+
+/* ============================================================
+   Polices LOCALES (public/fonts/) — plus aucune dépendance réseau.
+   Les liens fontshare/Google provoquaient NS_ERROR_NET_TIMEOUT
+   = écran blanc au premier rendu (connexions lentes).
+   ============================================================ */
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
 }

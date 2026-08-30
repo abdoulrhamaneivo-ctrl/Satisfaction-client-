@@ -45,7 +45,7 @@ export function SectionHeading({
         {eyebrow && <Eyebrow tone={eyebrowTone}>{eyebrow}</Eyebrow>}
         <h2
           className={cn(
-            "mt-3 max-w-3xl text-balance font-satoshi font-black leading-tight tracking-tight text-foreground",
+            "mt-3 max-w-3xl text-balance font-satoshi font-bold leading-tight tracking-tight text-foreground",
             sizeClass
           )}
         >
@@ -83,7 +83,7 @@ export function SectionHeading({
         {eyebrow && <Eyebrow tone={eyebrowTone}>{eyebrow}</Eyebrow>}
         <h2
           className={cn(
-            "mt-2 max-w-3xl text-balance font-satoshi font-black leading-tight tracking-tight text-foreground",
+            "mt-2 max-w-3xl text-balance font-satoshi font-bold leading-tight tracking-tight text-foreground",
             sizeClass
           )}
         >

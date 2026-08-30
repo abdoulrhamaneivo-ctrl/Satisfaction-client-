@@ -65,34 +65,16 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
     throw new HttpError(400, "Le nom du guichet et l'agence parente sont requis.");
   }
 
-  const user = context.user;
   await assertAgenceAccess(context, context.entities, id_agence, 'agence');
 
   const servicesConnect = serviceIds && serviceIds.length > 0
     ? { connect: serviceIds.map(id => ({ id })) }
     : undefined;
 
-  // Bug corrigé : cette affectation par défaut utilisait `new Date()`
-  // (horodatage courant, avec heures/minutes/secondes) au lieu d'une date
-  // tronquée à minuit UTC comme partout ailleurs dans le code
-  // (createAffectation, soumettreAvisImpl, les requêtes de planning...).
-  // Résultat : cette ligne ne correspondait JAMAIS à une recherche par date
-  // exacte — le guichet apparaissait "sans agent en poste" dès sa création,
-  // silencieusement, jusqu'à ce qu'un vrai créneau soit affecté manuellement.
-  const dateAffectationParDefaut = new Date(new Date().toISOString().split('T')[0] + 'T00:00:00.000Z');
-
-  // On évite aussi de créer un double-booking fantôme pour le chef
-  // d'agence : s'il est déjà affecté ailleurs sur ce créneau 08:00-17:00
-  // aujourd'hui, on crée le guichet sans affectation par défaut plutôt que
-  // de violer silencieusement la même règle de chevauchement qu'ailleurs.
-  const chevauchementDefaut = await context.entities.AffectationGuichet.findFirst({
-    where: {
-      id_agent: user.id,
-      date_affectation: dateAffectationParDefaut,
-      heure_debut: { lt: "17:00" },
-      heure_fin: { gt: "08:00" },
-    },
-  });
+  // Le chef d'agence ne doit PAS être affecté directement à un guichet :
+  // l'affectation est réservée aux agents qu'il ajoute. Le guichet est donc
+  // créé sans affectation par défaut ; l'agent y sera affecté depuis le
+  // planning (createAffectation).
 
   return await context.entities.Guichet.create({
     data: {
@@ -101,18 +83,6 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
       actif: true,
       agence: { connect: { id: id_agence } },
       services: servicesConnect,
-      ...(chevauchementDefaut
-        ? {}
-        : {
-            affectations: {
-              create: {
-                date_affectation: dateAffectationParDefaut,
-                heure_debut: "08:00",
-                heure_fin: "17:00",
-                id_agent: user.id
-              }
-            }
-          }),
     }
   });
 };
@@ -204,6 +174,9 @@ export const assignAgent = async (args: any, context: any) => {
 
   const agent = await context.entities.User.findUnique({ where: { id: args.id_agent } });
   if (!agent) throw new HttpError(404, 'Agent introuvable.');
+  if (agent.role !== 'AGENT') {
+    throw new HttpError(400, "Seul un agent (rôle AGENT) peut être affecté à un guichet. Le chef d'agence n'est pas affecté directement à un guichet.");
+  }
   if (agent.id_agence !== guichet.id_agence) {
     throw new HttpError(400, "L'agent sélectionné n'appartient pas à l'agence de ce guichet.");
   }
@@ -274,6 +247,9 @@ export const updateAffectationGuichet = async (args: any, context: any) => {
 
   const agent = await context.entities.User.findUnique({ where: { id: args.id_agent } });
   if (!agent) throw new HttpError(404, 'Agent introuvable.');
+  if (agent.role !== 'AGENT') {
+    throw new HttpError(400, "Seul un agent (rôle AGENT) peut être affecté à un guichet. Le chef d'agence n'est pas affecté directement à un guichet.");
+  }
   if (agent.id_agence !== guichet.id_agence) {
     throw new HttpError(400, "L'agent sélectionné n'appartient pas à l'agence de ce guichet.");
   }
@@ -425,7 +401,7 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     itemsToInsert = responses.map((r: any) => ({
       critereId: Number(r.critereId),
       score: Number(r.score),
-      texte: typeof r.texte === 'string' ? r.texte.trim() : undefined,
+      texte: typeof r.texte === 'string' ? r.texte.trim().slice(0, 1000) : undefined,
     }));
   } else if (score !== undefined && score !== null && critereId !== undefined) {
     itemsToInsert = [{
@@ -571,14 +547,20 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       }
     });
     createdReponses.push(rep);
+  }
 
-    // --- ANALYSE IA ASYNCHRONE (NVIDIA NIM) ---
-    // Ne bloque JAMAIS la réponse HTTP usager. Enregistre une entrée PENDING.
+  // --- ANALYSE IA ASYNCHRONE (DeepSeek) — UNE SEULE par avis ---
+  // On n'analyse que le commentaire final (s'il existe), une seule fois par
+  // soumission, au lieu d'une entrée par réponse (qui dupliquait l'analyse
+  // du même commentaire sur chaque critère noté).
+  const commentaireFinal = (commentaire || '').trim().slice(0, 1000);
+  if (commentaireFinal.length > 0 && createdReponses.length > 0) {
     try {
       if (context.entities.AnalyseAvisIA) {
         await context.entities.AnalyseAvisIA.create({
           data: {
-            reponseId: rep.id,
+            reponseId: createdReponses[0].id,
+            commentaireTexte: commentaireFinal,
             status: 'PENDING',
           },
         });
@@ -1368,6 +1350,86 @@ async function assertServiceAccessible(context: any, idService: number) {
 }
 
 /**
+ * Met à jour un critère existant (libellé, description, type de réponse,
+ * options et caractère obligatoire). Seuls les champs fournis sont modifiés.
+ * Permet de corriger une question directement depuis le tableau
+ * d'organisation (glisser-déposer) sans repasser par le formulaire complet.
+ */
+export const updateCritere = async (
+  args: {
+    id_critere: number;
+    libelle_critere?: string;
+    description?: string;
+    type_reponse?: string;
+    options_reponse?: string;
+    obligatoire?: boolean;
+  },
+  context: any
+) => {
+  requireAuth(context);
+  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+
+  const idCritere = Number(args.id_critere);
+  if (!Number.isInteger(idCritere)) {
+    throw new HttpError(400, 'Identifiant invalide.');
+  }
+
+  await assertCritereAccessible(context, idCritere);
+
+  const libelle = args.libelle_critere?.trim();
+  if (libelle !== undefined) {
+    if (!libelle) throw new HttpError(400, 'Le libellé est requis.');
+    if (libelle.length > 300) throw new HttpError(400, 'Le libellé ne doit pas dépasser 300 caractères.');
+  }
+
+  const description = args.description?.trim();
+  if (description !== undefined && description.length > 1000) {
+    throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
+  }
+
+  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES'];
+  let typeReponse: string | undefined;
+  let optionsReponse: string | null | undefined;
+
+  if (args.type_reponse !== undefined) {
+    typeReponse = typesValides.includes(args.type_reponse) ? args.type_reponse : 'SMILEY';
+    if (typeReponse === 'QCM' || typeReponse === 'CASES') {
+      const brut = args.options_reponse?.trim();
+      if (!brut) throw new HttpError(400, 'Les choix sont requis pour ce type de réponse.');
+      const nbOptions = brut.split(',').map((o) => o.trim()).filter(Boolean).length;
+      if (nbOptions < 2) throw new HttpError(400, 'Il faut au moins 2 choix.');
+      optionsReponse = brut;
+    } else if (typeReponse === 'ECHELLE') {
+      const brut = args.options_reponse?.trim();
+      if (brut) {
+        const [minStr, maxStr] = brut.split(',').map((v) => v.trim());
+        const min = Number(minStr);
+        const max = Number(maxStr);
+        if (!Number.isInteger(min) || !Number.isInteger(max) || min < 0 || max > 20 || max <= min) {
+          throw new HttpError(400, "Échelle invalide : indiquez un minimum et un maximum entiers cohérents (ex. 1,10).");
+        }
+        optionsReponse = `${min},${max}`;
+      } else {
+        optionsReponse = '1,5';
+      }
+    } else {
+      optionsReponse = null;
+    }
+  }
+
+  return context.entities.Critere.update({
+    where: { id: idCritere },
+    data: {
+      ...(libelle !== undefined ? { libelle_critere: libelle } : {}),
+      ...(description !== undefined ? { description: description || null } : {}),
+      ...(typeReponse !== undefined ? { type_reponse: typeReponse } : {}),
+      ...(optionsReponse !== undefined ? { options_reponse: optionsReponse } : {}),
+      ...(args.obligatoire !== undefined ? { obligatoire: args.obligatoire } : {}),
+    },
+  });
+};
+
+/**
  * Déplace une question (critère) vers une opération, à une position donnée
  * (glisser-déposer depuis le vivier "non assignées" vers une colonne
  * d'opération, ou d'une opération vers une autre). Si la question était déjà
@@ -1462,20 +1524,33 @@ export const removeCritereFromService = async (
 
   await prisma.$transaction(async (tx) => {
     const rattachements = await tx.critereService.findMany({
-      where: { id_service: idService },
+      where: { id_critere: idCritere },
       orderBy: { ordre: 'asc' },
     });
-    if (!rattachements.some((r) => r.id_critere === idCritere)) {
+    if (!rattachements.some((r) => r.id_service === idService)) {
       throw new HttpError(409, "Cette question n'est plus rattachée à cette opération. Rechargez la page.");
     }
 
+    // L'éditeur présente chaque question comme une carte unique : si des
+    // données anciennes la rattachaient à plusieurs opérations, ne retirer
+    // qu'un seul rattachement la ferait « revenir » dans une autre colonne
+    // au lieu du vivier « non assignées ». On nettoie partout.
     await tx.critereService.deleteMany({
-      where: { id_critere: idCritere, id_service: idService },
+      where: { id_critere: idCritere },
     });
 
-    const restants = rattachements.filter((r) => r.id_critere !== idCritere);
-    for (let index = 0; index < restants.length; index++) {
-      await tx.critereService.update({ where: { id: restants[index].id }, data: { ordre: index } });
+    // Réordonne chaque opération qui perdait un rattachement.
+    const parService = new Map<number, typeof rattachements>();
+    for (const r of rattachements) {
+      if (r.id_critere === idCritere) continue;
+      const liste = parService.get(r.id_service) ?? [];
+      liste.push(r);
+      parService.set(r.id_service, liste);
+    }
+    for (const [, restants] of parService) {
+      for (let index = 0; index < restants.length; index++) {
+        await tx.critereService.update({ where: { id: restants[index].id }, data: { ordre: index } });
+      }
     }
   });
 

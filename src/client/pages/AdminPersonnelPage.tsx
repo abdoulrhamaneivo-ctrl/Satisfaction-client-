@@ -218,7 +218,7 @@ export const AdminPersonnelPage = () => {
           <div className="flex min-h-screen items-center justify-center p-8">
             <Card className="flex max-w-md flex-col items-center gap-3 p-10 text-center rounded-3xl border-warning/30">
               <ShieldAlert className="size-10 text-warning" />
-              <h1 className="text-xl font-black font-satoshi">Accès réservé</h1>
+              <h1 className="text-xl font-bold font-satoshi">Accès réservé</h1>
               <p className="text-sm text-muted-foreground font-medium">
                 Seuls le chef d'entreprise et le Chef d'Agence peuvent gérer le personnel.
               </p>
@@ -241,13 +241,13 @@ export const AdminPersonnelPage = () => {
                 <span>/</span>
                 <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
                 <span>/</span>
-                <span className="text-primary font-black">Agents & Personnel</span>
+                <span className="text-primary font-bold">Agents & Personnel</span>
               </div>
               
               <div className="flex items-center gap-6 text-xs font-bold">
                 <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
                 <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/guichets'}>Guichets</span>
-                <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Agents & Personnel</span>
+                <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Agents & Personnel</span>
               </div>
             </div>
 
@@ -287,7 +287,7 @@ export const AdminPersonnelPage = () => {
                   variant="feature"
                   className="lg:col-span-1 rounded-3xl p-6 shadow-premium scroll-mt-8"
                 >
-                  <h2 className="mb-6 flex items-center gap-2 text-lg font-black font-satoshi text-foreground">
+                  <h2 className="mb-6 flex items-center gap-2 text-lg font-bold font-satoshi text-foreground">
                     <UserPlus className="text-primary size-5" /> {editingId ? 'Modifier un agent' : 'Nouvel Agent'}
                   </h2>
 
@@ -369,7 +369,7 @@ export const AdminPersonnelPage = () => {
                           Annuler
                         </Button>
                       )}
-                      <Button type="submit" disabled={creationEnCours} className="flex-1 rounded-2xl font-black shadow-premium-md py-6">
+                      <Button type="submit" disabled={creationEnCours} className="flex-1 rounded-2xl font-bold btn-glow-gold py-6">
                         {creationEnCours
                           ? 'Enregistrement…'
                           : editingId
@@ -385,7 +385,7 @@ export const AdminPersonnelPage = () => {
 
               {/* Grille agents */}
               <div className="lg:col-span-2 space-y-4">
-                <div className="sticky top-16 lg:top-4 z-20 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-2 shadow-sm backdrop-blur-md sm:flex-row sm:items-center">
+                <div className="sticky top-16 lg:top-4 z-20 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-2 shadow-sm sm:flex-row sm:items-center">
                   <div className="relative flex-1">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -436,17 +436,17 @@ export const AdminPersonnelPage = () => {
                         <Card variant="feature" className="p-5 rounded-3xl">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/15 border border-primary/25 text-primary font-black text-lg font-satoshi">
+                              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/15 border border-primary/25 text-primary font-bold text-lg font-satoshi">
                                 {agent.prenom?.[0]}{agent.nom?.[0]}
                               </div>
                               <div>
-                                <h3 className="font-black text-foreground font-satoshi">
+                                <h3 className="font-bold text-foreground font-satoshi">
                                   {agent.prenom} {agent.nom}
                                 </h3>
                                 <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
                                   <span>{agent.role}</span>
                                   {agent.actif === false && (
-                                    <span className="rounded-full bg-destructive/15 border border-destructive/30 px-2 py-0.5 text-[10px] font-black uppercase text-destructive">
+                                    <span className="rounded-full bg-destructive/15 border border-destructive/30 px-2 py-0.5 text-[10px] font-bold uppercase text-destructive">
                                       Suspendu
                                     </span>
                                   )}
@@ -513,7 +513,7 @@ export const AdminPersonnelPage = () => {
                     >
                       <Card className="flex flex-col items-center justify-center p-10 text-center rounded-3xl">
                         <UsersRound className="mb-3 size-10 text-muted-foreground" />
-                        <p className="font-extrabold text-foreground font-satoshi">
+                        <p className="font-bold text-foreground font-satoshi">
                           {agentCountTotal === 0 ? 'Aucun agent enregistré' : 'Aucun agent ne correspond à votre recherche'}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground font-medium max-w-sm">
@@ -536,7 +536,7 @@ export const AdminPersonnelPage = () => {
         >
           <AlertDialogContent className="rounded-3xl border-border/80">
             <AlertDialogHeader>
-              <AlertDialogTitle className="font-satoshi font-black text-destructive">Suspendre ce compte ?</AlertDialogTitle>
+              <AlertDialogTitle className="font-satoshi font-bold text-destructive">Suspendre ce compte ?</AlertDialogTitle>
               <AlertDialogDescription>
                 {agentAConfirmerSuppression && (
                   <>

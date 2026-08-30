@@ -23,14 +23,14 @@ export const SettingsPage = () => {
           <PageHeader
             icon={Cpu}
             eyebrow="Paramètres & Intégrations"
-            title="Moteur d'Intelligence Artificielle"
-            description="Supervisez le microservice d'analyse sémantique et la clé API NVIDIA NIM de la plateforme YEBA."
+            title="Paramètres"
+            description="Configurez le moteur d'analyse IA (DeepSeek) et sa clé API."
             actions={
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
-                className="gap-2 border-border/80 bg-card/60 backdrop-blur-md"
+                className="gap-2 border-border/80 bg-card/60 "
               >
                 <RefreshCw className="size-4" />
                 Actualiser les statistiques
@@ -52,22 +52,22 @@ export const SettingsPage = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut Clé API</span>
                     {aiStatus?.configured ? (
-                      <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                      <span className="flex items-center gap-1 text-xs font-bold text-success bg-success/10 px-2.5 py-1 rounded-full border border-success/20">
                         <CheckCircle2 className="size-3.5" /> Opérationnel
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                      <span className="flex items-center gap-1 text-xs font-bold text-warning bg-warning/10 px-2.5 py-1 rounded-full border border-warning/20">
                         <AlertTriangle className="size-3.5" /> Clé manquante
                       </span>
                     )}
                   </div>
                   <h3 className="text-2xl font-bold text-foreground">
-                    {aiStatus?.configured ? 'NVIDIA_API_KEY Détectée' : 'Non configurée'}
+                    {aiStatus?.configured ? `${aiStatus?.provider} connecté` : 'Non configurée'}
                   </h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {aiStatus?.configured
                       ? 'Les avis soumis avec commentaires sont automatiquement analysés par le modèle IA.'
-                      : 'Veuillez ajouter NVIDIA_API_KEY dans vos variables d’environnement Railway pour activer le traitement.'}
+                      : 'Veuillez ajouter OPENROUTER_API_KEY dans vos variables d’environnement Railway pour activer le traitement.'}
                   </p>
                 </MotionCard>
 
@@ -85,15 +85,15 @@ export const SettingsPage = () => {
                 <MotionCard className="p-6 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Volumétrie Analysée</span>
-                    <Activity className="size-4 text-emerald-400" />
+                    <Activity className="size-4 text-success" />
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-extrabold text-foreground">{aiStatus?.stats?.done || 0}</span>
+                    <span className="text-3xl font-bold text-foreground">{aiStatus?.stats?.done || 0}</span>
                     <span className="text-xs text-muted-foreground">/ {aiStatus?.stats?.total || 0} avis analysés</span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
-                    <span className="text-amber-400 font-medium">⌛ {aiStatus?.stats?.pending || 0} en attente</span>
-                    <span className="text-rose-400 font-medium">❌ {aiStatus?.stats?.failed || 0} échecs</span>
+                    <span className="text-warning font-medium">⌛ {aiStatus?.stats?.pending || 0} en attente</span>
+                    <span className="text-destructive font-medium">❌ {aiStatus?.stats?.failed || 0} échecs</span>
                   </div>
                 </MotionCard>
               </div>
@@ -105,7 +105,7 @@ export const SettingsPage = () => {
                     <Key className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">Guide de Déploiement Railway (NVIDIA NIM)</h3>
+                    <h3 className="text-lg font-bold text-foreground">Guide de Déploiement Railway (OpenRouter)</h3>
                     <p className="text-xs text-muted-foreground">
                       Configuration sécurisée des variables d’environnement du serveur.
                     </p>
@@ -119,42 +119,37 @@ export const SettingsPage = () => {
                     </span>
                     <div className="space-y-2 font-mono text-xs text-foreground">
                       <div className="p-2.5 rounded-lg bg-card border border-border/80">
-                        <span className="text-muted-foreground"># Clé API NVIDIA NIM</span>
+                        <span className="text-muted-foreground"># Clé API OpenRouter</span>
                         <br />
-                        <span className="text-emerald-400 font-semibold">NVIDIA_API_KEY</span>=nvapi-xxxxxxxxxxxx
+                        <span className="text-success font-semibold">OPENROUTER_API_KEY</span>=«redacted:sk-or-…»
                       </div>
                       <div className="p-2.5 rounded-lg bg-card border border-border/80">
-                        <span className="text-muted-foreground"># Endpoint (Optionnel, défaut integrate.api.nvidia.com)</span>
+                        <span className="text-muted-foreground"># Modèle (Optionnel, défaut DeepSeek V3 via OpenRouter)</span>
                         <br />
-                        <span className="text-primary font-semibold">NVIDIA_BASE_URL</span>=https://integrate.api.nvidia.com/v1
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-card border border-border/80">
-                        <span className="text-muted-foreground"># Modèle LLM (Optionnel, ex. Qwen 80B)</span>
-                        <br />
-                        <span className="text-primary font-semibold">NVIDIA_MODEL</span>=qwen/qwen3-next-80b-a3b-instruct
+                        <span className="text-primary font-semibold">OPENROUTER_MODEL</span>=deepseek/deepseek-chat-v3-0324
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-3 p-4 rounded-xl bg-background/50 border border-border/70">
-                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                    <span className="text-xs font-bold uppercase tracking-wider text-success">
                       Fonctionnalités IA de YEBA
                     </span>
                     <ul className="space-y-2 text-xs text-muted-foreground leading-relaxed">
                       <li className="flex items-start gap-2">
-                        <span className="text-emerald-400">✓</span>
+                        <span className="text-success">✓</span>
                         <span><strong>Détection de sentiment</strong> : Positif, Neutre ou Négatif.</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-emerald-400">✓</span>
-                        <span><strong>Score d'urgence</strong> : Échelle de 1 (faible) à 5 (critique).</span>
+                        <span className="text-success">✓</span>
+                        <span><strong>Score d'urgence</strong> : Faible, Modérée, Élevée ou Critique.</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-emerald-400">✓</span>
+                        <span className="text-success">✓</span>
                         <span><strong>Extraction des thèmes</strong> : Temps d'attente, Propreté, Accueil, etc.</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-emerald-400">✓</span>
+                        <span className="text-success">✓</span>
                         <span><strong>Synthèse automatique</strong> : Résumé concis généré pour les équipes qualité.</span>
                       </li>
                     </ul>

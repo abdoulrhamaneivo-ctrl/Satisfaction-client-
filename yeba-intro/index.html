@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;700&family=Epilogue:wght@600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0A2E1F;
+        font-family: "DM Sans", sans-serif;
+      }
+      #root { position: relative; width: 1920px; height: 1080px; background: #0A2E1F; }
+
+      .scene {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        text-align: center;
+      }
+
+      /* ---- Scene 1 : logo + nom ---- */
+      #logo-mark {
+        width: 150px; height: 150px; border-radius: 36px;
+        background: #00A651;
+        display: flex; align-items: center; justify-content: center;
+        font-family: "Epilogue"; font-weight: 800; font-size: 84px;
+        color: #fff;
+      }
+      #brand-name {
+        margin-top: 48px;
+        font-family: "Epilogue"; font-weight: 800;
+        font-size: 140px; letter-spacing: -0.03em; color: #fff;
+      }
+      #brand-name span { color: #FFC72C; }
+      #brand-tag {
+        margin-top: 20px;
+        font-size: 34px; font-weight: 500; color: #9DB8AC;
+      }
+
+      /* ---- Scene 2 : proposition de valeur ---- */
+      #value-line {
+        font-family: "Epilogue"; font-weight: 700;
+        font-size: 110px; line-height: 1.12; letter-spacing: -0.02em;
+        color: #fff; max-width: 1450px;
+      }
+      #value-line em {
+        font-style: normal; color: #FFC72C;
+        border-bottom: 8px solid #00A651;
+      }
+
+      /* ---- Scene 3 : chiffres ---- */
+      #stats-row { display: flex; gap: 120px; }
+      .stat { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .stat-num {
+        font-family: "Epilogue"; font-weight: 800;
+        font-size: 150px; letter-spacing: -0.02em; color: #00A651;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat-label { font-size: 30px; font-weight: 500; color: #9DB8AC; }
+
+      /* ---- Scene 4 : signature ---- */
+      #final-logo {
+        width: 110px; height: 110px; border-radius: 28px;
+        background: #FFC72C; color: #0A2E1F;
+        display: flex; align-items: center; justify-content: center;
+        font-family: "Epilogue"; font-weight: 800; font-size: 60px;
+        margin-bottom: 40px;
+      }
+      #final-line {
+        font-family: "Epilogue"; font-weight: 800;
+        font-size: 96px; letter-spacing: -0.02em; color: #fff;
+      }
+      #final-sub {
+        margin-top: 24px; font-size: 36px; font-weight: 500; color: #FFC72C;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="10" data-width="1920" data-height="1080">
+
+      <!-- Scène 1 (0-3s) : marque -->
+      <div id="scene-brand" class="scene clip" data-start="0" data-duration="3.2" data-track-index="1">
+        <div id="brand-inner" style="display:flex;flex-direction:column;align-items:center;">
+        <div id="logo-mark">Y</div>
+        <h1 id="brand-name">Y<span>é</span>ba</h1>
+        <p id="brand-tag">La voix de vos clients, en temps réel</p>
+        </div>
+      </div>
+
+      <!-- Scène 2 (3.2-6.2s) : valeur -->
+      <div id="scene-value" class="scene clip" data-start="3.2" data-duration="3" data-track-index="2">
+        <div id="value-inner">
+        <h2 id="value-line">Chaque avis compte.<br />Chaque <em>problème</em> devient une action.</h2>
+        </div>
+      </div>
+
+      <!-- Scène 3 (6.2-8.4s) : preuve -->
+      <div id="scene-stats" class="scene clip" data-start="6.2" data-duration="2.4" data-track-index="3">
+        <div id="stats-inner">
+        <div id="stats-row">
+          <div class="stat"><span class="stat-num" id="stat-avis">100%</span><span class="stat-label">des avis analysés par IA</span></div>
+          <div class="stat"><span class="stat-num" id="stat-alerte">&lt;1min</span><span class="stat-label">pour détecter une urgence</span></div>
+        </div>
+        </div>
+      </div>
+
+      <!-- Scène 4 (8.4-10s) : signature -->
+      <div id="scene-final" class="scene clip" data-start="8.4" data-duration="1.6" data-track-index="4">
+        <div id="final-logo">Y</div>
+        <h2 id="final-line">Yéba. Écoutez. Agissez.</h2>
+        <p id="final-sub">yeba — satisfaction client</p>
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // --- Scène 1 : entrée logo (pop) puis texte ---
+      tl.from("#logo-mark", { scale: 0, rotation: -12, duration: 0.7, ease: "back.out(1.7)" }, 0.05);
+      tl.from("#brand-name", { opacity: 0, y: 40, duration: 0.6, ease: "power3.out" }, 0.45);
+      tl.from("#brand-tag", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 0.85);
+
+      // Transition S1 -> S2 : la scène 1 sort en fondu/haut
+      tl.to("#brand-inner", { opacity: 0, y: -50, duration: 0.45, ease: "power2.in" }, 2.75);
+      tl.set("#brand-inner", { opacity: 0 }, 3.20);
+
+      // --- Scène 2 : révélation ligne par ligne ---
+      tl.fromTo("#scene-value", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 3.2);
+      tl.from("#value-line", { opacity: 0, y: 60, duration: 0.7, ease: "power3.out" }, 3.25);
+      tl.from("#value-line em", { backgroundPositionX: "100%", duration: 0.5, ease: "power2.out" }, 4.1);
+      tl.to("#value-inner", { opacity: 0, y: -40, duration: 0.45, ease: "power2.in" }, 5.75);
+      tl.set("#value-inner", { opacity: 0 }, 6.20);
+
+      // --- Scène 3 : les deux chiffres montent en décalé ---
+      tl.fromTo("#scene-stats", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 6.2);
+      tl.from("#stat-avis", { opacity: 0, y: 70, duration: 0.55, ease: "back.out(1.4)" }, 6.3);
+      tl.from("#stat-alerte", { opacity: 0, y: 70, duration: 0.55, ease: "back.out(1.4)" }, 6.55);
+      tl.from(".stat-label", { opacity: 0, y: 20, duration: 0.4, stagger: 0.15, ease: "power2.out" }, 6.75);
+      tl.to("#stats-inner", { opacity: 0, scale: 0.94, duration: 0.4, ease: "power2.in" }, 8.0);
+      tl.set("#stats-inner", { opacity: 0 }, 8.40);
+
+      // --- Scène 4 : signature finale (tient jusqu'à la fin) ---
+      tl.fromTo("#scene-final", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 8.4);
+      tl.from("#final-logo", { scale: 0, duration: 0.5, ease: "back.out(1.8)" }, 8.45);
+      tl.from("#final-line", { opacity: 0, y: 30, duration: 0.5, ease: "power3.out" }, 8.75);
+      tl.from("#final-sub", { opacity: 0, duration: 0.4 }, 9.2);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

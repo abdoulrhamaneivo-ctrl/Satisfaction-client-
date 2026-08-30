@@ -13,14 +13,15 @@ import {
   getObjectifs,
   getHeatmapReponses,
   getTempsTraitement,
+  getThemesStats,
 } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { Link as WaspRouterLink, routes } from 'wasp/client/router';
 import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2, ChevronRight } from 'lucide-react';
-import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets } from '../components/DashboardCharts';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2, ChevronRight, Tag } from 'lucide-react';
+import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets, HistogrammeSatisfactionSkeleton, RadarQualiteSkeleton, TendanceMensuelleSkeleton, ComparaisonAgentsSkeleton, ClassementGuichetsSkeleton, HeatmapReponsesSkeleton, ChartSkeleton } from '../components/DashboardCharts';
 import { HeatmapReponses } from '../components/HeatmapReponses';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
 import { AmbientBackground } from '../components/AmbientBackground';
@@ -44,6 +45,7 @@ import { ObjectifsProgress } from '../components/ObjectifsProgress';
 import { regrouperAvisParSoumission } from '../utils';
 import { exportToXLSX } from '../utils/exportData';
 import { Eyebrow, Reveal, Card } from '../components/ds';
+import { THEMES_LABELS } from '../components/AIAnalysisBadge';
 
 const formatDelta = (value: number, suffix: string) =>
   `${value > 0 ? '+' : ''}${value}${suffix}`;
@@ -74,6 +76,7 @@ export const DashboardPage = () => {
   const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
   const { data: heatmap, isLoading: loadingHeatmap } = useQuery(getHeatmapReponses, { nbJours: 90 });
   const { data: tempsTraitement, isLoading: loadingTemps } = useQuery(getTempsTraitement, { nbJours: periodeJours });
+  const { data: themesStats, isLoading: loadingThemes } = useQuery(getThemesStats, { nbJours: periodeJours });
 
   const reponsesList: any[] = reponses || [];
   const avisGroupes = regrouperAvisParSoumission(reponsesList);
@@ -166,22 +169,36 @@ export const DashboardPage = () => {
     <RequireAuth>
       <AmbientBackground>
         <div className="mx-auto max-w-[1440px] p-6 lg:p-10 space-y-8">
-          {/* Fil d'Ariane & Onglets de Navigation — Style Linear / Notion */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-              <span>Agences</span>
-              <span>/</span>
-              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
-              <span>/</span>
-              <span className="text-primary font-black">Tableau de bord</span>
-            </div>
+          {/* Fil d'Ariane & navigation secondaire */}
+          <nav aria-label="Fil d'Ariane" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
+            <ol className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground list-none p-0 m-0">
+              <li>Agences</li>
+              <li aria-hidden className="text-border">/</li>
+              <li className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</li>
+              <li aria-hidden className="text-border">/</li>
+              <li className="text-primary font-bold" aria-current="page">Tableau de bord</li>
+            </ol>
             
-            <div className="flex items-center gap-6 text-xs font-bold">
-              <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Tableau synthétique</span>
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => navigate('/alertes-taches')}>Kanban Incidents</span>
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => navigate('/guichets')}>Guichets & Kits</span>
+            <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/30 p-1 text-xs font-bold">
+              <span className="rounded-lg bg-card px-3 py-1.5 text-primary shadow-sm font-bold cursor-default">
+                Tableau synthétique
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate('/alertes-taches')}
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-card/80 hover:text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                Kanban Incidents
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/guichets')}
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-card/80 hover:text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                Guichets & Kits
+              </button>
             </div>
-          </div>
+          </nav>
 
           <Reveal direction="down">
             <PageHeader
@@ -258,8 +275,8 @@ export const DashboardPage = () => {
             />
           </section>
 
-          {/* NIVEAU 2 — KPIs Trovy DS */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* NIVEAU 2 — KPIs exécutifs */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
             <StatCard
               title={`Satisfaction (${labelPeriode})`}
               value={`${satisfaction}%`}
@@ -300,17 +317,62 @@ export const DashboardPage = () => {
           <section>
             <div className="mb-4 flex items-center gap-2">
               <Target className="size-5 text-primary" />
-              <h2 className="text-xl font-extrabold text-foreground font-satoshi">Objectifs de satisfaction</h2>
+              <h2 className="text-xl font-bold text-foreground font-satoshi">Objectifs de satisfaction</h2>
             </div>
             {loadingObjectifs ? (
-              <div className="h-40 animate-pulse rounded-2xl border border-border/70 bg-card/50" />
+              <ChartSkeleton variant="horizontalBar" heightClass="h-40" label="Chargement des objectifs de satisfaction" />
             ) : (
               <ObjectifsProgress data={objectifsList} />
             )}
           </section>
 
+          {/* Thèmes récurrents — valeur ajoutée : de quoi se plaignent les clients */}
+          <section>
+            <div className="mb-4 flex items-center gap-2">
+              <Tag className="size-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground font-satoshi">Thèmes récurrents ({labelPeriode})</h2>
+            </div>
+            {loadingThemes ? (
+              <ChartSkeleton variant="horizontalBar" heightClass="h-40" label="Chargement des thèmes récurrents" />
+            ) : themesStats?.topThemes?.length ? (
+              <Card className="p-6">
+                {/* Chips de thèmes façon Stitch : pastilles colorées alternées
+                    vert/jaune avec barre de progression intégrée, plus lisibles
+                    que l'ancienne liste de barres grises. */}
+                <div className="flex flex-wrap gap-2.5">
+                  {themesStats.topThemes.slice(0, 6).map(({ theme, count }, i) => {
+                    const pct = themesStats.total > 0 ? Math.round((count / themesStats.total) * 100) : 0;
+                    const isYellow = i % 2 === 1;
+                    return (
+                      <span
+                        key={theme}
+                        title={`${count} mention${count > 1 ? 's' : ''} (${pct}%)`}
+                        className={`relative inline-flex items-center gap-2 overflow-hidden rounded-full border px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors ${
+                          isYellow
+                            ? 'border-warning/30 bg-warning/10 hover:bg-warning/20'
+                            : 'border-primary/25 bg-primary/10 hover:bg-primary/20'
+                        }`}
+                      >
+                        {/* Barre de progression comme fond de la chip */}
+                        <span
+                          aria-hidden
+                          className={`absolute inset-y-0 left-0 ${isYellow ? 'bg-warning/25' : 'bg-primary/15'}`}
+                          style={{ width: `${Math.max(pct, 8)}%` }}
+                        />
+                        <span className="relative font-medium">{THEMES_LABELS[theme] ?? theme}</span>
+                        <span className="relative tabular-nums text-muted-foreground">{count}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </Card>
+            ) : (
+              <EmptyState icon={Tag} title="Aucun thème analysé" description="Les thèmes apparaîtront ici dès que l'IA aura analysé des commentaires clients." />
+            )}
+          </section>
+
           {/* Analyses détaillées */}
-          <section className="rounded-3xl border border-border/80 bg-card/80 px-6 shadow-premium backdrop-blur-sm sm:px-8">
+          <section className="rounded-3xl border border-border/80 bg-card/80 px-6 shadow-premium sm:px-8">
             <Accordion type="single" collapsible>
               <AccordionItem value="analyses" className="border-none">
                 <AccordionTrigger className="py-6 text-lg font-bold text-foreground hover:no-underline font-satoshi">
@@ -353,8 +415,8 @@ export const DashboardPage = () => {
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                       {isLoading ? (
                         <>
-                          <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card/50" />
-                          <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card/50" />
+                          <HistogrammeSatisfactionSkeleton />
+                          <RadarQualiteSkeleton />
                         </>
                       ) : (
                         <>
@@ -370,7 +432,7 @@ export const DashboardPage = () => {
                         <h2 className="text-lg font-bold text-foreground font-satoshi">Où se situe le problème ({labelPeriode})</h2>
                       </div>
                       {loadingGuichets ? (
-                        <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card/50" />
+                        <ClassementGuichetsSkeleton />
                       ) : (
                         <ClassementGuichets data={guichetsList} />
                       )}
@@ -390,7 +452,7 @@ export const DashboardPage = () => {
                         <h2 className="text-lg font-bold text-foreground font-satoshi">Évolution mensuelle</h2>
                       </div>
                       {loadingTendance ? (
-                        <div className="h-72 animate-pulse rounded-2xl border border-border/70 bg-card/50" />
+                        <TendanceMensuelleSkeleton />
                       ) : (
                         <TendanceMensuelle data={tendanceList} />
                       )}
@@ -403,7 +465,7 @@ export const DashboardPage = () => {
                           <h2 className="text-lg font-bold text-foreground font-satoshi">Performance par agent ({labelPeriode})</h2>
                         </div>
                         {loadingAgents ? (
-                          <div className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card/50" />
+                          <ComparaisonAgentsSkeleton />
                         ) : (
                           <ComparaisonAgents data={agentsList} />
                         )}
@@ -428,7 +490,7 @@ export const DashboardPage = () => {
                   )}
                   <WaspRouterLink
                     to={routes.AvisRoute.to}
-                    className="flex items-center gap-1 text-xs font-extrabold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+                    className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
                   >
                     Voir tout <ChevronRight className="size-3.5" />
                   </WaspRouterLink>

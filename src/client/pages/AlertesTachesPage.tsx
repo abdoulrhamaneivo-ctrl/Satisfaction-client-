@@ -233,12 +233,12 @@ export const AlertesTachesPage = () => {
               <span>/</span>
               <span className="text-foreground">{(currentUser as any)?.agence?.nom_agence || "Agence Principale"}</span>
               <span>/</span>
-              <span className="text-primary font-black">Incidents & Kanban</span>
+              <span className="text-primary font-bold">Incidents & Kanban</span>
             </div>
             
             <div className="flex items-center gap-6 text-xs font-bold">
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
-              <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Kanban Incidents</span>
+              <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Kanban Incidents</span>
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/guichets'}>Guichets & Kits</span>
             </div>
           </div>
@@ -257,7 +257,7 @@ export const AlertesTachesPage = () => {
               value={recherche}
               onChange={(event) => setRecherche(event.target.value)}
               placeholder="Rechercher une alerte, tâche, responsable ou guichet…"
-              className="h-10 pl-9"
+              className="h-10 pl-9 rounded-xl border-border/60 focus-visible:ring-2 focus-visible:ring-ring/40"
               aria-label="Rechercher dans les alertes et tâches"
             />
           </div>
@@ -272,6 +272,7 @@ export const AlertesTachesPage = () => {
                 size="sm"
                 variant={filtreTaches === valeur ? 'default' : 'outline'}
                 onClick={() => setFiltreTaches(valeur)}
+                className="rounded-xl"
               >
                 {libelle}
               </Button>
@@ -488,7 +489,7 @@ export const AlertesTachesPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
             onClick={(e) => e.target === e.currentTarget && setModal({ alerteId: null, idAgence: null })}
           >
             <motion.div

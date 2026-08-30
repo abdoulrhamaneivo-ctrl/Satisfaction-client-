@@ -343,11 +343,11 @@ export const ConfigurationCriteresPage = () => {
               {criteresFiltres.map((critere: any) => {
                 const isActive = activeIds.includes(critere.id);
                 return (
-                  <MotionCard key={critere.id} className={`p-5 flex items-center justify-between gap-4 border ${critere.archive ? 'opacity-60 bg-muted/20 border-amber-500/30' : ''}`}>
+                  <MotionCard key={critere.id} className={`p-5 flex items-center justify-between gap-4 border ${critere.archive ? 'opacity-60 bg-muted/20 border-warning/30' : ''}`}>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-foreground text-base">{critere.libelle_critere}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${isActive ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
                           {isActive ? 'Actif' : 'Désactivé'}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-primary/10 text-primary">
@@ -359,7 +359,7 @@ export const ConfigurationCriteresPage = () => {
                           </span>
                         )}
                         {critere.archive && (
-                          <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-amber-500/20 text-amber-400">
+                          <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-warning/20 text-warning">
                             Archivé
                           </span>
                         )}
@@ -389,7 +389,7 @@ export const ConfigurationCriteresPage = () => {
                         }}
                         aria-label={critere.archive ? `Désarchiver « ${critere.libelle_critere} »` : `Archiver « ${critere.libelle_critere} »`}
                         title={critere.archive ? "Désarchiver cette question" : "Archiver cette question (ne s'affichera plus dans les formulaires)"}
-                        className={critere.archive ? "text-amber-400 hover:bg-amber-500/10" : "hover:bg-accent/50"}
+                        className={critere.archive ? "text-warning hover:bg-warning/10" : "hover:bg-accent/50"}
                       >
                         {critere.archive ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
                       </Button>

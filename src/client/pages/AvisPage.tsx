@@ -193,12 +193,12 @@ export const AvisPage = () => {
               <span>/</span>
               <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
               <span>/</span>
-              <span className="text-primary font-black">Avis & Retours</span>
+              <span className="text-primary font-bold">Avis & Retours</span>
             </div>
             
             <div className="flex items-center gap-6 text-xs font-bold">
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
-              <span className="text-primary border-b-2 border-primary pb-1 font-black cursor-pointer">Avis & Retours</span>
+              <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Avis & Retours</span>
               <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/alertes-taches'}>Kanban Incidents</span>
             </div>
           </div>
@@ -251,9 +251,9 @@ export const AvisPage = () => {
 
           {/* Filters Dashboard Panel — flottant : reste accessible en scrollant
               la liste, potentiellement longue, des avis en dessous. */}
-          <MotionCard interactive={false} className="sticky top-16 lg:top-4 z-30 p-6 shadow-premium-sm backdrop-blur supports-[backdrop-filter]:bg-card/92">
+          <MotionCard interactive={false} className="sticky top-16 lg:top-4 z-30 p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Filter size={16} /> Filtres de recherche
               </h2>
               <Button
@@ -415,17 +415,17 @@ export const AvisPage = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: Math.min(i * 0.02, 0.2) }}
                     >
-                      <MotionCard interactive={false} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-premium-sm border-border/70">
+                      <MotionCard interactive={false} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-sm border-border/70">
                         <div className="space-y-2.5 flex-1">
                           {/* Badge / Header row */}
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold shadow-sm ${getScoreColorClass(Math.round(rep.score_moyen))}`}>
+                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${getScoreColorClass(Math.round(rep.score_moyen))}`}>
                               <span className="text-sm">{getScoreEmoji(Math.round(rep.score_moyen))}</span>
                               Note moyenne : {rep.score_moyen}/5
                             </span>
 
                             {rep.service && (
-                              <span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-md">
+                              <span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary text-[10px] font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-md">
                                 {rep.service.libelle_service}
                               </span>
                             )}
@@ -450,7 +450,7 @@ export const AvisPage = () => {
                             )}
                           </p>
 
-                          {/* Analyse Sémantique IA (NVIDIA NIM) */}
+                          {/* Analyse Sémantique IA (DeepSeek) */}
                           <AIAnalysisBadge analyse={rep.analyseIA} />
 
                           {rep.agent && (
@@ -467,7 +467,7 @@ export const AvisPage = () => {
                         {/* Metadata column */}
                         <div className="shrink-0 flex md:flex-col justify-between items-center md:items-end text-xs text-muted-foreground border-t md:border-t-0 border-border/50 pt-3 md:pt-0">
                           <div className="text-left md:text-right">
-                            <p className="font-extrabold text-foreground flex items-center md:justify-end gap-1">
+                            <p className="font-bold text-foreground flex items-center md:justify-end gap-1">
                               <Store size={12} /> {rep.guichet?.nom_guichet || 'Guichet'}
                             </p>
                             {isDirection && rep.agence && (

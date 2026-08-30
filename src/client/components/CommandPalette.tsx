@@ -217,7 +217,7 @@ export function CommandPalette() {
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]" role="dialog" aria-modal="true" aria-label="Recherche globale">
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/50 "
         onClick={() => setOuvert(false)}
       />
       <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl">

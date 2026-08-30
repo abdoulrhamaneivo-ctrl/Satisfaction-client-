@@ -86,7 +86,7 @@ export function NavBar({
     <>
       <header
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 w-full border-b border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/85 shadow-sm transition-all duration-200",
+          "fixed top-0 left-0 right-0 z-50 w-full border-b border-border/80 bg-card/95 shadow-sm transition-all duration-200",
           isScrolled && "shadow-md bg-card/95"
         )}
       >
@@ -101,7 +101,7 @@ export function NavBar({
                 className="flex items-center text-foreground transition-colors hover:text-primary"
               >
                 <NavLogo isScrolled={isScrolled} />
-                <span className="ml-2.5 text-base font-black leading-6 tracking-tight text-foreground font-satoshi">
+                <span className="ml-2.5 text-base font-bold leading-6 tracking-tight text-foreground font-satoshi">
                   {brandConfig?.platform_name || "Yeba"}
                 </span>
               </WaspRouterLink>
@@ -151,7 +151,7 @@ function NavBarDesktopUserDropdown({ isScrolled }: { isScrolled: boolean }) {
               />
               <span
                 className={cn(
-                  'absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-black text-white leading-none shadow-sm',
+                  'absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white leading-none shadow-sm',
                   hasCritical ? 'bg-destructive' : 'bg-warning'
                 )}
               >

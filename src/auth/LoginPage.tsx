@@ -94,7 +94,7 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="vous@entreprise.ci"
-              className="h-11 pl-10"
+              className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40"
               disabled={loading}
             />
           </div>
@@ -111,14 +111,19 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="h-11 pl-10"
+              className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40"
               disabled={loading}
             />
           </div>
         </FormField>
 
-        <motion.div whileTap={{ scale: 0.98 }}>
-          <Button type="submit" size="lg" disabled={loading} className="w-full gap-2 shadow-premium">
+        <motion.div whileTap={loading ? undefined : { scale: 0.98 }}>
+          <Button
+            type="submit"
+            size="lg"
+            disabled={loading}
+            className="w-full gap-2 rounded-xl btn-glow-gold font-bold h-11"
+          >
             {loading ? (
               <>
                 <Loader2 className="size-4 animate-spin" /> Connexion en cours...

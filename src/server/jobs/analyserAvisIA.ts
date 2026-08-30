@@ -1,6 +1,6 @@
 // src/server/jobs/analyserAvisIA.ts
 // ============================================================================
-// Cron / Worker Job — Analyse sémantique IA des avis clients via NVIDIA NIM
+// Cron / Worker Job — Analyse sémantique IA des avis clients via DeepSeek
 //
 // Exécuté de manière asynchrone par PgBoss sans bloquer les requêtes usagers.
 // ============================================================================
@@ -10,9 +10,57 @@ import { AIService } from '../ai/service';
 
 const MAX_ATTEMPTS = 3;
 
+// Garde-fou budget IA : le modèle gratuit OpenRouter est plafonné
+// (~50 requêtes/jour). On limite le nombre d'analyses réellement envoyées
+// à l'API par jour ; au-delà, les analyses restent PENDING et seront
+// reprises au quota du lendemain (le job ne marque rien en échec).
+const DAILY_AI_BUDGET = Number(process.env.AI_DAILY_BUDGET || 40);
+
+// --- Valeur ajoutée entreprise ---
+// Quand l'IA classe un avis en urgence CRITICAL ou HIGH, on crée une alerte
+// (type IA_URGENCE) dans le fil des alertes pour que l'agence réagisse — y
+// compris sur des avis dont la note brute ne déclenchait pas d'alerte
+// (ex. une accusation grave derrière une note correcte).
+async function creerAlerteUrgenceIA(reponse: any, result: any) {
+  try {
+    const destinataire =
+      (await prisma.user.findFirst({
+        where: { id_agence: reponse.id_agence, role: 'CHEF_AGENCE', actif: true },
+      })) ||
+      (await prisma.user.findFirst({
+        where: {
+          id_entreprise: reponse.agence?.id_entreprise ?? null,
+          role: { in: ['DIRECTION', 'QUALITE'] },
+          actif: true,
+        },
+      }));
+
+    if (!destinataire) return;
+
+    const dejaExistante = await prisma.alerte.findFirst({
+      where: { id_reponse: reponse.id, type_alerte: 'IA_URGENCE' },
+    });
+    if (dejaExistante) return;
+
+    const niveau = result.urgence === 'CRITICAL' ? 'Urgence critique' : 'Urgence élevée';
+    const guichet = reponse.guichet?.nom_guichet || 'guichet inconnu';
+    await prisma.alerte.create({
+      data: {
+        message: `IA — ${niveau} détectée au guichet "${guichet}". ${result.resume || ''}`.slice(0, 500),
+        type_alerte: 'IA_URGENCE',
+        id_reponse: reponse.id,
+        id_destinataire: destinataire.id,
+        id_guichet_concerne: reponse.id_guichet,
+      },
+    });
+  } catch (e) {
+    console.warn('[AI_ALERT] Impossible de créer l’alerte IA :', e);
+  }
+}
+
 export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
   if (!AIService.isConfigured()) {
-    return { status: 'skipped', message: 'NVIDIA_API_KEY non configurée.' };
+    return { status: 'skipped', message: 'Clé IA non configurée (OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
   }
 
   // Sélectionne les analyses en attente ou en échec avec des tentatives restantes
@@ -26,7 +74,7 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
     include: {
       reponse: {
         include: {
-          agence: { select: { nom_agence: true } },
+          agence: { select: { nom_agence: true, id_entreprise: true } },
           guichet: { select: { nom_guichet: true } },
           service: { select: { libelle_service: true } },
           critere: { select: { libelle_critere: true } },
@@ -40,6 +88,23 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
   if (pendingAnalyses.length === 0) {
     return { status: 'idle', count: 0 };
   }
+
+  // Budget quotidien : on compte les analyses déjà traitées aujourd'hui
+  // (processedAt >= début du jour local) et on s'arrête au quota atteint.
+  const debutJour = new Date();
+  debutJour.setHours(0, 0, 0, 0);
+  const traiteesAujourdHui = await prisma.analyseAvisIA.count({
+    where: { status: 'DONE', processedAt: { gte: debutJour } },
+  });
+  const budgetRestant = DAILY_AI_BUDGET - traiteesAujourdHui;
+  if (budgetRestant <= 0) {
+    return {
+      status: 'quota_reached',
+      message: `Budget IA journalier atteint (${DAILY_AI_BUDGET}). Reprise demain.`,
+    };
+  }
+  // On ne traite que ce que le budget permet (le take: 10 reste le max par tick).
+  pendingAnalyses.length = Math.min(pendingAnalyses.length, budgetRestant);
 
   let successCount = 0;
   let failCount = 0;
@@ -58,7 +123,7 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
     });
 
     const reponse = item.reponse;
-    const commentaire = reponse.commentaire_texte?.trim();
+    const commentaire = (item.commentaireTexte || reponse.commentaire_texte || '').trim();
 
     if (!commentaire) {
       // Pas de texte à analyser -> Marquer comme DONE avec sentiment NEUTRAL
@@ -67,11 +132,11 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
         data: {
           status: 'DONE',
           sentiment: 'NEUTRAL',
-          sentimentScore: 1.0,
+          sentimentScore: 0.5,
           themes: JSON.stringify(['AUTRE']),
           problemePrincipal: null,
           urgence: 'LOW',
-          resume: 'Aucun commentaire texte fourni par l usager.',
+          resume: "Aucun commentaire texte fourni par l'usager.",
           actionRecommandee: null,
           processedAt: new Date(),
         },
@@ -109,6 +174,11 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
       });
 
       successCount++;
+
+      // --- VALEUR AJOUTÉE : alerte auto si urgence critique/élevée ---
+      if (result.urgence === 'CRITICAL' || result.urgence === 'HIGH') {
+        await creerAlerteUrgenceIA(reponse, result);
+      }
     } catch (err: any) {
       failCount++;
       const errorMessage = err?.message || 'Erreur inconnue lors de l analyse IA';

@@ -37,7 +37,10 @@ export function EmailVerificationPage() {
       title="Vérification de votre e-mail"
       subtitle="Cette étape confirme votre adresse e-mail et sécurise votre compte Yeba."
       footer={
-        <WaspRouterLink to={routes.LoginRoute.to} className="font-semibold text-primary underline">
+        <WaspRouterLink
+          to={routes.LoginRoute.to}
+          className="font-semibold text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary"
+        >
           Aller à la connexion
         </WaspRouterLink>
       }
