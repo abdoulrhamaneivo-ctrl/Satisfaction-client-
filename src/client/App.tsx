@@ -7,7 +7,6 @@ import { Sidebar, MobileSidebarDrawer } from "./components/Sidebar";
 import { MobileAppHeader } from "./components/MobileAppHeader";
 import { OnboardingTour } from "./components/OnboardingTour";
 import { BrandProvider } from "./context/BrandContext";
-import { AnimatedBackground } from "./components/AnimatedBackground";
 import { CommandPalette } from "./components/CommandPalette";
 
 export function App() {
@@ -66,7 +65,16 @@ export function App() {
   return (
     <BrandProvider>
       <div className="relative min-h-screen bg-app-shell text-foreground selection:bg-primary/20 selection:text-primary">
-        <AnimatedBackground />
+        {/* Blobs GLOBAUX en version statique : les 4 x blur-3xl animés en
+            framer-motion re-composaient les filtres GPU à chaque frappe clavier
+            (saisie lente ressentie sur mobile dans le formulaire de collecte).
+            Les pages qui veulent l'animation gardent <AnimatedBackground />. */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div className="absolute top-[-12%] left-[-8%] size-[38rem] rounded-full bg-brand-green/8 blur-3xl" />
+          <div className="absolute top-[10%] right-[-10%] size-[30rem] rounded-full bg-warning/8 blur-3xl" />
+          <div className="absolute bottom-[-14%] left-[12%] size-[34rem] rounded-full bg-brand-green-deep/6 blur-3xl" />
+          <div className="absolute top-[42%] left-[36%] size-[24rem] rounded-full bg-warning/5 blur-3xl" />
+        </div>
         <div className="relative">
         
         {isAdminDashboard ? (
