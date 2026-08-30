@@ -44,7 +44,6 @@ export interface RapportProps {
   };
   tempsTraitement?: {
     moyenne_heures: number | null;
-    mediane_heures: number | null;
   } | null;
 }
 
@@ -244,7 +243,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
           <Indicateur
             label="Délai moyen de traitement"
             valeur={tempsTraitement?.moyenne_heures != null ? `${tempsTraitement.moyenne_heures.toFixed(1)} h` : '—'}
-            detail={tempsTraitement?.mediane_heures != null ? `médiane ${tempsTraitement.mediane_heures.toFixed(1)} h` : undefined}
+            detail="Alerte créée → prise en charge"
           />
         </div>
       </section>
