@@ -557,10 +557,14 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   if (commentaireFinal.length > 0 && createdReponses.length > 0) {
     try {
       if (context.entities.AnalyseAvisIA) {
+        // On conserve la note (score du critère noté, sinon la première
+        // réponse chiffrée) pour le croisement note ↔ texte côté job IA.
+        const reponseNotee = createdReponses.find((r) => typeof r.score_brut === 'number');
         await context.entities.AnalyseAvisIA.create({
           data: {
             reponseId: createdReponses[0].id,
             commentaireTexte: commentaireFinal,
+            noteBrut: reponseNotee?.score_brut ?? null,
             status: 'PENDING',
           },
         });

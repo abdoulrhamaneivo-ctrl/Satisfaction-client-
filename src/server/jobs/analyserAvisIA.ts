@@ -7,6 +7,7 @@
 
 import { prisma } from 'wasp/server';
 import { AIService } from '../ai/service';
+import { evaluerCoherenceNote } from '../ai/types';
 
 const MAX_ATTEMPTS = 3;
 
@@ -55,6 +56,49 @@ async function creerAlerteUrgenceIA(reponse: any, result: any) {
     });
   } catch (e) {
     console.warn('[AI_ALERT] Impossible de créer l’alerte IA :', e);
+  }
+}
+
+/**
+ * Alerte « incohérence note ↔ texte » : un avis noté positivement mais dont
+ * le commentaire décrit un problème réel (cas classique : 5/5 rancunier).
+ * Type IA_INCOHERENCE_NOTE — distinct de IA_URGENCE pour que le responsable
+ * distingue immédiatement « problème grave » de « note trompeuse ».
+ */
+async function creerAlerteIncoherenceNote(reponse: any, note: number | null, coherence: ReturnType<typeof evaluerCoherenceNote>) {
+  try {
+    const destinataire =
+      (await prisma.user.findFirst({
+        where: { id_agence: reponse.id_agence, role: 'CHEF_AGENCE', actif: true },
+      })) ||
+      (await prisma.user.findFirst({
+        where: {
+          id_entreprise: reponse.agence?.id_entreprise ?? null,
+          role: { in: ['DIRECTION', 'QUALITE'] },
+          actif: true,
+        },
+      }));
+
+    if (!destinataire) return;
+
+    const dejaExistante = await prisma.alerte.findFirst({
+      where: { id_reponse: reponse.id, type_alerte: 'IA_INCOHERENCE_NOTE' },
+    });
+    if (dejaExistante) return;
+
+    const guichet = reponse.guichet?.nom_guichet || 'guichet inconnu';
+    const noteStr = note != null ? `${note}/5` : 'non fournie';
+    await prisma.alerte.create({
+      data: {
+        message: `IA — Note ${noteStr} non cohérente avec le commentaire au guichet "${guichet}". ${coherence.explication || ''}`.slice(0, 500),
+        type_alerte: 'IA_INCOHERENCE_NOTE',
+        id_reponse: reponse.id,
+        id_destinataire: destinataire.id,
+        id_guichet_concerne: reponse.id_guichet,
+      },
+    });
+  } catch (e) {
+    console.warn('[AI_ALERT] Impossible de créer l’alerte d’incohérence :', e);
   }
 }
 
@@ -138,6 +182,9 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
           urgence: 'LOW',
           resume: "Aucun commentaire texte fourni par l'usager.",
           actionRecommandee: null,
+          // Sans texte, pas de croisement possible
+          coherenceNote: null,
+          sentimentRetenu: null,
           processedAt: new Date(),
         },
       });
@@ -157,6 +204,14 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
         agent: agentNom,
       });
 
+      // --- CROISEMENT NOTE ↔ TEXTE (cohérence) ---
+      // La note source : celle conservée à la création de l'analyse, sinon
+      // le score brut de la réponse liée. Le prompt IA demande déjà de
+      // croiser ; ici on FORCE le verdict côté serveur (règle RG : le
+      // serveur tranche) et on retient le sentiment ajusté pour les stats.
+      const noteAvis = item.noteBrut ?? reponse.score_brut ?? null;
+      const coherence = evaluerCoherenceNote(noteAvis, result.sentiment, result.resume);
+
       await prisma.analyseAvisIA.update({
         where: { id: item.id },
         data: {
@@ -168,6 +223,9 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
           urgence: result.urgence,
           resume: result.resume,
           actionRecommandee: result.action_recommandee || null,
+          // Verdict de cohérence + sentiment retenu pour les statistiques
+          coherenceNote: coherence.type,
+          sentimentRetenu: coherence.sentiment_retenu,
           error: null,
           processedAt: new Date(),
         },
@@ -178,6 +236,12 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
       // --- VALEUR AJOUTÉE : alerte auto si urgence critique/élevée ---
       if (result.urgence === 'CRITICAL' || result.urgence === 'HIGH') {
         await creerAlerteUrgenceIA(reponse, result);
+      }
+
+      // --- VALEUR AJOUTÉE : alerte si note ≠ texte (ex. 5/5 rancunier) ---
+      // Le chef d'agence doit savoir que la note brute masque un problème.
+      if (coherence.incoherent) {
+        await creerAlerteIncoherenceNote(reponse, noteAvis, coherence);
       }
     } catch (err: any) {
       failCount++;

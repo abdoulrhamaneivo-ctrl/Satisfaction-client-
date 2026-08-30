@@ -32,6 +32,17 @@ Règles pour "urgence" :
 - CRITICAL : situation potentiellement grave, accusation sérieuse, menace de sécurité, discrimination alléguée, fraude alléguée, problème mettant sérieusement le client en danger.
 
 Si une information ne peut pas être déterminée avec suffisamment de confiance, utilise null ou AUTRE selon le champ concerné.
+
+IMPORTANT — Cohérence entre la note et le commentaire :
+La NOTE (1-5) et le TEXTE du commentaire sont deux signaux indépendants. Tu reçois les deux et tu dois les CROISER :
+1. Détermine le sentiment RÉEL du texte, en tenant compte de la note comme indice de contexte. Exemples :
+   - Note 1-2 + ton negatif → sentiment NEGATIVE.
+   - Note 4-5 + ton positif → sentiment POSITIVE.
+   - Note 5/5 mais texte rancunier, ironique ou décrivant un problème grave → le TEXTE prime : sentiment NEGATIVE (ou MIXED si le texte exprime à la fois satisfaction et mécontentement). Ne te laisse JAMAIS berner par une note élevée quand le contenu du texte décrit un problème.
+   - Note 1/5 mais texte satisfait ou remerciant → sentiment POSITIVE (ou MIXED).
+2. Le champ "resume" doit mentionner explicitement l'écart quand il existe (ex. « Note 5/5 en décalage avec un commentaire décrivant un long problème d'attente »).
+3. Si le texte décrit un problème grave, ajuste "urgence" en conséquence MÊME SI la note est haute — une note 5/5 n'annule pas un problème réel.
+
 N'ajoute aucun texte en dehors du JSON.`;
 
 export class OpenRouterProvider implements AIProvider {

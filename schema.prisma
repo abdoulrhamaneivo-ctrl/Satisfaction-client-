@@ -288,6 +288,11 @@ model AnalyseAvisIA {
   reponse            Reponse  @relation(fields: [reponseId], references: [id], onDelete: Cascade)
   commentaireTexte   String?
   
+  // Note (score du critère noté) conservée au moment de l'analyse pour le
+  // croisement note ↔ texte — sans elle, la cohérence ne peut pas être
+  // recalculée si la Reponse source évolue.
+  noteBrut           Int?
+  
   status             String   @default("PENDING") // PENDING, PROCESSING, DONE, FAILED
   sentiment          String?  // POSITIVE, NEUTRAL, NEGATIVE, MIXED
   sentimentScore     Float?   // 0.0 à 1.0
@@ -296,6 +301,14 @@ model AnalyseAvisIA {
   urgence            String?  // LOW, MEDIUM, HIGH, CRITICAL
   resume             String?
   actionRecommandee  String?
+  
+  // Cohérence note ↔ commentaire (croisement serveur, Doc IA-2) :
+  // null = pas d'évaluation (pas de note ou pas de texte). Valeurs :
+  // NOTE_PLUS_HAUTE_QUE_TEXTE (ex. 5/5 + texte rancunier), NOTE_PLUS_BASSE_QUE_TEXTE.
+  coherenceNote      String?
+  // Sentiment RETENU après croisement (peut différer de "sentiment" brut) :
+  // un 5/5 rancunier est compté NEGATIVE dans les statistiques.
+  sentimentRetenu    String?
   
   model              String   @default("deepseek-chat")
   provider           String   @default("deepseek")
