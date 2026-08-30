@@ -547,8 +547,19 @@ export const DashboardPage = () => {
             radarData={radarData || []}
             alertes={alertesList}
             taches={tachesList}
-            agenceName={user?.id_agence ? `Agence #${user.id_agence}` : 'Mon Agence'}
-            commune="Marcory"
+            themes={themesStats?.topThemes || []}
+            guichets={guichetsList}
+            agenceName={(user as any)?.agence?.nom_agence || (user?.id_agence ? `Agence #${user.id_agence}` : 'Mon Agence')}
+            commune={(user as any)?.agence?.commune || ''}
+            periodeLabel={periodeJours === 30 ? '30 derniers jours' : periodeJours === 1 ? '24 heures' : `${periodeJours} derniers jours`}
+            dateDebut={(() => { const d = new Date(); d.setDate(d.getDate() - periodeJours); return d; })()}
+            dateFin={new Date()}
+            deltas={{
+              satisfaction: kpisPeriode?.delta_satisfaction_pts ?? 0,
+              note: kpisPeriode?.delta_note_pts ?? 0,
+              volume: kpisPeriode?.delta_volume_pct ?? 0,
+            }}
+            tempsTraitement={tempsTraitement?.prise_en_charge || null}
           />
         </div>
       </AmbientBackground>
