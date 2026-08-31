@@ -18,9 +18,24 @@
 | 7 | `docs/frontend/08-confidentialite-anonymat.md` | RG12-RG18 (chef d'agence / Direction chiffres seuls) |
 | 8 | `docs/frontend/09-qr-codes-collecte.md` | QR exports multi-formats + partage |
 | 9 | `docs/frontend/10-spec-refonte-landing.md` | LA SPEC de la refonte UX/UI (template Mint) |
+| 11 | `docs/frontend/11-architecture-saas-multi-tenant.md` | **Architecture SaaS** : platformRole, tenant Entreprise, workflow création, sécurité |
+| 12 | `docs/frontend/12-console-super-admin.md` | **Console /platform** : écrans, wizard 4 étapes, email d'activation, onboarding |
+| 13 | `docs/frontend/13-branding-studio-qr-designer.md` | **Branding par entreprise** : logo, charte, messages, QR Designer |
 | 10 | `docs/frontend/patron-spec-page.md` | Patron des specs (10 sections) |
 
 Référence design : `design-template/Mint - Portfolio React Template/` (template fourni par Ivo — on TRANSPOSE son langage, jamais on ne recrée un équivalent).
+
+## 1bis. Écarts SaaS (ajoutés 2026-08-31 — Doc 11 §10)
+
+| Écart | Source | Phase |
+|---|---|---|
+| **S1 — platformRole + console /platform** | Décision SaaS | P1 |
+| **S2 — statut entreprise (TRIAL/ACTIVE/SUSPENDED) + limites plan** | Décision SaaS | P1 |
+| **S3 — Invitation tokenisée + email d'activation** (plus de mot de passe temporaire par email) | Décision SaaS | P1 |
+| **S4 — AuditLog actions sensibles** | Décision SaaS | P1 |
+| **S5 — Branding Studio + QR Designer par entreprise** | Décision SaaS | P2 |
+| **S6 — QR opaque (code_public)** | Sécurité | P2 |
+| **S7 — Rate limiting + 2FA super admin** | Sécurité | P3 |
 
 ## 2. État réel du disque (vérifié 2026-08-29)
 
