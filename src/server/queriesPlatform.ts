@@ -33,7 +33,7 @@ export const getPlatformOverview = async (_args: void, context: any) => {
   ]);
 
   const parStatutMap: Record<string, number> = {};
-  for (const g of parStatut) parStatutMap[g.status] = g._count;
+  for (const g of parStatut as Array<{ status: string; _count: number }>) parStatutMap[g.status] = g._count;
 
   // Évolution des créations d'entreprises sur 12 mois
   const depuis12Mois = new Date();
@@ -52,7 +52,7 @@ export const getPlatformOverview = async (_args: void, context: any) => {
     const fin = new Date(cursor); fin.setMonth(fin.getMonth() + 1);
     evolution.push({
       mois: label,
-      count: creations.filter((c) => c.date_creation_compte >= debut && c.date_creation_compte < fin).length,
+      count: creations.filter((c: { date_creation_compte: Date }) => c.date_creation_compte >= debut && c.date_creation_compte < fin).length,
     });
     cursor.setMonth(cursor.getMonth() + 1);
   }

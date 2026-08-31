@@ -200,7 +200,7 @@ export default function CompanyDetailsPage({ id }: { id: number }) {
             </p>
           ) : (
             <ul className="mt-4 space-y-3">
-              {e.activite.map((a) => (
+              {e.activite.map((a: { id: bigint; action: string; actor_role: string | null; created_at: string | Date }) => (
                 <li key={String(a.id)} className="flex items-start gap-3 text-sm">
                   <Activity className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">

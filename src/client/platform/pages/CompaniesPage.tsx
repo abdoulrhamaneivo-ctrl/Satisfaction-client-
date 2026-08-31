@@ -90,7 +90,11 @@ export default function CompaniesPage() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {data.entreprises.map((e) => (
+          {data.entreprises.map((e: {
+            id: number; nom_entreprise: string; nom_court: string | null;
+            email_administratif: string | null; status: string; plan: string;
+            _count: { agences: number; utilisateurs: number };
+          }) => (
             <Link
               key={e.id}
               to={`/platform/entreprises/${e.id}`}

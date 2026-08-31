@@ -112,7 +112,7 @@ export default function PlatformOverviewPage() {
               </Link>
             </div>
           ) : (
-            data.recentes.map((e) => (
+            data.recentes.map((e: { id: number; nom_entreprise: string; nom_court: string | null; status: string; plan: string; email_administratif: string | null }) => (
               <Link
                 key={e.id}
                 to={`/platform/entreprises/${e.id}`}
