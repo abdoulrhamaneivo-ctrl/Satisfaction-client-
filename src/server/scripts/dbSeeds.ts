@@ -235,7 +235,6 @@ export async function seedSuperAdmin(prismaClient: PrismaClient) {
     return;
   }
 
-  const { createProviderId, createUser, sanitizeAndSerializeProviderData } = await import('wasp/server/auth');
   const motDePasse = crypto.randomBytes(9).toString('base64url');
   const providerId = createProviderId('email', EMAIL);
   const providerData = await sanitizeAndSerializeProviderData<'email'>({

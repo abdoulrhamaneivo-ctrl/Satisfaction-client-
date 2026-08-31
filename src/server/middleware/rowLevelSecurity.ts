@@ -88,7 +88,9 @@ export function requireAuth(
  * éviter une requête DB par appel.
  */
 const _statutCache = new Map<number, { status: string; expires: number }>();
-const _STATUT_CACHE_TTL_MS = 60_000;
+// 10 s : compromis entre protection anti-charge et rapidité d'application
+// d'une suspension. Une suspension prend effet au plus tard 10 s après.
+const _STATUT_CACHE_TTL_MS = 10_000;
 
 export async function assertEntrepriseActive(
   context: WaspContext,

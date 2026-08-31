@@ -146,7 +146,7 @@ export const getPlatformEntreprise = async (args: { id: number }, context: any) 
       limite_guichets: true,
       suspendue_le: true,
       motif_suspension: true,
-      _count: { select: { agences: true, utilisateurs: true, guichets: false } },
+      _count: { select: { agences: true, utilisateurs: true } },
     },
   });
   if (!entreprise) throw new HttpError(404, 'Entreprise introuvable.');

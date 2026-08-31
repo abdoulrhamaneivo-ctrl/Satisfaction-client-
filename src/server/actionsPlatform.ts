@@ -15,6 +15,7 @@ import {
 } from './middleware/rowLevelSecurity';
 import { journaliser } from './audit';
 import { emailSender } from 'wasp/server/email';
+import { createUser, createProviderId, sanitizeAndSerializeProviderData } from 'wasp/server/auth';
 
 // ── Plans de référence (Doc 11 §4 — constant code, pas une table) ──
 export const PLANS: Record<string, { agences: number; utilisateurs: number; guichets: number }> = {
@@ -167,10 +168,40 @@ export const creerEntreprise = async (
   const tokenHash = sha256(tokenClair);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  const { createUser, createProviderId, sanitizeAndSerializeProviderData } = await import('wasp/server/auth');
+  // 1. Créer le compte admin D'ABORD (createUser de Wasp écrit hors transaction —
+  //    immédiatement committé). Identité auth SANS mot de passe utilisable :
+  //    l'activation passe par le lien d'invitation (Doc 12 §7).
+  const providerId = createProviderId('email', adminEmail);
+  const providerData = await sanitizeAndSerializeProviderData<'email'>({
+    hashedPassword: crypto.randomBytes(32).toString('base64url'),
+    isEmailVerified: true,
+    emailVerificationSentAt: null,
+    passwordResetSentAt: null,
+  });
+  const admin = await createUser(providerId, providerData, {
+    email: adminEmail,
+    username: adminEmail,
+  });
+  // createUser de Wasp n'expose aucun champ custom (role, id_entreprise, ...) :
+  // le profil métier est posé juste après la création du compte.
+  await prisma.user.update({
+    where: { id: admin.id },
+    data: {
+      nom, prenom,
+      telephone: args.admin.telephone?.trim() || null,
+      role: 'DIRECTION',
+      id_agence: null,
+      actif: true,
+      platformRole: 'NONE',
+      mustChangePassword: true,
+    },
+  });
 
+  // 2. Transaction : entreprise + rattachement du compte au tenant + invitation
+  //    + audit. Si une étape échoue, tout est annulé (le compte admin reste
+  //    orphelin sans tenant — inoffensif, non connectable à la console, et
+  //    réutilisable via un nouvel essai de création).
   const resultat = await prisma.$transaction(async (tx: any) => {
-    // 1. Entreprise (status ACTIVE par défaut — mise en service immédiate)
     const entreprise = await tx.entreprise.create({
       data: {
         nom_entreprise: nomE,
@@ -187,34 +218,9 @@ export const creerEntreprise = async (
       },
     });
 
-    // 2. Compte admin DIRECTION — identité auth SANS mot de passe utilisable
-    //    (hashedPassword aléatoire 32 octets jamais transmis : l'activation
-    //    passe par le lien d'invitation, Doc 12 §7).
-    const providerId = createProviderId('email', adminEmail);
-    const providerData = await sanitizeAndSerializeProviderData<'email'>({
-      hashedPassword: crypto.randomBytes(32).toString('base64url'),
-      isEmailVerified: true,
-      emailVerificationSentAt: null,
-      passwordResetSentAt: null,
-    });
-    const admin = await createUser(providerId, providerData, {
-      email: adminEmail,
-      username: adminEmail,
-    });
-    // createUser de Wasp n'expose aucun champ custom (id_agence, role, ...) :
-    // tout le profil métier est posé juste après la création du compte.
-    await prisma.user.update({
+    await tx.user.update({
       where: { id: admin.id },
-      data: {
-        nom, prenom,
-        telephone: args.admin.telephone?.trim() || null,
-        role: 'DIRECTION',
-        id_entreprise: entreprise.id,
-        id_agence: null,
-        actif: true,
-        platformRole: 'NONE',
-        mustChangePassword: true,
-      },
+      data: { id_entreprise: entreprise.id },
     });
 
     // 3. Invitation (hash uniquement — usage unique, 24 h)
@@ -473,7 +479,6 @@ export const inviterSuperAdmin = async (
 
   const tokenClair = crypto.randomBytes(32).toString('base64url');
 
-  const { createUser, createProviderId, sanitizeAndSerializeProviderData } = await import('wasp/server/auth');
   const providerId = createProviderId('email', email);
   const providerData = await sanitizeAndSerializeProviderData<'email'>({
     hashedPassword: crypto.randomBytes(32).toString('base64url'),
@@ -543,8 +548,6 @@ export const activerCompte = async (
   if (!invitation) throw new HttpError(404, "Ce lien d'activation est invalide ou a déjà été utilisé.");
   if (invitation.used_at) throw new HttpError(409, "Ce lien a déjà été utilisé. Utilisez « Mot de passe oublié » pour vous connecter.");
   if (invitation.expires_at < new Date()) throw new HttpError(410, "Ce lien a expiré. Demandez un nouveau lien d'activation.");
-
-  const { sanitizeAndSerializeProviderData } = await import('wasp/server/auth');
 
   // Transaction : poser le mot de passe + marquer l'invitation utilisée
   await prisma.$transaction(async (tx: any) => {

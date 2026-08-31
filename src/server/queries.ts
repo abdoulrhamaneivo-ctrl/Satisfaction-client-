@@ -338,6 +338,7 @@ export const getAgentsByAgence = async (args: { id_agence: number }, context: an
 // uniquement) — jamais toutes les agences de la plateforme.
 export const getAgences = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   if (context.user.role !== 'DIRECTION' && context.user.role !== 'QUALITE') return [];
   if (!context.user.id_entreprise) return [];
