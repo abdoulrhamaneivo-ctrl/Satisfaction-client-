@@ -50,5 +50,17 @@ export const archiverElementsResolusAnciens = async (_args: unknown, _context: a
     `[Archivage] ${alertesArchivees.count} alerte(s) et ${tachesArchivees.count} tâche(s) archivées (résolues depuis plus de ${RETENTION_JOURS} jours).`
   );
 
-  return { alertesArchivees: alertesArchivees.count, tachesArchivees: tachesArchivees.count };
+  // Purge du garde anti-rejeu (transférée ici depuis soumettreAvis, où elle
+  // scannait la table à CHAQUE soumission — performance QR). VoteAntiRejeu
+  // n'est PAS une donnée historique : c'est un jeton technique de limitation
+  // à 24 h. On purge tout ce qui a expiré.
+  const purgeAntiRejeu = await prisma.voteAntiRejeu.deleteMany({
+    where: { date_vote: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+  });
+
+  return {
+    alertesArchivees: alertesArchivees.count,
+    tachesArchivees: tachesArchivees.count,
+    antiRejeuPurge: purgeAntiRejeu.count,
+  };
 };

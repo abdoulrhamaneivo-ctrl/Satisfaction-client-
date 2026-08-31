@@ -25,6 +25,14 @@ export function App() {
     return !standaloneRoutes.includes(location.pathname) && !location.pathname.startsWith('/q/');
   }, [location]);
 
+  // PERFORMANCE QR (fix « clics/saisie lents ») : sur /q/*, on ne monte NI les
+  // blobs décoratifs (même statiques, 4 x blur-3xl plein écran coûtent une
+  // recomposition GPU à chaque re-render du formulaire pendant la frappe),
+  // NI le shell dashboard. La page de collecte est rendue nue : HTML + CSS
+  // léger + React + 1 requête API.
+  const isQRCollecte = location.pathname.startsWith('/q/');
+  const showGlobalBlobs = !isQRCollecte;
+
   const YEBA_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences'];
   const isAdminDashboard = useMemo(() => {
     return (
@@ -39,44 +47,22 @@ export function App() {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (location.hash) {
-      const id = location.hash.replace("#", "");
-      const element = document.getElementById(id);
-
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-        resizeObserverRef.current = new ResizeObserver(() => {
-          element.scrollIntoView({ behavior: "smooth" });
-        });
-        resizeObserverRef.current.observe(element);
-      }
-    } else {
-      if (window.scrollY > 0) {
-        window.scrollTo(0, 0);
-      }
-    }
-
-    return () => {
-      resizeObserverRef.current?.disconnect();
-    };
-  }, [location]);
-
   return (
     <BrandProvider>
       <div className="relative min-h-screen bg-app-shell text-foreground selection:bg-primary/20 selection:text-primary">
-        {/* Blobs GLOBAUX en version statique : les 4 x blur-3xl animés en
-            framer-motion re-composaient les filtres GPU à chaque frappe clavier
-            (saisie lente ressentie sur mobile dans le formulaire de collecte).
-            Les pages qui veulent l'animation gardent <AnimatedBackground />. */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-          <div className="absolute top-[-12%] left-[-8%] size-[38rem] rounded-full bg-brand-green/8 blur-3xl" />
-          <div className="absolute top-[10%] right-[-10%] size-[30rem] rounded-full bg-warning/8 blur-3xl" />
-          <div className="absolute bottom-[-14%] left-[12%] size-[34rem] rounded-full bg-brand-green-deep/6 blur-3xl" />
-          <div className="absolute top-[42%] left-[36%] size-[24rem] rounded-full bg-warning/5 blur-3xl" />
-        </div>
+        {/* Blobs décoratifs — UNIQUEMENT hors parcours QR (voir commentaire
+            PERFORMANCE QR ci-dessus : même statiques, ils sont recomposés par
+            le GPU à chaque frappe sur un téléphone d'agence). */}
+        {showGlobalBlobs && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+            <div className="absolute top-[-12%] left-[-8%] size-[38rem] rounded-full bg-brand-green/8 blur-3xl" />
+            <div className="absolute top-[10%] right-[-10%] size-[30rem] rounded-full bg-warning/8 blur-3xl" />
+            <div className="absolute bottom-[-14%] left-[12%] size-[34rem] rounded-full bg-brand-green-deep/6 blur-3xl" />
+            <div className="absolute top-[42%] left-[36%] size-[24rem] rounded-full bg-warning/5 blur-3xl" />
+          </div>
+        )}
         <div className="relative">
-        
+
         {isAdminDashboard ? (
           <Outlet />
         ) : shouldDisplayAppNavBar ? (

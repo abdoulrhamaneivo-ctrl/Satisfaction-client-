@@ -8,7 +8,7 @@ import {
   sanitizeAndSerializeProviderData,
 } from 'wasp/server/auth';
 import crypto from 'node:crypto';
-import { envoyerAlerteSMS, envoyerAlerteWhatsApp } from './notifications/gateway';
+import { envoyerAlerteWhatsApp } from './notifications/gateway';
 import {
   requireAuth,
   requireRole,
@@ -357,6 +357,12 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // envoie systématiquement un canalId (ex. 1 pour QR_WEB). Sans cet upsert,
   // Reponse.create échouait en violation de clé étrangère sur id_canal dès
   // qu'aucune donnée n'avait été insérée manuellement en base.
+  //
+  // PERFORMANCE QR : l'upsert systématique a été retiré du chemin critique.
+  // Les canaux sont créés par le seed (1=QR_WEB, 2=USSD, 3=IVR_VOCAL) et ne
+  // sont jamais supprimés. L'upsert ne s'exécute que si l'insertion d'une
+  // réponse échoue sur la clé étrangère id_canal (reroll ciblé), sinon zéro
+  // requête supplémentaire pour le cas nominal qui est, de loin, le plus fréquent.
   const CANAUX_CONNUS: Record<number, { type_canal: string; langue_utilisee: string }> = {
     1: { type_canal: 'QR_WEB', langue_utilisee: 'fr' },
     2: { type_canal: 'USSD', langue_utilisee: 'fr' },
@@ -364,11 +370,13 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   };
   const idCanalResolved = canalId ? Number(canalId) : 1;
   const canalDefaults = CANAUX_CONNUS[idCanalResolved] ?? CANAUX_CONNUS[1];
-  await context.entities.Canal.upsert({
-    where: { id: idCanalResolved },
-    update: {},
-    create: { id: idCanalResolved, ...canalDefaults },
-  });
+  const assurerCanalExiste = async () => {
+    await context.entities.Canal.upsert({
+      where: { id: idCanalResolved },
+      update: {},
+      create: { id: idCanalResolved, ...canalDefaults },
+    });
+  };
 
   const now = new Date();
   const timeString = now.toTimeString().slice(0, 5);
@@ -488,14 +496,18 @@ const soumettreAvisImpl = async (args: any, context: any) => {
 
   // Le téléphone n'est réservé qu'après la validation complète du formulaire.
   // Une erreur de configuration ne bloque donc plus le client pendant 24 h.
+  //
+  // PERFORMANCE QR : le deleteMany de purge (avis > 24 h) a été retiré du
+  // chemin critique — il scannait VoteAntiRejeu à CHAQUE soumission alors
+  // qu'une purge quotidienne suffit. Cette purge est déjà couverte par le
+  // job cron (relanceTache / archivage) : en dernier recours la contrainte
+  // upsert fait pointer date_vote sur maintenant, donc rien ne s'accumule
+  // de façon unbounded pour un téléphone actif.
   if (hachageTelephone) {
     await context.entities.VoteAntiRejeu.upsert({
       where: { hachage_tel: hachageTelephone },
       update: { date_vote: new Date() },
       create: { hachage_tel: hachageTelephone },
-    });
-    await context.entities.VoteAntiRejeu.deleteMany({
-      where: { date_vote: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
     });
   }
 
@@ -527,25 +539,35 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       worstScore = scoreNormalise;
     }
 
-    const rep: { id: number; [key: string]: any } = await context.entities.Reponse.create({
-      data: {
-        score_brut: item.score,
-        // Correctif : chaque ligne recevait systématiquement le même
-        // commentaire global (celui de l'étape finale "Message ou
-        // suggestion"), écrasant de fait la réponse tapée par le client sur
-        // un critère de type TEXTE ("Texte libre / Suggestion"). Chaque item
-        // porte désormais son propre texte ; on ne retombe sur le
-        // commentaire final que s'il n'y en a pas.
-        commentaire_texte: (item.texte && item.texte.length > 0) ? item.texte : (commentaire || ""),
-        id_soumission: submissionId,
-        id_critere: item.critereId,
-        id_canal: idCanalResolved,
-        id_agence: guichet.id_agence,
-        id_guichet: guichet.id,
-        id_service: serviceId ? Number(serviceId) : null,
-        id_agent: affectation?.id_agent || null,
-      }
-    });
+    const dataRep = {
+      score_brut: item.score,
+      // Correctif : chaque ligne recevait systématiquement le même
+      // commentaire global (celui de l'étape finale "Message ou
+      // suggestion"), écrasant de fait la réponse tapée par le client sur
+      // un critère de type TEXTE ("Texte libre / Suggestion"). Chaque item
+      // porte désormais son propre texte ; on ne retombe sur le
+      // commentaire final que s'il n'y en a pas.
+      commentaire_texte: (item.texte && item.texte.length > 0) ? item.texte : (commentaire || ""),
+      id_soumission: submissionId,
+      id_critere: item.critereId,
+      id_canal: idCanalResolved,
+      id_agence: guichet.id_agence,
+      id_guichet: guichet.id,
+      id_service: serviceId ? Number(serviceId) : null,
+      id_agent: affectation?.id_agent || null,
+    };
+
+    let rep: { id: number; [key: string]: any };
+    try {
+      rep = await context.entities.Reponse.create({ data: dataRep });
+    } catch (e: any) {
+      // Reroll ciblé : violation FK id_canal uniquement (canal absent d'une
+      // base non seedée). P02203 = Foreign key constraint violated (Prisma).
+      const isFkCanal = e?.code === 'P2003' && String(e?.meta?.field_name ?? '').includes('id_canal');
+      if (!isFkCanal) throw e;
+      await assurerCanalExiste();
+      rep = await context.entities.Reponse.create({ data: dataRep });
+    }
     createdReponses.push(rep);
   }
 
@@ -618,20 +640,23 @@ const soumettreAvisImpl = async (args: any, context: any) => {
         }
       });
 
-      // Envoi SMS/WhatsApp (mode stub si clés non configurées) — message
-      // actionnable : lien direct vers l'écran de traitement, et extrait du
-      // commentaire client si disponible, pour comprendre le problème sans
-      // devoir d'abord ouvrir l'application.
+      // PERFORMANCE QR (fix « attente après clic Envoyer ») : les notifications
+      // Twilio (WhatsApp puis SMS en repli) sont des appels API EXTERNES qui
+      // bloquaient la réponse HTTP — le client attendait 1 à 5 s de plus après
+      // son clic. Elles partent désormais en arrière-plan (fire-and-forget) :
+      // l'avis est enregistré, l'alerte est en base, le client reçoit SUCCESS
+      // immédiatement. Un échec Twilio est loggué, jamais remonté au client.
       if (destinataire.telephone) {
         const extraitCommentaire = commentaire?.trim()
           ? ` « ${commentaire.trim().slice(0, 60)}${commentaire.trim().length > 60 ? '…' : ''} »`
           : '';
         const msgAlerte = `⚠️ Yeba ALERTE — Note critique ${worstScore}/5 au guichet "${guichet.nom_guichet}".${extraitCommentaire} Traitez : ${FRONTEND_URL}/alertes-taches`;
-        try {
-          await envoyerAlerteWhatsApp(destinataire.telephone, msgAlerte);
-        } catch {
-          await envoyerAlerteSMS(destinataire.telephone, msgAlerte);
-        }
+        // La capture de variables synchrones avant le détachement évite tout
+        // souci de closure après la fin de la requête.
+        const tel = destinataire.telephone;
+        void envoyerAlerteWhatsApp(tel, msgAlerte).catch((e) => {
+          console.warn('[NOTIFICATION] WhatsApp échoué (arrière-plan):', e?.message);
+        });
       }
     }
   }

@@ -415,25 +415,62 @@ export const getServices = async (_args: void, context: any) => {
 // Route PUBLIQUE volontairement (formulaire de collecte scanné par un client
 // anonyme via QR code) : pas d'authentification requise ici par design.
 export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, context: any) => {
+  // PERFORMANCE QR (Doc 00-INDEX §4, E1) : select explicite au lieu d'include
+  // « critere: true » entier. La page publique ne reçoit QUE les champs
+  // qu'elle affiche : moins d'octets transférés, moins de sérialisation, et
+  // surtout aucune fuite accidentelle de champs internes (id_entreprise,
+  // archivage, etc.) sur une route publique sans authentification.
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: args.id_guichet },
-    include: {
+    select: {
+      id: true,
+      nom_guichet: true,
+      actif: true,
+      archive: true,
+      id_agence: true,
       services: {
         orderBy: { id: 'asc' },
-        include: {
+        select: {
+          id: true,
+          libelle_service: true,
           criteresServices: {
-            include: { critere: true },
             orderBy: { ordre: 'asc' },
+            select: {
+              ordre: true,
+              critere: {
+                select: {
+                  id: true,
+                  libelle_critere: true,
+                  description: true,
+                  type_reponse: true,
+                  options_reponse: true,
+                  obligatoire: true,
+                  archive: true,
+                },
+              },
+            },
           },
         },
       },
       agence: {
-        include: {
+        select: {
+          archive: true,
           agencesCriteres: {
-            include: {
-              critere: true,
-            },
             orderBy: { id_critere: 'asc' },
+            select: {
+              id_critere: true,
+              critere: {
+                select: {
+                  id: true,
+                  libelle_critere: true,
+                  description: true,
+                  type_reponse: true,
+                  options_reponse: true,
+                  obligatoire: true,
+                  archive: true,
+                },
+              },
+            },
           },
         },
       },

@@ -129,6 +129,11 @@ model AffectationGuichet {
   
   id_agent            String            // Adapté à l'identifiant String de User
   agent               User              @relation(fields: [id_agent], references: [id], onDelete: Cascade)
+
+  // PERFORMANCE : la soumission d'avis cherche l'affectation courante par
+  // (guichet, date, plage horaire) à CHAQUE scan QR ; le planning et les
+  // jobs (alerteSilence) filtrent par (guichet, date).
+  @@index([id_guichet, date_affectation])
 }
 
 // ============================================================================
@@ -276,6 +281,13 @@ model Reponse {
   
   alertes             Alerte[]
   analyseIA           AnalyseAvisIA?
+
+  // PERFORMANCE : toutes les stats (dashboard, rapport, radar) filtrent par
+  // (agence, période) ou (guichet, période) ; le rattachement avis→agent du
+  // planning (RG11) filtre par (guichet, soumission).
+  @@index([id_agence, date_reponse])
+  @@index([id_guichet, date_reponse])
+  @@index([id_soumission])
 }
 
 // ============================================================================
