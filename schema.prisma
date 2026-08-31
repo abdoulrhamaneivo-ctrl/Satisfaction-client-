@@ -34,12 +34,21 @@ model User {
   id_agence                     Int?                     // Nullable pour l'onboarding SaaS (Siège créé après)
   agence                        Agence?                  @relation(fields: [id_agence], references: [id])
 
+  // ── SAAS (Doc 11 §3) ──
+  // platformRole = rôle ÉDITEUR de la plateforme (Yeba), indépendant du rôle
+  // métier. NONE = compte client normal. SUPER_ADMIN/SUPPORT ont
+  // id_entreprise = null (leur périmètre est la plateforme entière).
+  platformRole                  String                   @default("NONE") // SUPER_ADMIN | SUPPORT | NONE
+
   // Dénormalisé volontairement : permet de scoper DIRECTION/QUALITE à leur
   // propre entreprise (tenant) sans avoir à recharger la relation agence.entreprise
   // dans chaque query/action. Toujours tenu synchronisé avec agence.id_entreprise
   // (voir src/server/middleware/rowLevelSecurity.ts).
   id_entreprise                 Int?
   entreprise                    Entreprise?              @relation(fields: [id_entreprise], references: [id])
+  invitationsRecues             Invitation[]             @relation("InvitationInvite")
+  invitationsEmises             Invitation[]             @relation("InvitationEmetteur")
+  auditLogs                     AuditLog[]               @relation("AuditActeur")
   
   affectations                  AffectationGuichet[]
   alertes                       Alerte[]
@@ -58,8 +67,27 @@ model User {
 model Entreprise {
   id                  Int               @id @default(autoincrement())
   nom_entreprise      String
+  nom_court           String?
+  email_administratif String?
+  telephone           String?
+  pays                String?           @default("Cote d'Ivoire")
   date_creation_compte DateTime         @default(now())
-  
+
+  // ── SAAS (Doc 11 §4) : statut, plan, limites — vérifiés côté serveur ──
+  status              String            @default("ACTIVE") // TRIAL | ACTIVE | SUSPENDED | CANCELLED
+  plan                String            @default("STARTER") // STARTER | BUSINESS | ENTERPRISE
+  date_debut_abonnement DateTime?
+  date_fin_abonnement DateTime?
+  limite_agences      Int               @default(5)
+  limite_utilisateurs Int               @default(50)
+  limite_guichets     Int               @default(25)
+  suspendue_le        DateTime?
+  motif_suspension    String?
+
+  branding            BrandingConfig?
+  auditLogs           AuditLog[]
+  invitations         Invitation[]
+
   agences             Agence[]
   utilisateurs        User[]
   criteres            Critere[]
@@ -463,4 +491,90 @@ model Logs {
   createdAt    DateTime    @default(now())
   message      String
   level        String
+}
+
+// ============================================================================
+// SAAS — INVITATIONS, AUDIT, BRANDING (Doc 11 §5/§8, Doc 13)
+// ============================================================================
+
+/// Invitation sécurisée à usage unique : le token EN CLAIR va uniquement dans
+/// le lien de l'email ; la base ne stocke que son SHA-256 (token_hash).
+/// À l'activation : hash(token_clair) == token_hash && expires_at > now
+/// && used_at == null, puis used_at = now + définition du mot de passe.
+model Invitation {
+  id             BigInt    @id @default(autoincrement())
+  id_user        String    // User INVITÉ (celui qui doit activer son compte)
+  invite         User      @relation("InvitationInvite", fields: [id_user], references: [id])
+  id_emetteur    String    // SUPER_ADMIN (ou DIRECTION) qui a émis l'invitation
+  emetteur       User      @relation("InvitationEmetteur", fields: [id_emetteur], references: [id])
+  id_entreprise  Int
+  entreprise     Entreprise @relation(fields: [id_entreprise], references: [id])
+  token_hash     String    @unique
+  expires_at     DateTime
+  used_at        DateTime?
+  created_at     DateTime  @default(now())
+
+  @@index([id_user])
+  @@index([expires_at])
+  @@index([id_entreprise, created_at])
+}
+
+/// Journal des actions sensibles (Doc 11 §8). Écrit via le helper
+/// journaliser() uniquement — jamais dispersé dans les actions.
+model AuditLog {
+  id            BigInt   @id @default(autoincrement())
+  actor_id      String
+  acteur        User     @relation("AuditActeur", fields: [actor_id], references: [id])
+  actor_role    String?  // SUPER_ADMIN, DIRECTION... (copie au moment du fait)
+  action        String   // 'entreprise.create', 'entreprise.suspend', 'user.invite', 'branding.update', 'invitation.used', ...
+  resource      String   // 'Entreprise', 'User', 'Guichet', ...
+  resource_id   String?
+  entreprise_id Int?     // null = action platform (hors tenant)
+  details       Json?    // diff avant/après (sans secret), motif de suspension...
+  ip            String?
+  user_agent    String?
+  created_at    DateTime @default(now())
+
+  @@index([entreprise_id, created_at])
+  @@index([actor_id, created_at])
+  @@index([action, created_at])
+}
+
+/// Personnalisation par entreprise (Doc 13). Champs null = hérite du thème
+/// Yeba par défaut (src/shared/branding.ts). Validation stricte côté serveur
+/// (HEX, longueurs, MIME logos) — jamais de CSS/HTML libre.
+model BrandingConfig {
+  id             BigInt  @id @default(autoincrement())
+  id_entreprise  Int     @unique
+  entreprise     Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+
+  // ── Identité ──
+  logo_url       String?
+  logo_light_url String?
+  favicon_url    String?
+  nom_affiche    String?
+
+  // ── Couleurs (format "H S% L%" compatible branding.ts, ou null) ──
+  color_primary   String?
+  color_secondary String?
+  color_accent    String?
+  color_background String?
+
+  // ── Messages expérience client (bornés) ──
+  form_title      String? @db.VarChar(120)
+  form_subtitle   String? @db.VarChar(200)
+  form_thank_you  String? @db.VarChar(120)
+  qr_slogan       String? @db.VarChar(80)
+
+  // ── QR global (surcharge par guichet = GuichetQrStyle, phase P2) ──
+  qr_style        String  @default("CLASSIQUE") // CLASSIQUE | MODERNE | PREMIUM
+  qr_color        String?
+  qr_bg_color     String?
+  qr_frame        String  @default("SIMPLE")    // AUCUN | SIMPLE | PREMIUM
+
+  hide_yeba_branding Boolean @default(false)   // plan ENTERPRISE uniquement
+
+  updated_by      String?
+  updated_at      DateTime @updatedAt
+  created_at      DateTime @default(now())
 }

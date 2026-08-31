@@ -4,7 +4,13 @@ import { App } from "./src/client/App" with { type: "ref" };
 import { NotFoundPage } from "./src/client/components/NotFoundPage" with { type: "ref" };
 import { serverEnvValidationSchema } from "./src/env" with { type: "ref" };
 import { RacinePage } from "./src/client/pages/RacinePage" with { type: "ref" };
-import { seedEntrepriseUnique } from "./src/server/scripts/dbSeeds" with { type: "ref" };
+import { PlatformShell } from "./src/client/platform/PlatformShell" with { type: "ref" };
+import PlatformOverviewPage from "./src/client/platform/pages/PlatformOverviewPage" with { type: "ref" };
+import CompaniesPage from "./src/client/platform/pages/CompaniesPage" with { type: "ref" };
+import CreateCompanyPage from "./src/client/platform/pages/CreateCompanyPage" with { type: "ref" };
+import CompanyDetailsPage from "./src/client/platform/pages/CompanyDetailsPage" with { type: "ref" };
+import ActivateAccountPage from "./src/client/platform/pages/ActivateAccountPage" with { type: "ref" };
+import { seedEntrepriseUnique, seedSuperAdmin } from "./src/server/scripts/dbSeeds" with { type: "ref" };
 
 // === IMPORTS POUR LES GUICHETS Yeba ===
 import { GuichetsPage } from "./src/client/pages/GuichetsPage" with { type: "ref" };
@@ -120,6 +126,13 @@ const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage)
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
 const archivesRoute = route("ArchivesRoute", "/archives", page(ArchivesPage));
 const settingsRoute = route("SettingsRoute", "/settings", page(SettingsPage));
+// SAAS Platform
+const platformRoute = route("PlatformRoute", "/platform", page(PlatformShell));
+const platformOverviewRoute = route("PlatformOverviewRoute", "/platform", page(PlatformOverviewPage));
+const platformCompaniesRoute = route("PlatformCompaniesRoute", "/platform/entreprises", page(CompaniesPage));
+const platformNewCompanyRoute = route("PlatformNewCompanyRoute", "/platform/entreprises/nouvelle", page(CreateCompanyPage));
+const platformCompanyDetailRoute = route("PlatformCompanyDetailRoute", "/platform/entreprises/:id", page(CompanyDetailsPage));
+const activateAccountRoute = route("ActivateAccountRoute", "/account/activate", page(ActivateAccountPage));
 
 // === ACTIONS DEFINITIONS ===
 const createGuichetAction = action(createGuichet, {
@@ -202,6 +215,38 @@ const getArchivesQuery = query(getArchives, { entities: ["Guichet", "Agence", "A
 const getAIStatusQuery = query(getAIStatus, { entities: ["AnalyseAvisIA"] });
 const getThemesStatsQuery = query(getThemesStats, { entities: ["AnalyseAvisIA"] });
 
+// === SAAS PLATFORM (Doc 11/12 — phase P1) ===
+import {
+  creerEntreprise,
+  suspendreEntreprise,
+  reactiverEntreprise,
+  changerLimitesEntreprise,
+  renvoyerInvitation,
+  inviterSuperAdmin,
+  activerCompte,
+} from "./src/server/actionsPlatform" with { type: "ref" };
+import {
+  getPlatformOverview,
+  getPlatformEntreprises,
+  getPlatformEntreprise,
+  getPlatformAudit,
+  getPlatformMe,
+} from "./src/server/queriesPlatform" with { type: "ref" };
+
+const creerEntrepriseAction = action(creerEntreprise, { entities: ["Entreprise", "User", "Invitation", "AuditLog"] });
+const suspendreEntrepriseAction = action(suspendreEntreprise, { entities: ["Entreprise", "AuditLog"] });
+const reactiverEntrepriseAction = action(reactiverEntreprise, { entities: ["Entreprise", "AuditLog"] });
+const changerLimitesEntrepriseAction = action(changerLimitesEntreprise, { entities: ["Entreprise", "AuditLog"] });
+const renvoyerInvitationAction = action(renvoyerInvitation, { entities: ["Entreprise", "User", "Invitation", "AuditLog"] });
+const inviterSuperAdminAction = action(inviterSuperAdmin, { entities: ["User", "Invitation", "AuditLog"] });
+const activerCompteAction = action(activerCompte, { entities: ["Invitation", "User", "AuditLog"] });
+
+const getPlatformOverviewQuery = query(getPlatformOverview, { entities: ["Entreprise", "User", "Reponse"] });
+const getPlatformEntreprisesQuery = query(getPlatformEntreprises, { entities: ["Entreprise", "User"] });
+const getPlatformEntrepriseQuery = query(getPlatformEntreprise, { entities: ["Entreprise", "User", "Agence", "Guichet", "Reponse", "Invitation", "AuditLog"] });
+const getPlatformAuditQuery = query(getPlatformAudit, { entities: ["AuditLog", "User"] });
+const getPlatformMeQuery = query(getPlatformMe, { entities: ["User"] });
+
 export default app({
   name: "Yeba",
   wasp: { version: "^0.24.0" },
@@ -211,6 +256,7 @@ export default app({
   db: {
     seeds: [
       seedEntrepriseUnique,
+      seedSuperAdmin,
     ],
   },
   client: {
@@ -239,6 +285,13 @@ export default app({
     alertesTachesRoute,
     archivesRoute,
     settingsRoute,
+    // SAAS Platform
+    platformRoute,
+    platformOverviewRoute,
+    platformCompaniesRoute,
+    platformNewCompanyRoute,
+    platformCompanyDetailRoute,
+    activateAccountRoute,
     // Actions
     createGuichetAction,
     assignAgentAction,
@@ -276,6 +329,14 @@ export default app({
     desarchiverTacheAction,
     archiverCritereAction,
     desarchiverCritereAction,
+    // SAAS Platform
+    creerEntrepriseAction,
+    suspendreEntrepriseAction,
+    reactiverEntrepriseAction,
+    changerLimitesEntrepriseAction,
+    renvoyerInvitationAction,
+    inviterSuperAdminAction,
+    activerCompteAction,
     // Queries
     getGuichetsQuery,
     getAgentsQuery,
@@ -308,6 +369,12 @@ export default app({
     getArchivesQuery,
     getAIStatusQuery,
     getThemesStatsQuery,
+    // SAAS Platform
+    getPlatformOverviewQuery,
+    getPlatformEntreprisesQuery,
+    getPlatformEntrepriseQuery,
+    getPlatformAuditQuery,
+    getPlatformMeQuery,
     // Jobs PgBoss
     job(detecterAlertesSilence, {
       executor: "PgBoss",

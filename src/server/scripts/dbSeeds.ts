@@ -202,3 +202,59 @@ export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
 
   console.log("Seeding mono-agence terminé avec succès !");
 }
+
+// ============================================================================
+// SEED SUPER_ADMIN (Doc 11 §3.3 — phase P1)
+// Le premier administrateur Yeba Platform est créé UNIQUEMENT par ce seed.
+// Garde anti-doublon : si un SUPER_ADMIN existe déjà, le seed n'en crée pas
+// de second. `ADMIN_EMAILS` ne crée plus de super admin (userSignupFields ne
+// définit plus isAdmin).
+// ============================================================================
+export async function seedSuperAdmin(prismaClient: PrismaClient) {
+  console.log("Seed SUPER_ADMIN — vérification…");
+
+  const existant = await prismaClient.user.findFirst({
+    where: { platformRole: 'SUPER_ADMIN', actif: true },
+    select: { id: true, email: true },
+  });
+  if (existant) {
+    console.log(`Un SUPER_ADMIN existe déjà (${existant.email ?? existant.id}) — seed ignoré.`);
+    return;
+  }
+
+  const EMAIL = process.env.SUPER_ADMIN_EMAIL || 'abdoulivo5@gmail.com';
+  const dejaPris = await prismaClient.user.findUnique({ where: { email: EMAIL } });
+  if (dejaPris) {
+    // Ce compte est pris par le CHEF_AGENCE mono-agence : on élève ce compte
+    // existant au rang SUPER_ADMIN (scénario d'installation mono-opérateur).
+    await prismaClient.user.update({
+      where: { id: dejaPris.id },
+      data: { platformRole: 'SUPER_ADMIN', role: 'DIRECTION' },
+    });
+    console.log(`Compte ${EMAIL} existant élevé au rang SUPER_ADMIN (installation mono-opérateur).`);
+    return;
+  }
+
+  const { createProviderId, createUser, sanitizeAndSerializeProviderData } = await import('wasp/server/auth');
+  const motDePasse = crypto.randomBytes(9).toString('base64url');
+  const providerId = createProviderId('email', EMAIL);
+  const providerData = await sanitizeAndSerializeProviderData<'email'>({
+    hashedPassword: motDePasse,
+    isEmailVerified: true,
+    emailVerificationSentAt: null,
+    passwordResetSentAt: null,
+  });
+
+  const admin = await createUser(providerId, providerData, { email: EMAIL, username: EMAIL });
+  await prismaClient.user.update({
+    where: { id: admin.id },
+    data: {
+      nom: 'Yeba', prenom: 'Admin', role: null,
+      platformRole: 'SUPER_ADMIN', id_agence: null, actif: true, isAdmin: true,
+      mustChangePassword: true,
+    },
+  });
+
+  console.log(`SUPER_ADMIN créé : ${EMAIL}`);
+  console.log(`Password initial : ${motDePasse} (à changer dès la première connexion)`);
+}

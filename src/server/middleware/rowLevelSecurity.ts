@@ -269,3 +269,69 @@ export async function resolveAgenceScope(
 
   return buildAgenceFilter(context, entities);
 }
+
+// ─────────────────────────────────────────────
+// 4. SAAS — Rôle plateforme (Doc 11 §3)
+// ─────────────────────────────────────────────
+
+export type PlatformRole = 'SUPER_ADMIN' | 'SUPPORT' | 'NONE';
+
+/**
+ * Vérifie le rôle ÉDITEUR de l'utilisateur (Yeba Platform), indépendamment
+ * des rôles métier. À utiliser sur TOUTE query/action de la console
+ * /platform. Le front n'est jamais la protection : cette fonction EST la
+ * barrière.
+ * - SUPER_ADMIN : lecture + écriture (console complète).
+ * - SUPPORT : lecture seule — les actions d'écriture de la console exigent
+ *   explicitement ['SUPER_ADMIN'].
+ */
+export function requirePlatformRole(
+  context: WaspContext,
+  roles: PlatformRole[]
+): void {
+  requireAuth(context);
+  const platformRole = ((context.user as any).platformRole ?? 'NONE') as PlatformRole;
+  if (!roles.includes(platformRole)) {
+    throw new HttpError(403, 'Accès réservé à la console Yeba Platform.');
+  }
+}
+
+/**
+ * Raccourci : l'appelant est un SUPER_ADMIN (console complète).
+ * Ne vérifie PAS le rôle métier — les deux mondes sont séparés.
+ */
+export function requireSuperAdmin(context: WaspContext): void {
+  requirePlatformRole(context, ['SUPER_ADMIN']);
+}
+
+/**
+ * Vérifie que l'ENTREPRISE du compte est active (SaaS). Appelé par
+ * requireAuth pour bloquer globalement un tenant suspendu/résilié —
+ * Doc 11 §3.4 : AUTHENTIFICATION → PLATFORM ROLE → ENTREPRISE ACTIVE → ...
+ *
+ * @returns true si une vérification d'entreprise a été effectuée (compte
+ * client), false si compte plateforme (id_entreprise = null, hors tenant).
+ * Les erreurs sont SILENCIEUSES (return false) : requireAuth décide.
+ */
+export async function verifierEntrepriseActive(
+  context: WaspContext,
+  entities: any
+): Promise<boolean> {
+  const { id_entreprise } = (context.user ?? {}) as { id_entreprise?: number | null };
+  if (!id_entreprise) return false; // compte plateforme ou anomalie — pas de contrôle tenant ici
+
+  const entreprise = await entities.Entreprise.findUnique({
+    where: { id: id_entreprise },
+    select: { status: true },
+  });
+  if (!entreprise) return false; // entreprit disparue : laissé aux autres contrôles
+
+  if (entreprise.status === 'SUSPENDED') {
+    throw new HttpError(403, 'Votre abonnement Yeba est suspendu. Contactez votre gestionnaire Yeba pour le réactiver.');
+  }
+  if (entreprise.status === 'CANCELLED') {
+    throw new HttpError(403, 'Votre abonnement Yeba a été résilié. Contactez votre gestionnaire Yeba.');
+  }
+  // TRIAL et ACTIVE : accès autorisé
+  return true;
+}
