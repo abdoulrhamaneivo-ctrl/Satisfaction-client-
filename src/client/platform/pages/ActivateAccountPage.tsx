@@ -11,7 +11,7 @@ import { CheckCircle2, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react'
  * (Doc 12 §7.2). Le token en clair va dans l'URL ; le serveur vérifie le
  * hash, l'expiration et l'usage unique avant de poser le mot de passe.
  */
-export function ActivateAccountPage() {
+export default function ActivateAccountPage() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const activer = useAction(activerCompte)

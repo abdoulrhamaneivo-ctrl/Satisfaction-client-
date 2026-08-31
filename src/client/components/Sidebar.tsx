@@ -13,6 +13,7 @@ import {
   MessageSquareQuote,
   Search,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth, logout } from 'wasp/client/auth';
 import { useBrand } from '../context/BrandContext';
@@ -188,6 +189,19 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
 
       <div className="p-4 border-t border-border/70 space-y-3 bg-muted/20 mt-auto">
         <TriggerOnboardingButton />
+
+        {/* Console Platform — lien discret réservé aux SUPER_ADMIN (Doc 12 §9).
+            Commodité uniquement : la vraie protection est requirePlatformRole. */}
+        {(user as any)?.platformRole === 'SUPER_ADMIN' && (
+          <a
+            href="/platform"
+            onClick={onNavigate}
+            className="flex items-center gap-2.5 rounded-xl border border-warning/25 bg-warning/5 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-warning hover:bg-warning/10 transition-colors"
+          >
+            <ShieldCheck className="size-3.5" aria-hidden />
+            Console Platform
+          </a>
+        )}
 
         <div className="flex items-center gap-2.5 pt-1">
           <div className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0">

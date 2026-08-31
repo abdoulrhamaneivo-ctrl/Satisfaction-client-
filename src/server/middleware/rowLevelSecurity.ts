@@ -60,6 +60,11 @@ const ENTREPRISE_WIDE_ROLES: YebaRole[] = ['DIRECTION', 'QUALITE'];
 /**
  * Vérifie que le contexte contient un utilisateur connecté et actif.
  * Lève une HttpError 401 si non connecté, 403 si le compte est suspendu.
+ *
+ * NOTE SaaS : la vérification du STATUT DE L'ENTREPRISE (tenant suspendu/
+ * résilié) est faite par `assertEntrepriseActive` (async) — à appeler dans
+ * les actions/queries qui y ont accès. requireAuth reste sync par design
+ * (perf : pas de requête DB sur chaque appel).
  */
 export function requireAuth(
   context: WaspContext
@@ -70,6 +75,51 @@ export function requireAuth(
   if (context.user.actif === false) {
     throw new HttpError(403, 'Votre compte a été suspendu par la direction. Contactez votre administrateur.');
   }
+}
+
+/**
+ * SAAS — Vérifie que l'ENTREPRISE du compte est active (Doc 11 §3.4 :
+ * AUTHENTIFICATION → ENTREPRISE ACTIVE → AGENCE → RESSOURCE).
+ * - Compte plateforme (id_entreprise null) : rien à vérifier, no-op.
+ * - Entreprise SUSPENDED/CANCELLED : 403 bloquant pour TOUTE opération.
+ *
+ * À appeler juste après requireAuth dans les actions/queries métier qui ont
+ * `Entreprise` dans leurs entities. Cache process-local 60 s par tenant pour
+ * éviter une requête DB par appel.
+ */
+const _statutCache = new Map<number, { status: string; expires: number }>();
+const _STATUT_CACHE_TTL_MS = 60_000;
+
+export async function assertEntrepriseActive(
+  context: WaspContext,
+  entities: any
+): Promise<void> {
+  requireAuth(context);
+  const idEntreprise = context.user!.id_entreprise;
+  if (!idEntreprise) return; // compte plateforme ou compte sans tenant — pas de contrôle ici
+
+  const cached = _statutCache.get(idEntreprise);
+  const now = Date.now();
+  let status: string;
+  if (cached && cached.expires > now) {
+    status = cached.status;
+  } else {
+    const entreprise = await entities.Entreprise.findUnique({
+      where: { id: idEntreprise },
+      select: { status: true },
+    });
+    if (!entreprise) return; // tenant introuvable — laissé aux autres contrôles
+    status = entreprise.status;
+    _statutCache.set(idEntreprise, { status, expires: now + _STATUT_CACHE_TTL_MS });
+  }
+
+  if (status === 'SUSPENDED') {
+    throw new HttpError(403, 'Votre abonnement Yeba est suspendu. Contactez votre gestionnaire Yeba pour le réactiver.');
+  }
+  if (status === 'CANCELLED') {
+    throw new HttpError(403, 'Votre abonnement Yeba a été résilié. Contactez votre gestionnaire Yeba.');
+  }
+  // TRIAL et ACTIVE : accès autorisé
 }
 
 // ─────────────────────────────────────────────

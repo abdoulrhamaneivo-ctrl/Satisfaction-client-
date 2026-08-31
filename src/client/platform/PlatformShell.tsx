@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useQuery } from 'wasp/client/operations'
-import { getPlatformMe, getPlatformOverview } from 'wasp/client/operations'
+import { getPlatformMe } from 'wasp/client/operations'
 import { Building2, ShieldCheck, ScrollText, LogOut, Menu, X, ArrowLeft } from 'lucide-react'
 
 /**
@@ -12,20 +12,12 @@ import { Building2, ShieldCheck, ScrollText, LogOut, Menu, X, ArrowLeft } from '
  */
 export function PlatformShell() {
   const navigate = useNavigate()
-  const { data: me, isLoading: loadingMe } = useQuery(getPlatformMe)
-  const { data: overview } = useQuery(getPlatformOverview)
+  // getPlatformMe lève un 403 côté serveur si le connecté n'est pas
+  // SUPER_ADMIN/SUPPORT → useQuery le remonte dans `error`. C'est le signal
+  // d'interdiction (le front n'est jamais la protection, il ne fait que
+  // refléter la décision du middleware).
+  const { data: me, isLoading: loadingMe, error: erreurMe } = useQuery(getPlatformMe)
   const [menuOpen, setMenuOpen] = useState(false)
-
-  // Garde front : le middleware serveur est la vraie protection, celle-ci
-  // évite juste d'afficher la console à un non-autorisé le temps du 403.
-  const [interdit, setInterdit] = useState(false)
-  useEffect(() => {
-    // getPlatformMe lève un 403 → useQuery renvoie error ; on détecte via me
-    if (!loadingMe && !me) {
-      // potentiel 403 : laisser la query error gérer, mais on bloque l'UI
-      setInterdit(true)
-    }
-  }, [loadingMe, me])
 
   if (loadingMe) {
     return (
@@ -35,7 +27,7 @@ export function PlatformShell() {
     )
   }
 
-  if (interdit || !me) {
+  if (erreurMe || !me) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[hsl(216_40%_12%)] p-6">
         <div className="max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 text-center">

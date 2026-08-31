@@ -7,6 +7,7 @@ import {
   assertAgenceAccess,
   resolveAgenceId,
   resolveAgenceScope,
+  assertEntrepriseActive,
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
 import { BRANDING } from '../shared/branding';
@@ -68,6 +69,7 @@ export const getStatsFiltrees = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const filter = await buildAgenceFilter(context, context.entities);
 
   return context.entities.Reponse.findMany({
@@ -169,6 +171,7 @@ type GetAvisGroupesArgs = GetReponsesArgs & {
 
 export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const page = Math.max(1, Number(args.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(args.pageSize) || 20));

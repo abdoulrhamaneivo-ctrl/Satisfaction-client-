@@ -595,6 +595,92 @@ export const activerCompte = async (
 };
 
 // ─────────────────────────────────────────────
+// desactiverCompte / changerPlatformRole — garde « dernier SUPER_ADMIN » (S12)
+// Impossible de rétrograder ou désactiver le DERNIER SUPER_ADMIN actif,
+// sinon la console devient définitivement inaccessible.
+// ─────────────────────────────────────────────
+export const changerPlatformRole = async (
+  args: { id_user_cible: string; nouveauRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE' },
+  context: any
+) => {
+  requireSuperAdmin(context);
+
+  const cible = await context.entities.User.findUnique({ where: { id: args.id_user_cible } });
+  if (!cible) throw new HttpError(404, 'Utilisateur introuvable.');
+
+  if (cible.platformRole === 'SUPER_ADMIN' && args.nouveauRole !== 'SUPER_ADMIN') {
+    const nbSuperAdmins = await context.entities.User.count({
+      where: { platformRole: 'SUPER_ADMIN', actif: true },
+    });
+    if (nbSuperAdmins <= 1) {
+      throw new HttpError(
+        409,
+        'Impossible de rétrograder le dernier SUPER_ADMIN actif. Créez d’abord un autre SUPER_ADMIN depuis la console.'
+      );
+    }
+  }
+
+  // Un SUPER_ADMIN ne peut pas modifier son propre rôle (évite le verrouillage accidentel)
+  if (args.id_user_cible === context.user.id) {
+    throw new HttpError(409, 'Vous ne pouvez pas modifier votre propre rôle plateforme.');
+  }
+
+  await context.entities.User.update({
+    where: { id: cible.id },
+    data: { platformRole: args.nouveauRole },
+  });
+
+  await journaliser({
+    context,
+    action: 'user.suspend',
+    resource: 'User',
+    resource_id: cible.id,
+    entreprise_id: null,
+    details: { platformRole: cible.platformRole, nouveauRole: args.nouveauRole },
+  });
+
+  return { ok: true, message: `Rôle plateforme mis à jour : ${args.nouveauRole}.` };
+};
+
+export const desactiverComptePlatform = async (args: { id_user_cible: string }, context: any) => {
+  requireSuperAdmin(context);
+
+  const cible = await context.entities.User.findUnique({ where: { id: args.id_user_cible } });
+  if (!cible) throw new HttpError(404, 'Utilisateur introuvable.');
+
+  if (cible.platformRole === 'SUPER_ADMIN') {
+    const nbSuperAdmins = await context.entities.User.count({
+      where: { platformRole: 'SUPER_ADMIN', actif: true },
+    });
+    if (nbSuperAdmins <= 1) {
+      throw new HttpError(
+        409,
+        'Impossible de désactiver le dernier SUPER_ADMIN actif. Créez d’abord un autre SUPER_ADMIN.'
+      );
+    }
+  }
+  if (args.id_user_cible === context.user.id) {
+    throw new HttpError(409, 'Vous ne pouvez pas désactiver votre propre compte.');
+  }
+
+  await context.entities.User.update({
+    where: { id: cible.id },
+    data: { actif: false },
+  });
+
+  await journaliser({
+    context,
+    action: 'user.suspend',
+    resource: 'User',
+    resource_id: cible.id,
+    entreprise_id: null,
+    details: { type: 'desactivation_platform', ancienRole: cible.platformRole },
+  });
+
+  return { ok: true, message: 'Compte désactivé.' };
+};
+
+// ─────────────────────────────────────────────
 // Export du type PlatformRole pour le front (garde PlatformShell)
 // ─────────────────────────────────────────────
 export type { PlatformRole };

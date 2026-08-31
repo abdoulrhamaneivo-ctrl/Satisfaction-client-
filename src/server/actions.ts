@@ -13,6 +13,7 @@ import {
   requireAuth,
   requireRole,
   assertAgenceAccess,
+  assertEntrepriseActive,
   resolveAgenceId,
 } from './middleware/rowLevelSecurity';
 
@@ -57,6 +58,7 @@ type CreateGuichetArgs = {
 
 export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['CHEF_AGENCE']);
 
   const { nomGuichet, typeGuichet, id_agence, serviceIds } = args;
@@ -823,6 +825,7 @@ export const createAgence = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION']);
 
   if (!args.nom_agence?.trim() || !args.commune?.trim()) {
@@ -914,6 +917,7 @@ export const inviteAgent = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   // Règle métier : le chef d'entreprise structure le réseau (chefs d'agence,

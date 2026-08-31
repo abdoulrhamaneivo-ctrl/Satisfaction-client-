@@ -10,6 +10,8 @@ import CompaniesPage from "./src/client/platform/pages/CompaniesPage" with { typ
 import CreateCompanyPage from "./src/client/platform/pages/CreateCompanyPage" with { type: "ref" };
 import CompanyDetailsPage from "./src/client/platform/pages/CompanyDetailsPage" with { type: "ref" };
 import ActivateAccountPage from "./src/client/platform/pages/ActivateAccountPage" with { type: "ref" };
+import AuditLogsPage from "./src/client/platform/pages/AuditLogsPage" with { type: "ref" };
+import SecurityPage from "./src/client/platform/pages/SecurityPage" with { type: "ref" };
 import { seedEntrepriseUnique, seedSuperAdmin } from "./src/server/scripts/dbSeeds" with { type: "ref" };
 
 // === IMPORTS POUR LES GUICHETS Yeba ===
@@ -132,6 +134,8 @@ const platformOverviewRoute = route("PlatformOverviewRoute", "/platform", page(P
 const platformCompaniesRoute = route("PlatformCompaniesRoute", "/platform/entreprises", page(CompaniesPage));
 const platformNewCompanyRoute = route("PlatformNewCompanyRoute", "/platform/entreprises/nouvelle", page(CreateCompanyPage));
 const platformCompanyDetailRoute = route("PlatformCompanyDetailRoute", "/platform/entreprises/:id", page(CompanyDetailsPage));
+const platformAuditRoute = route("PlatformAuditRoute", "/platform/audit", page(AuditLogsPage));
+const platformSecurityRoute = route("PlatformSecurityRoute", "/platform/securite", page(SecurityPage));
 const activateAccountRoute = route("ActivateAccountRoute", "/account/activate", page(ActivateAccountPage));
 
 // === ACTIONS DEFINITIONS ===
@@ -224,6 +228,8 @@ import {
   renvoyerInvitation,
   inviterSuperAdmin,
   activerCompte,
+  changerPlatformRole,
+  desactiverComptePlatform,
 } from "./src/server/actionsPlatform" with { type: "ref" };
 import {
   getPlatformOverview,
@@ -240,6 +246,8 @@ const changerLimitesEntrepriseAction = action(changerLimitesEntreprise, { entiti
 const renvoyerInvitationAction = action(renvoyerInvitation, { entities: ["Entreprise", "User", "Invitation", "AuditLog"] });
 const inviterSuperAdminAction = action(inviterSuperAdmin, { entities: ["User", "Invitation", "AuditLog"] });
 const activerCompteAction = action(activerCompte, { entities: ["Invitation", "User", "AuditLog"] });
+const changerPlatformRoleAction = action(changerPlatformRole, { entities: ["User", "AuditLog"] });
+const desactiverComptePlatformAction = action(desactiverComptePlatform, { entities: ["User", "AuditLog"] });
 
 const getPlatformOverviewQuery = query(getPlatformOverview, { entities: ["Entreprise", "User", "Reponse"] });
 const getPlatformEntreprisesQuery = query(getPlatformEntreprises, { entities: ["Entreprise", "User"] });
@@ -291,6 +299,8 @@ export default app({
     platformCompaniesRoute,
     platformNewCompanyRoute,
     platformCompanyDetailRoute,
+    platformAuditRoute,
+    platformSecurityRoute,
     activateAccountRoute,
     // Actions
     createGuichetAction,
@@ -337,6 +347,8 @@ export default app({
     renvoyerInvitationAction,
     inviterSuperAdminAction,
     activerCompteAction,
+    changerPlatformRoleAction,
+    desactiverComptePlatformAction,
     // Queries
     getGuichetsQuery,
     getAgentsQuery,
