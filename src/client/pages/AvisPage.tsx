@@ -69,7 +69,15 @@ export const AvisPage = () => {
     pageSize: PAGE_SIZE,
   };
 
-  const { data: avisData, isLoading } = useQuery(getAvisGroupes, queryArgs);
+  // CONFIDENTIALITÉ (RG16/RG17) : l'API renvoie 403 à getAvisGroupes pour la
+  // DIRECTION — on ne lance même pas la query pour ce rôle (sinon react-query
+  // marque la page en erreur). La page reste accessible à la Direction pour
+  // les filtres/agences mais la liste d'avis n'est jamais chargée.
+  const { data: avisData, isLoading } = useQuery(
+    getAvisGroupes,
+    queryArgs,
+    { enabled: !isDirection }
+  );
 
   // Pages accumulées (on ajoute les nouvelles au fur et à mesure)
   const [allAvis, setAllAvis] = useState<any[]>([]);
