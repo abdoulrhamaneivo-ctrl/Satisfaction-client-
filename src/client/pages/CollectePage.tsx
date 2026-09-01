@@ -50,17 +50,19 @@ const normaliserTelephone = (valeur: string): string => {
 };
 
 export const CollectePage = () => {
-  const { guichetId } = useParams<{ guichetId: string }>();
-  const idGuichetNum = Number(guichetId);
-  // Un identifiant non numérique (vieux QR, URL tronquée…) ne doit jamais
-  // partir vers le serveur : la requête échouerait et retenterait en boucle,
-  // laissant le spinner tourner indéfiniment.
-  const idGuichetValide = Number.isSafeInteger(idGuichetNum) && idGuichetNum > 0;
+  // QR opaque (Doc 11 §7) : la route porte un code public non prédictible
+  // (/q/BXYUUEHM9Y). Les vieux QR numériques (/q/12) restent supportés.
+  const params = useParams<{ code?: string; guichetId?: string }>();
+  const codePublic = params.code?.trim() || null;
+  const idGuichetNum = Number(params.guichetId);
+  const idGuichetValide = !codePublic && Number.isSafeInteger(idGuichetNum) && idGuichetNum > 0;
 
   const { data: formDef, isLoading, isError } = useQuery(
     getFormDefinitionForGuichet,
-    { id_guichet: idGuichetValide ? idGuichetNum : 0 },
-    { enabled: idGuichetValide }
+    codePublic
+      ? { code_public: codePublic }
+      : { id_guichet: idGuichetValide ? idGuichetNum : 0 },
+    { enabled: !!codePublic || idGuichetValide }
   );
   const { brandConfig } = useBrand();
 

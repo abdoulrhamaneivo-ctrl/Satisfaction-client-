@@ -130,6 +130,11 @@ model Guichet {
   type_guichet        String?
   actif               Boolean           @default(true)
 
+  // Identifiant PUBLIC opaque pour les QR codes (Doc 11 §7) : non prédictible,
+  // unique, généré à la création (et rétro-rempli par migration pour les
+  // guichets existants). Un ID séquentiel n'est jamais un secret.
+  code_public         String            @unique
+
   // Archivage logique (fermeture définitive du guichet) — voir Agence
   // ci-dessus pour la logique complète. Distinct de `actif`, qui reste
   // disponible pour une désactivation opérationnelle temporaire.
@@ -507,8 +512,10 @@ model Invitation {
   invite         User      @relation("InvitationInvite", fields: [id_user], references: [id])
   id_emetteur    String    // SUPER_ADMIN (ou DIRECTION) qui a émis l'invitation
   emetteur       User      @relation("InvitationEmetteur", fields: [id_emetteur], references: [id])
-  id_entreprise  Int
-  entreprise     Entreprise @relation(fields: [id_entreprise], references: [id])
+  // NULL = invitation PLATEFORME (Super Admin Yéba, pas de tenant) ;
+  // non-null = invitation d'entreprise. Le hack id_entreprise = 0 est aboli.
+  id_entreprise  Int?
+  entreprise     Entreprise? @relation(fields: [id_entreprise], references: [id])
   token_hash     String    @unique
   expires_at     DateTime
   used_at        DateTime?

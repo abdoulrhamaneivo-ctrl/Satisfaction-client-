@@ -64,7 +64,18 @@ export const DashboardPage = () => {
 
   const [periodeJours, setPeriodeJours] = useState(30);
 
-  const { data: reponses, isLoading: loadingReponses } = useQuery(getReponses);
+  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION ne reçoit pas
+  // les réponses brutes — l'API renvoie 403 à getReponses pour elle. On ne
+  // lance donc la query QUE pour les rôles autorisés (CHEF_AGENCE, QUALITE),
+  // sinon react-query marque la page en erreur et le dashboard casse.
+  // La Direction garde tous les agrégats : KPI, tendances, radar, heatmap,
+  // comparaisons, thèmes — alimentés par leurs propres queries.
+  const estDirection = user?.role === 'DIRECTION';
+  const { data: reponses, isLoading: loadingReponses } = useQuery(
+    getReponses,
+    undefined,
+    { enabled: !estDirection }
+  );
   const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
   const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
   const { data: taches, isLoading: loadingTaches } = useQuery(getTachesCorrectives);
@@ -477,8 +488,10 @@ export const DashboardPage = () => {
             </Accordion>
           </section>
 
-          {/* Derniers avis */}
-          {!isLoading && (
+          {/* Derniers avis — réservé aux rôles autorisés (la DIRECTION ne
+              voit jamais les verbatims, RG16/RG17). Pour elle, cette section
+              est remplacée par le bloc de synthèse directionnel ci-dessous. */}
+          {!isLoading && !estDirection && (
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <Eyebrow tone="amber">Derniers retours enregistrés</Eyebrow>
@@ -536,6 +549,33 @@ export const DashboardPage = () => {
                   description="Dès que vos clients laisseront un retour, il apparaîtra ici avec les indicateurs associés."
                 />
               )}
+            </section>
+          )}
+
+          {/* Synthèse DIRECTION : chiffres seulement, jamais de verbatim.
+              Même en-tête visuel, contenu agrégé — la Direction voit le
+              volume et l'état des actions, pas les retours individuels. */}
+          {!isLoading && estDirection && (
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <Eyebrow tone="amber">Activité de la période ({labelPeriode})</Eyebrow>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 bg-card/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Avis reçus</p>
+                  <p className="mt-2 text-3xl font-bold text-foreground font-satoshi">{totalAvisPeriode}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Alertes nouvelles</p>
+                  <p className="mt-2 text-3xl font-bold text-foreground font-satoshi">{alertesNouvelles}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-card/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Tâches en cours</p>
+                  <p className="mt-2 text-3xl font-bold text-foreground font-satoshi">
+                    {tachesList.filter((t: any) => t.statut_tache !== 'TERMINEE').length}
+                  </p>
+                </div>
+              </div>
             </section>
           )}
         </div>

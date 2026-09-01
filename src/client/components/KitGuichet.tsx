@@ -14,9 +14,13 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
   const { toast } = useToast();
   const { brandConfig } = useBrand();
   
+  // QR opaque (Doc 11 §7) : le code imprimé est code_public — jamais l'ID
+  // interne. Repli sur l'ID pour un guichet créé avant la migration (backfill
+  // normalement garantit un code, ce repli est purement défensif).
+  const codeQr = guichet.code_public || String(guichet.id);
   const evalUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/q/${guichet.id}`
-    : `https://yeba.ci/q/${guichet.id}`;
+    ? `${window.location.origin}/q/${codeQr}`
+    : `https://yeba.ci/q/${codeQr}`;
 
   const ussdCode = `*789*42*${guichet.id}#`;
 

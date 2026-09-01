@@ -30,6 +30,7 @@ type GetGuichetsArgs = {
 
 export const getGuichets = async (args: GetGuichetsArgs, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   let where: any;
   if (args.id_agence !== undefined) {
@@ -51,6 +52,7 @@ export const getGuichets = async (args: GetGuichetsArgs, context: any) => {
 
 export const getAgents = async (args: { id_agence: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const idAgence = requireNumber(args.id_agence, 'id_agence');
   await assertAgenceAccess(context, context.entities, idAgence, 'agence');
 
@@ -99,6 +101,7 @@ type GetReponsesArgs = {
 
 export const getReponses = async (args: GetReponsesArgs, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION pilote par
   // les chiffres. Elle n'a JAMAIS accès aux réponses brutes (verbatims,
@@ -285,6 +288,18 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
 
 export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+
+  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : l'export est un chemin de
+  // contournement classique — /avis bloqué mais export ouvert = verbatims
+  // téléchargeables par la Direction. Même frontière que getReponses :
+  // refus serveur explicite, sans exception.
+  if (context.user.role === 'DIRECTION') {
+    throw new HttpError(
+      403,
+      "L'export des avis détaillés est réservé aux chefs d'agence et auditeurs qualité. La Direction dispose des rapports consolidés."
+    );
+  }
 
   let scopeFilter: any;
   if (args.id_agence !== undefined) {
@@ -342,6 +357,7 @@ export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => 
 
 export const getAgentsByAgence = async (args: { id_agence: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const idAgence = requireNumber(args.id_agence, 'id_agence');
   await assertAgenceAccess(context, context.entities, idAgence, 'agence');
 
@@ -373,6 +389,7 @@ export const getAgences = async (_args: void, context: any) => {
 
 export const getAlertes = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const filter = await buildAgenceFilter(context, context.entities);
   const idAgenceClause = filter.id_agence;
@@ -407,6 +424,7 @@ export const getAlertes = async (_args: void, context: any) => {
 // entreprise ne voit jamais les critères créés par une AUTRE entreprise.
 export const getCriteres = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   return context.entities.Critere.findMany({
     where: {
       OR: [
@@ -420,6 +438,7 @@ export const getCriteres = async (_args: void, context: any) => {
 
 export const getAgenceCriteres = async (args: { id_agence?: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
 
   const agenceCriteres = await context.entities.AgenceCritere.findMany({
@@ -434,6 +453,7 @@ export const getAgenceCriteres = async (args: { id_agence?: number }, context: a
 // l'entreprise de l'utilisateur.
 export const getServices = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   return context.entities.Service.findMany({
     where: {
       OR: [
@@ -447,14 +467,24 @@ export const getServices = async (_args: void, context: any) => {
 
 // Route PUBLIQUE volontairement (formulaire de collecte scanné par un client
 // anonyme via QR code) : pas d'authentification requise ici par design.
-export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, context: any) => {
+// Résolution par code_public OPAQUE (Doc 11 §7) : le QR n'expose jamais
+// l'ID séquentiel interne. On accepte aussi l'id numérique pour compatibilité
+// avec les QR déjà imprimés — le code devient la voie normale.
+export const getFormDefinitionForGuichet = async (
+  args: { code_public?: string; id_guichet?: number },
+  context: any
+) => {
+  if (!args.code_public && !args.id_guichet) return null;
+
   // PERFORMANCE QR (Doc 00-INDEX §4, E1) : select explicite au lieu d'include
   // « critere: true » entier. La page publique ne reçoit QUE les champs
   // qu'elle affiche : moins d'octets transférés, moins de sérialisation, et
   // surtout aucune fuite accidentelle de champs internes (id_entreprise,
   // archivage, etc.) sur une route publique sans authentification.
   const guichet = await context.entities.Guichet.findUnique({
-    where: { id: args.id_guichet },
+    where: args.code_public
+      ? { code_public: args.code_public.toUpperCase().trim() }
+      : { id: Number(args.id_guichet) },
     select: {
       id: true,
       nom_guichet: true,
@@ -488,6 +518,7 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
       agence: {
         select: {
           archive: true,
+          id_entreprise: true,
           agencesCriteres: {
             orderBy: { id_critere: 'asc' },
             select: {
@@ -515,6 +546,41 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
   // la première barrière côté client.
   if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) return null;
 
+  const brandingTenant = await context.entities.BrandingConfig.findUnique({
+    where: { id_entreprise: guichet.agence.id_entreprise },
+    select: {
+      logo_url: true,
+      nom_affiche: true,
+      color_primary: true,
+      color_secondary: true,
+      color_accent: true,
+      color_background: true,
+      form_title: true,
+      form_subtitle: true,
+      form_thank_you: true,
+      qr_slogan: true,
+      hide_yeba_branding: true,
+    },
+  });
+
+  // Fusion contrôlée : les champs null héritent du thème Yéba (BRANDING).
+  // Aucune donnée autre que ces champs ne quitte le serveur.
+  const brandConfig = brandingTenant
+    ? {
+        ...BRANDING,
+        logo_url: brandingTenant.logo_url ?? BRANDING.logo_url,
+        form_title: brandingTenant.form_title ?? BRANDING.form_title,
+        form_subtitle: brandingTenant.form_subtitle ?? BRANDING.form_subtitle,
+        form_thank_you: brandingTenant.form_thank_you ?? BRANDING.form_thank_you,
+        qr_slogan: brandingTenant.qr_slogan ?? BRANDING.qr_slogan,
+        ...(brandingTenant.color_primary ? { color_primary: brandingTenant.color_primary } : {}),
+        ...(brandingTenant.color_secondary ? { color_secondary: brandingTenant.color_secondary } : {}),
+        ...(brandingTenant.color_accent ? { color_accent: brandingTenant.color_accent } : {}),
+        ...(brandingTenant.color_background ? { color_background: brandingTenant.color_background } : {}),
+        hide_yeba_branding: brandingTenant.hide_yeba_branding,
+      }
+    : BRANDING;
+
   const agencyCriteres = guichet.agence.agencesCriteres
     .map((ac: any) => ac.critere)
     .filter((c: any) => c && !c.archive);
@@ -538,7 +604,9 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
       }).map((cs: any) => cs.critere),
     })),
     agencyCriteres: agencyCriteres,
-    brandConfig: BRANDING,
+    // BRANDING TENANT : fusion contrôlée guichet → entreprise → défaut Yéba
+    // (calculée plus haut). Aucune donnée interne ne quitte le serveur.
+    brandConfig,
   };
 };
 
@@ -551,6 +619,7 @@ export const getFormDefinitionForGuichet = async (args: { id_guichet: number }, 
 // opération.
 export const getCriteresParOperation = async (args: { id_agence?: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
 
   const entrepriseFilter = {
@@ -617,6 +686,7 @@ export const getCriteresParOperation = async (args: { id_agence?: number }, cont
 
 export const getRadarStats = async (args: { id_agence?: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const scope = await resolveAgenceScope(context, context.entities, args.id_agence);
   const idAgence = scope.id_agence;
 
@@ -719,6 +789,7 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
 
 export const getObjectifs = async (args: { id_agence?: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const scope = await resolveAgenceScope(context, context.entities, args.id_agence);
 
   const objectifs = await context.entities.Objectif.findMany({
@@ -777,6 +848,7 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
 
 export const getTachesCorrectives = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const filter = await buildAgenceFilter(context, context.entities);
 
@@ -826,6 +898,7 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 
 export const getArchives = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const filter = await buildAgenceFilter(context, context.entities);
@@ -885,6 +958,7 @@ export const getArchives = async (_args: void, context: any) => {
 
 export const getAffectationsDuJour = async (args: { id_agence: number; date?: string }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const idAgence = requireNumber(args.id_agence, 'id_agence');
   await assertAgenceAccess(context, context.entities, idAgence, 'agence');
 
@@ -909,6 +983,7 @@ export const getAffectationsDuJour = async (args: { id_agence: number; date?: st
 
 export const getTendanceMensuelle = async (args: { id_agence?: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const scope = await resolveAgenceScope(context, context.entities, args.id_agence);
   const idAgence = scope.id_agence;
 
@@ -964,6 +1039,7 @@ export const getTendanceMensuelle = async (args: { id_agence?: number }, context
 
 export const getStatsByAgent = async (args: { id_agence?: number; nbJours?: number } | void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
   const idAgence = scope.id_agence;
   const nbJours = Number.isFinite((args as any)?.nbJours)
@@ -1030,6 +1106,7 @@ export const getStatsByAgent = async (args: { id_agence?: number; nbJours?: numb
 
 export const getStatsByGuichet = async (args: { id_agence?: number; nbJours?: number } | void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
   const nbJours = Number.isFinite((args as any)?.nbJours)
     ? Math.min(365, Math.max(1, Math.round((args as any).nbJours)))
@@ -1098,6 +1175,7 @@ export const getStatsByGuichet = async (args: { id_agence?: number; nbJours?: nu
 
 export const getActionsPrioritaires = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const filter = await buildAgenceFilter(context, context.entities);
   const idAgenceClause = filter.id_agence;
 
@@ -1168,6 +1246,7 @@ export const getActionsPrioritaires = async (_args: void, context: any) => {
 
 export const getKPIsPeriode = async (args: { nbJours?: number } | void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const filter = await buildAgenceFilter(context, context.entities);
 
   // Fenêtre glissante configurable (7 / 30 / 90 jours...) — 30 par défaut
@@ -1256,6 +1335,7 @@ export const getKPIsPeriode = async (args: { nbJours?: number } | void, context:
 
 export const getTempsTraitement = async (args: { nbJours?: number } | void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const filter = await buildAgenceFilter(context, context.entities);
   const idAgenceClause = (filter as any).id_agence;
 
@@ -1372,11 +1452,9 @@ export const getTempsTraitement = async (args: { nbJours?: number } | void, cont
 
 const JOURS_SEMAINE_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-export const getHeatmapReponses = async (
-  args: { nbJours?: number; id_agence?: number } | void,
-  context: any
-) => {
+export const getHeatmapReponses = async (args: { id_agence?: number; nbJours?: number } | void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
 
   const nbJoursDemandes = (args as any)?.nbJours;
@@ -1458,6 +1536,7 @@ export const getHeatmapReponses = async (
 
 export const getTacheHistorique = async (args: { id_tache: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const idTache = requireNumber(args.id_tache, 'id_tache');
 
@@ -1505,6 +1584,7 @@ export const getTacheHistorique = async (args: { id_tache: number }, context: an
 
 export const getObjectifsParAgence = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   if (context.user.role !== 'DIRECTION') {
     throw new HttpError(403, 'Cette vue est réservée à la Direction.');
@@ -1594,6 +1674,7 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
 
 export const getRechercheGlobale = async (args: { q: string }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const q = (args?.q ?? '').trim();
   // Sous 2 caractères, une recherche "contains" sur plusieurs tables ne
@@ -1674,6 +1755,7 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
 
 export const getAIStatus = async (_args: void, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const usingDeepseek = process.env.AI_PROVIDER === 'deepseek';
   const hasApiKey = !!(
@@ -1711,6 +1793,7 @@ export const getAIStatus = async (_args: void, context: any) => {
 // dans AnalyseAvisIA.themes ; on les parse et on les compte côté serveur.
 export const getThemesStats = async (args: { nbJours?: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const nbJours = args?.nbJours ?? 90;
   const depuis = new Date();

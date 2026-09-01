@@ -125,6 +125,8 @@ const gestionAgencesRoute = route("GestionAgencesRoute", "/admin/agences", page(
 const avisRoute = route("AvisRoute", "/avis", page(AvisPage));
 const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/criteres", page(ConfigurationCriteresPage));
 const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage));
+// QR opaque (Doc 11 §7) : nouvelle voie normale — code public non prédictible.
+const collecteCodeRoute = route("CollecteCodeRoute", "/q/:code", page(CollectePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
 const archivesRoute = route("ArchivesRoute", "/archives", page(ArchivesPage));
 const settingsRoute = route("SettingsRoute", "/settings", page(SettingsPage));
@@ -197,7 +199,7 @@ const getAgencesQuery = query(getAgences, { entities: ["Agence", "User", "Entrep
 const getAlertesQuery = query(getAlertes, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"] });
 const getCriteresQuery = query(getCriteres, { entities: ["Critere", "User"] });
 const getAgenceCriteresQuery = query(getAgenceCriteres, { entities: ["AgenceCritere", "User", "Agence"] });
-const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, { entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise"] });
+const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, { entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise", "BrandingConfig"] });
 const getServicesQuery = query(getServices, { entities: ["Service", "User"] });
 const getRadarStatsQuery = query(getRadarStats, { entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence"] });
 const getObjectifsQuery = query(getObjectifs, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse"] });
@@ -290,6 +292,7 @@ export default app({
     avisRoute,
     configurationCriteresRoute,
     collecteRoute,
+    collecteCodeRoute,
     alertesTachesRoute,
     archivesRoute,
     settingsRoute,

@@ -53,6 +53,18 @@ type CreateGuichetArgs = {
   serviceIds?: number[];
 };
 
+// Alphabet QR public : sans 0/O/1/l pour éviter toute confusion à la lecture
+// d'un QR imprimé. 10 caractères = 32^10 ≈ 10^15 combinaisons.
+const ALPHABET_CODE_PUBLIC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const genererCodePublic = (): string => {
+  const octets = crypto.randomBytes(10);
+  let code = '';
+  for (let i = 0; i < 10; i++) {
+    code += ALPHABET_CODE_PUBLIC[octets[i] % ALPHABET_CODE_PUBLIC.length];
+  }
+  return code;
+};
+
 // ============================================================================
 // GUICHETS
 // ============================================================================
@@ -131,6 +143,10 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
       nom_guichet: nomGuichet.trim(),
       type_guichet: typeGuichet || 'Physique',
       actif: true,
+      // QR opaque (Doc 11 §7) : identifiant public non prédictible imprimé
+      // dans le QR code — l'ID séquentiel interne n'apparaît nulle part
+      // publiquement. Alphabet sans 0/O/1/l (lecture d'un QR imprimé).
+      code_public: genererCodePublic(),
       agence: { connect: { id: id_agence } },
       services: servicesConnect,
     }

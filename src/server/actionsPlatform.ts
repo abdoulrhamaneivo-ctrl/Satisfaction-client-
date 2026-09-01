@@ -500,7 +500,7 @@ export const inviterSuperAdmin = async (
     data: {
       id_user: admin.id,
       id_emetteur: context.user.id,
-      id_entreprise: 0, // hors tenant — valeur sentinelle pour invitations platform
+      id_entreprise: null, // invitation PLATEFORME — pas de tenant
       token_hash: sha256(tokenClair),
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
     },
@@ -589,7 +589,7 @@ export const activerCompte = async (
         action: 'invitation.used',
         resource: 'Invitation',
         resource_id: String(invitation.id),
-        entreprise_id: invitation.id_entreprise === 0 ? null : invitation.id_entreprise,
+        entreprise_id: invitation.id_entreprise ?? null,
       },
     });
   });
