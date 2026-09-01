@@ -800,32 +800,58 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
 
   const now = new Date();
 
-  // Un objectif seul ("cible 85%") ne dit rien sans le réalisé en face :
-  // on calcule ici le score réellement obtenu sur la période de l'objectif
-  // pour que le dashboard affiche directement "Atteint" / "En retard".
-  return Promise.all(
-    objectifs.map(async (obj: any) => {
-      const dateFinEffective = obj.date_fin < now ? obj.date_fin : now;
-      const reponses = await context.entities.Reponse.findMany({
+  // PERFORMANCE (fix N+1 — point 10 de l'audit) : l'ancienne version lançait
+  // UNE requête Reponse PAR objectif. Avec N objectifs c'était N allers-
+  // retours sous charge. On charge maintenant les lignes de TOUS les
+  // objectifs en UNE requête bornée à l'agence + fenêtres des objectifs,
+  // puis on regroupe en mémoire.
+  const fenetres = objectifs.map((obj: any) => ({
+    id_critere: obj.id_critere,
+    date_reponse: {
+      gte: obj.date_debut,
+      lte: obj.date_fin < now ? obj.date_fin : now,
+    },
+  }));
+
+  const reponses = fenetres.length > 0
+    ? await context.entities.Reponse.findMany({
         where: {
-          id_critere: obj.id_critere,
           id_agence: scope.id_agence,
-          date_reponse: { gte: obj.date_debut, lte: dateFinEffective },
+          OR: fenetres,
         },
         select: {
+          id_critere: true,
+          date_reponse: true,
           score_brut: true,
           critere: { select: { type_reponse: true, options_reponse: true } },
         },
-      });
+      })
+    : [];
 
-      const nb = reponses.length;
+  // Regroupement en mémoire par objectif (critère + fenêtre applicable)
+  const repParObjectif = new Map<number, any[]>();
+  for (const obj of objectifs) {
+    const finEffective = obj.date_fin < now ? obj.date_fin : now;
+    const lignes = reponses.filter((r: any) =>
+      r.id_critere === obj.id_critere &&
+      r.date_reponse >= obj.date_debut && r.date_reponse <= finEffective
+    );
+    repParObjectif.set(obj.id, lignes);
+  }
+
+  // Un objectif seul ("cible 85%") ne dit rien sans le réalisé en face :
+  // on calcule ici le score réellement obtenu sur la période de l'objectif
+  // pour que le dashboard affiche directement "Atteint" / "En retard".
+  return objectifs.map((obj: any) => {
+      const reponsesObj = repParObjectif.get(obj.id) || [];
+      const nb = reponsesObj.length;
       const cible_pct = parseFloat(Number(obj.valeur_cible).toFixed(1));
       let realise_pct: number | null = null;
       let ecart: number | null = null;
       let statut: 'ATTEINT' | 'EN_RETARD' | 'PAS_DE_DONNEES' = 'PAS_DE_DONNEES';
 
       if (nb > 0) {
-        const scores = reponses
+        const scores = reponsesObj
           .map((reponse: any) => scoreNormaliseSur5(reponse))
           .filter((score: number | null): score is number => score !== null);
         if (scores.length === 0) {
@@ -838,8 +864,7 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
       }
 
       return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
-    })
-  );
+  });
 };
 
 // ============================================================================

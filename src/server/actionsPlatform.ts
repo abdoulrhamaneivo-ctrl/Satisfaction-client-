@@ -198,41 +198,44 @@ export const creerEntreprise = async (
   });
 
   // 2. Transaction : entreprise + rattachement du compte au tenant + invitation
-  //    + audit. Si une étape échoue, tout est annulé (le compte admin reste
-  //    orphelin sans tenant — inoffensif, non connectable à la console, et
-  //    réutilisable via un nouvel essai de création).
-  const resultat = await prisma.$transaction(async (tx: any) => {
-    const entreprise = await tx.entreprise.create({
-      data: {
-        nom_entreprise: nomE,
-        nom_court: args.entreprise.nom_court?.trim() || null,
-        email_administratif: args.entreprise.email_administratif?.trim() || null,
-        telephone: args.entreprise.telephone?.trim() || null,
-        pays: args.entreprise.pays?.trim() || "Cote d'Ivoire",
-        status: 'ACTIVE',
-        plan,
-        date_debut_abonnement: new Date(),
-        limite_agences: limiteAgences,
-        limite_utilisateurs: limiteUtilisateurs,
-        limite_guichets: limiteGuichets,
-      },
-    });
+  //    + audit. Si une étape échoue, tout est annulé ET le compte admin créé
+  //    à l'étape 1 est supprimé (ROBUSTESSE — point 15 de l'audit : sans ce
+  //    nettoyage, un échec de transaction laisse un compte orphelin avec une
+  //    identité auth valide en base).
+  let resultat: { entreprise: any; admin: any };
+  try {
+    resultat = await prisma.$transaction(async (tx: any) => {
+      const entreprise = await tx.entreprise.create({
+        data: {
+          nom_entreprise: nomE,
+          nom_court: args.entreprise.nom_court?.trim() || null,
+          email_administratif: args.entreprise.email_administratif?.trim() || null,
+          telephone: args.entreprise.telephone?.trim() || null,
+          pays: args.entreprise.pays?.trim() || "Cote d'Ivoire",
+          status: 'ACTIVE',
+          plan,
+          date_debut_abonnement: new Date(),
+          limite_agences: limiteAgences,
+          limite_utilisateurs: limiteUtilisateurs,
+          limite_guichets: limiteGuichets,
+        },
+      });
 
-    await tx.user.update({
-      where: { id: admin.id },
-      data: { id_entreprise: entreprise.id },
-    });
+      await tx.user.update({
+        where: { id: admin.id },
+        data: { id_entreprise: entreprise.id },
+      });
 
-    // 3. Invitation (hash uniquement — usage unique, 24 h)
-    await tx.invitation.create({
-      data: {
-        id_user: admin.id,
-        id_emetteur: context.user.id,
-        id_entreprise: entreprise.id,
-        token_hash: tokenHash,
-        expires_at: expiresAt,
-      },
-    });
+      // 3. Invitation (hash uniquement — usage unique, 24 h)
+      await tx.invitation.create({
+        data: {
+          id_user: admin.id,
+          id_emetteur: context.user.id,
+          id_entreprise: entreprise.id,
+          token_hash: tokenHash,
+          expires_at: expiresAt,
+        },
+      });
 
     // 4. Audit (dans la transaction : l'action ET sa trace sont inséparables)
     await tx.auditLog.create({
@@ -248,7 +251,17 @@ export const creerEntreprise = async (
     });
 
     return { entreprise, admin };
-  });
+    });
+  } catch (e: any) {
+    // NETTOYAGE : la transaction a échoué → le compte admin créé hors tx
+    // devient un orphelin. On le supprime (identité auth + User) pour
+    // garder la base propre ; l'email n'a pas encore été envoyé, donc
+    // l'adresse est immédiatement réutilisable pour une nouvelle tentative.
+    await prisma.authIdentity.deleteMany({ where: { providerUserId: adminEmail } });
+    await prisma.user.deleteMany({ where: { id: admin.id } });
+    console.warn('[PLATFORM] creerEntreprise: transaction annulée, compte admin nettoyé:', e?.message);
+    throw e;
+  }
 
   // 5. Email d'activation — hors transaction (SMTP). En cas d'échec, la
   //    console permet « Renvoyer l'invitation » (nouvelle Invitation + email).
