@@ -549,6 +549,7 @@ model AuditLog {
   resource      String   // 'Entreprise', 'User', 'Guichet', ...
   resource_id   String?
   entreprise_id Int?     // null = action platform (hors tenant)
+  entreprise    Entreprise? @relation(fields: [entreprise_id], references: [id], onDelete: SetNull)
   details       Json?    // diff avant/après (sans secret), motif de suspension...
   ip            String?
   user_agent    String?

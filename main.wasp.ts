@@ -4,7 +4,8 @@ import { App } from "./src/client/App" with { type: "ref" };
 import { NotFoundPage } from "./src/client/components/NotFoundPage" with { type: "ref" };
 import { serverEnvValidationSchema } from "./src/env" with { type: "ref" };
 import { RacinePage } from "./src/client/pages/RacinePage" with { type: "ref" };
-import { PlatformShell } from "./src/client/platform/PlatformShell" with { type: "ref" };
+// PlatformShell retiré : la route /platform pointe directement vers PlatformOverviewPage
+// (voir la correction de la route dupliquée /platform ci-dessous).
 import PlatformOverviewPage from "./src/client/platform/pages/PlatformOverviewPage" with { type: "ref" };
 import CompaniesPage from "./src/client/platform/pages/CompaniesPage" with { type: "ref" };
 import CreateCompanyPage from "./src/client/platform/pages/CreateCompanyPage" with { type: "ref" };
@@ -130,8 +131,7 @@ const collecteCodeRoute = route("CollecteCodeRoute", "/q/:code", page(CollectePa
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
 const archivesRoute = route("ArchivesRoute", "/archives", page(ArchivesPage));
 const settingsRoute = route("SettingsRoute", "/settings", page(SettingsPage));
-// SAAS Platform
-const platformRoute = route("PlatformRoute", "/platform", page(PlatformShell));
+// SAAS Platform (route dupliquée /platform corrigée — seule PlatformOverviewPage reste)
 const platformOverviewRoute = route("PlatformOverviewRoute", "/platform", page(PlatformOverviewPage));
 const platformCompaniesRoute = route("PlatformCompaniesRoute", "/platform/entreprises", page(CompaniesPage));
 const platformNewCompanyRoute = route("PlatformNewCompanyRoute", "/platform/entreprises/nouvelle", page(CreateCompanyPage));
@@ -303,7 +303,6 @@ export default app({
     archivesRoute,
     settingsRoute,
     // SAAS Platform
-    platformRoute,
     platformOverviewRoute,
     platformCompaniesRoute,
     platformNewCompanyRoute,

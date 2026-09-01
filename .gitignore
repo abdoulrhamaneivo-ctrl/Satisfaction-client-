@@ -1,11 +1,26 @@
 node_modules/
+
+# Wasp — artefacts de développement (le build prod est géré par le script deploy)
 .wasp/out/
+
+# ── Secrets (JAMAIS commités — voir .env.example pour le template) ──
+.env
 .env.server
 .env.client
 .env.local
 .env.development
 .env.test
-claud.zip
+.env.production
 
-# Kernel runtime data — session memory and locks
+# ── Archives et fichiers lourds ──
+claud.zip
+h.zip
+*.zip
+
+# ── Kernel / IDE ──
 .kernel/
+.hermes_sessions/
+
+# ── OS ──
+.DS_Store
+Thumbs.db

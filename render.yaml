@@ -1,0 +1,61 @@
+# =============================================================================
+# render.yaml — Yeba Backend (Render Blueprint)
+# =============================================================================
+# Ce fichier configure le Web Service Render pour le serveur Wasp.
+# Le frontend est déployé séparément sur Vercel.
+#
+# Déploiement :
+# 1. Lancer `bash scripts/deploy-build.sh` localement
+# 2. Pousser .wasp/build/server/ vers un repo GitHub (ou branche dédiée)
+# 3. Connecter ce repo à Render via ce blueprint
+# =============================================================================
+
+services:
+  - type: web
+    name: yeba-server
+    runtime: node
+    plan: free  # Passer à "starter" ($7/mois) pour éviter le sleep après 15min
+    # Si le repo contient tout le projet Wasp, décommenter rootDir :
+    # rootDir: .wasp/build/server
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm run start-production
+    envVars:
+      # ── Base de données (Neon PostgreSQL) ──
+      - key: DATABASE_URL
+        sync: false  # À remplir manuellement avec la connection string Neon
+
+      # ── URLs de l'application ──
+      - key: WASP_SERVER_URL
+        sync: false  # https://yeba-server.onrender.com
+      - key: WASP_WEB_CLIENT_URL
+        sync: false  # https://yeba-client.vercel.app
+      - key: PORT
+        value: "10000"  # Port imposé par Render
+
+      # ── Sécurité ──
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TELEPHONE_HASH_SALT
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+
+      # ── Email (SendGrid) ──
+      - key: SENDGRID_API_KEY
+        sync: false
+
+      # ── Stockage fichiers (AWS S3 — optionnel) ──
+      - key: AWS_S3_REGION
+        value: eu-west-3
+      - key: AWS_S3_IAM_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_IAM_SECRET_KEY
+        sync: false
+      - key: AWS_S3_FILES_BUCKET
+        value: yeba-files
+
+      # ── IA sémantique (optionnel) ──
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: deepseek/deepseek-chat
