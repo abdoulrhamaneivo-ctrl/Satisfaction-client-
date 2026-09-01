@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# scripts/deploy-build.sh — Build Wasp et prépare les artefacts de déploiement
+# scripts/deploy-build.sh — Build Wasp et prépare le dossier `deploy/`
 # =============================================================================
-# Usage : bash scripts/deploy-build.sh
-#
-# Architecture cible :
-#   Frontend → Vercel (Static Site, .wasp/out/web-app/)
-#   Backend  → Render (Node.js Service, .wasp/out/server/ ou .wasp/out/)
-#   Database → Neon (PostgreSQL géré, DATABASE_URL)
+# Vercel et Render ne voient pas les dossiers cachés commençant par un point (.wasp).
+# Ce script copie les artefacts de build vers `deploy/web-app` et `deploy/server`.
 # =============================================================================
 
 set -euo pipefail
@@ -23,97 +19,45 @@ ok()    { echo -e "${GREEN}[OK]${NC}   $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 fail()  { echo -e "${RED}[FAIL]${NC} $*"; exit 1; }
 
-# ─────────────────────────────────────────────
-# 0. Vérifications
-# ─────────────────────────────────────────────
-command -v wasp >/dev/null 2>&1 || fail "Wasp CLI non trouvé."
-command -v node >/dev/null 2>&1 || fail "Node.js non trouvé."
-
-WASP_VERSION=$(wasp version 2>/dev/null)
-info "Wasp CLI v${WASP_VERSION} détecté"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-BUILD_DIR="$PROJECT_ROOT/.wasp/out"
+# 1. Build Wasp ou réutilisation du build existant
+if [ -d ".wasp/out" ]; then
+    info "Artefacts .wasp/out existants détectés..."
+else
+    info "Lancement de 'wasp build'..."
+    wasp build || fail "Échec du build Wasp."
+fi
 
-# ─────────────────────────────────────────────
-# 1. Build Wasp
-# ─────────────────────────────────────────────
-info "Lancement de 'wasp build'..."
-wasp build
-ok "Build Wasp terminé → $BUILD_DIR"
+# 2. Préparer le dossier visible `deploy/`
+DEPLOY_DIR="$PROJECT_ROOT/deploy"
+rm -rf "$DEPLOY_DIR"
+mkdir -p "$DEPLOY_DIR/server"
+mkdir -p "$DEPLOY_DIR/web-app"
 
-# ─────────────────────────────────────────────
-# 2. Préparer le serveur (Render)
-# ─────────────────────────────────────────────
-SERVER_DIR="$BUILD_DIR/server"
-mkdir -p "$SERVER_DIR"
+info "Copie des artefacts vers le dossier visible 'deploy/'..."
+cp -r .wasp/out/server/* "$DEPLOY_DIR/server/"
+cp -r .wasp/out/web-app/* "$DEPLOY_DIR/web-app/"
 
-info "Création du Dockerfile serveur pour Render..."
-cat > "$SERVER_DIR/Dockerfile" << 'DOCKERFILE'
-FROM node:20-slim AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
-COPY . .
-
-FROM node:20-slim
-WORKDIR /app
-COPY --from=build /app .
-RUN npx prisma generate
-ENV NODE_ENV=production
-EXPOSE 3001
-CMD ["npm", "run", "start-production"]
-DOCKERFILE
-ok "Dockerfile serveur créé → $SERVER_DIR/Dockerfile"
-
-# ─────────────────────────────────────────────
-# 3. Préparer le client (Vercel)
-# ─────────────────────────────────────────────
-WEBAPP_DIR="$BUILD_DIR/web-app"
-mkdir -p "$WEBAPP_DIR"
-
-info "Création de vercel.json pour le client..."
-cat > "$WEBAPP_DIR/vercel.json" << 'VERCELJSON'
+# 3. Créer vercel.json dans deploy/web-app
+cat > "$DEPLOY_DIR/web-app/vercel.json" << 'VERCELJSON'
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    }
   ]
 }
 VERCELJSON
-ok "vercel.json créé → $WEBAPP_DIR/vercel.json"
 
-# ─────────────────────────────────────────────
-# 4. Résumé
-# ─────────────────────────────────────────────
+ok "Dossiers de déploiement visibles préparés dans deploy/ avec succès !"
 echo ""
 echo "══════════════════════════════════════════════════════════════"
-echo -e "${GREEN} BUILD TERMINÉ AVEC SUCCÈS — Prêt pour le déploiement${NC}"
+echo -e "${GREEN} DOSSIERS PRÊTS DANS : deploy/ ${NC}"
 echo "══════════════════════════════════════════════════════════════"
-echo ""
-echo -e "${BLUE}Frontend (Vercel) :${NC}"
-echo "  Dossier : $WEBAPP_DIR"
-echo "  → Importer dans Vercel, Framework: Vite"
-echo "  → Build: npm install && npm run build"
-echo "  → Output: dist"
-echo "  → Env var: REACT_APP_API_URL=https://yeba-server.onrender.com"
-echo ""
-echo -e "${BLUE}Backend (Render) :${NC}"
-echo "  Dossier : $SERVER_DIR"
-echo "  → Créer un Web Service sur Render"
-echo "  → Build: npm install && npx prisma generate"
-echo "  → Start: npx prisma migrate deploy && npm run start-production"
+echo "  • Frontend (Vercel)  → Root Directory: deploy/web-app"
+echo "  • Backend (Render)   → Root Directory: deploy/server"
 echo ""
