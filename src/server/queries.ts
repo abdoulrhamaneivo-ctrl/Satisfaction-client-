@@ -100,6 +100,17 @@ type GetReponsesArgs = {
 export const getReponses = async (args: GetReponsesArgs, context: any) => {
   requireAuth(context);
 
+  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION pilote par
+  // les chiffres. Elle n'a JAMAIS accès aux réponses brutes (verbatims,
+  // coordonnées). Ce refus est serveur — masquer les cartes côté front ne
+  // suffit jamais, l'API est la seule frontière de confiance.
+  if (context.user.role === 'DIRECTION') {
+    throw new HttpError(
+      403,
+      "Les réponses détaillées sont réservées aux chefs d'agence et auditeurs qualité. La Direction dispose des KPI consolidés, tendances et thèmes agrégés."
+    );
+  }
+
   let scopeFilter: any;
   if (args.id_agence !== undefined) {
     const idAgence = requireNumber(args.id_agence, 'id_agence');
@@ -172,6 +183,16 @@ type GetAvisGroupesArgs = GetReponsesArgs & {
 export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
+
+  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : même frontière que
+  // getReponses — la DIRECTION ne reçoit jamais les avis détaillés
+  // (verbatims, coordonnées clients). Refus serveur, pas de masquage front.
+  if (context.user.role === 'DIRECTION') {
+    throw new HttpError(
+      403,
+      "Les avis détaillés sont réservés aux chefs d'agence et auditeurs qualité. La Direction dispose des KPI consolidés et thèmes agrégés."
+    );
+  }
 
   const page = Math.max(1, Number(args.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(args.pageSize) || 20));
@@ -356,6 +377,12 @@ export const getAlertes = async (_args: void, context: any) => {
   const filter = await buildAgenceFilter(context, context.entities);
   const idAgenceClause = filter.id_agence;
 
+  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION, les alertes
+  // ne contiennent JAMAIS la réponse brute imbriquée (verbatim, coordonnées).
+  // Chemin de fuite classique : /avis bloqué mais /alertes → reponse → texte.
+  // On réduit le payload selon le rôle — le chef d'agence conserve tout.
+  const estDirection = context.user.role === 'DIRECTION';
+
   // Une alerte archivée sort de la liste active — voir getArchives.
   return context.entities.Alerte.findMany({
     where: {
@@ -368,7 +395,9 @@ export const getAlertes = async (_args: void, context: any) => {
     orderBy: { date_creation: 'desc' },
     include: {
       guichet: true,
-      reponse: true,
+      ...(estDirection
+        ? { reponse: { select: { id: true, date_reponse: true, score_brut: true } } }
+        : { reponse: true }),
     },
   });
 };
@@ -751,6 +780,12 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 
   const filter = await buildAgenceFilter(context, context.entities);
 
+  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION, la réponse
+  // imbriquée dans alerte → reponse ne doit contenir ni verbatim ni
+  // coordonnées. Même frontière que getAlertes — le chemin alternatif
+  // /taches → alerte → reponse → texte est fermé aussi.
+  const estDirection = context.user.role === 'DIRECTION';
+
   const alertes = await context.entities.Alerte.findMany({
     where: {
       OR: [
@@ -770,7 +805,9 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
       alerte: {
         include: {
           guichet: true,
-          reponse: true,
+          ...(estDirection
+            ? { reponse: { select: { id: true, date_reponse: true, score_brut: true } } }
+            : { reponse: true }),
         },
       },
       responsable: {
@@ -1484,50 +1521,67 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
   });
 
   const now = new Date();
+  const agencesIds = agences.map((a: any) => a.id);
 
-  return Promise.all(
-    agences.map(async (agence: any) => {
-      const objectifs = await context.entities.Objectif.findMany({
-        where: { id_agence: agence.id },
-        include: { critere: true },
-        orderBy: { id_critere: 'asc' },
-      });
+  // PERFORMANCE (fix N+1) : l'ancienne version lançait UNE requête Reponse
+  // PAR objectif (agences × objectifs = centaines de round-trips sur une
+  // base mature). On charge maintenant les agrégats de TOUTES les agences de
+  // l'entreprise en UNE requête groupée, puis on joint en mémoire.
+  const objectifs = await context.entities.Objectif.findMany({
+    where: { id_agence: { in: agencesIds } },
+    include: { critere: true },
+    orderBy: { id_critere: 'asc' },
+  });
 
-      const objectifsAvecStatut = await Promise.all(
-        objectifs.map(async (obj: any) => {
-          const dateFinEffective = obj.date_fin < now ? obj.date_fin : now;
-          const reponses = await context.entities.Reponse.findMany({
-            where: {
-              id_critere: obj.id_critere,
-              id_agence: agence.id,
-              date_reponse: { gte: obj.date_debut, lte: dateFinEffective },
-            },
-            select: { score_brut: true },
-          });
-
-          const nb = reponses.length;
-          const cible_pct = parseFloat(Number(obj.valeur_cible).toFixed(1));
-          let realise_pct: number | null = null;
-          let ecart: number | null = null;
-          let statut: 'ATTEINT' | 'EN_RETARD' | 'PAS_DE_DONNEES' = 'PAS_DE_DONNEES';
-
-          if (nb > 0) {
-            const moyenne = reponses.reduce((s: number, r: any) => s + r.score_brut, 0) / nb;
-            realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
-            ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
-            statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
-          }
-
-          return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
-        })
-      );
-
-      return {
-        agence,
-        objectifs: objectifsAvecStatut,
-      };
-    })
+  // Agrégat SQL : { id_agence, id_critere } → moyenne + nombre. Plus aucun
+  // chargement de lignes Reponse vers Node — PostgreSQL fait le travail.
+  const agregats: Array<{ id_agence: number; id_critere: number; _avg: { score_brut: number | null }; _count: { id: number } }> = await context.entities.Reponse.groupBy({
+    by: ['id_agence', 'id_critere'],
+    where: {
+      id_agence: { in: agencesIds },
+      OR: objectifs.map((obj: any) => ({
+        id_critere: obj.id_critere,
+        id_agence: obj.id_agence,
+        date_reponse: {
+          gte: obj.date_debut,
+          lte: obj.date_fin < now ? obj.date_fin : now,
+        },
+      })),
+    },
+    _avg: { score_brut: true },
+    _count: { id: true },
+  });
+  const agregatKey = (idAgence: number, idCritere: number) => `${idAgence}:${idCritere}`;
+  const agregatMap = new Map(
+    agregats.map((g: any) => [agregatKey(g.id_agence, g.id_critere), g])
   );
+
+  return agences.map((agence: any) => {
+    const objectifsAgence = objectifs.filter((obj: any) => obj.id_agence === agence.id);
+
+    const objectifsAvecStatut = objectifsAgence.map((obj: any) => {
+      const cible_pct = parseFloat(Number(obj.valeur_cible).toFixed(1));
+      const g = agregatMap.get(agregatKey(agence.id, obj.id_critere));
+      const nb = g?._count?.id ?? 0;
+      let realise_pct: number | null = null;
+      let ecart: number | null = null;
+      let statut: 'ATTEINT' | 'EN_RETARD' | 'PAS_DE_DONNEES' = 'PAS_DE_DONNEES';
+
+      if (nb > 0 && g?._avg?.score_brut != null) {
+        const moyenne = g._avg.score_brut;
+        realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
+        ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
+        statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
+      }
+
+      return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
+    });
+
+    return {
+      agence,
+      objectifs: objectifsAvecStatut,
+    };
+  });
 };
 
 // ============================================================================
@@ -1657,8 +1711,20 @@ export const getThemesStats = async (args: { nbJours?: number }, context: any) =
   const depuis = new Date();
   depuis.setDate(depuis.getDate() - nbJours);
 
+  // SÉCURITÉ MULTI-TENANT CRITIQUE : les thèmes IA doivent être calculés
+  // UNIQUEMENT sur l'entreprise de l'utilisateur. L'ancienne version agrégeait
+  // TOUTES les analyses de la plateforme — fuite cross-tenant (les thèmes
+  // d'une entreprise remontaient chez une autre). On passe par
+  // reponse → agence → id_entreprise via buildAgenceFilter.
+  const filter = await buildAgenceFilter(context, context.entities);
+
   const analyses = await context.entities.AnalyseAvisIA.findMany({
-    where: { status: 'DONE', themes: { not: null }, processedAt: { gte: depuis } },
+    where: {
+      status: 'DONE',
+      themes: { not: null },
+      processedAt: { gte: depuis },
+      reponse: { id_agence: filter.id_agence },
+    },
     select: { themes: true },
   });
 

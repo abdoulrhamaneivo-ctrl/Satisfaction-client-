@@ -9,6 +9,7 @@ import {
 } from 'wasp/server/auth';
 import crypto from 'node:crypto';
 import { envoyerAlerteWhatsApp } from './notifications/gateway';
+import { checkRateLimit, extraireIp } from './rateLimit';
 import {
   requireAuth,
   requireRole,
@@ -69,6 +70,31 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
 
   await assertAgenceAccess(context, context.entities, id_agence, 'agence');
 
+  // SÉCURITÉ MULTI-TENANT : les services attachés à un guichet doivent
+  // appartenir au MÊME tenant que l'agence (ou être du socle commun
+  // id_entreprise = null). Sans ce contrôle, un guichet de l'entreprise A
+  // pouvait être relié à un service de l'entreprise B simplement en envoyant
+  // son ID dans serviceIds (faille de relation croisée).
+  if (serviceIds && serviceIds.length > 0) {
+    const agence = await context.entities.Agence.findUnique({
+      where: { id: id_agence },
+      select: { id_entreprise: true },
+    });
+    const servicesValides = await context.entities.Service.findMany({
+      where: {
+        id: { in: serviceIds.map(Number) },
+        OR: [
+          { id_entreprise: null },
+          { id_entreprise: agence?.id_entreprise ?? -1 },
+        ],
+      },
+      select: { id: true },
+    });
+    if (servicesValides.length !== serviceIds.length) {
+      throw new HttpError(400, "Un ou plusieurs services ne sont pas disponibles pour cette agence.");
+    }
+  }
+
   const servicesConnect = serviceIds && serviceIds.length > 0
     ? { connect: serviceIds.map(id => ({ id })) }
     : undefined;
@@ -77,6 +103,28 @@ export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
   // l'affectation est réservée aux agents qu'il ajoute. Le guichet est donc
   // créé sans affectation par défaut ; l'agent y sera affecté depuis le
   // planning (createAffectation).
+
+  // QUOTA SAAS : limite de guichets du plan, vérifiée côté serveur (via les
+  // agences de l'entreprise — un guichet appartient toujours à une agence).
+  const agencesIds = await context.entities.Agence.findMany({
+    where: { id_entreprise: (await context.entities.Agence.findUnique({ where: { id: id_agence }, select: { id_entreprise: true } }))?.id_entreprise },
+    select: { id: true },
+  });
+  const entrepriseQuotaGuichets = await context.entities.Entreprise.findUnique({
+    where: { id: agencesIds[0]?.id_entreprise },
+    select: { limite_guichets: true },
+  });
+  if (entrepriseQuotaGuichets) {
+    const nbGuichets = await context.entities.Guichet.count({
+      where: { id_agence: { in: agencesIds.map((a: any) => a.id) }, archive: false },
+    });
+    if (nbGuichets >= entrepriseQuotaGuichets.limite_guichets) {
+      throw new HttpError(
+        403,
+        `Limite du plan atteinte (${entrepriseQuotaGuichets.limite_guichets} guichets). Passez à un plan supérieur ou contactez Yeba.`
+      );
+    }
+  }
 
   return await context.entities.Guichet.create({
     data: {
@@ -94,6 +142,7 @@ export const updateGuichetServices = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['CHEF_AGENCE']);
 
   const guichet = await context.entities.Guichet.findUnique({
@@ -103,6 +152,26 @@ export const updateGuichetServices = async (
   if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
 
   await assertAgenceAccess(context, context.entities, guichet.id_agence, 'guichet');
+
+  // SÉCURITÉ MULTI-TENANT : même contrôle que createGuichet — les services
+  // d'une autre entreprise ne peuvent jamais être attachés à ce guichet.
+  const agenceDuGuichet = await context.entities.Agence.findUnique({
+    where: { id: guichet.id_agence },
+    select: { id_entreprise: true },
+  });
+  const servicesValides = await context.entities.Service.findMany({
+    where: {
+      id: { in: args.serviceIds.map(Number) },
+      OR: [
+        { id_entreprise: null },
+        { id_entreprise: agenceDuGuichet?.id_entreprise ?? -1 },
+      ],
+    },
+    select: { id: true },
+  });
+  if (servicesValides.length !== args.serviceIds.length) {
+    throw new HttpError(400, "Un ou plusieurs services ne sont pas disponibles pour cette agence.");
+  }
 
   return context.entities.Guichet.update({
     where: { id: args.id_guichet },
@@ -124,6 +193,7 @@ export const updateGuichetServices = async (
 
 export const archiverGuichet = async (args: { id_guichet: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
@@ -140,6 +210,7 @@ export const archiverGuichet = async (args: { id_guichet: number }, context: any
 
 export const desarchiverGuichet = async (args: { id_guichet: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
@@ -156,6 +227,7 @@ export const desarchiverGuichet = async (args: { id_guichet: number }, context: 
 
 export const assignAgent = async (args: any, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   if (!args.date || !args.heure_debut || !args.heure_fin || !args.id_guichet || !args.id_agent) {
@@ -223,6 +295,7 @@ export const assignAgent = async (args: any, context: any) => {
  */
 export const updateAffectationGuichet = async (args: any, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   if (!args.id) throw new HttpError(400, "Identifiant d'affectation manquant.");
@@ -319,6 +392,24 @@ const soumettreAvisImpl = async (args: any, context: any) => {
 
   if (!guichetId) {
     throw new HttpError(400, "Identifiant du guichet requis.");
+  }
+
+  // ANTI-ABUS (Doc 11 §9 S8 adapté à la route publique) : la route de
+  // collecte est anonyme — sans rate limiting, un script peut saturer la
+  // base de faux avis. Deux niveaux :
+  //  - par (IP, guichet) : 8 avis / min de rafale, recharge 2/min → un
+  //    humain qui aide plusieurs clients au guichet passe toujours ;
+  //  - par IP seule : 30 avis / min → un même point d'accès NAT (café,
+  //    opérateur mobile) servant plusieurs guichets reste fluide.
+  // Le téléphone seul ne suffit pas comme protection car il est optionnel.
+  const ipClient = extraireIp(context);
+  const rl1 = checkRateLimit(`avis:${ipClient}:${guichetId}`, { capacity: 8, refillPerMinute: 2 });
+  if (!rl1.allowed) {
+    throw new HttpError(429, `Trop de soumissions depuis cet appareil pour ce guichet. Réessayez dans ${rl1.retryAfterSeconds} s.`);
+  }
+  const rl2 = checkRateLimit(`avis:${ipClient}`, { capacity: 30, refillPerMinute: 10 });
+  if (!rl2.allowed) {
+    throw new HttpError(429, `Trop de soumissions depuis cette connexion. Réessayez dans ${rl2.retryAfterSeconds} s.`);
   }
 
   // --- ANTI-REJEU : hachage SHA-256 du numéro de téléphone ---
@@ -532,45 +623,52 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     return score;
   };
 
-  const createdReponses: Array<{ id: number; [key: string]: any }> = [];
-  let worstScore: number | null = null;
+  // PERFORMANCE QR (Doc 11 §10, priorité 1) : createMany remplace la boucle
+  // d'INSERT individuels. 5 critères = 1 requête SQL multi-VALUES au lieu de
+  // 5 allers-retours — la différence est décisive quand plusieurs clients
+  // soumettent simultanément. Le reroll canal (FK manquante sur base non
+  // seedée) est appliqué au lot entier si nécessaire.
+  const construireLigne = (item: { critereId: number; score: number; texte?: string }) => ({
+    score_brut: item.score,
+    // Correctif : chaque ligne porte désormais son propre texte ; on ne
+    // retombe sur le commentaire final que s'il n'y en a pas.
+    commentaire_texte: (item.texte && item.texte.length > 0) ? item.texte : (commentaire || ""),
+    id_soumission: submissionId,
+    id_critere: item.critereId,
+    id_canal: idCanalResolved,
+    id_agence: guichet.id_agence,
+    id_guichet: guichet.id,
+    id_service: serviceId ? Number(serviceId) : null,
+    id_agent: affectation?.id_agent || null,
+  });
 
+  const lignes = itemsToInsert.map(construireLigne);
+
+  let createdReponses: Array<{ id: number; [key: string]: any }>;
+  try {
+    await context.entities.Reponse.createMany({ data: lignes });
+  } catch (e: any) {
+    // Reroll ciblé : violation FK id_canal uniquement (canal absent d'une
+    // base non seedée). P2003 = Foreign key constraint violated (Prisma).
+    const isFkCanal = e?.code === 'P2003' && String(e?.meta?.field_name ?? '').includes('id_canal');
+    if (!isFkCanal) throw e;
+    await assurerCanalExiste();
+    await context.entities.Reponse.createMany({ data: lignes });
+  }
+
+  // createMany ne renvoie pas les lignes : une seule lecture pour récupérer
+  // les IDs générés (nécessaire pour l'analyse IA et l'alerte critique).
+  createdReponses = await context.entities.Reponse.findMany({
+    where: { id_soumission: submissionId },
+    orderBy: { id: 'asc' },
+  });
+
+  let worstScore: number | null = null;
   for (const item of itemsToInsert) {
     const scoreNormalise = normaliserScoreSur5(critereById.get(item.critereId), item.score);
     if (scoreNormalise !== null && (worstScore === null || scoreNormalise < worstScore)) {
       worstScore = scoreNormalise;
     }
-
-    const dataRep = {
-      score_brut: item.score,
-      // Correctif : chaque ligne recevait systématiquement le même
-      // commentaire global (celui de l'étape finale "Message ou
-      // suggestion"), écrasant de fait la réponse tapée par le client sur
-      // un critère de type TEXTE ("Texte libre / Suggestion"). Chaque item
-      // porte désormais son propre texte ; on ne retombe sur le
-      // commentaire final que s'il n'y en a pas.
-      commentaire_texte: (item.texte && item.texte.length > 0) ? item.texte : (commentaire || ""),
-      id_soumission: submissionId,
-      id_critere: item.critereId,
-      id_canal: idCanalResolved,
-      id_agence: guichet.id_agence,
-      id_guichet: guichet.id,
-      id_service: serviceId ? Number(serviceId) : null,
-      id_agent: affectation?.id_agent || null,
-    };
-
-    let rep: { id: number; [key: string]: any };
-    try {
-      rep = await context.entities.Reponse.create({ data: dataRep });
-    } catch (e: any) {
-      // Reroll ciblé : violation FK id_canal uniquement (canal absent d'une
-      // base non seedée). P02203 = Foreign key constraint violated (Prisma).
-      const isFkCanal = e?.code === 'P2003' && String(e?.meta?.field_name ?? '').includes('id_canal');
-      if (!isFkCanal) throw e;
-      await assurerCanalExiste();
-      rep = await context.entities.Reponse.create({ data: dataRep });
-    }
-    createdReponses.push(rep);
   }
 
   // --- ANALYSE IA ASYNCHRONE (DeepSeek) — UNE SEULE par avis ---
@@ -710,6 +808,7 @@ export const updateAgent = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
@@ -740,6 +839,7 @@ export const updateAgent = async (
 
 export const deleteAgent = async (args: { id: string }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
@@ -759,6 +859,7 @@ export const deleteAgent = async (args: { id: string }, context: any) => {
 
 export const reactivateAgent = async (args: { id: string }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
@@ -850,6 +951,20 @@ export const createAgence = async (
     throw new HttpError(400, 'Une agence avec ce nom existe déjà dans cette commune.');
   }
 
+  // QUOTA SAAS (Doc 11 §4) : la limite du plan est vérifiée ICI, côté
+  // serveur — source unique de vérité. Désactiver le bouton front ne
+  // protège rien : un appel API forgé doit être refusé.
+  const entreprise = await context.entities.Entreprise.findUnique({
+    where: { id: context.user.id_entreprise },
+    select: { limite_agences: true, _count: { select: { agences: true } } },
+  });
+  if (entreprise && entreprise._count.agences >= entreprise.limite_agences) {
+    throw new HttpError(
+      403,
+      `Limite du plan atteinte (${entreprise.limite_agences} agences). Passez à un plan supérieur ou contactez Yeba.`
+    );
+  }
+
   return context.entities.Agence.create({
     data: {
       nom_agence: args.nom_agence.trim(),
@@ -872,6 +987,7 @@ export const createAgence = async (
  */
 export const archiverAgence = async (args: { id_agence: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION']);
   await assertAgenceAccess(context, context.entities, args.id_agence, 'agence');
 
@@ -900,6 +1016,7 @@ export const archiverAgence = async (args: { id_agence: number }, context: any) 
  */
 export const desarchiverAgence = async (args: { id_agence: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION']);
   await assertAgenceAccess(context, context.entities, args.id_agence, 'agence');
 
@@ -920,12 +1037,15 @@ export const inviteAgent = async (
   await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
-  // Règle métier : le chef d'entreprise structure le réseau (chefs d'agence,
-  // auditeurs qualité) ; c'est ensuite à chaque chef d'agence de constituer
-  // son équipe de terrain (agents de guichet) sur sa propre agence.
+  // Règle métier (Doc 02 §matrice rôles — référence absolue) : le chef
+  // d'entreprise structure le réseau (chefs d'agence, auditeurs qualité) ;
+  // le chef d'agence ne gère que SON équipe de terrain (agents), jamais des
+  // auditeurs qualité qui relèvent de la Direction. L'auditeur qualité
+  // analyse de manière indépendante — il ne peut pas être nommé par la
+  // personne dont il audite le travail.
   const ROLES_PAR_INVITEUR: Record<string, string[]> = {
     DIRECTION: ['CHEF_AGENCE', 'QUALITE'],
-    CHEF_AGENCE: ['AGENT', 'QUALITE'],
+    CHEF_AGENCE: ['AGENT'],
   };
   const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role ?? ''] || [];
   if (!rolesAutorises.includes(args.role)) {
@@ -977,6 +1097,18 @@ export const inviteAgent = async (
     if (chefExistant) {
       throw new HttpError(400, "Cette agence possède déjà un Chef d'agence actif.");
     }
+  }
+
+  // QUOTA SAAS : limite d'utilisateurs du plan, vérifiée côté serveur.
+  const entrepriseQuota = await context.entities.Entreprise.findUnique({
+    where: { id: targetAgence.id_entreprise },
+    select: { limite_utilisateurs: true, _count: { select: { utilisateurs: true } } },
+  });
+  if (entrepriseQuota && entrepriseQuota._count.utilisateurs >= entrepriseQuota.limite_utilisateurs) {
+    throw new HttpError(
+      403,
+      `Limite du plan atteinte (${entrepriseQuota.limite_utilisateurs} utilisateurs). Passez à un plan supérieur ou contactez Yeba.`
+    );
   }
 
   const tempPassword = crypto.randomBytes(16).toString('hex');
@@ -1184,6 +1316,7 @@ export const toggleCritereAgence = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   // Faille corrigée : id_agence fourni par le client était auparavant utilisé
@@ -1213,6 +1346,7 @@ export const createService = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   if (!args.libelle_service?.trim()) {
@@ -1243,6 +1377,7 @@ export const createCritere = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   // Faille corrigée : cette action n'exigeait auparavant AUCUN rôle
   // particulier — n'importe quel utilisateur connecté (y compris un simple
   // AGENT) pouvait créer des critères d'évaluation.
@@ -1400,6 +1535,7 @@ export const updateCritere = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
@@ -1476,6 +1612,7 @@ export const moveCritereToService = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
@@ -1544,6 +1681,7 @@ export const removeCritereFromService = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
@@ -1603,6 +1741,7 @@ export const deleteCritere = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
@@ -1643,6 +1782,7 @@ export const duplicateCritere = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
@@ -1704,6 +1844,7 @@ export const reorderCriteresInService = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idService = Number(args.id_service);
@@ -1759,6 +1900,7 @@ export const upsertObjectif = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
@@ -1819,6 +1961,7 @@ export const createTacheCorrective = async (
   context: any
 ) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   if (!args.titre?.trim()) throw new HttpError(400, 'Le titre de la tâche est requis.');
@@ -1949,6 +2092,7 @@ export const marquerAlerteTraitee = async (args: { id_alerte: number }, context:
 
 export const deleteObjectif = async (args: { id: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const objectif = await context.entities.Objectif.findUnique({
@@ -1972,6 +2116,7 @@ export const deleteObjectif = async (args: { id: number }, context: any) => {
  */
 export const archiverAlerte = async (args: { id_alerte: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idAlerte = BigInt(args.id_alerte);
@@ -1992,6 +2137,7 @@ export const archiverAlerte = async (args: { id_alerte: number }, context: any) 
 
 export const desarchiverAlerte = async (args: { id_alerte: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idAlerte = BigInt(args.id_alerte);
@@ -2012,6 +2158,7 @@ export const desarchiverAlerte = async (args: { id_alerte: number }, context: an
 export const archiverTache = async (args: { id_tache: number }, context: any) => {
   requireAuth(context);
 
+  await assertEntrepriseActive(context, context.entities);
   const idTache = BigInt(args.id_tache);
   const tache = await context.entities.TacheCorrective.findUnique({
     where: { id: idTache },
@@ -2039,6 +2186,7 @@ export const archiverTache = async (args: { id_tache: number }, context: any) =>
 export const desarchiverTache = async (args: { id_tache: number }, context: any) => {
   requireAuth(context);
 
+  await assertEntrepriseActive(context, context.entities);
   const idTache = BigInt(args.id_tache);
   const tache = await context.entities.TacheCorrective.findUnique({
     where: { id: idTache },
@@ -2061,6 +2209,7 @@ export const desarchiverTache = async (args: { id_tache: number }, context: any)
 
 export const archiverCritere = async (args: { id_critere: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const critere = await context.entities.Critere.findUnique({
@@ -2076,6 +2225,7 @@ export const archiverCritere = async (args: { id_critere: number }, context: any
 
 export const desarchiverCritere = async (args: { id_critere: number }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const critere = await context.entities.Critere.findUnique({
