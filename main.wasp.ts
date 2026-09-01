@@ -217,7 +217,7 @@ const getTempsTraitementQuery = query(getTempsTraitement, { entities: ["Alerte",
 const getRechercheGlobaleQuery = query(getRechercheGlobale, { entities: ["Agence", "Guichet", "User", "Reponse"] });
 const getArchivesQuery = query(getArchives, { entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User"] });
 const getAIStatusQuery = query(getAIStatus, { entities: ["AnalyseAvisIA"] });
-const getThemesStatsQuery = query(getThemesStats, { entities: ["AnalyseAvisIA"] });
+const getThemesStatsQuery = query(getThemesStats, { entities: ["AnalyseAvisIA", "Agence", "Reponse"] });
 
 // === SAAS PLATFORM (Doc 11/12 — phase P1) ===
 import {
