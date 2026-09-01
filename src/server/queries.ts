@@ -1657,13 +1657,18 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
       nom_agence: g.agence?.nom_agence ?? null,
     })),
     agents: agents.map((u: any) => ({ id: u.id, nom: u.nom, prenom: u.prenom, id_agence: u.id_agence })),
-    avis: avis.map((r: any) => ({
-      id: r.id.toString(),
-      commentaire_texte: r.commentaire_texte,
-      score_brut: r.score_brut,
-      date_reponse: r.date_reponse,
-      guichet: r.guichet?.nom_guichet ?? null,
-    })),
+    // CONFIDENTIALITÉ MÉTIER (RG17) : la recherche globale est un 4e chemin
+    // vers les verbatims (Ctrl+K → "temps d'attente" → avis bruts). Pour la
+    // DIRECTION : aucun résultat d'avis, uniquement entités organisationnelles.
+    avis: context.user.role === 'DIRECTION'
+      ? []
+      : avis.map((r: any) => ({
+          id: r.id.toString(),
+          commentaire_texte: r.commentaire_texte,
+          score_brut: r.score_brut,
+          date_reponse: r.date_reponse,
+          guichet: r.guichet?.nom_guichet ?? null,
+        })),
   };
 };
 

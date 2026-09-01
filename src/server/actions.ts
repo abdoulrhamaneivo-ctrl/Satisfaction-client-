@@ -366,6 +366,7 @@ export const updateAffectationGuichet = async (args: any, context: any) => {
  */
 export const deleteAffectationGuichet = async (args: any, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   if (!args.id) throw new HttpError(400, "Identifiant d'affectation manquant.");
@@ -885,6 +886,7 @@ export const reactivateAgent = async (args: { id: string }, context: any) => {
 
 export const promouvoirAgent = async (args: { id_agent: string }, context: any) => {
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION']);
 
   const existing = await context.entities.User.findUnique({ where: { id: args.id_agent } });
@@ -2012,6 +2014,7 @@ export const updateStatutTache = async (
   // AGENT, pouvait modifier le statut de n'importe quelle tâche corrective
   // de n'importe quelle agence (voire d'une autre entreprise).
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
 
   const STATUTS_VALIDES = ['A_FAIRE', 'EN_COURS', 'TERMINEE'];
   if (!STATUTS_VALIDES.includes(args.statut)) {
@@ -2071,6 +2074,7 @@ export const marquerAlerteTraitee = async (args: { id_alerte: number }, context:
   // n'étaient appliqués — n'importe quel compte connecté pouvait clôturer
   // l'alerte de n'importe quelle agence.
   requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
 
   const idAlerte = BigInt(args.id_alerte);
