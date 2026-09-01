@@ -27,11 +27,18 @@ export const relancerTachesEnRetard = async (_args: unknown, _context: any) => {
   const maintenant = new Date();
   const il_y_a_48h = new Date(maintenant.getTime() - 48 * 60 * 60 * 1000);
 
-  // Tâches non terminées dont la date de création est > 48h
+  // Tâches non terminées dont la date de création est > 48h.
+  // IDEMPOTENCE (audit P5) : on exclut aussi les tâches relancées il y a
+  // moins de 72h — si le worker est rejoué (crash, redémarrage, replay
+  // pg-boss), les responsables déjà relancés ne reçoivent pas de doublon.
   const tachesEnRetard = await prisma.tacheCorrective.findMany({
     where: {
       statut_tache: { in: ['A_FAIRE', 'EN_COURS'] },
       date_creation: { lte: il_y_a_48h },
+      OR: [
+        { date_derniere_relance: null },
+        { date_derniere_relance: { lt: new Date(maintenant.getTime() - 72 * 60 * 60 * 1000) } },
+      ],
     },
     include: {
       responsable: true,
@@ -155,7 +162,14 @@ export const relancerTachesEnRetard = async (_args: unknown, _context: any) => {
       }
 
       relancesEnvoyees += tachesAvecMeta.length;
-      console.log(`[RELANCE] 1 email consolidé envoyé à ${responsable.email} pour ${tachesAvecMeta.length} tâche(s)`);
+      // IDEMPOTENCE : horodater la relance APRÈS l'envoi effectif. Si le
+      // worker crash entre l'envoi et l'update, pire cas = 1 doublon ; sans
+      // cet update, chaque replay = doublon garanti.
+      await prisma.tacheCorrective.updateMany({
+        where: { id: { in: taches.map((t) => t.id) } },
+        data: { date_derniere_relance: new Date() },
+      });
+      console.log(`event=relance_sent responsables=1 taches=${tachesAvecMeta.length}`);
     } catch (err) {
       console.error(`[RELANCE] Erreur pour responsable ${responsable.id}:`, err);
     }

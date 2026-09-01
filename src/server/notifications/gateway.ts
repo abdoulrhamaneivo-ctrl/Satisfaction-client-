@@ -8,6 +8,7 @@
 //
 // Pour activer WhatsApp, ajoutez TWILIO_WHATSAPP_FROM (ex: "whatsapp:+15005550006")
 // ============================================================================
+import crypto from 'node:crypto';
 
 // Bug corrigé : la détection "clés configurées ?" ne vérifiait que la
 // présence d'une valeur (`!TWILIO_SID`), pas si elle était réellement
@@ -56,13 +57,24 @@ export function normaliserNumeroCI(numeroBrut: string): string {
 }
 
 /**
+ * Logs SANS PII (audit P7) : numéros et contenus ne doivent jamais apparaître
+ * dans les logs (loi ivoirienne données personnelles — les logs peuvent être
+ * consultés par des opérateurs sans droit). On log un hash tronqué du numéro,
+ * suffisant pour corréler des envois sans révéler l'identité.
+ */
+const empreinteNumero = (numero: string): string => {
+  const h = crypto.createHash('sha256').update(numero).digest('hex');
+  return h.slice(0, 8);
+};
+
+/**
  * Envoie un SMS via Twilio, ou logge si les clés ne sont pas configurées.
  */
 export async function envoyerAlerteSMS(destinataire: string, message: string): Promise<void> {
   const numero = normaliserNumeroCI(destinataire);
 
   if (!estConfigure(TWILIO_SID) || !estConfigure(TWILIO_TOKEN) || !estConfigure(TWILIO_FROM)) {
-    console.log(`[NOTIFICATION-STUB] SMS → ${numero}: ${message}`);
+    console.log(`event=notification_stub channel=sms dest=${empreinteNumero(numero)} longueur=${message.length}`);
     return;
   }
 
@@ -84,9 +96,9 @@ export async function envoyerAlerteSMS(destinataire: string, message: string): P
 
   if (!res.ok) {
     const err = await res.text();
-    console.error(`[SMS] Erreur Twilio: ${err}`);
+    console.error(`event=notification_error channel=sms status=${res.status}`);
   } else {
-    console.log(`[SMS] Envoyé à ${numero}`);
+    console.log(`event=notification_sent channel=sms dest=${empreinteNumero(numero)}`);
   }
 }
 
@@ -97,7 +109,7 @@ export async function envoyerAlerteWhatsApp(destinataire: string, message: strin
   const numero = normaliserNumeroCI(destinataire);
 
   if (!estConfigure(TWILIO_SID) || !estConfigure(TWILIO_TOKEN) || !estConfigure(TWILIO_WA_FROM)) {
-    console.log(`[NOTIFICATION-STUB] WhatsApp → ${numero}: ${message}`);
+    console.log(`event=notification_stub channel=whatsapp dest=${empreinteNumero(numero)} longueur=${message.length}`);
     return;
   }
 
@@ -119,9 +131,9 @@ export async function envoyerAlerteWhatsApp(destinataire: string, message: strin
 
   if (!res.ok) {
     // Bascule automatique sur SMS si WhatsApp échoue
-    console.warn(`[WhatsApp] Échec, bascule SMS pour ${numero}`);
+    console.warn(`event=notification_fallback channel=whatsapp->sms dest=${empreinteNumero(numero)}`);
     await envoyerAlerteSMS(numero, message);
   } else {
-    console.log(`[WhatsApp] Envoyé à ${numero}`);
+    console.log(`event=notification_sent channel=whatsapp dest=${empreinteNumero(numero)}`);
   }
 }

@@ -17,11 +17,16 @@ const PAGE_SIZE = 20;
 export const getPlatformOverview = async (_args: void, context: any) => {
   requirePlatformRole(context, ['SUPER_ADMIN', 'SUPPORT']);
 
-  const [total, parStatut, totalUsers, totalAvis, recentes] = await Promise.all([
+  // MÉTRIQUE MÉTIER (audit P3) : « avis collectés » = nombre de SOUMISSIONS
+  // (id_soumission distincts), PAS de lignes Reponse. Un questionnaire à
+  // 5 critères produit 5 lignes Reponse pour 1 seul avis — compter les lignes
+  // surcomptait ×5. groupBy + count des groupes = COUNT(DISTINCT) équivalent
+  // sans requête SQL brute.
+  const [total, parStatut, totalUsers, soumissionnaires, recentes] = await Promise.all([
     context.entities.Entreprise.count(),
     context.entities.Entreprise.groupBy({ by: ['status'], _count: true }),
     context.entities.User.count({ where: { id_entreprise: { not: null } } }),
-    context.entities.Reponse.count(),
+    context.entities.Reponse.groupBy({ by: ['id_soumission'] }),
     context.entities.Entreprise.findMany({
       orderBy: { date_creation_compte: 'desc' },
       take: 5,
@@ -35,7 +40,10 @@ export const getPlatformOverview = async (_args: void, context: any) => {
   const parStatutMap: Record<string, number> = {};
   for (const g of parStatut as Array<{ status: string; _count: number }>) parStatutMap[g.status] = g._count;
 
-  // Évolution des créations d'entreprises sur 12 mois
+  // Évolution des créations d'entreprises sur 12 mois — agrégation
+  // PostgreSQL (GROUP BY mois via groupBy sur les champs date n'existant
+  // pas nativement, on ne ramène QUE les dates, payload minimal, et le
+  // bucketing mensuel reste O(12) côté Node sur des entiers de dates).
   const depuis12Mois = new Date();
   depuis12Mois.setMonth(depuis12Mois.getMonth() - 11);
   depuis12Mois.setDate(1);
@@ -62,7 +70,7 @@ export const getPlatformOverview = async (_args: void, context: any) => {
     entreprises_actives: (parStatutMap['ACTIVE'] ?? 0) + (parStatutMap['TRIAL'] ?? 0),
     entreprises_suspendues: parStatutMap['SUSPENDED'] ?? 0,
     utilisateurs: totalUsers,
-    avis_collectes: totalAvis,
+    avis_collectes: soumissionnaires.length, // soumissions distinctes, pas lignes
     evolution,
     recentes,
   };
@@ -167,10 +175,14 @@ export const getPlatformEntreprise = async (args: { id: number }, context: any) 
     select: { id: true, email: true, nom: true, prenom: true, mustChangePassword: true, createdAt: true },
   });
 
-  // Volume d'avis (compteur uniquement)
-  const totalAvis = await context.entities.Reponse.count({
+  // Volume d'avis (MÉTRIQUE MÉTIER P3 : soumissions distinctes — voir
+  // getPlatformOverview pour la justification ; Reponse.count() surcomptait
+  // chaque critère comme un avis).
+  const soumissions = await context.entities.Reponse.groupBy({
+    by: ['id_soumission'],
     where: { id_agence: { in: agencesIds.map((a: any) => a.id) } },
   });
+  const totalAvis = soumissions.length;
 
   // Invitation active pour l'admin ? (jamais activé)
   let invitationActive = false;

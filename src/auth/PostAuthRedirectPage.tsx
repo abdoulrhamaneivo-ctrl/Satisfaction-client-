@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "wasp/client/auth";
 import { AmbientBackground } from "../client/components/AmbientBackground";
-import { LoadingSpinner } from "../admin/layout/LoadingSpinner";
 
 /**
  * Page technique (invisible pour l'utilisateur) qui arbitre la destination
@@ -33,7 +32,14 @@ export function PostAuthRedirectPage() {
 
   return (
     <AmbientBackground className="flex min-h-screen items-center justify-center">
-      <LoadingSpinner />
+      {/* Spinner inline — l'ancien composant venait du dashboard admin (admin/
+          layout) retiré lors du durcissement P2 (suppression du double
+          système isAdmin vs platformRole). */}
+      <div
+        className="size-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary"
+        role="status"
+        aria-label="Chargement"
+      />
     </AmbientBackground>
   );
 }

@@ -405,6 +405,12 @@ model TacheCorrective {
   date_echeance       DateTime
   date_cloture        DateTime?
 
+  // IDEMPOTENCE JOB RELANCE (audit P5) : horodatage de la dernière relance
+  // envoyée. Le job quotidien saute les tâches relancées il y a moins de
+  // 72h — un redémarrage/crash/replay du worker ne provoque jamais de
+  // double email/SMS au même responsable.
+  date_derniere_relance DateTime?
+
   // Archivage logique — même principe que Alerte ci-dessus.
   archive             Boolean           @default(false)
   date_archivage      DateTime?

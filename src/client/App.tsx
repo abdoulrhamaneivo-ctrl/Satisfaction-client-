@@ -35,8 +35,11 @@ export function App() {
 
   const YEBA_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences'];
   const isAdminDashboard = useMemo(() => {
+    // Route /admin du template Wasp retirée (audit P2 — dashboard isAdmin
+    // supprimé). On garde le test de préfixe pour l'ancien lien éventuel.
     return (
-      location.pathname.startsWith(routes.AdminRoute.to) &&
+      location.pathname.startsWith('/admin') &&
+      !location.pathname.startsWith('/platform') &&
       !YEBA_ADMIN_ROUTES.some((r) => location.pathname.startsWith(r))
     );
   }, [location]);

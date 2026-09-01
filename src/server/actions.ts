@@ -1314,11 +1314,11 @@ export const inviteAgent = async (
       ].join('\n'),
     });
 
-    console.log(`[INVITE] Email Chef d'Agence envoyé à ${args.email} (${nomAgence})`);
+    console.log(`event=invite_email_sent role=CHEF_AGENCE agence=${targetAgenceId}`);
   } else {
     // AGENT simple → créé silencieusement, pas d'email
     // Il sera assigné aux guichets via le planning sans jamais se connecter.
-    console.log(`[INVITE] Agent créé silencieusement : ${args.prenom} ${args.nom} (pas d'email)`);
+    console.log(`event=agent_created_silent agence=${targetAgenceId}`);
   }
 
   return newUser;
