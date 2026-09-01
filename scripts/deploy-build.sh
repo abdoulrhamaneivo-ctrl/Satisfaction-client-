@@ -2,8 +2,8 @@
 # =============================================================================
 # scripts/deploy-build.sh — Préparation du dossier de déploiement `deploy/`
 # =============================================================================
-# Dans Wasp 0.24+, le serveur Express intègre directement le Frontend (Vite SSR).
-# Render fait tourner l'intégralité du site (UI + API) depuis `deploy/`.
+# Pre-compile le serveur localement pour que Render n'ait aucun gros build à faire
+# (optimisé pour la RAM 512 MB de Render Free Tier).
 # =============================================================================
 
 set -euo pipefail
@@ -23,26 +23,30 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# 1. Copier tout le contenu compilé de .wasp/out vers deploy/
+# 1. Copier les artefacts de .wasp/out vers deploy/
 DEPLOY_DIR="$PROJECT_ROOT/deploy"
 rm -rf "$DEPLOY_DIR"
 mkdir -p "$DEPLOY_DIR"
 
 if [ -d ".wasp/out" ]; then
-    info "Artefacts Wasp trouvés dans .wasp/out"
+    info "Copie des artefacts pré-compilés vers deploy/..."
     cp -r .wasp/out/* "$DEPLOY_DIR/"
     cp -r .wasp/out/.* "$DEPLOY_DIR/" 2>/dev/null || true
 else
-    fail "Le dossier .wasp/out n'existe pas. Exécute 'wasp build' d'abord."
+    fail "Le dossier .wasp/out n'existe pas."
 fi
 
-ok "Dossier 'deploy/' préparé avec succès !"
+# 2. Copier schema.prisma directement dans deploy/server pour simplifier Prisma
+cp "$PROJECT_ROOT/schema.prisma" "$DEPLOY_DIR/server/schema.prisma" 2>/dev/null || true
+cp "$DEPLOY_DIR/db/schema.prisma" "$DEPLOY_DIR/server/schema.prisma" 2>/dev/null || true
+
+ok "Dossier 'deploy/' préparé !"
 echo ""
 echo "══════════════════════════════════════════════════════════════"
-echo -e "${GREEN} DÉPLOIEMENT UNIQUE SUR RENDER PRÊT ! ${NC}"
+echo -e "${GREEN} OPTIMISÉ POUR RENDER FREE TIER (512 MB RAM) ${NC}"
 echo "══════════════════════════════════════════════════════════════"
-echo "  Dans Render (Web Service) :"
+echo "  Configuration dans Render (Web Service) :"
 echo "  • Root Directory : deploy/server"
-echo "  • Build Command  : npm install && npx prisma generate"
+echo "  • Build Command  : npm install --omit=dev && npx prisma generate --schema=schema.prisma"
 echo "  • Start Command  : npm run start-production"
 echo ""

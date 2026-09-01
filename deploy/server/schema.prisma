@@ -1,0 +1,426 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                 String                      @id @default(uuid())
+  email              String?                     @unique
+  username           String?                     @unique
+  createdAt          DateTime                    @default(now())
+  isAdmin            Boolean                     @default(false)
+  sendEmail          Boolean                     @default(false)
+  nom                String?                     @default("")
+  prenom             String?                     @default("")
+  telephone          String?                     @default("")
+  role               String?                     @default("AGENT")
+  actif              Boolean                     @default(true)
+  mustChangePassword Boolean                     @default(false)
+  id_agence          Int?
+  agence             Agence?                     @relation(fields: [id_agence], references: [id])
+  platformRole       String                      @default("NONE")
+  totp_secret        String?
+  totp_actif         Boolean                     @default(false)
+  id_entreprise      Int?
+  entreprise         Entreprise?                 @relation(fields: [id_entreprise], references: [id])
+  invitationsRecues  Invitation[]                @relation("InvitationInvite")
+  invitationsEmises  Invitation[]                @relation("InvitationEmetteur")
+  auditLogs          AuditLog[]                  @relation("AuditActeur")
+  affectations       AffectationGuichet[]
+  alertes            Alerte[]
+  taches             TacheCorrective[]
+  reponses           Reponse[]                   @relation("AgentResponses")
+  historiquesTaches  TacheCorrectiveHistorique[] @relation("HistoriqueAuteur")
+  files              File[]
+  auth               Auth?
+}
+
+model Entreprise {
+  id                    Int             @id @default(autoincrement())
+  nom_entreprise        String
+  nom_court             String?
+  email_administratif   String?
+  telephone             String?
+  pays                  String?         @default("Cote d'Ivoire")
+  date_creation_compte  DateTime        @default(now())
+  status                String          @default("ACTIVE")
+  plan                  String          @default("STARTER")
+  date_debut_abonnement DateTime?
+  date_fin_abonnement   DateTime?
+  limite_agences        Int             @default(5)
+  limite_utilisateurs   Int             @default(50)
+  limite_guichets       Int             @default(25)
+  suspendue_le          DateTime?
+  motif_suspension      String?
+  branding              BrandingConfig?
+  auditLogs             AuditLog[]
+  invitations           Invitation[]
+  agences               Agence[]
+  utilisateurs          User[]
+  criteres              Critere[]
+  services              Service[]
+}
+
+model Agence {
+  id              Int                      @id @default(autoincrement())
+  nom_agence      String
+  commune         String
+  adresse         String?
+  heure_ouverture String                   @default("08:00")
+  heure_fermeture String                   @default("17:00")
+  jours_ouvres    String                   @default("1,2,3,4,5,6")
+  archive         Boolean                  @default(false)
+  date_archivage  DateTime?
+  id_entreprise   Int
+  entreprise      Entreprise               @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  utilisateurs    User[]
+  guichets        Guichet[]
+  objectifs       Objectif[]
+  reponses        Reponse[]
+  statistiques    StatistiquesMensuelles[]
+  agencesCriteres AgenceCritere[]
+}
+
+model Guichet {
+  id             Int                      @id @default(autoincrement())
+  nom_guichet    String
+  type_guichet   String?
+  actif          Boolean                  @default(true)
+  code_public    String                   @unique
+  archive        Boolean                  @default(false)
+  date_archivage DateTime?
+  id_agence      Int
+  agence         Agence                   @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+  affectations   AffectationGuichet[]
+  reponses       Reponse[]
+  alertes        Alerte[]
+  statistiques   StatistiquesMensuelles[]
+  services       Service[]
+}
+
+model AffectationGuichet {
+  id               Int      @id @default(autoincrement())
+  date_affectation DateTime @db.Date
+  heure_debut      String
+  heure_fin        String
+  id_guichet       Int
+  guichet          Guichet  @relation(fields: [id_guichet], references: [id], onDelete: Cascade)
+  id_agent         String
+  agent            User     @relation(fields: [id_agent], references: [id], onDelete: Cascade)
+
+  @@index([id_guichet, date_affectation])
+}
+
+model Service {
+  id               Int                      @id @default(autoincrement())
+  libelle_service  String
+  id_entreprise    Int?
+  entreprise       Entreprise?              @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  reponses         Reponse[]
+  statistiques     StatistiquesMensuelles[]
+  guichets         Guichet[]
+  criteresServices CritereService[]
+}
+
+model Critere {
+  id               Int                      @id @default(autoincrement())
+  libelle_critere  String
+  description      String?
+  type_reponse     String                   @default("SMILEY")
+  options_reponse  String?
+  obligatoire      Boolean                  @default(true)
+  archive          Boolean                  @default(false)
+  date_archivage   DateTime?
+  id_entreprise    Int?
+  entreprise       Entreprise?              @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  objectifs        Objectif[]
+  reponses         Reponse[]
+  statistiques     StatistiquesMensuelles[]
+  agencesCriteres  AgenceCritere[]
+  criteresServices CritereService[]
+}
+
+model CritereService {
+  id         Int     @id @default(autoincrement())
+  id_critere Int
+  critere    Critere @relation(fields: [id_critere], references: [id], onDelete: Cascade)
+  id_service Int
+  service    Service @relation(fields: [id_service], references: [id], onDelete: Cascade)
+  ordre      Int     @default(0)
+
+  @@unique([id_critere, id_service])
+  @@index([id_service, ordre])
+}
+
+model AgenceCritere {
+  id_agence  Int
+  agence     Agence  @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+  id_critere Int
+  critere    Critere @relation(fields: [id_critere], references: [id], onDelete: Cascade)
+
+  @@id([id_agence, id_critere])
+}
+
+model Objectif {
+  id           Int      @id @default(autoincrement())
+  valeur_cible Decimal  @db.Decimal(5, 2)
+  date_debut   DateTime @db.Date
+  date_fin     DateTime @db.Date
+  id_critere   Int
+  critere      Critere  @relation(fields: [id_critere], references: [id], onDelete: Cascade)
+  id_agence    Int
+  agence       Agence   @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+}
+
+model Canal {
+  id              Int       @id @default(autoincrement())
+  type_canal      String
+  langue_utilisee String
+  reponses        Reponse[]
+}
+
+model Reponse {
+  id                BigInt         @id @default(autoincrement())
+  date_reponse      DateTime       @default(now())
+  score_brut        Int
+  audio_url         String?
+  commentaire_texte String?
+  id_soumission     String?
+  id_critere        Int
+  critere           Critere        @relation(fields: [id_critere], references: [id])
+  id_canal          Int
+  canal             Canal          @relation(fields: [id_canal], references: [id])
+  id_agence         Int
+  agence            Agence         @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+  id_guichet        Int
+  guichet           Guichet        @relation(fields: [id_guichet], references: [id])
+  id_service        Int?
+  service           Service?       @relation(fields: [id_service], references: [id])
+  id_agent          String?
+  agent             User?          @relation("AgentResponses", fields: [id_agent], references: [id], onDelete: SetNull)
+  alertes           Alerte[]
+  analyseIA         AnalyseAvisIA?
+
+  @@index([id_agence, date_reponse])
+  @@index([id_guichet, date_reponse])
+  @@index([id_soumission])
+}
+
+model AnalyseAvisIA {
+  id                BigInt    @id @default(autoincrement())
+  reponseId         BigInt    @unique
+  reponse           Reponse   @relation(fields: [reponseId], references: [id], onDelete: Cascade)
+  commentaireTexte  String?
+  noteBrut          Int?
+  status            String    @default("PENDING")
+  sentiment         String?
+  sentimentScore    Float?
+  themes            String?
+  problemePrincipal String?
+  urgence           String?
+  resume            String?
+  actionRecommandee String?
+  coherenceNote     String?
+  sentimentRetenu   String?
+  model             String    @default("deepseek-chat")
+  provider          String    @default("deepseek")
+  attempts          Int       @default(0)
+  error             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  processedAt       DateTime?
+
+  @@index([status])
+}
+
+model Alerte {
+  id                  BigInt            @id @default(autoincrement())
+  message             String
+  statut_alerte       String            @default("NOUVELLE")
+  type_alerte         String
+  date_creation       DateTime          @default(now())
+  date_traitement     DateTime?
+  archive             Boolean           @default(false)
+  date_archivage      DateTime?
+  id_reponse          BigInt?
+  reponse             Reponse?          @relation(fields: [id_reponse], references: [id], onDelete: Cascade)
+  id_destinataire     String
+  destinataire        User              @relation(fields: [id_destinataire], references: [id], onDelete: Cascade)
+  id_guichet_concerne Int?
+  guichet             Guichet?          @relation(fields: [id_guichet_concerne], references: [id], onDelete: SetNull)
+  taches              TacheCorrective[]
+
+  @@index([archive])
+}
+
+model TacheCorrective {
+  id                    BigInt                      @id @default(autoincrement())
+  titre                 String
+  description           String?
+  statut_tache          String                      @default("A_FAIRE")
+  date_creation         DateTime                    @default(now())
+  date_echeance         DateTime
+  date_cloture          DateTime?
+  date_derniere_relance DateTime?
+  archive               Boolean                     @default(false)
+  date_archivage        DateTime?
+  id_alerte             BigInt
+  alerte                Alerte                      @relation(fields: [id_alerte], references: [id], onDelete: Cascade)
+  id_responsable        String
+  responsable           User                        @relation(fields: [id_responsable], references: [id])
+  historique            TacheCorrectiveHistorique[]
+
+  @@index([archive])
+}
+
+model TacheCorrectiveHistorique {
+  id             BigInt          @id @default(autoincrement())
+  date_action    DateTime        @default(now())
+  ancien_statut  String
+  nouveau_statut String
+  commentaire    String?
+  id_tache       BigInt
+  tache          TacheCorrective @relation(fields: [id_tache], references: [id], onDelete: Cascade)
+  id_auteur      String
+  auteur         User            @relation("HistoriqueAuteur", fields: [id_auteur], references: [id])
+
+  @@index([id_tache, date_action])
+}
+
+model VoteAntiRejeu {
+  id          BigInt   @id @default(autoincrement())
+  hachage_tel String   @unique
+  date_vote   DateTime @default(now())
+
+  @@index([date_vote])
+}
+
+model StatistiquesMensuelles {
+  id                BigInt   @id @default(autoincrement())
+  annee             Int
+  mois              Int
+  nombre_reponses   Int      @default(0)
+  score_moyen       Decimal  @db.Decimal(5, 2)
+  niveau_conformite String   @default("Informelle")
+  id_agence         Int
+  agence            Agence   @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+  id_guichet        Int?
+  guichet           Guichet? @relation(fields: [id_guichet], references: [id], onDelete: SetNull)
+  id_service        Int?
+  service           Service? @relation(fields: [id_service], references: [id], onDelete: SetNull)
+  id_critere        Int
+  critere           Critere  @relation(fields: [id_critere], references: [id], onDelete: Cascade)
+}
+
+model File {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  name      String
+  s3Key     String
+  type      String
+  url       String?
+}
+
+model Logs {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  message   String
+  level     String
+}
+
+model Invitation {
+  id            BigInt      @id @default(autoincrement())
+  id_user       String
+  invite        User        @relation("InvitationInvite", fields: [id_user], references: [id])
+  id_emetteur   String
+  emetteur      User        @relation("InvitationEmetteur", fields: [id_emetteur], references: [id])
+  id_entreprise Int?
+  entreprise    Entreprise? @relation(fields: [id_entreprise], references: [id])
+  token_hash    String      @unique
+  expires_at    DateTime
+  used_at       DateTime?
+  created_at    DateTime    @default(now())
+
+  @@index([id_user])
+  @@index([expires_at])
+  @@index([id_entreprise, created_at])
+}
+
+model AuditLog {
+  id            BigInt      @id @default(autoincrement())
+  actor_id      String
+  acteur        User        @relation("AuditActeur", fields: [actor_id], references: [id])
+  actor_role    String?
+  action        String
+  resource      String
+  resource_id   String?
+  entreprise_id Int?
+  entreprise    Entreprise? @relation(fields: [entreprise_id], references: [id], onDelete: SetNull)
+  details       Json?
+  ip            String?
+  user_agent    String?
+  created_at    DateTime    @default(now())
+
+  @@index([entreprise_id, created_at])
+  @@index([actor_id, created_at])
+  @@index([action, created_at])
+}
+
+model BrandingConfig {
+  id                 BigInt     @id @default(autoincrement())
+  id_entreprise      Int        @unique
+  entreprise         Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  logo_url           String?
+  logo_light_url     String?
+  favicon_url        String?
+  nom_affiche        String?
+  color_primary      String?
+  color_secondary    String?
+  color_accent       String?
+  color_background   String?
+  form_title         String?    @db.VarChar(120)
+  form_subtitle      String?    @db.VarChar(200)
+  form_thank_you     String?    @db.VarChar(120)
+  qr_slogan          String?    @db.VarChar(80)
+  qr_style           String     @default("CLASSIQUE")
+  qr_color           String?
+  qr_bg_color        String?
+  qr_frame           String     @default("SIMPLE")
+  hide_yeba_branding Boolean    @default(false)
+  updated_by         String?
+  updated_at         DateTime   @updatedAt
+  created_at         DateTime   @default(now())
+}
+
+model Auth {
+  id         String         @id @default(uuid())
+  userId     String?        @unique
+  user       User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  identities AuthIdentity[]
+  sessions   Session[]
+}
+
+model AuthIdentity {
+  providerName   String
+  providerUserId String
+  providerData   String @default("{}")
+  authId         String
+  auth           Auth   @relation(fields: [authId], references: [id], onDelete: Cascade)
+
+  @@id([providerName, providerUserId])
+}
+
+model Session {
+  id        String   @id @unique
+  expiresAt DateTime
+  userId    String
+  auth      Auth     @relation(references: [id], fields: [userId], onDelete: Cascade)
+
+  @@index([userId])
+}
