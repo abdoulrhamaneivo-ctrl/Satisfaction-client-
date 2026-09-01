@@ -35,6 +35,6 @@
     "src"
   ],
   "references": [
-    { "path": "../tsconfig.src.json" }
+    { "path": "../sdk/wasp" }, { "path": "../tsconfig.src.json" }
   ]
 }

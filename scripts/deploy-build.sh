@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
-# scripts/deploy-build.sh — Préparation finale pour Render
+# scripts/deploy-build.sh — Préparation finale du dossier `deploy/` pour Render
 # =============================================================================
-# Corrige le chemin du tsconfig.src.json pour la compilation TypeScript sur Render.
+# Fixe les workspaces NPM et les références TS pour que Wasp se compile proprement.
 # =============================================================================
 
 set -euo pipefail
@@ -34,14 +34,22 @@ else
     fail "Le dossier .wasp/out n'existe pas."
 fi
 
-cp "$DEPLOY_DIR/db/schema.prisma" "$DEPLOY_DIR/server/schema.prisma" 2>/dev/null || true
+# 1. Corriger les workspaces NPM dans deploy/package.json
+info "Mise à jour des workspaces dans deploy/package.json..."
+node -e '
+const fs = require("fs");
+const pkgPath = "'"$DEPLOY_DIR"'/package.json";
+const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+pkg.workspaces = ["server", "sdk/wasp"];
+fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+'
 
-# Corriger le chemin du tsconfig dans deploy/server/tsconfig.json
-info "Correction des chemins dans deploy/server/tsconfig.json..."
-sed -i 's|../../../tsconfig.src.json|../tsconfig.src.json|g' "$DEPLOY_DIR/server/tsconfig.json" 2>/dev/null || true
+# 2. Corriger tsconfig.json dans deploy/server/tsconfig.json via sed
+info "Mise à jour des références dans deploy/server/tsconfig.json..."
+sed -i 's|{ "path": "../../../tsconfig.src.json" }|{ "path": "../sdk/wasp" }, { "path": "../tsconfig.src.json" }|g' "$DEPLOY_DIR/server/tsconfig.json" 2>/dev/null || true
 
-# Injecter prisma, @prisma/client et @tsconfig/node24 dans deploy/server/package.json
-info "Mise à jour de deploy/server/package.json..."
+# 3. Injecter prisma et @prisma/client dans deploy/server/package.json
+info "Mise à jour des dépendances dans deploy/server/package.json..."
 node -e '
 const fs = require("fs");
 const pkgPath = "'"$DEPLOY_DIR"'/server/package.json";
@@ -53,12 +61,12 @@ pkg.dependencies["@tsconfig/node24"] = "latest";
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 '
 
-ok "Prêt pour le déploiement sur Render !"
+ok "Dossier 'deploy/' préparé et corrigé pour Render !"
 echo ""
 echo "══════════════════════════════════════════════════════════════"
 echo -e "${GREEN} CONFIGURATION RENDER PROPRE ET OPTIMISÉE ${NC}"
 echo "══════════════════════════════════════════════════════════════"
-echo "  • Root Directory : deploy/server"
-echo "  • Build Command  : npm install && npx prisma generate --schema=schema.prisma && npm run bundle"
-echo "  • Start Command  : npm run start-production"
+echo "  • Root Directory : deploy"
+echo "  • Build Command  : npm install && npx prisma generate --schema=db/schema.prisma && cd server && npm run bundle"
+echo "  • Start Command  : cd server && npm run start-production"
 echo ""
