@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# scripts/deploy-build.sh — Build Wasp et prépare le dossier `deploy/`
+# scripts/deploy-build.sh — Préparation du dossier de déploiement `deploy/`
 # =============================================================================
-# Vercel et Render ne voient pas les dossiers cachés commençant par un point (.wasp).
-# Ce script copie les artefacts de build vers `deploy/web-app` et `deploy/server`.
+# Dans Wasp 0.24+, le serveur Express intègre directement le Frontend (Vite SSR).
+# Render fait tourner l'intégralité du site (UI + API) depuis `deploy/`.
 # =============================================================================
 
 set -euo pipefail
@@ -23,41 +23,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# 1. Build Wasp ou réutilisation du build existant
-if [ -d ".wasp/out" ]; then
-    info "Artefacts .wasp/out existants détectés..."
-else
-    info "Lancement de 'wasp build'..."
-    wasp build || fail "Échec du build Wasp."
-fi
-
-# 2. Préparer le dossier visible `deploy/`
+# 1. Copier tout le contenu compilé de .wasp/out vers deploy/
 DEPLOY_DIR="$PROJECT_ROOT/deploy"
 rm -rf "$DEPLOY_DIR"
-mkdir -p "$DEPLOY_DIR/server"
-mkdir -p "$DEPLOY_DIR/web-app"
+mkdir -p "$DEPLOY_DIR"
 
-info "Copie des artefacts vers le dossier visible 'deploy/'..."
-cp -r .wasp/out/server/* "$DEPLOY_DIR/server/"
-cp -r .wasp/out/web-app/* "$DEPLOY_DIR/web-app/"
+if [ -d ".wasp/out" ]; then
+    info "Artefacts Wasp trouvés dans .wasp/out"
+    cp -r .wasp/out/* "$DEPLOY_DIR/"
+    cp -r .wasp/out/.* "$DEPLOY_DIR/" 2>/dev/null || true
+else
+    fail "Le dossier .wasp/out n'existe pas. Exécute 'wasp build' d'abord."
+fi
 
-# 3. Créer vercel.json dans deploy/web-app
-cat > "$DEPLOY_DIR/web-app/vercel.json" << 'VERCELJSON'
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm install && npm run build",
-  "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
-VERCELJSON
-
-ok "Dossiers de déploiement visibles préparés dans deploy/ avec succès !"
+ok "Dossier 'deploy/' préparé avec succès !"
 echo ""
 echo "══════════════════════════════════════════════════════════════"
-echo -e "${GREEN} DOSSIERS PRÊTS DANS : deploy/ ${NC}"
+echo -e "${GREEN} DÉPLOIEMENT UNIQUE SUR RENDER PRÊT ! ${NC}"
 echo "══════════════════════════════════════════════════════════════"
-echo "  • Frontend (Vercel)  → Root Directory: deploy/web-app"
-echo "  • Backend (Render)   → Root Directory: deploy/server"
+echo "  Dans Render (Web Service) :"
+echo "  • Root Directory : deploy/server"
+echo "  • Build Command  : npm install && npx prisma generate"
+echo "  • Start Command  : npm run start-production"
 echo ""

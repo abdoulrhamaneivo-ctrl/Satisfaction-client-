@@ -1,0 +1,85 @@
+// Wasp internally uses the types defined in this file for typing entity maps in
+// operation contexts.
+//
+// We must explicitly tag all entities with their name to avoid issues with
+// structural typing. See https://github.com/wasp-lang/wasp/pull/982 for details.
+import { 
+  type Entity, 
+  type EntityName,
+  type User,
+  type Entreprise,
+  type Agence,
+  type Guichet,
+  type AffectationGuichet,
+  type Service,
+  type Critere,
+  type CritereService,
+  type AgenceCritere,
+  type Objectif,
+  type Canal,
+  type Reponse,
+  type AnalyseAvisIA,
+  type Alerte,
+  type TacheCorrective,
+  type TacheCorrectiveHistorique,
+  type VoteAntiRejeu,
+  type StatistiquesMensuelles,
+  type File,
+  type Logs,
+  type Invitation,
+  type AuditLog,
+  type BrandingConfig,
+} from 'wasp/entities'
+
+export type _User = WithName<User, "User">
+export type _Entreprise = WithName<Entreprise, "Entreprise">
+export type _Agence = WithName<Agence, "Agence">
+export type _Guichet = WithName<Guichet, "Guichet">
+export type _AffectationGuichet = WithName<AffectationGuichet, "AffectationGuichet">
+export type _Service = WithName<Service, "Service">
+export type _Critere = WithName<Critere, "Critere">
+export type _CritereService = WithName<CritereService, "CritereService">
+export type _AgenceCritere = WithName<AgenceCritere, "AgenceCritere">
+export type _Objectif = WithName<Objectif, "Objectif">
+export type _Canal = WithName<Canal, "Canal">
+export type _Reponse = WithName<Reponse, "Reponse">
+export type _AnalyseAvisIA = WithName<AnalyseAvisIA, "AnalyseAvisIA">
+export type _Alerte = WithName<Alerte, "Alerte">
+export type _TacheCorrective = WithName<TacheCorrective, "TacheCorrective">
+export type _TacheCorrectiveHistorique = WithName<TacheCorrectiveHistorique, "TacheCorrectiveHistorique">
+export type _VoteAntiRejeu = WithName<VoteAntiRejeu, "VoteAntiRejeu">
+export type _StatistiquesMensuelles = WithName<StatistiquesMensuelles, "StatistiquesMensuelles">
+export type _File = WithName<File, "File">
+export type _Logs = WithName<Logs, "Logs">
+export type _Invitation = WithName<Invitation, "Invitation">
+export type _AuditLog = WithName<AuditLog, "AuditLog">
+export type _BrandingConfig = WithName<BrandingConfig, "BrandingConfig">
+
+export type _Entity = 
+  | _User
+  | _Entreprise
+  | _Agence
+  | _Guichet
+  | _AffectationGuichet
+  | _Service
+  | _Critere
+  | _CritereService
+  | _AgenceCritere
+  | _Objectif
+  | _Canal
+  | _Reponse
+  | _AnalyseAvisIA
+  | _Alerte
+  | _TacheCorrective
+  | _TacheCorrectiveHistorique
+  | _VoteAntiRejeu
+  | _StatistiquesMensuelles
+  | _File
+  | _Logs
+  | _Invitation
+  | _AuditLog
+  | _BrandingConfig
+  | never
+
+type WithName<E extends Entity, Name extends EntityName> = 
+  E & { _entityName: Name }

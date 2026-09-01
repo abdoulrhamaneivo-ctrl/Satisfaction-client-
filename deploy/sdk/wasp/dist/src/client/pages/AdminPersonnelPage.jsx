@@ -1,0 +1,390 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from 'wasp/client/auth';
+import { useQuery, inviteAgent, updateAgent, deleteAgent, reactivateAgent, getAgentsByAgence, getAgences, } from 'wasp/client/operations';
+import { motion, AnimatePresence } from 'framer-motion';
+import { UserPlus, Trash2, RotateCcw, Mail, Phone, ShieldUser, ShieldAlert, Users, CheckCircle2, UsersRound, Search, } from 'lucide-react';
+import { AmbientBackground } from '../components/AmbientBackground';
+import { PageHeader } from '../components/PageHeader';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card, Eyebrow, Reveal } from '../components/ds';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '../components/ui/select';
+import { RequireAuth } from '../components/RequireAuth';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from '../components/ui/alert-dialog';
+import { useToast } from '../hooks/use-toast';
+export const AdminPersonnelPage = () => {
+    const { data: user } = useAuth();
+    const { toast } = useToast();
+    const [selectedAgenceId, setSelectedAgenceId] = useState(user?.id_agence ?? null);
+    const { data: agences } = useQuery(getAgences, { enabled: user?.role === 'DIRECTION' });
+    useEffect(() => {
+        if (selectedAgenceId !== null)
+            return;
+        if (user?.id_agence) {
+            setSelectedAgenceId(user.id_agence);
+        }
+        else if (agences && agences.length > 0) {
+            setSelectedAgenceId(agences[0].id);
+        }
+    }, [user?.id_agence, agences, selectedAgenceId]);
+    const { data: agents, isLoading: loadingAgents } = useQuery(getAgentsByAgence, { id_agence: selectedAgenceId ?? 0 }, { enabled: selectedAgenceId !== null });
+    const [recherche, setRecherche] = useState('');
+    const [filtreStatut, setFiltreStatut] = useState('ACTIFS');
+    const formCardRef = useRef(null);
+    const [formData, setFormData] = useState({
+        nom: '',
+        prenom: '',
+        email: '',
+        telephone: '',
+        role: 'AGENT',
+    });
+    const [editingId, setEditingId] = useState(null);
+    const [submitted, setSubmitted] = useState(false);
+    const creationEnCoursRef = useRef(false);
+    const [creationEnCours, setCreationEnCours] = useState(false);
+    const [agentAConfirmerSuppression, setAgentAConfirmerSuppression] = useState(null);
+    const roleOptions = user?.role === 'DIRECTION'
+        ? [
+            { value: 'CHEF_AGENCE', label: "Chef d’Agence" },
+            { value: 'QUALITE', label: 'Auditeur Qualité' },
+        ]
+        : user?.role === 'CHEF_AGENCE'
+            ? [
+                { value: 'AGENT', label: 'Agent de guichet' },
+                { value: 'QUALITE', label: 'Auditeur Qualité' },
+            ]
+            : [{ value: 'AGENT', label: 'Agent de guichet' }];
+    useEffect(() => {
+        if (roleOptions.length > 0 && !roleOptions.some(r => r.value === formData.role)) {
+            setFormData(prev => ({ ...prev, role: roleOptions[0].value }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.role]);
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (creationEnCoursRef.current)
+            return;
+        if (!selectedAgenceId) {
+            toast({ variant: 'destructive', title: 'Agence requise', description: "Sélectionnez d'abord une agence." });
+            return;
+        }
+        creationEnCoursRef.current = true;
+        setCreationEnCours(true);
+        try {
+            if (editingId) {
+                await updateAgent({ id: editingId, ...formData, id_agence: selectedAgenceId });
+                toast({ variant: 'success', title: 'Agent mis à jour', description: `${formData.prenom} ${formData.nom} a bien été modifié(e).` });
+            }
+            else {
+                await inviteAgent({
+                    email: formData.email,
+                    nom: formData.nom,
+                    prenom: formData.prenom,
+                    id_agence: selectedAgenceId,
+                    role: formData.role,
+                    telephone: formData.telephone,
+                });
+                toast({
+                    variant: 'success',
+                    title: formData.role === 'CHEF_AGENCE' ? 'Invitation envoyée' : 'Agent créé',
+                    description: `${formData.prenom} ${formData.nom} a bien été ajouté(e).`,
+                });
+            }
+            setFormData({ nom: '', prenom: '', email: '', telephone: '', role: 'AGENT' });
+            setEditingId(null);
+            setSubmitted(true);
+            setTimeout(() => setSubmitted(false), 3000);
+        }
+        catch (error) {
+            toast({
+                variant: 'destructive',
+                title: "Erreur",
+                description: error?.message || "Une erreur est survenue lors de l'enregistrement de l'agent.",
+            });
+        }
+        finally {
+            creationEnCoursRef.current = false;
+            setCreationEnCours(false);
+        }
+    };
+    const handleEdit = (agent) => {
+        setEditingId(agent.id);
+        setFormData({
+            nom: agent.nom,
+            prenom: agent.prenom,
+            email: agent.email || '',
+            telephone: agent.telephone || '',
+            role: agent.role || 'AGENT',
+        });
+        formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setFormData({ nom: '', prenom: '', email: '', telephone: '', role: 'AGENT' });
+    };
+    const handleDelete = async (id) => {
+        try {
+            await deleteAgent({ id });
+            toast({ variant: 'success', title: 'Agent suspendu', description: "Le compte a été désactivé et ne peut plus se connecter. Il peut être réactivé à tout moment." });
+            setSubmitted(true);
+            setTimeout(() => setSubmitted(false), 3000);
+        }
+        catch (error) {
+            toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de suspendre cet agent." });
+        }
+        finally {
+            setAgentAConfirmerSuppression(null);
+        }
+    };
+    const handleReactivate = async (id) => {
+        try {
+            await reactivateAgent({ id });
+            toast({ variant: 'success', title: 'Agent réactivé', description: 'Le compte peut à nouveau se connecter.' });
+            setSubmitted(true);
+            setTimeout(() => setSubmitted(false), 3000);
+        }
+        catch (error) {
+            toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de réactiver cet agent." });
+        }
+    };
+    const agentsFiltres = (agents ?? []).filter((agent) => {
+        if (filtreStatut === 'ACTIFS' && agent.actif === false)
+            return false;
+        if (filtreStatut === 'SUSPENDUS' && agent.actif !== false)
+            return false;
+        if (recherche.trim()) {
+            const q = recherche.trim().toLowerCase();
+            const cible = `${agent.prenom ?? ''} ${agent.nom ?? ''} ${agent.email ?? ''}`.toLowerCase();
+            if (!cible.includes(q))
+                return false;
+        }
+        return true;
+    });
+    const agentCount = agentsFiltres.length;
+    const agentCountTotal = agents?.length ?? 0;
+    if (user && user.role !== 'DIRECTION' && user.role !== 'CHEF_AGENCE') {
+        return (<RequireAuth>
+        <AmbientBackground>
+          <div className="flex min-h-screen items-center justify-center p-8">
+            <Card className="flex max-w-md flex-col items-center gap-3 p-10 text-center rounded-3xl border-warning/30">
+              <ShieldAlert className="size-10 text-warning"/>
+              <h1 className="text-xl font-bold font-satoshi">Accès réservé</h1>
+              <p className="text-sm text-muted-foreground font-medium">
+                Seuls le chef d'entreprise et le Chef d'Agence peuvent gérer le personnel.
+              </p>
+            </Card>
+          </div>
+        </AmbientBackground>
+      </RequireAuth>);
+    }
+    return (<RequireAuth>
+      <AmbientBackground>
+        <div className="min-h-screen p-6 lg:p-10 space-y-8">
+          <div className="mx-auto max-w-[1440px] space-y-8">
+            {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                <span>Administration</span>
+                <span>/</span>
+                <span className="text-foreground">{user?.agence?.nom_agence || "Agence Principale"}</span>
+                <span>/</span>
+                <span className="text-primary font-bold">Agents & Personnel</span>
+              </div>
+              
+              <div className="flex items-center gap-6 text-xs font-bold">
+                <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href = '/dashboard'}>Tableau synthétique</span>
+                <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href = '/guichets'}>Guichets</span>
+                <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Agents & Personnel</span>
+              </div>
+            </div>
+
+            <Reveal direction="down">
+              <PageHeader icon={Users} eyebrow="Équipe" title="Gestion du personnel" description="Ajoutez, modifiez et suivez les agents rattachés à votre agence." actions={user?.role === 'DIRECTION' && agences ? (<Select value={selectedAgenceId !== null ? String(selectedAgenceId) : undefined} onValueChange={(v) => setSelectedAgenceId(Number(v))}>
+                      <SelectTrigger className="h-10 min-w-56 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm">
+                        <SelectValue placeholder="Choisir l'agence"/>
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/80 shadow-premium">
+                        {agences.map((agence) => (<SelectItem key={agence.id} value={String(agence.id)}>
+                            {agence.nom_agence} ({agence.commune})
+                          </SelectItem>))}
+                      </SelectContent>
+                    </Select>) : undefined}/>
+            </Reveal>
+
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 mt-8">
+              {/* Formulaire */}
+              <Reveal delay={0.05}>
+                <Card ref={formCardRef} variant="feature" className="lg:col-span-1 rounded-3xl p-6 shadow-premium scroll-mt-8">
+                  <h2 className="mb-6 flex items-center gap-2 text-lg font-bold font-satoshi text-foreground">
+                    <UserPlus className="text-primary size-5"/> {editingId ? 'Modifier un agent' : 'Nouvel Agent'}
+                  </h2>
+
+                  <AnimatePresence>
+                    {submitted && (<motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-4 flex items-center gap-2 rounded-2xl bg-success/15 border border-success/30 p-3.5 text-xs font-bold text-success">
+                        <CheckCircle2 className="size-4"/> Opération réussie !
+                      </motion.div>)}
+                  </AnimatePresence>
+
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <Input name="prenom" placeholder="Prénom" value={formData.prenom} onChange={handleInputChange} required className="h-11 rounded-2xl border-border/80"/>
+                    <Input name="nom" placeholder="Nom" value={formData.nom} onChange={handleInputChange} required className="h-11 rounded-2xl border-border/80"/>
+
+                    <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
+                      <SelectTrigger className="h-11 rounded-2xl border-border/80">
+                        <SelectValue placeholder="Rôle"/>
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-border/80">
+                        {roleOptions.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+
+                    <div className="space-y-1.5">
+                      <Input name="email" type="email" placeholder={formData.role === 'CHEF_AGENCE' ? 'Email professionnel *' : 'Email (optionnel)'} value={formData.email} onChange={handleInputChange} required={formData.role === 'CHEF_AGENCE'} className="h-11 rounded-2xl border-border/80"/>
+                      {formData.role === 'CHEF_AGENCE' ? (<p className="text-xs text-primary font-bold flex items-center gap-1">
+                          <Mail className="size-3"/>
+                          Un email d’accueil avec identifiants lui sera envoyé.
+                        </p>) : (<p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                          Les agents simples sont créés directement sans email requis.
+                        </p>)}
+                    </div>
+
+                    <Input name="telephone" placeholder="Téléphone (optionnel)" value={formData.telephone} onChange={handleInputChange} className="h-11 rounded-2xl border-border/80"/>
+
+                    <div className="flex gap-3 pt-2">
+                      {editingId && (<Button type="button" variant="outline" onClick={handleCancelEdit} className="flex-1 rounded-2xl">
+                          Annuler
+                        </Button>)}
+                      <Button type="submit" disabled={creationEnCours} className="flex-1 rounded-2xl font-bold btn-glow-gold py-6">
+                        {creationEnCours
+            ? 'Enregistrement…'
+            : editingId
+                ? 'Enregistrer'
+                : formData.role === 'CHEF_AGENCE'
+                    ? 'Inviter'
+                    : 'Créer l’agent'}
+                      </Button>
+                    </div>
+                  </form>
+                </Card>
+              </Reveal>
+
+              {/* Grille agents */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="sticky top-16 lg:top-4 z-20 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-2 shadow-sm sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                    <Input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un agent (nom, email)..." className="h-10 pl-9 rounded-xl border-border/60"/>
+                  </div>
+                  <Select value={filtreStatut} onValueChange={(v) => setFiltreStatut(v)}>
+                    <SelectTrigger className="h-10 sm:w-48 rounded-xl border-border/60">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/80">
+                      <SelectItem value="ACTIFS">Équipe active</SelectItem>
+                      <SelectItem value="SUSPENDUS">Comptes suspendus</SelectItem>
+                      <SelectItem value="TOUS">Tous les comptes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!loadingAgents && agentCountTotal > 0 && (<Eyebrow tone="neutral">
+                    {agentCount} agent{agentCount > 1 ? 's' : ''} affiché{agentCount > 1 ? 's' : ''}
+                    {agentCount !== agentCountTotal ? ` sur ${agentCountTotal}` : ''}
+                  </Eyebrow>)}
+
+                {loadingAgents && (<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[0, 1, 2, 3].map((i) => (<div key={i} className="h-36 animate-pulse rounded-3xl border border-border/70 bg-card/50"/>))}
+                  </div>)}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <AnimatePresence>
+                    {!loadingAgents && agentsFiltres.map((agent, i) => (<motion.div key={agent.id} layout initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.25, delay: i * 0.03 }}>
+                        <Card variant="feature" className="p-5 rounded-3xl">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/15 border border-primary/25 text-primary font-bold text-lg font-satoshi">
+                                {agent.prenom?.[0]}{agent.nom?.[0]}
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-foreground font-satoshi">
+                                  {agent.prenom} {agent.nom}
+                                </h3>
+                                <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
+                                  <span>{agent.role}</span>
+                                  {agent.actif === false && (<span className="rounded-full bg-destructive/15 border border-destructive/30 px-2 py-0.5 text-[10px] font-bold uppercase text-destructive">
+                                      Suspendu
+                                    </span>)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5">
+                              <Button type="button" variant="ghost" size="icon" onClick={() => handleEdit(agent)} aria-label="Modifier" className="size-8 rounded-xl text-warning hover:bg-warning/15 hover:text-warning">
+                                <ShieldUser className="size-4"/>
+                              </Button>
+                              {agent.actif === false ? (<Button type="button" variant="ghost" size="icon" onClick={() => handleReactivate(agent.id)} aria-label="Réactiver" title="Réactiver ce compte" className="size-8 rounded-xl text-muted-foreground hover:bg-success/15 hover:text-success">
+                                  <RotateCcw className="size-4"/>
+                                </Button>) : (<Button type="button" variant="ghost" size="icon" onClick={() => setAgentAConfirmerSuppression({ id: agent.id, nom: agent.nom, prenom: agent.prenom })} aria-label="Suspendre" title="Suspendre ce compte" className="size-8 rounded-xl text-muted-foreground hover:bg-destructive/15 hover:text-destructive">
+                                  <Trash2 className="size-4"/>
+                                </Button>)}
+                            </div>
+                          </div>
+
+                          <div className="mt-5 flex flex-col gap-1.5 text-xs text-muted-foreground font-medium border-t border-border/40 pt-4">
+                            <div className="flex items-center gap-2">
+                              <Mail size={13} className="text-primary/70"/> {agent.email || 'Pas d’email'}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Phone size={13} className="text-secondary/70"/> {agent.telephone || 'Non renseigné'}
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>))}
+                  </AnimatePresence>
+
+                  {!loadingAgents && agentCount === 0 && (<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="md:col-span-2">
+                      <Card className="flex flex-col items-center justify-center p-10 text-center rounded-3xl">
+                        <UsersRound className="mb-3 size-10 text-muted-foreground"/>
+                        <p className="font-bold text-foreground font-satoshi">
+                          {agentCountTotal === 0 ? 'Aucun agent enregistré' : 'Aucun agent ne correspond à votre recherche'}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground font-medium max-w-sm">
+                          {agentCountTotal === 0
+                ? 'Ajoutez votre premier agent via le formulaire pour commencer à suivre votre équipe.'
+                : 'Essayez un autre nom, un autre email, ou réinitialisez le filtre de statut.'}
+                        </p>
+                      </Card>
+                    </motion.div>)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <AlertDialog open={agentAConfirmerSuppression !== null} onOpenChange={(open) => !open && setAgentAConfirmerSuppression(null)}>
+          <AlertDialogContent className="rounded-3xl border-border/80">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-satoshi font-bold text-destructive">Suspendre ce compte ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {agentAConfirmerSuppression && (<>
+                    <strong className="text-foreground">{agentAConfirmerSuppression.prenom} {agentAConfirmerSuppression.nom}</strong>{" "}
+                    ne pourra plus se connecter. Ce compte pourra être réactivé à
+                    tout moment depuis cette même page.
+                  </>)}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" className="rounded-xl font-bold" onClick={() => agentAConfirmerSuppression && handleDelete(agentAConfirmerSuppression.id)}>
+                Suspendre le compte
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </AmbientBackground>
+    </RequireAuth>);
+};
+//# sourceMappingURL=AdminPersonnelPage.jsx.map

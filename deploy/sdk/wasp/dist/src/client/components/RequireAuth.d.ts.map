@@ -1,0 +1,1 @@
+{"version":3,"file":"RequireAuth.d.ts","sourceRoot":"","sources":["../../../../src/client/components/RequireAuth.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAoB,MAAM,OAAO,CAAC;AAKzC,UAAU,gBAAgB;IACxB,QAAQ,EAAE,KAAK,CAAC,SAAS,CAAC;CAC3B;AAED;;;;;;;;;;;;;GAaG;AACH,wBAAgB,WAAW,CAAC,EAAE,QAAQ,EAAE,EAAE,gBAAgB,qBAgCzD"}

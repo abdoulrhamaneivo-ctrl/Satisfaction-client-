@@ -1,0 +1,695 @@
+@import "tailwindcss";
+
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-current: currentColor;
+  --color-transparent: transparent;
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-card-accent: hsl(var(--card-accent));
+  --color-card-accent-foreground: hsl(var(--card-accent-foreground));
+
+  --color-card-subtle: hsl(var(--card-subtle));
+  --color-card-subtle-foreground: hsl(var(--card-subtle-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-secondary-muted: hsl(var(--secondary-muted));
+  --color-secondary-muted-foreground: hsl(var(--secondary-muted-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
+  --color-brand-green: hsl(var(--brand-green));
+  --color-brand-green-deep: hsl(var(--brand-green-deep));
+  --color-brand-green-deeper: hsl(var(--brand-green-deeper));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --breakpoint-2xsm: 375px;
+  --breakpoint-xsm: 425px;
+  --breakpoint-3xl: 2000px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  --text-title-xxl: 44px;
+  --text-title-xxl--line-height: 55px;
+  --text-title-xl: 36px;
+  --text-title-xl--line-height: 45px;
+  --text-title-xl2: 33px;
+  --text-title-xl2--line-height: 45px;
+  --text-title-lg: 28px;
+  --text-title-lg--line-height: 35px;
+  --text-title-md: 24px;
+  --text-title-md--line-height: 30px;
+  --text-title-md2: 26px;
+  --text-title-md2--line-height: 30px;
+  --text-title-sm: 20px;
+  --text-title-sm--line-height: 26px;
+  --text-title-xsm: 18px;
+  --text-title-xsm--line-height: 24px;
+
+  --max-height-35: 8.75rem;
+  --max-height-70: 17.5rem;
+  --max-height-90: 22.5rem;
+  --max-height-300: 18.75rem;
+  --max-height-550: 34.375rem;
+
+  --min-width-75: 18.75rem;
+  --min-width-22_5: 5.625rem;
+  --min-width-42_5: 10.625rem;
+  --min-width-47_5: 11.875rem;
+
+  --z-index-1: 1;
+  --z-index-9: 9;
+  --z-index-99: 99;
+  --z-index-999: 999;
+  --z-index-9999: 9999;
+  --z-index-99999: 99999;
+  --z-index-999999: 999999;
+
+  --content-icon-copy: url("../images/icon/icon-copy-alt.svg");
+
+  --transition-property-width: width;
+  --transition-property-stroke: stroke;
+
+  --border-width-6: 6px;
+
+  --shadow-1: 0px 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-2: 0px 1px 4px rgba(0, 0, 0, 0.12);
+  --shadow-3: 0px 1px 5px rgba(0, 0, 0, 0.14);
+  --shadow-4: 0px 4px 10px rgba(0, 0, 0, 0.12);
+  --shadow-5: 0px 1px 1px rgba(0, 0, 0, 0.15);
+  --shadow-6: 0px 3px 15px rgba(0, 0, 0, 0.1);
+  --shadow-7: -5px 0 0 hsl(var(--secondary)), 5px 0 0 hsl(var(--secondary));
+  --shadow-8:
+    1px 0 0 hsl(var(--secondary)), -1px 0 0 hsl(var(--secondary)), 0 1px 0 hsl(var(--secondary)), 0 -1px 0 hsl(var(--secondary)),
+    0 3px 13px rgb(0 0 0 / 8%);
+  --shadow-default: 0px 8px 13px -3px rgba(0, 0, 0, 0.07);
+  --shadow-card: 0px 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-card-2: 0px 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-switcher:
+    0px 2px 4px rgba(0, 0, 0, 0.2), inset 0px 2px 2px #ffffff,
+    inset 0px -1px 1px rgba(0, 0, 0, 0.1);
+  --shadow-switch-1: 0px 0px 5px rgba(0, 0, 0, 0.15);
+  --shadow-outer:
+    0px 1px 3px 0px hsl(var(--background)/0.8) inset,
+    0px 0.5px 1px 0px hsl(var(--background)/0.8) inset,
+    0px -1px 3px 0px hsl(var(--primary)/0.3) inset,
+    0px -0.5px 1px 0px hsl(var(--primary)/0.15) inset,
+    0px -2px 4.8px 0px hsl(var(--background)/0.05),
+    0px 1px 2px 0px hsl(var(--background)/0.1),
+    0px 2px 4px 0px hsl(var(--background)/0.1),
+    0px 4px 8px 0px hsl(var(--background)/0.15);
+  --shadow-inner:
+    0px 1px 3px 0px hsl(var(--background)/0.8),
+    0px 0.5px 1px 0px hsl(var(--background)/0.5),
+    0px -1px 3px 0px hsl(var(--primary)/0.5),
+    0px -0.5px 1px 0px hsl(var(--primary)/0.5),
+    0px -1px 4px 0px hsl(var(--background)/0.06) inset,
+    0px -2px 4.8px 0px hsl(var(--background)/0.06) inset,
+    0px 1px 2px 0px hsl(var(--background)/0.06) inset,
+    0px 2px 4px 0px hsl(var(--background)/0.06) inset,
+    0px 4px 8px 0px hsl(var(--background)/0.06) inset;
+
+  --drop-shadow-1: 0px 1px 0px hsl(var(--border));
+  --drop-shadow-2: 0px 1px 4px rgba(0, 0, 0, 0.12);
+
+  --animate-ping-once: ping 5s cubic-bezier(0, 0, 0.2, 1);
+  --animate-spin-1_5: spin 1.5s linear infinite;
+  --animate-spin-2: spin 2s linear infinite;
+  --animate-spin-3: spin 3s linear infinite;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-satoshi: "Satoshi", system-ui, sans-serif;
+
+  /* Polices complémentaires (design Stitch) :
+  /* Satoshi = SEULE police (locale, public/fonts/). DM Sans/Epilogue
+     (liens externes timeout) retirées — Doc 03-mint règle 5 */
+  --font-display: "Satoshi", system-ui, sans-serif;
+  --font-body: "Satoshi", system-ui, sans-serif;
+
+  /* Élévation sobre (fidèle aux surfaces 1px de la marque) */
+  --shadow-premium: 0px 1px 2px rgba(16, 24, 40, 0.06), 0px 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-premium-lg: 0px 2px 4px rgba(16, 24, 40, 0.06), 0px 4px 12px rgba(16, 24, 40, 0.06);
+
+
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility no-scrollbar {
+  /* Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Police d'affichage Stitch (titres de sections, chiffres KPI) :
+   Epilogue, avec repli sur Satoshi si le CDN Google Fonts est bloqué. */
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+/* Police corps Stitch (descriptions, cartes) : DM Sans, repli Satoshi. */
+@utility font-body {
+  font-family: var(--font-body);
+}
+
+/* Respecte le réglage système des personnes sensibles aux mouvements. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  :where(a, button, input, select, textarea, [role="button"]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+}
+
+/* Coquille de page sobre : fond crème uni de la marque */
+@utility bg-app-shell {
+  background-color: hsl(var(--background));
+}
+
+/* Survol sobre des cartes interactives (pas de lévitation) */
+@utility card-interactive {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  &:hover {
+    border-color: hsl(var(--border));
+    box-shadow: var(--shadow-1);
+    background-color: hsl(var(--card));
+  }
+}
+
+@utility btn-glow-gold {
+  box-shadow: var(--shadow-1);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  &:hover {
+    box-shadow: var(--shadow-2);
+  }
+}
+
+@utility btn-glow-navy {
+  box-shadow: var(--shadow-1);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  &:hover {
+    box-shadow: var(--shadow-2);
+  }
+}
+
+/* Liseré 1px sobre */
+@utility ring-premium {
+  box-shadow: 0 0 0 1px hsl(var(--border) / 0.7);
+}
+
+@utility chat-height {
+  @apply h-[calc(100vh-8.125rem)] lg:h-[calc(100vh-5.625rem)];
+}
+
+@utility inbox-height {
+  @apply h-[calc(100vh-8.125rem)] lg:h-[calc(100vh-5.625rem)];
+}
+
+@utility text-gradient-primary {
+  color: hsl(var(--primary));
+}
+
+@utility text-gradient-primary-diagonal {
+  color: hsl(var(--primary));
+}
+
+@utility border-gradient-primary {
+  border: 1px solid hsl(var(--primary) / 0.3);
+}
+
+/* Fond radial aplati en surface unie */
+.bg-radial-gradient {
+  background: hsl(var(--card-accent));
+}
+
+.dark .bg-radial-gradient {
+  background: hsl(var(--card-subtle));
+}
+
+
+
+/* Trovy Design System — Step timeline line */
+.ds-step-line {
+  background-image: linear-gradient(
+    to bottom,
+    hsl(var(--border)) 0,
+    hsl(var(--border)) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  background-size: 1px 8px;
+  background-repeat: repeat-y;
+}
+
+/* Surface opaque sobre (remplace l'ancien verre dépoli) */
+.glass-panel {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.7);
+}
+
+.glow-card {
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid hsl(var(--border) / 0.7);
+}
+.glow-card:hover {
+  border-color: hsl(var(--border));
+  box-shadow: var(--shadow-1);
+}
+
+
+@layer base {
+  :root {
+    /* Brand anchors — Jaune Postal #F5A623 · Bleu Navy #1B365D */
+    --brand-green: 149 100% 33%;
+    --brand-green-deep: 148 100% 26%;
+    --brand-green-deeper: 148 80% 14%;
+
+    --background: 45 28% 97%;
+    --foreground: 216 40% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 216 40% 12%;
+    --card-accent: 36 85% 96%;
+    --card-accent-foreground: 216 40% 12%;
+    --card-subtle: 216 18% 94%;
+    --card-subtle-foreground: 216 40% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 216 40% 12%;
+    --primary: var(--brand-green);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--brand-green-deep);
+    --secondary-foreground: 0 0% 98%;
+    --secondary-muted: 216 28% 92%;
+    --secondary-muted-foreground: 216 53% 24%;
+    --muted: 216 16% 93%;
+    --muted-foreground: 216 14% 42%;
+    --accent: 149 60% 92%;
+    --accent-foreground: 36 91% 32%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 149 80% 34%;
+    --success-foreground: 0 0% 98%;
+    --warning: 45 100% 50%;
+    --warning-foreground: 216 40% 12%;
+    --border: 216 16% 88%;
+    --input: 216 16% 84%;
+    --ring: var(--brand-green);
+    --radius: 0.75rem;
+  }
+
+  .dark, :root.dark, html.dark, body.dark {
+    --background: 220 14% 8%;
+    --foreground: 220 14% 92%;
+    --card: 220 14% 11%;
+    --card-foreground: 220 14% 92%;
+    --card-accent: 220 12% 15%;
+    --card-accent-foreground: 220 14% 92%;
+    --card-subtle: 220 12% 14%;
+    --card-subtle-foreground: 220 14% 92%;
+    --popover: 220 14% 11%;
+    --popover-foreground: 220 14% 92%;
+    --primary: 149 60% 50%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 149 40% 60%;
+    --secondary-foreground: 220 16% 10%;
+    --secondary-muted: 220 12% 18%;
+    --secondary-muted-foreground: 220 12% 78%;
+    --muted: 220 12% 16%;
+    --muted-foreground: 220 10% 64%;
+    --accent: 220 12% 20%;
+    --accent-foreground: 220 14% 88%;
+    --destructive: 0 62% 63%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 149 60% 45%;
+    --success-foreground: 0 0% 98%;
+    --warning: 45 90% 56%;
+    --warning-foreground: 220 16% 10%;
+    --border: 220 12% 18%;
+    --input: 220 12% 18%;
+    --ring: 149 60% 50%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* Verrou anti-défilement horizontal parasite : si un composant quelque
+       part déborde de quelques pixels (carte trop large, image non
+       contrainte, marge négative mal calculée...), ce défilement horizontal
+       fantôme est coupé net ici au lieu de laisser une zone vide/scrollable
+       à droite de l'écran. C'est un filet de sécurité global, pas un
+       substitut à la correction du composant fautif s'il y en a un.
+       Sur `html` (et non un wrapper interne) : le scroller racine du
+       document reste la fenêtre elle-même, donc `position: sticky` (menu,
+       en-têtes de tableau...) continue de fonctionner normalement. */
+    overflow-x: hidden;
+    /* Harmonise la couleur visible pendant l'effet de rebond ("overscroll")
+       sur mobile (iOS/Android) avec le thème actif (clair/sombre/marque
+       personnalisée) au lieu d'un flash blanc qui casse l'illusion. */
+    background-color: hsl(var(--background));
+  }
+  body {
+    @apply bg-background text-foreground;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Affordances globales : curseur, focus, touch (ui-ux-pro-max) */
+  :where(a[href], button:not(:disabled), [role="button"], label[for], summary) {
+    cursor: pointer;
+  }
+
+  :where(a, button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Réduit le délai tactile sur mobile */
+  :where(button, a, [role="button"]) {
+    touch-action: manipulation;
+  }
+  /* Utilitaire à poser sur toute zone de défilement interne (modale longue,
+     rangée de colonnes horizontale...) : rétablit un défilement inertiel
+     fluide ("momentum scrolling") sur iOS au lieu d'un arrêt sec dès que le
+     doigt quitte l'écran. */
+  .momentum-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Affordance de défilement horizontal ("il reste du contenu à droite") :
+     estompe visuellement les bords gauche/droit d'une rangée qui défile,
+     sans dépendre d'une flèche ou d'un texte d'aide. À poser en plus de
+     `overflow-x-auto` sur le conteneur. */
+  .scroll-fade-x {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 24px,
+      black calc(100% - 24px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 24px,
+      black calc(100% - 24px),
+      transparent
+    );
+  }
+  /* Global typography styles */
+  h1,
+  h2 {
+    @apply font-satoshi font-bold leading-tight tracking-tight;
+  }
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-satoshi font-semibold leading-tight;
+  }
+
+  p {
+    /* Bug corrigé : les paragraphes utilisaient `font-mono` (police à
+       chasse fixe, type code) au lieu de la police de marque "Satoshi" —
+       lisible pour un titre court, mais fatigante sur des paragraphes
+       entiers (descriptions, aides de formulaire, cellules de tableau). */
+    @apply font-satoshi font-normal text-base leading-relaxed;
+  }
+}
+
+/* third-party libraries CSS */
+
+.tableCheckbox:checked ~ div span {
+  @apply opacity-100;
+}
+.tableCheckbox:checked ~ div {
+  @apply bg-primary border-primary;
+}
+
+.apexcharts-legend-text {
+  @apply text-muted-foreground!;
+}
+.apexcharts-text {
+  @apply fill-muted-foreground!;
+}
+.apexcharts-xcrosshairs {
+  @apply fill-border!;
+}
+.apexcharts-gridline {
+  @apply stroke-border!;
+}
+.apexcharts-series.apexcharts-pie-series path {
+  @apply dark:stroke-transparent!;
+}
+.apexcharts-legend-series {
+  @apply inline-flex! gap-1.5;
+}
+.apexcharts-tooltip.apexcharts-theme-light {
+  @apply dark:bg-card! dark:border-border!;
+}
+.apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title {
+  @apply dark:bg-muted! dark:border-border!;
+}
+.apexcharts-xaxistooltip,
+.apexcharts-yaxistooltip {
+  @apply dark:bg-muted! dark:border-muted! dark:text-muted-foreground!;
+}
+.apexcharts-xaxistooltip-bottom:after {
+  @apply dark:border-b-muted!;
+}
+.apexcharts-xaxistooltip-bottom:before {
+  @apply dark:border-b-muted!;
+}
+
+/* ----------------------------------------------------------------------
+   Recharts (graphiques du tableau de bord Yeba : histogramme, radar,
+   tendance, classements). Contrairement à Apexcharts ci-dessus, Recharts
+   dessine ses axes/texte/grille avec des couleurs par défaut codées en dur
+   (~#666 pour le texte, ~#ccc pour la grille) qui ne réagissent pas au
+   thème. Les classes Tailwind passées via `className` sur <XAxis>/<YAxis>
+   ne suffisent pas : Recharts pose aussi un attribut `fill`/`stroke` inline
+   sur les <text>/<line> internes, qui gagne sur la classe CSS. Résultat en
+   mode sombre : axes et grille en gris clair, quasi invisibles sur fond
+   sombre. On force donc les couleurs via les classes internes de Recharts,
+   avec !important pour gagner sur les attributs inline. ---------------- */
+.recharts-cartesian-axis-tick-value,
+.recharts-polar-angle-axis-tick-value,
+.recharts-text.recharts-label {
+  fill: hsl(var(--muted-foreground)) !important;
+}
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line,
+.recharts-polar-grid-concentric-polygon,
+.recharts-polar-grid-angle-line {
+  stroke: hsl(var(--border)) !important;
+}
+.recharts-legend-item-text {
+  color: hsl(var(--foreground)) !important;
+}
+.recharts-default-tooltip {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.navbar-maxwidth-transition {
+  transition: max-width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ----------------------------------------------------------------------
+   Carrousel du hero (landing) : crossfade automatique entre les images.
+   Chaque image est visible ~25 % du cycle puis s'estompe vers la suivante.
+   Les images sont en object-cover derrière un dégradé vert -> fond de page,
+   le contenu (titre + CTA) reste par-dessus, lisible.
+   ---------------------------------------------------------------------- */
+.hero-carousel img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  animation: hero-carousel-fade 25s infinite;
+}
+.hero-carousel img:nth-child(1) { animation-delay: 0s; }
+.hero-carousel img:nth-child(2) { animation-delay: 5s; }
+.hero-carousel img:nth-child(3) { animation-delay: 10s; }
+.hero-carousel img:nth-child(4) { animation-delay: 15s; }
+.hero-carousel img:nth-child(5) { animation-delay: 20s; }
+
+@keyframes hero-carousel-fade {
+  0% { opacity: 0; }
+  4% { opacity: 1; }
+  20% { opacity: 1; }
+  24% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* Respect des préférences d'accessibilité : pas de défilement animé. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-carousel img {
+    animation: none;
+    opacity: 0;
+  }
+  .hero-carousel img:first-child {
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   Design System Mint × Poste CI (docs/frontend/03-design-system-mint.md)
+   ============================================================ */
+
+/* Boutons « à bordure inversée » — grammaire Mint (button.scss) */
+.btn-mint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: hsl(var(--warning));
+  border: 2px solid hsl(var(--warning));
+  padding: 0.875rem 1.75rem;
+  font-weight: 800;
+  color: hsl(var(--warning-foreground));
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  border-radius: 0.75rem;
+}
+.btn-mint:hover {
+  background-color: transparent;
+  color: hsl(45 100% 50%);
+}
+.btn-mint-vert {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(0 0% 100%);
+}
+.btn-mint-vert:hover {
+  background-color: transparent;
+  color: hsl(var(--primary));
+}
+
+/* Liseré tricolore Yeba × Poste CI (signature, Doc 04 §6) */
+.lisere-tricolore {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0 40%,
+    hsl(45 100% 50%) 40% 70%,
+    hsl(216 40% 12%) 70% 100%
+  );
+}
+
+/* Hover cartes Mint : lift + ombre */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(17, 17, 17, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift:hover { transform: none; }
+}
+
+/* ============================================================
+   Polices LOCALES (public/fonts/) — plus aucune dépendance réseau.
+   Les liens fontshare/Google provoquaient NS_ERROR_NET_TIMEOUT
+   = écran blanc au premier rendu (connexions lentes).
+   ============================================================ */
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
