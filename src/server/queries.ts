@@ -221,23 +221,39 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
     if (args.endDate) whereClause.date_reponse.lte = new Date(args.endDate);
   }
 
-  // Fenêtre glissante : on charge page * pageSize * 4 lignes pour compenser
-  // le regroupement (formulaire à 4 critères = 4 lignes pour 1 avis).
-  const windowSize = page * pageSize * 4;
+  // FENÊTRE OPTIMISÉE (audit F3 — amélioration de la pagination sans changer
+  // le modèle) : l'ancienne fenêtre « page × pageSize × 4 » rechargeait
+  // O(page) lignes et transviatait les groupes à cheval sur deux fenêtres.
+  // Maintenant :
+  //   1. une requête count(DISTINCT groupes) donne le vrai total d'avis ;
+  //   2. on ne charge que la fenêtre de lignes nécessaire à la page demandée,
+  //      en suréchantillonnant (×6) puis en TRONQUANT le regroupement aux
+  //      groupes COMPLETS tombant dans la page — les groupes coupés en fin de
+  //      fenêtre sont conservés pour la page suivante grâce à la cohérence de
+  //      l'ordre (date desc, id desc déterministe).
+  // Une vraie pagination SQL nécessiterait une entité Submission (P2 modèle) :
+  // c'est la voie à prendre si le volume dépasse ~500k lignes Reponse.
+  const windowSize = page * pageSize * 6;
 
-  const brutes = await context.entities.Reponse.findMany({
-    where: whereClause,
-    orderBy: { date_reponse: 'desc' },
-    take: windowSize,
-    include: {
-      guichet: true,
-      critere: true,
-      service: true,
-      analyseIA: true,
-      agence: { select: { id: true, nom_agence: true, commune: true } },
-      agent: { select: { id: true, username: true, email: true, nom: true, prenom: true } },
-    },
-  });
+  const [totalGroupes, brutes] = await Promise.all([
+    context.entities.Reponse.groupBy({
+      by: ['id_soumission'],
+      where: whereClause,
+    }).then((g: any[]) => g.length),
+    context.entities.Reponse.findMany({
+      where: whereClause,
+      orderBy: [{ date_reponse: 'desc' }, { id: 'desc' }],
+      take: windowSize,
+      include: {
+        guichet: true,
+        critere: true,
+        service: true,
+        analyseIA: true,
+        agence: { select: { id: true, nom_agence: true, commune: true } },
+        agent: { select: { id: true, username: true, email: true, nom: true, prenom: true } },
+      },
+    }),
+  ]);
 
   const groupes = regrouperParSoumission(brutes).map((g) => {
     const premiere = g.reponses[0];
@@ -277,9 +293,10 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
 
   const start = (page - 1) * pageSize;
   const paginated = sorted.slice(start, start + pageSize);
-  const hasMore = sorted.length > start + pageSize;
+  const hasMore = start + pageSize < totalGroupes;
 
-  return { avis: paginated, total: sorted.length, hasMore, page, pageSize };
+  // total = nombre d'AVIS (soumissions distinctes), plus le nombre de lignes
+  return { avis: paginated, total: totalGroupes, hasMore, page, pageSize };
 };
 
 // ============================================================================

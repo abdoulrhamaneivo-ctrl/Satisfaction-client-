@@ -40,6 +40,12 @@ model User {
   // id_entreprise = null (leur périmètre est la plateforme entière).
   platformRole                  String                   @default("NONE") // SUPER_ADMIN | SUPPORT | NONE
 
+  // 2FA TOTP (audit F2) : secret TOTP chiffré AES-256-GCM avec JWT_SECRET
+  // (via src/server/totp.ts). null = 2FA non activée. Obligatoire pour les
+  // SUPER_ADMIN avant d'accéder à la console /platform.
+  totp_secret                   String?
+  totp_actif                    Boolean                  @default(false)
+
   // Dénormalisé volontairement : permet de scoper DIRECTION/QUALITE à leur
   // propre entreprise (tenant) sans avoir à recharger la relation agence.entreprise
   // dans chaque query/action. Toujours tenu synchronisé avec agence.id_entreprise

@@ -232,6 +232,9 @@ import {
   activerCompte,
   changerPlatformRole,
   desactiverComptePlatform,
+  setup2fa,
+  activer2fa,
+  verifier2fa,
 } from "./src/server/actionsPlatform" with { type: "ref" };
 import {
   getPlatformOverview,
@@ -250,6 +253,9 @@ const inviterSuperAdminAction = action(inviterSuperAdmin, { entities: ["User", "
 const activerCompteAction = action(activerCompte, { entities: ["Invitation", "User", "AuditLog"] });
 const changerPlatformRoleAction = action(changerPlatformRole, { entities: ["User", "AuditLog"] });
 const desactiverComptePlatformAction = action(desactiverComptePlatform, { entities: ["User", "AuditLog"] });
+const setup2faAction = action(setup2fa, { entities: ["User", "AuditLog"] });
+const activer2faAction = action(activer2fa, { entities: ["User", "AuditLog"] });
+const verifier2faAction = action(verifier2fa, { entities: ["User", "AuditLog"] });
 
 const getPlatformOverviewQuery = query(getPlatformOverview, { entities: ["Entreprise", "User", "Reponse"] });
 const getPlatformEntreprisesQuery = query(getPlatformEntreprises, { entities: ["Entreprise", "User"] });
@@ -352,6 +358,9 @@ export default app({
     activerCompteAction,
     changerPlatformRoleAction,
     desactiverComptePlatformAction,
+    setup2faAction,
+    activer2faAction,
+    verifier2faAction,
     // Queries
     getGuichetsQuery,
     getAgentsQuery,

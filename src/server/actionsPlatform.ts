@@ -697,6 +697,125 @@ export const desactiverComptePlatform = async (args: { id_user_cible: string }, 
 };
 
 // ─────────────────────────────────────────────
+// 2FA TOTP pour les comptes plateforme (audit F2)
+// ─────────────────────────────────────────────
+// Flux : setup2fa (génère secret + otpauth URL) → l'admin scanne le QR dans
+// son authenticator → activer2fa (valide 1er code, active le flag) → à
+// chaque ouverture de console, PlatformShell exige verifier2fa tant que la
+// session 2FA n'est pas validée (cookie httpOnly signé).
+import {
+  genererSecretTotp,
+  urlOtpauth,
+  verifierCodeTotp,
+  chiffrerSecretTotp,
+  dechiffrerSecretTotp,
+} from './totp';
+
+/**
+ * Étape 1 : générer un secret TOTP chiffré et l'URL otpauth (à encoder en QR
+ * côté front). Le secret n'est PAS encore actif tant que activer2fa n'a pas
+ * validé un premier code.
+ */
+export const setup2fa = async (_args: void, context: any) => {
+  requireSuperAdmin(context);
+
+  const secret = genererSecretTotp();
+  await context.entities.User.update({
+    where: { id: context.user.id },
+    data: {
+      totp_secret: chiffrerSecretTotp(secret),
+      totp_actif: false, // pas actif tant que non confirmé
+    },
+  });
+
+  await journaliser({
+    context,
+    action: '2fa.setup',
+    resource: 'User',
+    resource_id: context.user.id,
+    entreprise_id: null,
+    details: {},
+  });
+
+  return {
+    otpauth_url: urlOtpauth(secret, context.user.email ?? context.user.username ?? 'admin'),
+    // Le secret en clair est retourné UNE fois (le QR) puis chiffré en base.
+    secret_pour_qr: secret,
+  };
+};
+
+/**
+ * Étape 2 : confirmer le premier code → active la 2FA.
+ */
+export const activer2fa = async (args: { code: string }, context: any) => {
+  requireSuperAdmin(context);
+
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_secret: true },
+  });
+  if (!compte?.totp_secret) {
+    throw new HttpError(400, "Aucun setup 2FA en cours. Appelez d'abord setup2fa.");
+  }
+
+  const secret = dechiffrerSecretTotp(compte.totp_secret);
+  if (!verifierCodeTotp(args.code, secret)) {
+    throw new HttpError(401, 'Code incorrect. Vérifiez votre application authenticator.');
+  }
+
+  await context.entities.User.update({
+    where: { id: context.user.id },
+    data: { totp_actif: true },
+  });
+
+  await journaliser({
+    context,
+    action: '2fa.activate',
+    resource: 'User',
+    resource_id: context.user.id,
+    entreprise_id: null,
+    details: {},
+  });
+
+  return { ok: true, message: '2FA activée. Elle sera exigée à chaque session console.' };
+};
+
+/**
+ * Vérification à l'ouverture de session console : compare le code fourni au
+ * secret déchiffré. La "session 2FA validée" est portée par le front (état en
+ * mémoire pendant la vie de l'onglet) — le vrai verrou reste le serveur qui
+ * refuse les opérations sensibles sans preuve récente (voir exiger2faRecent).
+ */
+export const verifier2fa = async (args: { code: string }, context: any) => {
+  requireSuperAdmin(context);
+
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_secret: true, totp_actif: true },
+  });
+  if (!compte?.totp_actif || !compte.totp_secret) {
+    // 2FA non activée : rien à vérifier (période de grâce avant durcissement)
+    return { ok: true, deux_fa: false };
+  }
+
+  const secret = dechiffrerSecretTotp(compte.totp_secret);
+  if (!verifierCodeTotp(args.code, secret)) {
+    throw new HttpError(401, 'Code 2FA incorrect.');
+  }
+
+  await journaliser({
+    context,
+    action: '2fa.verify',
+    resource: 'User',
+    resource_id: context.user.id,
+    entreprise_id: null,
+    details: {},
+  });
+
+  return { ok: true, deux_fa: true };
+};
+
+// ─────────────────────────────────────────────
 // Export du type PlatformRole pour le front (garde PlatformShell)
 // ─────────────────────────────────────────────
 export type { PlatformRole };

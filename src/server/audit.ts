@@ -28,7 +28,10 @@ export type AuditAction =
   | 'criteres.update'
   | 'login.failed'
   | 'password.reset_requested'
-  | 'password.reset_done';
+  | 'password.reset_done'
+  | '2fa.setup'
+  | '2fa.activate'
+  | '2fa.verify';
 
 export interface JournaliserArgs {
   context: WaspContext;

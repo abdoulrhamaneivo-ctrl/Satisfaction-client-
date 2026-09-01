@@ -9,6 +9,7 @@
 
 import { emailSender } from 'wasp/server/email';
 import { prisma } from 'wasp/server';
+import { scoreMoyenParAvis } from '../soumissions';
 
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
 
@@ -37,7 +38,12 @@ async function calculeStatsAgence(
       id_agence: idAgence,
       date_reponse: { gte: debutMois, lte: finMois },
     },
-    select: { score_brut: true },
+    select: {
+      id: true,
+      id_soumission: true,
+      score_brut: true,
+      critere: { select: { type_reponse: true, options_reponse: true } },
+    },
   });
 
   const alertesCritiques = await prisma.alerte.count({
@@ -55,10 +61,14 @@ async function calculeStatsAgence(
     },
   });
 
-  const totalAvis = reponses.length;
-  const sommeNotes = reponses.reduce((s, r) => s + r.score_brut, 0);
-  const noteMoyenne = totalAvis > 0 ? sommeNotes / totalAvis : 0;
-  const satisfaits = reponses.filter((r) => r.score_brut >= 4).length;
+  // MÉTRIQUE MÉTIER (règle « avis = 1 soumission ») : même logique que
+  // getKPIsPeriode — le taux de satisfaction et la note moyenne sont calculés
+  // sur le score moyen PAR AVIS. Une soumission à 5 critères compte 1 fois
+  // (avec la moyenne de ses 5 scores), pas 5 fois.
+  const scoresParAvis = scoreMoyenParAvis(reponses);
+  const totalAvis = scoresParAvis.length;
+  const noteMoyenne = totalAvis > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / totalAvis : 0;
+  const satisfaits = scoresParAvis.filter((v) => v >= 4).length;
   const tauxSatisfaction = totalAvis > 0 ? (satisfaits / totalAvis) * 100 : 0;
 
   return {
