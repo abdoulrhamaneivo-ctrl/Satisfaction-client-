@@ -1,61 +1,28 @@
-# =============================================================================
-# render.yaml — Yeba Backend (Render Blueprint)
-# =============================================================================
-# Ce fichier configure le Web Service Render pour le serveur Wasp.
-# Le frontend est déployé séparément sur Vercel.
-#
-# Déploiement :
-# 1. Lancer `bash scripts/deploy-build.sh` localement
-# 2. Pousser .wasp/build/server/ vers un repo GitHub (ou branche dédiée)
-# 3. Connecter ce repo à Render via ce blueprint
-# =============================================================================
-
 services:
   - type: web
     name: yeba-server
-    runtime: node
-    plan: free  # Passer à "starter" ($7/mois) pour éviter le sleep après 15min
-    # Si le repo contient tout le projet Wasp, décommenter rootDir :
-    # rootDir: .wasp/build/server
-    buildCommand: npm install && npx prisma generate
-    startCommand: npm run start-production
+    runtime: docker
+    dockerfilePath: .wasp/out/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: frankfurt
+    autoDeploy: true
     envVars:
-      # ── Base de données (Neon PostgreSQL) ──
-      - key: DATABASE_URL
-        sync: false  # À remplir manuellement avec la connection string Neon
-
-      # ── URLs de l'application ──
-      - key: WASP_SERVER_URL
-        sync: false  # https://yeba-server.onrender.com
-      - key: WASP_WEB_CLIENT_URL
-        sync: false  # https://yeba-client.vercel.app
-      - key: PORT
-        value: "10000"  # Port imposé par Render
-
-      # ── Sécurité ──
-      - key: JWT_SECRET
-        generateValue: true
-      - key: TELEPHONE_HASH_SALT
-        generateValue: true
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: "10000"
+      - key: WASP_WEB_CLIENT_URL
+        value: https://yeba-server.onrender.com
+      # Variables sensibles (à définir dans le dashboard Render après création) :
+      # - DATABASE_URL (depuis Neon)
+      # - JWT_SECRET
+      # - OPENROUTER_API_KEY
+      # - SENDGRID_API_KEY
+      # - TWILIO_ACCOUNT_SID
+      # - TWILIO_AUTH_TOKEN
+      # - TWILIO_FROM_NUMBER
+      # - AWS_S3_* (si uploads fichiers)
 
-      # ── Email (SendGrid) ──
-      - key: SENDGRID_API_KEY
-        sync: false
-
-      # ── Stockage fichiers (AWS S3 — optionnel) ──
-      - key: AWS_S3_REGION
-        value: eu-west-3
-      - key: AWS_S3_IAM_ACCESS_KEY
-        sync: false
-      - key: AWS_S3_IAM_SECRET_KEY
-        sync: false
-      - key: AWS_S3_FILES_BUCKET
-        value: yeba-files
-
-      # ── IA sémantique (optionnel) ──
-      - key: OPENROUTER_API_KEY
-        sync: false
-      - key: OPENROUTER_MODEL
-        value: deepseek/deepseek-chat
+# Base de données gérée séparément via Neon (projet divine-scene-45812034, branche production)
+# Pas de service PostgreSQL Render nécessaire.
