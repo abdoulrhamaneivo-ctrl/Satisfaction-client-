@@ -47,6 +47,12 @@ COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
+# Migration avec retry : le cold-start Neon + redéploiements rapprochés
+# peuvent occuper le verrou advisory Prisma >10s → P1002. Ce script réessaie
+# 4 fois avant d'abandonner (voir scripts-render/start-render.sh).
+COPY scripts-render/start-render.sh /app/start-render.sh
+RUN chmod +x /app/start-render.sh
+
 EXPOSE 10000
 WORKDIR /app/.wasp/out/server
-ENTRYPOINT ["npm", "run", "start-production"]
+ENTRYPOINT ["/bin/sh", "/app/start-render.sh"]
