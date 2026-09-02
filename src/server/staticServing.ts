@@ -73,5 +73,20 @@ export async function serveStaticClient({ app }: ServerSetupContext): Promise<vo
       .pipe(res);
   });
 
+  // CAS PARTICULIER '/' : le router Wasp déclare GET / (healthcheck qui
+  // renvoie 200 vide) et il est enregistré AVANT setupFn — il gagnerait
+  // toujours pour la racine. On déplace donc nos deux couches (static +
+  // fallback) juste AVANT le router Wasp dans le stack Express.
+  // Express 5 : le stack vit sur app.router (fonction bound), pas _router.
+  const anyApp = app as any;
+  const stack: any[] | undefined = anyApp.router?.stack ?? anyApp._router?.stack;
+  if (Array.isArray(stack) && stack.length >= 2) {
+    const ourLayers = stack.splice(-2); // nos 2 dernières couches
+    // Insérer juste avant la 1re couche 'router' (le indexRouter Wasp)
+    const routerIdx = stack.findIndex((l) => l.name === 'router');
+    stack.splice(routerIdx >= 0 ? routerIdx : 0, 0, ...ourLayers);
+    console.log('[static] couches déplacées avant le router Wasp');
+  }
+
   console.log('[static] client servi depuis', CLIENT_BUILD_DIR);
 }
