@@ -109,7 +109,7 @@ import {
   getArchives,
   getAIStatus,
   getThemesStats,
-} from "./src/server/queries" with { type: "ref" };
+  getComparaisonAgences,} from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
 import { authConfig, authSpec } from "./src/auth/auth.wasp";
@@ -216,6 +216,7 @@ const getActionsPrioritairesQuery = query(getActionsPrioritaires, { entities: ["
 const getKPIsPeriodeQuery = query(getKPIsPeriode, { entities: ["Reponse", "User", "Agence", "Entreprise"] });
 const getCriteresParOperationQuery = query(getCriteresParOperation, { entities: ["Service", "Critere", "CritereService", "AgenceCritere", "User", "Agence", "Entreprise"] });
 const getHeatmapReponsesQuery = query(getHeatmapReponses, { entities: ["Reponse", "User", "Agence", "Entreprise"] });
+const getComparaisonAgencesQuery = query(getComparaisonAgences, { entities: ["Agence", "Reponse", "User", "Entreprise"] });
 const getTempsTraitementQuery = query(getTempsTraitement, { entities: ["Alerte", "TacheCorrective", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
 const getRechercheGlobaleQuery = query(getRechercheGlobale, { entities: ["Agence", "Guichet", "User", "Reponse", "Entreprise"] });
 const getArchivesQuery = query(getArchives, { entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User", "Entreprise"] });
@@ -394,6 +395,7 @@ export default app({
     getKPIsPeriodeQuery,
     getCriteresParOperationQuery,
     getHeatmapReponsesQuery,
+    getComparaisonAgencesQuery,
     getTempsTraitementQuery,
     getRechercheGlobaleQuery,
     getArchivesQuery,

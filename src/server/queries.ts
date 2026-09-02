@@ -1485,6 +1485,101 @@ export const getTempsTraitement = async (args: { nbJours?: number } | void, cont
 // ============================================================================
 
 // ============================================================================
+// COMPARAISON INTER-AGENCES (DIRECTION/QUALITE uniquement)
+// Scores de satisfaction par agence sur la période — c'est LA vue qui
+// différencie le pilotage d'entreprise du pilotage d'agence : la DIRECTION
+// voit quelle agence décroche, le chef d'agence ne voit que la sienne
+// (buildAgenceFilter limite de toute façon à son id_agence).
+// Règle « avis = 1 soumission » respectée (scoreMoyenParAvis).
+// ============================================================================
+export const getComparaisonAgences = async (args: { nbJours?: number } | void, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+
+  // Réservé aux rôles à portée entreprise — un chef d'agence n'a pas à
+  // comparer les autres agences (et buildAgenceFilter le limiterait à la sienne).
+  if (context.user.role === 'CHEF_AGENCE' || context.user.role === 'AGENT') {
+    throw new HttpError(403, "La comparaison inter-agences est réservée à la Direction et à la Qualité.");
+  }
+
+  const nbJoursDemandes = (args as any)?.nbJours;
+  const nbJours = Number.isFinite(nbJoursDemandes)
+    ? Math.min(365, Math.max(1, Math.round(nbJoursDemandes)))
+    : 30;
+  const debut = new Date();
+  debut.setDate(debut.getDate() - nbJours);
+
+  const agences = await context.entities.Agence.findMany({
+    where: { id_entreprise: context.user.id_entreprise, archive: false },
+    select: { id: true, nom_agence: true, commune: true },
+    orderBy: { nom_agence: 'asc' },
+  });
+
+  const reponses = await context.entities.Reponse.findMany({
+    where: {
+      agence: { id_entreprise: context.user.id_entreprise, archive: false },
+      date_reponse: { gte: debut },
+    },
+    select: {
+      id: true,
+      id_soumission: true,
+      score_brut: true,
+      date_reponse: true,
+      id_agence: true,
+      critere: { select: { type_reponse: true, options_reponse: true } },
+    },
+  });
+
+  // Grouper par agence puis par soumission (score moyen par avis)
+  const parAgence = new Map<number, { nom: string; commune: string; scoresParAvis: number[]; nbLignes: number }>();
+  for (const a of agences) {
+    parAgence.set(a.id, { nom: a.nom_agence, commune: a.commune ?? '', scoresParAvis: [], nbLignes: 0 });
+  }
+  const parSoumission = new Map<string, { id_agence: number; scores: number[] }>();
+  for (const rep of reponses as any[]) {
+    const cle = rep.id_soumission ?? `_${rep.id}`;
+    if (!parSoumission.has(cle)) parSoumission.set(cle, { id_agence: rep.id_agence, scores: [] });
+    const score = scoreNormaliseSur5(rep);
+    if (score !== null) parSoumission.get(cle)!.scores.push(score);
+  }
+  for (const { id_agence, scores } of parSoumission.values()) {
+    const agence = parAgence.get(id_agence);
+    if (!agence || scores.length === 0) continue;
+    agence.scoresParAvis.push(scores.reduce((s, v) => s + v, 0) / scores.length);
+    agence.nbLignes++;
+  }
+
+  const resultats = Array.from(parAgence.entries()).map(([id, a]) => {
+    const nbAvis = a.scoresParAvis.length;
+    const moyenne = nbAvis > 0 ? a.scoresParAvis.reduce((s, v) => s + v, 0) / nbAvis : null;
+    const satisfaits = a.scoresParAvis.filter((v) => v >= 4).length;
+    return {
+      id_agence: id,
+      nom_agence: a.nom,
+      commune: a.commune,
+      nb_avis: nbAvis,
+      score_moyen: moyenne !== null ? parseFloat(moyenne.toFixed(2)) : null,
+      taux_satisfaction: nbAvis > 0 ? Math.round((satisfaits / nbAvis) * 100) : null,
+    };
+  });
+
+  // Tri : meilleures moyennes d'abord (les null en dernier)
+  resultats.sort((a, b) => (b.score_moyen ?? -1) - (a.score_moyen ?? -1));
+  const avecScores = resultats.filter((r) => r.score_moyen !== null);
+
+  return {
+    nb_jours: nbJours,
+    agences: resultats,
+    meilleure_agence: avecScores[0]?.nom_agence ?? null,
+    agence_a_surveiller: avecScores.length > 1 ? avecScores[avecScores.length - 1].nom_agence : null,
+    moyenne_globale: avecScores.length > 0
+      ? parseFloat((avecScores.reduce((s, r) => s + (r.score_moyen ?? 0), 0) / avecScores.length).toFixed(2))
+      : null,
+  };
+};
+
+
+// ============================================================================
 // HEATMAP DES AVIS PAR JOUR / HEURE
 // Répond à "à quel moment mes clients sont-ils le plus mécontents ?" — sert
 // à ajuster les effectifs (renfort un vendredi après-midi si c'est le

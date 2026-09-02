@@ -12,6 +12,7 @@ import {
   getKPIsPeriode,
   getObjectifs,
   getHeatmapReponses,
+  getComparaisonAgences,
   getTempsTraitement,
   getThemesStats,
 } from 'wasp/client/operations';
@@ -86,6 +87,11 @@ export const DashboardPage = () => {
   const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode, { nbJours: periodeJours });
   const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
   const { data: heatmap, isLoading: loadingHeatmap } = useQuery(getHeatmapReponses, { nbJours: 90 });
+  const { data: comparaisonAgences } = useQuery(
+    getComparaisonAgences,
+    { nbJours: periodeJours },
+    { enabled: estDirection } // requete reservee DIRECTION/QUALITE (403 sinon)
+  );
   const { data: tempsTraitement, isLoading: loadingTemps } = useQuery(getTempsTraitement, { nbJours: periodeJours });
   const { data: themesStats, isLoading: loadingThemes } = useQuery(getThemesStats, { nbJours: periodeJours });
 
@@ -575,6 +581,61 @@ export const DashboardPage = () => {
                     {tachesList.filter((t: any) => t.statut_tache !== 'TERMINEE').length}
                   </p>
                 </div>
+              </div>
+            </section>
+          )}
+
+          {/* COMPARAISON INTER-AGENCES — DIRECTION uniquement (Doc 12).
+              Le chef d'agence ne la voit pas : il pilote la sienne, la
+              Direction pilote le portefeuille. Scores = moyenne par avis. */}
+          {!isLoading && estDirection && comparaisonAgences && comparaisonAgences.agences.length > 0 && (
+            <section className="mt-6">
+              <div className="mb-4 flex items-center justify-between">
+                <Eyebrow tone="primary">Comparaison des agences ({labelPeriode})</Eyebrow>
+                {comparaisonAgences.moyenne_globale !== null && (
+                  <span className="text-xs font-bold text-muted-foreground">
+                    Moyenne globale : <span className="text-foreground">{comparaisonAgences.moyenne_globale}/5</span>
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2">
+                {comparaisonAgences.agences.map((a: any) => {
+                  const max = Math.max(...comparaisonAgences.agences.map((x: any) => x.nb_avis || 0), 1);
+                  return (
+                    <div key={a.id_agence} className="rounded-xl border border-border/60 bg-card/70 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold font-satoshi text-foreground">
+                            {a.nom_agence}
+                            {comparaisonAgences.meilleure_agence === a.nom_agence && a.nb_avis > 0 && (
+                              <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-success">Meilleure</span>
+                            )}
+                            {comparaisonAgences.agence_a_surveiller === a.nom_agence && a.nb_avis > 0 && comparaisonAgences.agences.filter((x: any) => x.nb_avis > 0).length > 1 && (
+                              <span className="ml-2 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-warning">À surveiller</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">{a.commune || '—'} · {a.nb_avis} avis</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-lg font-bold font-satoshi text-foreground">
+                            {a.score_moyen !== null ? `${a.score_moyen}/5` : '—'}
+                          </p>
+                          {a.taux_satisfaction !== null && (
+                            <p className="text-[11px] font-semibold text-muted-foreground">{a.taux_satisfaction}% satisfaits</p>
+                          )}
+                        </div>
+                      </div>
+                      {a.score_moyen !== null && (
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/60">
+                          <div
+                            className={`h-full rounded-full ${a.score_moyen >= 4 ? 'bg-success' : a.score_moyen >= 3 ? 'bg-warning' : 'bg-destructive'}`}
+                            style={{ width: `${(a.score_moyen / 5) * 100}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}
