@@ -2,7 +2,7 @@ services:
   - type: web
     name: yeba-server
     runtime: docker
-    dockerfilePath: .wasp/out/Dockerfile
+    dockerfilePath: Dockerfile.render
     dockerContext: .
     plan: starter
     region: frankfurt

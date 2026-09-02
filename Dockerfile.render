@@ -1,0 +1,39 @@
+# Dockerfile pour Render - build complet à l'intérieur du container
+# Ne dépend PAS de .wasp/out local (absent du repo)
+
+FROM node:24.14.1-alpine3.23 AS base
+RUN apk --no-cache -U upgrade
+RUN apk add --no-cache openssl python3 build-base libtool autoconf automake
+
+# Install Wasp CLI globally
+RUN npm install -g @wasp.sh/wasp-cli@0.24.0
+
+WORKDIR /app
+
+# Copy source code
+COPY . .
+
+# Build Wasp project (generates .wasp/out, prisma client, bundles server)
+RUN wasp build
+
+# Production stage
+FROM node:24.14.1-alpine3.23 AS production
+RUN apk --no-cache -U upgrade
+RUN apk add --no-cache openssl python3
+ENV NODE_ENV=production
+WORKDIR /app
+
+# Copy built artifacts from build stage
+COPY --from=base /app/.wasp/out/server/bundle .wasp/out/server/bundle
+COPY --from=base /app/.wasp/out/server/package*.json .wasp/out/server/
+COPY --from=base /app/.wasp/out/server/node_modules .wasp/out/server/node_modules
+COPY --from=base /app/.wasp/out/db .wasp/out/db
+COPY --from=base /app/node_modules ./node_modules
+
+# Prisma engines need to be available
+COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+
+EXPOSE 10000
+WORKDIR /app/.wasp/out/server
+ENTRYPOINT ["npm", "run", "start-production"]
