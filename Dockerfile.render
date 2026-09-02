@@ -14,7 +14,7 @@ WORKDIR /app
 COPY . .
 
 # Build Wasp project (generates .wasp/out, prisma client, bundles server)
-RUN wasp build
+RUN wasp install && wasp build
 
 # Production stage
 FROM node:24.14.1-alpine3.23 AS production
