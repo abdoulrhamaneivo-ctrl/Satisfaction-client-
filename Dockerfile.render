@@ -13,8 +13,12 @@ WORKDIR /app
 # Copy source code
 COPY . .
 
-# Build Wasp project (generates .wasp/out, prisma client, bundles server)
+# Build Wasp project (generates .wasp/out, prisma client, SDK)
 RUN wasp install && wasp build
+
+# CRITIQUE : wasp build ne crée PAS le bundle server — c'est une étape
+# séparée (rollup). Sans elle, bundle/server.js n'existe pas.
+RUN cd .wasp/out/server && npm run bundle
 
 # Production stage
 FROM node:24.14.1-alpine3.23 AS production
@@ -23,14 +27,15 @@ RUN apk add --no-cache openssl python3
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Copy entire .wasp/out (preserves all structure: server bundle, db, etc.)
-COPY --from=base /app/.wasp/out .wasp/out
+# Copy built artifacts exactly like Wasp's original Dockerfile
+COPY --from=base /app/.wasp/out/server/bundle .wasp/out/server/bundle
+COPY --from=base /app/.wasp/out/server/package*.json .wasp/out/server/
+COPY --from=base /app/.wasp/out/server/node_modules .wasp/out/server/node_modules
+COPY --from=base /app/.wasp/out/db .wasp/out/db
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
-# The server runs from .wasp/out/server and expects bundle/server.js
-# Ensure the bundle is accessible at the expected path
 EXPOSE 10000
 WORKDIR /app/.wasp/out/server
 ENTRYPOINT ["npm", "run", "start-production"]
