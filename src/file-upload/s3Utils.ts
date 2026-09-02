@@ -13,18 +13,29 @@ import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 import * as path from "path";
-import { env } from "wasp/server";
+import { HttpError, env } from "wasp/server";
 import { MAX_FILE_SIZE_BYTES } from "./validation";
 
 let _s3Client: S3Client | null = null;
 
 function s3ClientInstance(): S3Client {
   if (!_s3Client) {
+    // Les variables sont optionnelles pour le DÉMARRAGE du serveur, mais
+    // dès qu'un upload est réellement demandé, elles doivent être présentes :
+    // on échoue avec un message explicite plutôt qu'avec une erreur AWS
+    // cryptique ("Missing credentials").
+    const { AWS_S3_REGION, AWS_S3_IAM_ACCESS_KEY, AWS_S3_IAM_SECRET_KEY } = env;
+    if (!AWS_S3_REGION || !AWS_S3_IAM_ACCESS_KEY || !AWS_S3_IAM_SECRET_KEY) {
+      throw new HttpError(
+        500,
+        "L'upload de fichiers n'est pas configuré sur ce déploiement (variables AWS_S3_* manquantes)."
+      );
+    }
     _s3Client = new S3Client({
-      region: env.AWS_S3_REGION,
+      region: AWS_S3_REGION,
       credentials: {
-        accessKeyId: env.AWS_S3_IAM_ACCESS_KEY,
-        secretAccessKey: env.AWS_S3_IAM_SECRET_KEY,
+        accessKeyId: AWS_S3_IAM_ACCESS_KEY,
+        secretAccessKey: AWS_S3_IAM_SECRET_KEY,
       },
     });
   }
