@@ -27,6 +27,15 @@ export function PostAuthRedirectPage() {
       return;
     }
 
+    // Routage par périmètre (Doc 12) : les comptes PLATEFORME (SUPER_ADMIN /
+    // SUPPORT) atterrissent dans la console /platform — leur espace de
+    // gestion des entreprises et abonnements. Les comptes entreprise
+    // (DIRECTION/CHEF_AGENCE/QUALITE/AGENT) vont au tableau de bord métier.
+    const platformRole = (user as any)?.platformRole;
+    if (platformRole === 'SUPER_ADMIN' || platformRole === 'SUPPORT') {
+      navigate("/platform", { replace: true });
+      return;
+    }
     navigate("/dashboard", { replace: true });
   }, [user, isLoading, navigate]);
 
