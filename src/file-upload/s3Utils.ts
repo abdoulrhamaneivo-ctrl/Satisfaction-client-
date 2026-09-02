@@ -1,3 +1,7 @@
+// S3 client instancié LAZY (2026-09-02) : les variables AWS sont optionnelles
+// (aucun écran métier n'uploade encore). L'ancienne instanciation au top-level
+// plantait au démarrage du serveur dès qu'une clé manquait — même sans jamais
+// utiliser l'upload. Maintenant le client n'est créé qu'au premier appel.
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -12,11 +16,24 @@ import * as path from "path";
 import { env } from "wasp/server";
 import { MAX_FILE_SIZE_BYTES } from "./validation";
 
-export const s3Client = new S3Client({
-  region: env.AWS_S3_REGION,
-  credentials: {
-    accessKeyId: env.AWS_S3_IAM_ACCESS_KEY,
-    secretAccessKey: env.AWS_S3_IAM_SECRET_KEY,
+let _s3Client: S3Client | null = null;
+
+function s3ClientInstance(): S3Client {
+  if (!_s3Client) {
+    _s3Client = new S3Client({
+      region: env.AWS_S3_REGION,
+      credentials: {
+        accessKeyId: env.AWS_S3_IAM_ACCESS_KEY,
+        secretAccessKey: env.AWS_S3_IAM_SECRET_KEY,
+      },
+    });
+  }
+  return _s3Client;
+}
+
+export const s3Client = new Proxy({} as S3Client, {
+  get(_target, prop, receiver) {
+    return Reflect.get(s3ClientInstance(), prop, receiver);
   },
 });
 
