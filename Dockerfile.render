@@ -23,15 +23,14 @@ RUN apk add --no-cache openssl python3
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Copy built artifacts exactly like Wasp's original Dockerfile
-COPY --from=base /app/.wasp/out/server/bundle .wasp/out/server/bundle
-COPY --from=base /app/.wasp/out/server/package*.json .wasp/out/server/
-COPY --from=base /app/.wasp/out/server/node_modules .wasp/out/server/node_modules
-COPY --from=base /app/.wasp/out/db .wasp/out/db
+# Copy entire .wasp/out (preserves all structure: server bundle, db, etc.)
+COPY --from=base /app/.wasp/out .wasp/out
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
+# The server runs from .wasp/out/server and expects bundle/server.js
+# Ensure the bundle is accessible at the expected path
 EXPOSE 10000
 WORKDIR /app/.wasp/out/server
 ENTRYPOINT ["npm", "run", "start-production"]
