@@ -591,7 +591,7 @@ export const DashboardPage = () => {
           {!isLoading && estDirection && comparaisonAgences && comparaisonAgences.agences.length > 0 && (
             <section className="mt-6">
               <div className="mb-4 flex items-center justify-between">
-                <Eyebrow tone="primary">Comparaison des agences ({labelPeriode})</Eyebrow>
+                <Eyebrow tone="accent">Comparaison des agences ({labelPeriode})</Eyebrow>
                 {comparaisonAgences.moyenne_globale !== null && (
                   <span className="text-xs font-bold text-muted-foreground">
                     Moyenne globale : <span className="text-foreground">{comparaisonAgences.moyenne_globale}/5</span>
