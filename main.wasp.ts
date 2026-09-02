@@ -3,6 +3,7 @@ import { action, app, page, query, route, job } from "@wasp.sh/spec";
 import { App } from "./src/client/App" with { type: "ref" };
 import { NotFoundPage } from "./src/client/components/NotFoundPage" with { type: "ref" };
 import { serverEnvValidationSchema } from "./src/env" with { type: "ref" };
+import { serveStaticClient } from "./src/server/staticServing" with { type: "ref" };
 import { RacinePage } from "./src/client/pages/RacinePage" with { type: "ref" };
 // PlatformShell retiré : la route /platform pointe directement vers PlatformOverviewPage
 // (voir la correction de la route dupliquée /platform ci-dessous).
@@ -280,6 +281,12 @@ export default app({
   },
   server: {
     envValidationSchema: serverEnvValidationSchema,
+    // Servir le build client depuis le serveur Express (Render mono-service,
+    // voir Dockerfile.render + src/server/staticServing.ts). setupFn reçoit
+    // l'app Express complète — le static s'applique à TOUTES les requêtes
+    // (assets, routes SPA), contrairement à middlewareConfigFn. No-op si le
+    // dossier du client est absent (déploiements client séparé comme Railway).
+    setupFn: serveStaticClient,
   },
   emailSender,
   spec: [

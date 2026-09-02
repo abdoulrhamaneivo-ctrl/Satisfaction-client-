@@ -20,6 +20,15 @@ RUN wasp install && wasp build
 # séparée (rollup). Sans elle, bundle/server.js n'existe pas.
 RUN cd .wasp/out/server && npm run bundle
 
+# CRITIQUE (client) : wasp build ne génère pas non plus le build client.
+# Le CLI wasp le fait via `npm install` + `npx vite build` à la RACINE du
+# projet (clientApp.js du CLI : getClientBuildDir = racine). L'artefact sort
+# dans .wasp/out/web-app/build. REACT_APP_API_URL = URL publique de l'API
+# (le même domaine ici, car le serveur Express sert aussi le client).
+ARG REACT_APP_API_URL=https://yebaproject.onrender.com
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+RUN npm install && npx vite build
+
 # Production stage
 FROM node:24.14.1-alpine3.23 AS production
 RUN apk --no-cache -U upgrade
@@ -32,6 +41,8 @@ COPY --from=base /app/.wasp/out/server/bundle .wasp/out/server/bundle
 COPY --from=base /app/.wasp/out/server/package*.json .wasp/out/server/
 COPY --from=base /app/.wasp/out/server/node_modules .wasp/out/server/node_modules
 COPY --from=base /app/.wasp/out/db .wasp/out/db
+# CLIENT : le build Vite que le serveur Express sert en production
+COPY --from=base /app/.wasp/out/web-app/build .wasp/out/web-app/build
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma

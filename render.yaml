@@ -1,4 +1,5 @@
 services:
+  # ── SERVEUR API (Docker : bundle Wasp + migrations Prisma + jobs) ──
   - type: web
     name: yeba-server
     runtime: docker
@@ -7,22 +8,29 @@ services:
     plan: starter
     region: frankfurt
     autoDeploy: true
+    healthCheckPath: /
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: "10000"
+      # URL du CLIENT statique (CORS + liens SMS/email)
       - key: WASP_WEB_CLIENT_URL
-        value: https://yeba-server.onrender.com
-      # Variables sensibles (à définir dans le dashboard Render après création) :
-      # - DATABASE_URL (depuis Neon)
-      # - JWT_SECRET
-      # - OPENROUTER_API_KEY
-      # - SENDGRID_API_KEY
-      # - TWILIO_ACCOUNT_SID
-      # - TWILIO_AUTH_TOKEN
-      # - TWILIO_FROM_NUMBER
-      # - AWS_S3_* (si uploads fichiers)
+        sync: false
+      # Variables sensibles (définies dans le dashboard Render) :
+      # - DATABASE_URL (Neon)
+      # - JWT_SECRET, OPENROUTER_API_KEY, SENDGRID_API_KEY, TWILIO_*
 
-# Base de données gérée séparément via Neon (projet divine-scene-45812034, branche production)
-# Pas de service PostgreSQL Render nécessaire.
+  # ── CLIENT (Static Site : build Vite servi par le CDN Render) ──
+  # En Wasp 0.24 le client se construit depuis la RACINE du projet :
+  #   npm install && npx vite build  (REACT_APP_API_URL = URL du serveur)
+  # L'artefact sort dans .wasp/out/web-app/build.
+  # ⚠️ Le build client nécessite `wasp install && wasp build` AVANT (le SDK
+  # .wasp/out/sdk est importé par le front). Render Static Sites ne permettant
+  # pas de pré-étape Docker, on passe par un service web "buildbox" en Docker
+  # qui génère l'artefact… OU plus simple : ce client est déjà compilé par
+  # le Dockerfile.render du serveur (COPY final). Si tu préfères un vrai
+  # CDN séparé, créer un Static Site avec :
+  #   Build command: wasp install && wasp build && npm install && npx vite build
+  #   Publish directory: .wasp/out/web-app/build
+  # (nécessite wasp CLI installable sur l'image Node de Render — voir docs)
