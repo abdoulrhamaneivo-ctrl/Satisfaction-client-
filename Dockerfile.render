@@ -23,8 +23,11 @@ RUN apk add --no-cache openssl python3
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Copy built artifacts from build stage (entire .wasp/out to preserve structure)
-COPY --from=base /app/.wasp/out .wasp/out
+# Copy built artifacts exactly like Wasp's original Dockerfile
+COPY --from=base /app/.wasp/out/server/bundle .wasp/out/server/bundle
+COPY --from=base /app/.wasp/out/server/package*.json .wasp/out/server/
+COPY --from=base /app/.wasp/out/server/node_modules .wasp/out/server/node_modules
+COPY --from=base /app/.wasp/out/db .wasp/out/db
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
