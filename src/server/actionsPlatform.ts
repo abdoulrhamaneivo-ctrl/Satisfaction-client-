@@ -15,7 +15,7 @@ import {
 } from './middleware/rowLevelSecurity';
 import { journaliser } from './audit';
 import { emailSender } from 'wasp/server/email';
-import { createUser, createProviderId, sanitizeAndSerializeProviderData } from 'wasp/server/auth';
+import { createUser, createProviderId, sanitizeAndSerializeProviderData, findAuthIdentity, updateAuthIdentityProviderData, getProviderDataWithPassword } from 'wasp/server/auth';
 
 // ── Plans de référence (Doc 11 §4 — constant code, pas une table) ──
 export const PLANS: Record<string, { agences: number; utilisateurs: number; guichets: number }> = {
@@ -564,25 +564,23 @@ export const activerCompte = async (
 
   // Transaction : poser le mot de passe + marquer l'invitation utilisée
   await prisma.$transaction(async (tx: any) => {
-    const authIdentity = await tx.auth.findUnique({
-      where: { userId: invitation.id_user },
-      include: { identities: true },
+    // FIX 03/09 : tx.auth n'existe pas (aucun modèle Auth dans le schéma)
+    // → 500 systématique. On utilise l'API Wasp findAuthIdentity /
+    // updateAuthIdentityProviderData (hors transaction — chaque update est
+    // atomique et idempotent grâce au garde used_at plus haut).
+    const compte = await tx.user.findUnique({
+      where: { id: invitation.id_user },
+      select: { email: true },
     });
-    const identity = authIdentity?.identities?.find((i: any) => i.providerName === 'email');
+    if (!compte?.email) throw new HttpError(404, "Compte introuvable pour cette invitation.");
+    const providerId = createProviderId('email', compte.email);
+    const identity = await findAuthIdentity(providerId);
     if (!identity) throw new HttpError(404, "Compte d'authentification introuvable pour cet utilisateur.");
 
-    const providerData = JSON.parse(identity.providerData ?? '{}');
-    providerData.hashedPassword = args.motDePasse; // Wasp hache à la lecture de l'identité — voir note ci-dessous
-    providerData.isEmailVerified = true;
-
-    await tx.authIdentity.update({
-      where: { id: identity.id },
-      data: { providerData: await sanitizeAndSerializeProviderData<'email'>({
-        hashedPassword: args.motDePasse,
-        isEmailVerified: true,
-        emailVerificationSentAt: null,
-        passwordResetSentAt: null,
-      }) },
+    const providerData = getProviderDataWithPassword<'email'>(identity.providerData);
+    await updateAuthIdentityProviderData<'email'>(providerId, providerData, {
+      hashedPassword: args.motDePasse,
+      isEmailVerified: true,
     });
 
     await tx.user.update({
