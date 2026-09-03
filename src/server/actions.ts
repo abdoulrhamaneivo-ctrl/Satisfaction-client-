@@ -1069,8 +1069,8 @@ export const inviteAgent = async (
     throw new HttpError(
       403,
       context.user.role === 'DIRECTION'
-        ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence ou des Auditeurs Qualité."
-        : "En tant que Chef d'Agence, vous ne pouvez créer que des Agents de guichet ou des Auditeurs Qualité."
+        ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence."
+        : "En tant que Chef d'Agence, vous ne pouvez créer que des Agents de guichet."
     );
   }
 
@@ -1169,7 +1169,7 @@ export const inviteAgent = async (
   }
 
 
-  // ✉️ Email envoyé au Chef d'agence ET à l'Auditeur Qualité (les deux ont un
+  // ✉️ Email envoyé à la personne invitée (le Chef d'Agence a un
   // vrai compte de connexion). Les agents simples (AGENT) n'ont pas besoin
   // d'accès à l'application : ils sont référencés dans le planning et les
   // avis, mais ne se connectent pas.
@@ -1183,7 +1183,7 @@ export const inviteAgent = async (
     });
 
     const nomAgence = agence ? `${agence.nom_agence} — ${agence.commune}` : 'votre agence';
-    const roleLabel = args.role === 'CHEF_AGENCE' ? "Chef d'Agence" : 'Auditeur Qualité';
+    const roleLabel = args.role === 'CHEF_AGENCE' ? "Chef d'Agence" : 'Agent de guichet';
     const roleMission = args.role === 'CHEF_AGENCE'
       ? 'gérer les guichets, planifier les agents et suivre les alertes de satisfaction'
       : "auditer la qualité de service, consulter les avis clients et suivre les indicateurs de conformité";
