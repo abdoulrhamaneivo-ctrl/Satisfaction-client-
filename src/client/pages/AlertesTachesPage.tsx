@@ -34,6 +34,7 @@ import {
 } from '../components/ui/select';
 import { useToast } from '../hooks/use-toast';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 
 type Statut = 'A_FAIRE' | 'EN_COURS' | 'TERMINEE';
 type FiltreTaches = 'TOUTES' | 'RETARD' | 'MES_TACHES';
@@ -223,7 +224,8 @@ export const AlertesTachesPage = () => {
   };
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
           {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
@@ -580,6 +582,7 @@ export const AlertesTachesPage = () => {
       </AnimatePresence>
     </AmbientBackground>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };
 

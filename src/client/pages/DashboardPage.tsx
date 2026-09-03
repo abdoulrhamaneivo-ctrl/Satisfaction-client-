@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { DataTable, DataTableRow } from '../components/ui/DataTable';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
@@ -183,7 +184,8 @@ export const DashboardPage = () => {
   }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode]);
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <div className="mx-auto max-w-[1440px] p-6 lg:p-10 space-y-8">
           {/* Fil d'Ariane & navigation secondaire */}
@@ -665,5 +667,6 @@ export const DashboardPage = () => {
         </div>
       </AmbientBackground>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };

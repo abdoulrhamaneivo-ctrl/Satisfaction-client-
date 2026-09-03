@@ -12,6 +12,7 @@ import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
 import { EmptyState } from '../components/EmptyState';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import {
@@ -191,7 +192,8 @@ export const AvisPage = () => {
   };
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
           {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
@@ -522,5 +524,6 @@ export const AvisPage = () => {
         </div>
       </AmbientBackground>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };

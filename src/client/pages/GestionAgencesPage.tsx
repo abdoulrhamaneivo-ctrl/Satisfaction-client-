@@ -8,6 +8,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { useToast } from '../hooks/use-toast';
 import {
   AlertDialog,
@@ -90,6 +91,7 @@ export const GestionAgencesPage = () => {
   // (via la page Personnel) et des guichets.
   if (user && user.role !== 'DIRECTION') {
     return (
+      <RequireEnterpriseRole>
       <RequireAuth>
         <AmbientBackground>
           <div className="flex min-h-screen items-center justify-center p-8">
@@ -103,6 +105,7 @@ export const GestionAgencesPage = () => {
           </div>
         </AmbientBackground>
       </RequireAuth>
+      </RequireEnterpriseRole>
     );
   }
 
@@ -115,7 +118,8 @@ export const GestionAgencesPage = () => {
   });
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <div className="min-h-screen p-8">
           <div className="mx-auto max-w-6xl">
@@ -296,5 +300,6 @@ export const GestionAgencesPage = () => {
         </AlertDialogContent>
       </AlertDialog>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };

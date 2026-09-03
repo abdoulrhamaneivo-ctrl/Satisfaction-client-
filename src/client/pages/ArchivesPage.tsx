@@ -23,6 +23,7 @@ import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
 import { EmptyState } from '../components/EmptyState';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/use-toast';
@@ -48,7 +49,8 @@ function formatDate(d: string | Date | null | undefined) {
  * un clic par un profil de gestion.
  */
 export const ArchivesPage = () => (
-  <RequireAuth>
+  <RequireEnterpriseRole>
+      <RequireAuth>
     <AmbientBackground className="px-4 py-10 sm:px-8 lg:px-12">
       <div className="mx-auto max-w-5xl">
         <PageHeader
@@ -61,6 +63,7 @@ export const ArchivesPage = () => (
       </div>
     </AmbientBackground>
   </RequireAuth>
+      </RequireEnterpriseRole>
 );
 
 function ArchivesContent() {

@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -213,6 +214,7 @@ export const AdminPersonnelPage = () => {
 
   if (user && user.role !== 'DIRECTION' && user.role !== 'CHEF_AGENCE') {
     return (
+      <RequireEnterpriseRole>
       <RequireAuth>
         <AmbientBackground>
           <div className="flex min-h-screen items-center justify-center p-8">
@@ -226,11 +228,13 @@ export const AdminPersonnelPage = () => {
           </div>
         </AmbientBackground>
       </RequireAuth>
+      </RequireEnterpriseRole>
     );
   }
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <div className="min-h-screen p-6 lg:p-10 space-y-8">
           <div className="mx-auto max-w-[1440px] space-y-8">
@@ -561,5 +565,6 @@ export const AdminPersonnelPage = () => {
         </AlertDialog>
       </AmbientBackground>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };

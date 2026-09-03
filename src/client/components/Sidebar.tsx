@@ -91,6 +91,68 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
   };
 
   const userRole = (user as any)?.role;
+  const platformRole = (user as any)?.platformRole;
+  const isPlatformAccount = platformRole === 'SUPER_ADMIN' || platformRole === 'SUPPORT';
+  // Un compte PLATEFORME n'a AUCUN périmètre entreprise (Doc 12) : sa seule
+  // navigation est la console /platform. On n'affiche donc aucun item métier.
+  if (isPlatformAccount) {
+    return (
+      <div className={cn('flex h-full flex-col justify-between overflow-y-auto momentum-scroll select-none text-foreground', className)}>
+        <div className="p-4 space-y-5">
+          <div className="p-2.5 rounded-2xl bg-muted/40 border border-border/70">
+            <div className="flex items-center gap-3">
+              <YebaLogo className="size-7" />
+              <div>
+                <span className="block text-xs font-bold font-satoshi text-foreground tracking-tight leading-none">
+                  {brandConfig?.platform_name || 'Yéba'} Platform
+                </span>
+                <span className="block text-[10px] text-muted-foreground font-semibold pt-0.5">
+                  Console opérateur
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="block px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+              Plateforme
+            </span>
+            <NavItem to="/platform" icon={ShieldCheck} label="Console Platform" isActive={isCurrent('/platform')} onNavigate={onNavigate} />
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-border/70 space-y-3 bg-muted/20 mt-auto">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-xs shrink-0">
+              {user ? (user as any).email?.[0]?.toUpperCase() : 'A'}
+            </div>
+            <div className="truncate flex-1 min-w-0">
+              <span className="block text-xs font-bold font-satoshi truncate leading-none">
+                {user ? (user as any).email : 'Non connecté'}
+              </span>
+              <span className="block text-[10px] text-muted-foreground font-semibold truncate pt-0.5">
+                {platformRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Support'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-1 pt-1">
+            <div className="flex items-center gap-1">
+              <DarkModeSwitcher />
+              <button
+                type="button"
+                onClick={() => logout()}
+                title="Se deconnecter"
+                aria-label="Se deconnecter"
+                className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                <LogOut className="size-4" aria-hidden />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const isDirection = userRole === 'DIRECTION';
   const isChefAgence = userRole === 'CHEF_AGENCE';
   const isQualite = userRole === 'QUALITE';

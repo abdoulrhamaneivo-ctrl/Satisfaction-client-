@@ -14,6 +14,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Checkbox } from '../components/ui/checkbox';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { useToast } from '../hooks/use-toast';
 import { Card, Eyebrow, Reveal } from '../components/ds';
 import {
@@ -212,6 +213,7 @@ export const GuichetsPage = () => {
 
   if (!userAgenceId) {
     return (
+      <RequireEnterpriseRole>
       <RequireAuth>
         <AmbientBackground className="flex items-center justify-center p-8">
           <Card className="max-w-md p-8 text-center border-destructive/30">
@@ -229,6 +231,7 @@ export const GuichetsPage = () => {
           </Card>
         </AmbientBackground>
       </RequireAuth>
+      </RequireEnterpriseRole>
     );
   }
 
@@ -245,7 +248,8 @@ export const GuichetsPage = () => {
   });
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <div className="mx-auto max-w-[1440px] p-6 lg:p-10 space-y-8">
           {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
@@ -672,5 +676,6 @@ export const GuichetsPage = () => {
         </AlertDialogContent>
       </AlertDialog>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };

@@ -34,6 +34,7 @@ import { MotionCard } from '../components/MotionCard';
 import { QuestionsParOperation } from '../components/QuestionsParOperation';
 import { ObjectifsPanel } from '../components/ObjectifsPanel';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { useToast } from '../hooks/use-toast';
 
 import { Button } from '../components/ui/button';
@@ -242,7 +243,8 @@ export const ConfigurationCriteresPage = () => {
   };
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
     <AmbientBackground>
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -627,5 +629,6 @@ export const ConfigurationCriteresPage = () => {
       </motion.div>
     </AmbientBackground>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };

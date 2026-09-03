@@ -43,6 +43,7 @@ import {
 } from '../components/ui/alert-dialog';
 import { useToast } from '../hooks/use-toast';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 
 export const PlanningPage = () => {
   const { data: user } = useAuth();
@@ -179,7 +180,8 @@ export const PlanningPage = () => {
   };
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
           {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
@@ -490,5 +492,6 @@ export const PlanningPage = () => {
         </AlertDialogContent>
       </AlertDialog>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };

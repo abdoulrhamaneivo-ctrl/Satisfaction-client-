@@ -5,6 +5,7 @@ import { MotionCard } from '../components/MotionCard';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { Cpu, CheckCircle2, AlertTriangle, Key, Server, Sparkles, Activity, RefreshCw } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -12,7 +13,8 @@ export const SettingsPage = () => {
   const { data: aiStatus, isLoading, refetch } = useQuery(getAIStatus);
 
   return (
-    <RequireAuth>
+    <RequireEnterpriseRole>
+      <RequireAuth>
       <AmbientBackground>
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -161,6 +163,7 @@ export const SettingsPage = () => {
         </motion.div>
       </AmbientBackground>
     </RequireAuth>
+      </RequireEnterpriseRole>
   );
 };
 
