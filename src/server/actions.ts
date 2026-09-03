@@ -1341,6 +1341,12 @@ export const toggleCritereAgence = async (
   // désactiver des critères pour n'importe quelle agence du système.
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
 
+  // Faille corrigée (audit ZAP #13) : le critère lui-même doit appartenir au
+  // tenant (ou être un critère socle Yéba) — sinon un chef pouvait activer
+  // dans son agence le critère PRIVÉ d'une autre entreprise en devinant son
+  // id (énumération séquentielle).
+  await assertCritereAccessible(context, args.id_critere);
+
   if (args.active) {
     const existing = await context.entities.AgenceCritere.findFirst({
       where: { id_agence: idAgence, id_critere: args.id_critere },
@@ -1561,6 +1567,13 @@ export const updateCritere = async (
   }
 
   await assertCritereAccessible(context, idCritere);
+
+  // Audit ZAP #14 : un critère socle (id_entreprise NULL) est partagé par
+  // toutes les entreprises — aucune ne peut modifier son contenu.
+  const critere = await context.entities.Critere.findUnique({ where: { id: idCritere } });
+  if (critere?.id_entreprise === null) {
+    throw new HttpError(403, "Ce critère fait partie du socle commun de la plateforme et ne peut pas être modifié. Dupliquez-le pour l'adapter.");
+  }
 
   const libelle = args.libelle_critere?.trim();
   if (libelle !== undefined) {
@@ -2231,10 +2244,12 @@ export const archiverCritere = async (args: { id_critere: number }, context: any
   await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
-  const critere = await context.entities.Critere.findUnique({
-    where: { id: args.id_critere },
-  });
-  if (!critere) throw new HttpError(404, 'Question/Critère introuvable.');
+  // Audit ZAP #14 : tenant + socle — un critère partagé par la plateforme
+  // n'appartient à aucune entreprise, personne ne peut l'archiver.
+  const critere = await assertCritereAccessible(context, args.id_critere);
+  if (critere.id_entreprise === null) {
+    throw new HttpError(403, "Ce critère fait partie du socle commun de la plateforme et ne peut pas être archivé. Désactivez-le dans votre agence.");
+  }
 
   return context.entities.Critere.update({
     where: { id: args.id_critere },
@@ -2247,10 +2262,11 @@ export const desarchiverCritere = async (args: { id_critere: number }, context: 
   await assertEntrepriseActive(context, context.entities);
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
-  const critere = await context.entities.Critere.findUnique({
-    where: { id: args.id_critere },
-  });
-  if (!critere) throw new HttpError(404, 'Question/Critère introuvable.');
+  // Mêmes garde-fous : tenant + socle intouchable.
+  const critere = await assertCritereAccessible(context, args.id_critere);
+  if (critere.id_entreprise === null) {
+    throw new HttpError(403, "Ce critère fait partie du socle commun de la plateforme.");
+  }
 
   return context.entities.Critere.update({
     where: { id: args.id_critere },

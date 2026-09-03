@@ -129,6 +129,7 @@ export const creerEntreprise = async (
     limite_agences: number;
     limite_utilisateurs: number;
     limite_guichets: number;
+    totpCode?: string;
   },
   context: any
 ) => {
@@ -305,10 +306,11 @@ export const creerEntreprise = async (
 // suspendreEntreprise / reactiverEntreprise
 // ─────────────────────────────────────────────
 export const suspendreEntreprise = async (
-  args: { id_entreprise: number; motif: string },
+  args: { id_entreprise: number; motif: string ; totpCode?: string },
   context: any
 ) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args as { totpCode?: string });
   const motif = args.motif?.trim() ?? '';
   if (motif.length < 5) {
     throw new HttpError(400, 'Un motif de suspension est requis (5 caractères minimum).');
@@ -337,8 +339,9 @@ export const suspendreEntreprise = async (
   return { ok: true, message: `Entreprise suspendue. Tous ses comptes sont bloqués immédiatement.` };
 };
 
-export const reactiverEntreprise = async (args: { id_entreprise: number }, context: any) => {
+export const reactiverEntreprise = async (args: { id_entreprise: number ; totpCode?: string }, context: any) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args as { totpCode?: string });
   const entreprise = await context.entities.Entreprise.findUnique({ where: { id: args.id_entreprise } });
   if (!entreprise) throw new HttpError(404, 'Entreprise introuvable.');
   if (entreprise.status !== 'SUSPENDED') {
@@ -371,10 +374,12 @@ export const changerLimitesEntreprise = async (
     limite_utilisateurs?: number;
     limite_guichets?: number;
     plan?: string;
+    totpCode?: string;
   },
   context: any
 ) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args as { totpCode?: string });
 
   const entreprise = await context.entities.Entreprise.findUnique({ where: { id: args.id_entreprise } });
   if (!entreprise) throw new HttpError(404, 'Entreprise introuvable.');
@@ -614,10 +619,11 @@ export const activerCompte = async (
 // sinon la console devient définitivement inaccessible.
 // ─────────────────────────────────────────────
 export const changerPlatformRole = async (
-  args: { id_user_cible: string; nouveauRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE' },
+  args: { id_user_cible: string; nouveauRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE' ; totpCode?: string },
   context: any
 ) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args as { totpCode?: string });
 
   const cible = await context.entities.User.findUnique({ where: { id: args.id_user_cible } });
   if (!cible) throw new HttpError(404, 'Utilisateur introuvable.');
@@ -656,8 +662,9 @@ export const changerPlatformRole = async (
   return { ok: true, message: `Rôle plateforme mis à jour : ${args.nouveauRole}.` };
 };
 
-export const desactiverComptePlatform = async (args: { id_user_cible: string }, context: any) => {
+export const desactiverComptePlatform = async (args: { id_user_cible: string ; totpCode?: string }, context: any) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args as { totpCode?: string });
 
   const cible = await context.entities.User.findUnique({ where: { id: args.id_user_cible } });
   if (!cible) throw new HttpError(404, 'Utilisateur introuvable.');
@@ -708,6 +715,28 @@ import {
   chiffrerSecretTotp,
   dechiffrerSecretTotp,
 } from './totp';
+
+/**
+ * 2FA ENFORCED (audit ZAP bloc B) : quand le compte a activé sa 2FA
+ * (totp_actif=true), toute opération platform sensible exige un code TOTP
+ * valide transmis dans args.totpCode. Sans 2FA activée (période de grâce),
+ * l'opération passe — le durcissement complet arrivera quand tous les
+ * comptes plateforme auront activé leur 2FA.
+ */
+async function exigerTotpSiActif(context: any, args: { totpCode?: string }): Promise<void> {
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_actif: true, totp_secret: true },
+  });
+  if (!compte?.totp_actif || !compte.totp_secret) return;
+  if (!args.totpCode) {
+    throw new HttpError(428, 'Code 2FA requis pour cette opération sensible.');
+  }
+  const secret = dechiffrerSecretTotp(compte.totp_secret);
+  if (!verifierCodeTotp(args.totpCode, secret)) {
+    throw new HttpError(401, 'Code 2FA invalide ou expiré.');
+  }
+}
 
 /**
  * Étape 1 : générer un secret TOTP chiffré et l'URL otpauth (à encoder en QR

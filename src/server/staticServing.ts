@@ -31,6 +31,43 @@ interface ServerSetupContext {
 }
 
 export async function serveStaticClient({ app }: ServerSetupContext): Promise<void> {
+  // ── DURCISSEMENT HTTP (audit ZAP, bloc A) ──────────────────────────────
+  // Ces headers s'appliquent à TOUTES les réponses (API + statiques) :
+  //  - CSP complète en header HTTP (frame-ancestors n'est PAS supporté via
+  //    <meta> — c'était l'alerte ZAP « Meta Policy Invalid Directive ») ;
+  //  - X-Frame-Options: DENY en défense en profondeur (clickjacking) ;
+  //  - HSTS (HTTPS uniquement pendant 1 an) ;
+  //  - nosniff (anti MIME-sniffing) ;
+  //  - Referrer-Policy stricte ;
+  //  - Les réponses API sont no-store (données sensibles non cachées) ;
+  //  - X-Powered-By supprimé (divulgation de technologie inutile).
+  app.disable('x-powered-by');
+  app.use((req, res, next) => {
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: blob: https:; " +
+        "font-src 'self'; " +
+        "connect-src 'self'; " +
+        "object-src 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'none'"
+    );
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // Les réponses API authentifiées contiennent des données sensibles :
+    // interdiction de les stocker dans tout cache intermédiaire ou navigateur.
+    if (API_PREFIXES.some((p) => req.path.startsWith(p))) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+    next();
+  });
+
   // Uniquement si le build client est présent (déploiement mono-service).
   // En déploiement client séparé (Railway), ce dossier est absent → no-op.
   if (!fs.existsSync(SPA_ENTRY)) {

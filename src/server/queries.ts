@@ -72,8 +72,15 @@ export const getStatsFiltrees = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
+  // CONFIDENTIALITÉ (RG16/RG17) : cette query retourne des réponses brutes
+  // (dont commentaire_texte). La DIRECTION n'y a pas droit, comme getReponses.
+  if (context.user.role === 'DIRECTION') {
+    throw new HttpError(403, "Les réponses détaillées sont réservées aux chefs d'agence. La Direction dispose des KPI consolidés.");
+  }
   const filter = await buildAgenceFilter(context, context.entities);
 
+  // Select explicite : commentaire_texte exclu par défaut du payload —
+  // seuls les scores et métadonnées sont utiles à l'agrégation front.
   return context.entities.Reponse.findMany({
     where: {
       ...filter,
@@ -83,9 +90,14 @@ export const getStatsFiltrees = async (
       },
     },
     orderBy: { date_reponse: 'desc' },
-    include: {
-      guichet: true,
-      critere: true,
+    select: {
+      id: true,
+      id_soumission: true,
+      score_brut: true,
+      date_reponse: true,
+      id_guichet: true,
+      guichet: { select: { id: true, nom_guichet: true } },
+      critere: { select: { id: true, libelle_critere: true, type_reponse: true } },
     },
   });
 };
@@ -938,6 +950,16 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 // par le même périmètre d'agence que le reste de l'application.
 // ============================================================================
 
+// CONFIDENTIALITÉ (RG16/RG17) : dans les archives, la réponse imbriquée
+// expose commentaire_texte à quiconque a include: true. Pour la DIRECTION
+// on ne livre que les métadonnées (id, date, score) — jamais le verbatim.
+function reponsePourArchives(context: any) {
+  if (context.user.role === 'DIRECTION') {
+    return { select: { id: true, date_reponse: true, score_brut: true } };
+  }
+  return true; // CHEF_AGENCE : accès complet à son périmètre
+}
+
 export const getArchives = async (_args: void, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
@@ -959,7 +981,7 @@ export const getArchives = async (_args: void, context: any) => {
           { reponse: { id_agence: filter.id_agence } },
         ],
       },
-      include: { guichet: { include: { agence: { select: { nom_agence: true } } } }, reponse: true },
+      include: { guichet: { include: { agence: { select: { nom_agence: true } } } }, reponse: reponsePourArchives(context) },
       orderBy: { date_archivage: 'desc' },
     }),
     context.entities.TacheCorrective.findMany({
@@ -973,7 +995,7 @@ export const getArchives = async (_args: void, context: any) => {
         },
       },
       include: {
-        alerte: { include: { guichet: { include: { agence: { select: { nom_agence: true } } } }, reponse: true } },
+        alerte: { include: { guichet: { include: { agence: { select: { nom_agence: true } } } }, reponse: reponsePourArchives(context) } },
         responsable: { select: { id: true, nom: true, prenom: true } },
       },
       orderBy: { date_archivage: 'desc' },
