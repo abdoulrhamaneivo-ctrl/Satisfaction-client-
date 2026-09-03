@@ -46,12 +46,11 @@ export interface WaspContext {
 
 export type YebaRole =
   | 'DIRECTION'
-  | 'QUALITE'
   | 'CHEF_AGENCE'
   | 'AGENT';
 
 /** Rôles dont la portée est l'entreprise entière (toutes les agences du tenant). */
-const ENTREPRISE_WIDE_ROLES: YebaRole[] = ['DIRECTION', 'QUALITE'];
+const ENTREPRISE_WIDE_ROLES: YebaRole[] = ['DIRECTION'];
 
 // ─────────────────────────────────────────────
 // 1. Authentification
@@ -156,7 +155,7 @@ export function requireAdmin(context: WaspContext): void {
  * Vérifie auth + rôle de gestion (DIRECTION, QUALITE, CHEF_AGENCE).
  */
 export function requireManagementRole(context: WaspContext): void {
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 }
 
 // ─────────────────────────────────────────────

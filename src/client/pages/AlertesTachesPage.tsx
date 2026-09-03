@@ -112,7 +112,7 @@ export const AlertesTachesPage = () => {
   const alertesList: any[] = alertes || [];
   const tachesList: any[] = taches || [];
 
-  const rolesGestion = ['DIRECTION', 'QUALITE', 'CHEF_AGENCE'];
+  const rolesGestion = ['DIRECTION', 'CHEF_AGENCE'];
   const peutGererAlertes = !!currentUser && rolesGestion.includes((currentUser as any).role);
   // Un profil de gestion peut agir sur n'importe quelle tâche de son
   // périmètre ; un AGENT ne peut agir que sur les tâches qui lui sont

@@ -108,7 +108,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
     }
   };
 
-  if (!user || (user.role !== 'DIRECTION' && user.role !== 'QUALITE')) return null;
+  if (!user || (user.role !== 'DIRECTION')) return null;
 
   if (activeCriteres.length === 0) {
     return (

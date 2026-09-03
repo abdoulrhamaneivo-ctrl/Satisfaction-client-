@@ -23,7 +23,7 @@ model User {
   nom                           String?                  @default("")
   prenom                        String?                  @default("")
   telephone                     String?                  @default("")
-  role                          String?                  @default("AGENT") // DIRECTION, QUALITE, CHEF_AGENCE, AGENT
+  role                          String?                  @default("AGENT") // DIRECTION, CHEF_AGENCE, AGENT (QUALITE supprimé: fusionné dans CHEF_AGENCE)
   actif                         Boolean                  @default(true)
   // Force l'utilisateur à définir un nouveau mot de passe avant de pouvoir
   // utiliser l'application. Mis à `true` pour le tout premier compte créé
@@ -46,7 +46,7 @@ model User {
   totp_secret                   String?
   totp_actif                    Boolean                  @default(false)
 
-  // Dénormalisé volontairement : permet de scoper DIRECTION/QUALITE à leur
+  // Dénormalisé volontairement : permet de scoper DIRECTION à leur
   // propre entreprise (tenant) sans avoir à recharger la relation agence.entreprise
   // dans chaque query/action. Toujours tenu synchronisé avec agence.id_entreprise
   // (voir src/server/middleware/rowLevelSecurity.ts).

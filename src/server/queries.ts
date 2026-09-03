@@ -381,7 +381,7 @@ export const getAgentsByAgence = async (args: { id_agence: number }, context: an
   return context.entities.User.findMany({
     where: {
       id_agence: idAgence,
-      role: { in: ['AGENT', 'CHEF_AGENCE', 'QUALITE'] },
+      role: { in: ['AGENT', 'CHEF_AGENCE'] },
     },
     select: { id: true, nom: true, prenom: true, role: true, email: true, telephone: true, actif: true },
     orderBy: [{ actif: 'desc' }, { role: 'asc' }, { nom: 'asc' }],
@@ -394,7 +394,7 @@ export const getAgences = async (_args: void, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
 
-  if (context.user.role !== 'DIRECTION' && context.user.role !== 'QUALITE') return [];
+  if (context.user.role !== 'DIRECTION') return [];
   if (!context.user.id_entreprise) return [];
 
   return context.entities.Agence.findMany({
@@ -941,7 +941,7 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 export const getArchives = async (_args: void, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const filter = await buildAgenceFilter(context, context.entities);
 
@@ -983,7 +983,7 @@ export const getArchives = async (_args: void, context: any) => {
   // Les agences archivées ne concernent que la direction/qualité (les chefs
   // d'agence ne gèrent pas le réseau d'agences lui-même).
   const agences =
-    context.user.role === 'DIRECTION' || context.user.role === 'QUALITE'
+    context.user.role === 'DIRECTION'
       ? await context.entities.Agence.findMany({
           where: { id_entreprise: context.user.id_entreprise, archive: true },
           select: { id: true, nom_agence: true, commune: true, date_archivage: true },
@@ -1688,7 +1688,7 @@ export const getTacheHistorique = async (args: { id_tache: number }, context: an
   // l'historique de n'importe quelle tâche de son périmètre, un AGENT
   // seulement celui des tâches qui lui sont assignées.
   if (tache.id_responsable !== context.user.id) {
-    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+    requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
   }
 
   const idAgence = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
@@ -1825,7 +1825,7 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
   const idAgenceClause = filter.id_agence;
   const contains = { contains: q, mode: 'insensitive' as const };
 
-  const peutVoirAgences = context.user.role === 'DIRECTION' || context.user.role === 'QUALITE';
+  const peutVoirAgences = context.user.role === 'DIRECTION';
 
   const [agences, guichets, agents, avis] = await Promise.all([
     peutVoirAgences && context.user.id_entreprise

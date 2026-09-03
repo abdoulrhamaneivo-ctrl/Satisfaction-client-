@@ -210,7 +210,7 @@ export const updateGuichetServices = async (
 export const archiverGuichet = async (args: { id_guichet: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
   if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
@@ -227,7 +227,7 @@ export const archiverGuichet = async (args: { id_guichet: number }, context: any
 export const desarchiverGuichet = async (args: { id_guichet: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const guichet = await context.entities.Guichet.findUnique({ where: { id: args.id_guichet } });
   if (!guichet) throw new HttpError(404, 'Guichet introuvable.');
@@ -735,14 +735,13 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       : await context.entities.User.findMany({
           where: {
             id_entreprise: guichet.agence.id_entreprise,
-            role: { in: ['DIRECTION', 'QUALITE'] },
+            role: { in: ['DIRECTION'] },
             actif: true,
           },
         });
     const destinataire =
       chefAgence ||
       utilisateursEntreprise.find((u: any) => u.role === 'DIRECTION') ||
-      utilisateursEntreprise.find((u: any) => u.role === 'QUALITE') ||
       null;
 
     if (destinataire) {
@@ -1062,7 +1061,7 @@ export const inviteAgent = async (
   // analyse de manière indépendante — il ne peut pas être nommé par la
   // personne dont il audite le travail.
   const ROLES_PAR_INVITEUR: Record<string, string[]> = {
-    DIRECTION: ['CHEF_AGENCE', 'QUALITE'],
+    DIRECTION: ['CHEF_AGENCE'],
     CHEF_AGENCE: ['AGENT'],
   };
   const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role ?? ''] || [];
@@ -1174,7 +1173,7 @@ export const inviteAgent = async (
   // vrai compte de connexion). Les agents simples (AGENT) n'ont pas besoin
   // d'accès à l'application : ils sont référencés dans le planning et les
   // avis, mais ne se connectent pas.
-  if (args.role === 'CHEF_AGENCE' || args.role === 'QUALITE') {
+  if (args.role === 'CHEF_AGENCE') {
     const frontendUrl = process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
 
     // Récupérer le nom de l'agence pour personnaliser l'email
@@ -1335,7 +1334,7 @@ export const toggleCritereAgence = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   // Faille corrigée : id_agence fourni par le client était auparavant utilisé
   // tel quel (aucune vérification), permettant à un CHEF_AGENCE d'activer/
@@ -1365,7 +1364,7 @@ export const createService = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   if (!args.libelle_service?.trim()) {
     throw new HttpError(400, "Le libellé de l'opération est requis.");
@@ -1399,7 +1398,7 @@ export const createCritere = async (
   // Faille corrigée : cette action n'exigeait auparavant AUCUN rôle
   // particulier — n'importe quel utilisateur connecté (y compris un simple
   // AGENT) pouvait créer des critères d'évaluation.
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const libelle = args.libelle_critere?.trim();
   if (!libelle) {
@@ -1554,7 +1553,7 @@ export const updateCritere = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
   if (!Number.isInteger(idCritere)) {
@@ -1631,7 +1630,7 @@ export const moveCritereToService = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
   const idService = Number(args.id_service);
@@ -1700,7 +1699,7 @@ export const removeCritereFromService = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
   const idService = Number(args.id_service);
@@ -1760,7 +1759,7 @@ export const deleteCritere = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
   if (!Number.isInteger(idCritere)) {
@@ -1801,7 +1800,7 @@ export const duplicateCritere = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idCritere = Number(args.id_critere);
   if (!Number.isInteger(idCritere)) {
@@ -1863,7 +1862,7 @@ export const reorderCriteresInService = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idService = Number(args.id_service);
   if (!Number.isInteger(idService)) {
@@ -1919,7 +1918,7 @@ export const upsertObjectif = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
@@ -1980,7 +1979,7 @@ export const createTacheCorrective = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   if (!args.titre?.trim()) throw new HttpError(400, 'Le titre de la tâche est requis.');
 
@@ -2054,7 +2053,7 @@ export const updateStatutTache = async (
   // de leur périmètre.
   const estResponsableDeLaTache = tache.id_responsable === context.user.id;
   if (!estResponsableDeLaTache) {
-    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+    requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
   }
 
   const idAgenceTache = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
@@ -2091,7 +2090,7 @@ export const marquerAlerteTraitee = async (args: { id_alerte: number }, context:
   // l'alerte de n'importe quelle agence.
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idAlerte = BigInt(args.id_alerte);
   const idAgenceAlerte = await resolveAlerteAgenceId(context.entities, idAlerte);
@@ -2113,7 +2112,7 @@ export const marquerAlerteTraitee = async (args: { id_alerte: number }, context:
 export const deleteObjectif = async (args: { id: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const objectif = await context.entities.Objectif.findUnique({
     where: { id: args.id },
@@ -2137,7 +2136,7 @@ export const deleteObjectif = async (args: { id: number }, context: any) => {
 export const archiverAlerte = async (args: { id_alerte: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idAlerte = BigInt(args.id_alerte);
   const idAgenceAlerte = await resolveAlerteAgenceId(context.entities, idAlerte);
@@ -2158,7 +2157,7 @@ export const archiverAlerte = async (args: { id_alerte: number }, context: any) 
 export const desarchiverAlerte = async (args: { id_alerte: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const idAlerte = BigInt(args.id_alerte);
   const idAgenceAlerte = await resolveAlerteAgenceId(context.entities, idAlerte);
@@ -2187,7 +2186,7 @@ export const archiverTache = async (args: { id_tache: number }, context: any) =>
   if (!tache) throw new HttpError(404, 'Tâche introuvable.');
 
   if (tache.id_responsable !== context.user.id) {
-    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+    requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
   }
   const idAgenceTache = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
   if (!idAgenceTache) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");
@@ -2215,7 +2214,7 @@ export const desarchiverTache = async (args: { id_tache: number }, context: any)
   if (!tache) throw new HttpError(404, 'Tâche introuvable.');
 
   if (tache.id_responsable !== context.user.id) {
-    requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+    requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
   }
   const idAgenceTache = tache.alerte?.guichet?.id_agence ?? tache.alerte?.reponse?.id_agence;
   if (!idAgenceTache) throw new HttpError(400, "Impossible de déterminer l'agence de cette tâche.");
@@ -2230,7 +2229,7 @@ export const desarchiverTache = async (args: { id_tache: number }, context: any)
 export const archiverCritere = async (args: { id_critere: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const critere = await context.entities.Critere.findUnique({
     where: { id: args.id_critere },
@@ -2246,7 +2245,7 @@ export const archiverCritere = async (args: { id_critere: number }, context: any
 export const desarchiverCritere = async (args: { id_critere: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['DIRECTION', 'QUALITE', 'CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const critere = await context.entities.Critere.findUnique({
     where: { id: args.id_critere },

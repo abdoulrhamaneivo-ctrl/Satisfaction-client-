@@ -93,13 +93,11 @@ export const AdminPersonnelPage = () => {
   const roleOptions = user?.role === 'DIRECTION'
     ? [
         { value: 'CHEF_AGENCE', label: "Chef d’Agence" },
-        { value: 'QUALITE', label: 'Auditeur Qualité' },
-      ]
+              ]
     : user?.role === 'CHEF_AGENCE'
     ? [
         { value: 'AGENT', label: 'Agent de guichet' },
-        { value: 'QUALITE', label: 'Auditeur Qualité' },
-      ]
+              ]
     : [{ value: 'AGENT', label: 'Agent de guichet' }];
 
   useEffect(() => {

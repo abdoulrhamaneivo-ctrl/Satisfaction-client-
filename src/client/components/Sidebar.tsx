@@ -155,8 +155,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
   }
   const isDirection = userRole === 'DIRECTION';
   const isChefAgence = userRole === 'CHEF_AGENCE';
-  const isQualite = userRole === 'QUALITE';
-  const hasAdminAccess = isDirection || isChefAgence || isQualite;
+  const hasAdminAccess = isDirection || isChefAgence;
 
   return (
     <div className={cn('flex h-full flex-col justify-between overflow-y-auto momentum-scroll select-none text-foreground', className)}>

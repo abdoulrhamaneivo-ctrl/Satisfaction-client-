@@ -31,7 +31,7 @@ async function creerAlerteUrgenceIA(reponse: any, result: any) {
       (await prisma.user.findFirst({
         where: {
           id_entreprise: reponse.agence?.id_entreprise ?? null,
-          role: { in: ['DIRECTION', 'QUALITE'] },
+          role: { in: ['DIRECTION'] },
           actif: true,
         },
       }));
@@ -74,7 +74,7 @@ async function creerAlerteIncoherenceNote(reponse: any, note: number | null, coh
       (await prisma.user.findFirst({
         where: {
           id_entreprise: reponse.agence?.id_entreprise ?? null,
-          role: { in: ['DIRECTION', 'QUALITE'] },
+          role: { in: ['DIRECTION'] },
           actif: true,
         },
       }));

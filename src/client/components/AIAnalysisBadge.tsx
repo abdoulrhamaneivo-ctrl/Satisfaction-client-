@@ -9,7 +9,6 @@ export const THEMES_LABELS: Record<string, string> = {
   COMPORTEMENT_AGENT: "Comportement agent",
   SERVICE: "Service",
   PRODUIT: "Produit",
-  QUALITE: "Qualité",
   PRIX: "Prix",
   PROCEDURE: "Procédure",
   ADMINISTRATION: "Administration",

@@ -15,7 +15,7 @@ export const demoNavigationitems: NavigationItem[] = [
       { name: "Formulaires & Critères", to: "/criteres" },
       { name: "Personnel & Rôles", to: "/admin/personnel", roles: ["DIRECTION", "CHEF_AGENCE"] },
       { name: "Réseau Agences", to: "/admin/agences", roles: ["DIRECTION"] },
-      { name: "Archives", to: "/archives", roles: ["DIRECTION", "QUALITE", "CHEF_AGENCE"] },
+      { name: "Archives", to: "/archives", roles: ["DIRECTION", "CHEF_AGENCE"] },
     ],
   },
 ] as const;
