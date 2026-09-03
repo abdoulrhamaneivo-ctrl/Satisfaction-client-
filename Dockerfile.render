@@ -14,10 +14,14 @@ WORKDIR /app
 COPY . .
 
 # Build Wasp project (generates .wasp/out, prisma client, SDK)
-# Free tier Render = 512MB RAM : tsc/rollup ont besoin d'une limite explicite
-# pour éviter l'OOM killer pendant la compilation.
-ENV NODE_OPTIONS=--max-old-space-size=400 --max-semi-space-size=16
-RUN wasp install && wasp build
+# Free tier Render = 512MB RAM : le tsc du SDK OOM systématiquement
+# (seuil mesuré ~380MB heap). Stratégie : le SDK est PRÉCOMPILÉ localement
+# (prebuilt-sdk/dist, committé) — on restaure son dist après wasp install,
+# on désactive le tsc du SDK, et wasp build saute la compilation.
+RUN wasp install
+RUN cp -r prebuilt-sdk/dist/. /app/.wasp/out/sdk/wasp/dist/
+RUN node /app/scripts-render/patch-sdk-build.mjs
+RUN wasp build
 
 # CRITIQUE : wasp build ne crée PAS le bundle server — c'est une étape
 # séparée (rollup). Sans elle, bundle/server.js n'existe pas.
