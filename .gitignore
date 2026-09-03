@@ -24,3 +24,7 @@ h.zip
 # ── OS ──
 .DS_Store
 Thumbs.db
+
+.env.local.old
+.env.old-root
+.railway-proxy.cjs
