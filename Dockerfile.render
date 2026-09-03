@@ -16,7 +16,7 @@ COPY . .
 # Build Wasp project (generates .wasp/out, prisma client, SDK)
 # Free tier Render = 512MB RAM : tsc/rollup ont besoin d'une limite explicite
 # pour éviter l'OOM killer pendant la compilation.
-ENV NODE_OPTIONS=--max-old-space-size=460
+ENV NODE_OPTIONS=--max-old-space-size=400 --max-semi-space-size=16
 RUN wasp install && wasp build
 
 # CRITIQUE : wasp build ne crée PAS le bundle server — c'est une étape
