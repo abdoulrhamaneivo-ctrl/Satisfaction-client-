@@ -1,0 +1,13 @@
+import { prisma } from 'wasp/server';
+import { desarchiverGuichet } from '../../../../../src/server/actions';
+export default async function (args, context) {
+    return desarchiverGuichet(args, {
+        ...context,
+        entities: {
+            Guichet: prisma.guichet,
+            User: prisma.user,
+            Agence: prisma.agence,
+        },
+    });
+}
+//# sourceMappingURL=desarchiverGuichet.js.map

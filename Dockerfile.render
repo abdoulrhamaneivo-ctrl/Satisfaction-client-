@@ -1,65 +1,24 @@
-# Dockerfile pour Render - build complet à l'intérieur du container
-# Ne dépend PAS de .wasp/out local (absent du repo)
+# Dockerfile.render — déploiement Render mono-service Yéba
+# TOUT est précompilé et committé (.wasp/out complet) : le conteneur ne
+# compile RIEN → plus aucun OOM possible sur le free tier (512MB).
+FROM node:24.14.1-alpine3.23
 
-FROM node:24.14.1-alpine3.23 AS base
-RUN apk --no-cache -U upgrade
-RUN apk add --no-cache openssl python3 build-base libtool autoconf automake
-
-# Install Wasp CLI globally
-RUN npm install -g @wasp.sh/wasp-cli@0.24.0
+# Dépendances système runtime uniquement (openssl pour Prisma)
+RUN apk --no-cache -U upgrade && apk add --no-cache openssl
 
 WORKDIR /app
 
-# Copy source code
-COPY . .
-
-# Build Wasp project (generates .wasp/out, prisma client, SDK)
-# Free tier Render = 512MB RAM : le tsc du SDK OOM systématiquement
-# (seuil mesuré ~380MB heap). Stratégie : le SDK est PRÉCOMPILÉ localement
-# (prebuilt-sdk/dist, committé) — on restaure son dist après wasp install,
-# on désactive le tsc du SDK, et wasp build saute la compilation.
-RUN wasp install
-RUN cp -r prebuilt-sdk/dist/. /app/.wasp/out/sdk/wasp/dist/
-RUN node /app/scripts-render/patch-sdk-build.mjs
-RUN wasp build
-
-# CRITIQUE : wasp build ne crée PAS le bundle server — c'est une étape
-# séparée (rollup). Sans elle, bundle/server.js n'existe pas.
-RUN cd .wasp/out/server && npm run bundle
-
-# CRITIQUE (client) : wasp build ne génère pas non plus le build client.
-# Le CLI wasp le fait via `npm install` + `npx vite build` à la RACINE du
-# projet (clientApp.js du CLI : getClientBuildDir = racine). L'artefact sort
-# dans .wasp/out/web-app/build. REACT_APP_API_URL = URL publique de l'API
-# (le même domaine ici, car le serveur Express sert aussi le client).
-ARG REACT_APP_API_URL=https://yebaproject.onrender.com
-ENV REACT_APP_API_URL=${REACT_APP_API_URL}
-RUN npm install && npx vite build
-
-# Production stage
-FROM node:24.14.1-alpine3.23 AS production
-RUN apk --no-cache -U upgrade
-RUN apk add --no-cache openssl python3
-ENV NODE_ENV=production
+# Artefacts précompilés (commités) : serveur bundle, SDK, client, migrations
+COPY .wasp/out /app/.wasp/out/
+# npm install depuis la racine : le .wasp/out/package.json (copie du root)
+# déclare les workspaces .wasp/out/* — tout s'installe d'un coup, omit=dev.
 WORKDIR /app
+RUN npm install --omit=dev
 
-# Copy built artifacts exactly like Wasp's original Dockerfile
-COPY --from=base /app/.wasp/out/server/bundle .wasp/out/server/bundle
-COPY --from=base /app/.wasp/out/server/package*.json .wasp/out/server/
-COPY --from=base /app/.wasp/out/server/node_modules .wasp/out/server/node_modules
-COPY --from=base /app/.wasp/out/db .wasp/out/db
-# CLIENT : le build Vite que le serveur Express sert en production
-COPY --from=base /app/.wasp/out/web-app/build .wasp/out/web-app/build
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
-
-# Migration avec retry : le cold-start Neon + redéploiements rapprochés
-# peuvent occuper le verrou advisory Prisma >10s → P1002. Ce script réessaie
-# 4 fois avant d'abandonner (voir scripts-render/start-render.sh).
-COPY scripts-render/start-render.sh /app/start-render.sh
-RUN chmod +x /app/start-render.sh
+# start-render.sh : migration Prisma avec retry (cold start Neon)
+COPY scripts-render/start-render.sh /app/scripts-render/
+RUN chmod +x /app/scripts-render/start-render.sh
 
 EXPOSE 10000
 WORKDIR /app/.wasp/out/server
-ENTRYPOINT ["/bin/sh", "/app/start-render.sh"]
+ENTRYPOINT ["bash", "/app/scripts-render/start-render.sh"]

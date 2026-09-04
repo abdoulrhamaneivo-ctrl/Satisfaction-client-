@@ -1,0 +1,1 @@
+import{a as e,g as t,h as r}from"./200--YmJ_ePf.js";async function c(a){try{const{success:s}=await e.post("/auth/email/request-password-reset",{json:a}).json(t);return{success:s}}catch(s){throw r(s)}}async function n(a){try{const{success:s}=await e.post("/auth/email/reset-password",{json:a}).json(t);return{success:s}}catch(s){throw r(s)}}export{n as a,c as r};

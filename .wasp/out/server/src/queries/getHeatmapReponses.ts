@@ -1,0 +1,16 @@
+import { prisma } from 'wasp/server'
+
+import { getHeatmapReponses } from '../../../../../src/server/queries'
+
+
+export default async function (args, context) {
+  return (getHeatmapReponses as any)(args, {
+    ...context,
+    entities: {
+      Reponse: prisma.reponse,
+      User: prisma.user,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  })
+}

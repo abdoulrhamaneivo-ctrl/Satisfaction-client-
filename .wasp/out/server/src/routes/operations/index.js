@@ -1,0 +1,195 @@
+import express from 'express'
+
+import auth from 'wasp/core/auth'
+
+import updateProfile from './updateProfile.js'
+import changePassword from './changePassword.js'
+import changeEmail from './changeEmail.js'
+import addFileToDb from './addFileToDb.js'
+import createFileUploadUrl from './createFileUploadUrl.js'
+import deleteFile from './deleteFile.js'
+import createGuichet from './createGuichet.js'
+import assignAgent from './assignAgent.js'
+import updateAffectationGuichet from './updateAffectationGuichet.js'
+import deleteAffectationGuichet from './deleteAffectationGuichet.js'
+import soumettreAvis from './soumettreAvis.js'
+import createAgence from './createAgence.js'
+import updateAgent from './updateAgent.js'
+import deleteAgent from './deleteAgent.js'
+import reactivateAgent from './reactivateAgent.js'
+import promouvoirAgent from './promouvoirAgent.js'
+import inviteAgent from './inviteAgent.js'
+import toggleCritereAgence from './toggleCritereAgence.js'
+import createCritere from './createCritere.js'
+import createService from './createService.js'
+import upsertObjectif from './upsertObjectif.js'
+import deleteObjectif from './deleteObjectif.js'
+import createTacheCorrective from './createTacheCorrective.js'
+import updateStatutTache from './updateStatutTache.js'
+import marquerAlerteTraitee from './marquerAlerteTraitee.js'
+import updateGuichetServices from './updateGuichetServices.js'
+import moveCritereToService from './moveCritereToService.js'
+import removeCritereFromService from './removeCritereFromService.js'
+import deleteCritere from './deleteCritere.js'
+import duplicateCritere from './duplicateCritere.js'
+import updateCritere from './updateCritere.js'
+import reorderCriteresInService from './reorderCriteresInService.js'
+import archiverGuichet from './archiverGuichet.js'
+import desarchiverGuichet from './desarchiverGuichet.js'
+import archiverAgence from './archiverAgence.js'
+import desarchiverAgence from './desarchiverAgence.js'
+import archiverAlerte from './archiverAlerte.js'
+import desarchiverAlerte from './desarchiverAlerte.js'
+import archiverTache from './archiverTache.js'
+import desarchiverTache from './desarchiverTache.js'
+import archiverCritere from './archiverCritere.js'
+import desarchiverCritere from './desarchiverCritere.js'
+import creerEntreprise from './creerEntreprise.js'
+import suspendreEntreprise from './suspendreEntreprise.js'
+import reactiverEntreprise from './reactiverEntreprise.js'
+import changerLimitesEntreprise from './changerLimitesEntreprise.js'
+import renvoyerInvitation from './renvoyerInvitation.js'
+import inviterSuperAdmin from './inviterSuperAdmin.js'
+import activerCompte from './activerCompte.js'
+import changerPlatformRole from './changerPlatformRole.js'
+import desactiverComptePlatform from './desactiverComptePlatform.js'
+import setup2fa from './setup2fa.js'
+import activer2fa from './activer2fa.js'
+import verifier2fa from './verifier2fa.js'
+import getAllFilesByUser from './getAllFilesByUser.js'
+import getDownloadFileSignedURL from './getDownloadFileSignedURL.js'
+import getGuichets from './getGuichets.js'
+import getAgents from './getAgents.js'
+import getReponses from './getReponses.js'
+import getAvisGroupes from './getAvisGroupes.js'
+import getStatsFiltrees from './getStatsFiltrees.js'
+import getAgentsByAgence from './getAgentsByAgence.js'
+import getAgences from './getAgences.js'
+import getAlertes from './getAlertes.js'
+import getCriteres from './getCriteres.js'
+import getAgenceCriteres from './getAgenceCriteres.js'
+import getFormDefinitionForGuichet from './getFormDefinitionForGuichet.js'
+import getServices from './getServices.js'
+import getRadarStats from './getRadarStats.js'
+import getObjectifs from './getObjectifs.js'
+import getObjectifsParAgence from './getObjectifsParAgence.js'
+import getTachesCorrectives from './getTachesCorrectives.js'
+import getTacheHistorique from './getTacheHistorique.js'
+import exportAvisGroupes from './exportAvisGroupes.js'
+import getAffectationsDuJour from './getAffectationsDuJour.js'
+import getTendanceMensuelle from './getTendanceMensuelle.js'
+import getStatsByAgent from './getStatsByAgent.js'
+import getStatsByGuichet from './getStatsByGuichet.js'
+import getActionsPrioritaires from './getActionsPrioritaires.js'
+import getKPIsPeriode from './getKPIsPeriode.js'
+import getCriteresParOperation from './getCriteresParOperation.js'
+import getHeatmapReponses from './getHeatmapReponses.js'
+import getComparaisonAgences from './getComparaisonAgences.js'
+import getTempsTraitement from './getTempsTraitement.js'
+import getRechercheGlobale from './getRechercheGlobale.js'
+import getArchives from './getArchives.js'
+import getAIStatus from './getAIStatus.js'
+import getThemesStats from './getThemesStats.js'
+import getPlatformOverview from './getPlatformOverview.js'
+import getPlatformEntreprises from './getPlatformEntreprises.js'
+import getPlatformEntreprise from './getPlatformEntreprise.js'
+import getPlatformAudit from './getPlatformAudit.js'
+import getPlatformMe from './getPlatformMe.js'
+
+const router = express.Router()
+
+router.post('/update-profile', auth, updateProfile)
+router.post('/change-password', auth, changePassword)
+router.post('/change-email', auth, changeEmail)
+router.post('/add-file-to-db', auth, addFileToDb)
+router.post('/create-file-upload-url', auth, createFileUploadUrl)
+router.post('/delete-file', auth, deleteFile)
+router.post('/create-guichet', auth, createGuichet)
+router.post('/assign-agent', auth, assignAgent)
+router.post('/update-affectation-guichet', auth, updateAffectationGuichet)
+router.post('/delete-affectation-guichet', auth, deleteAffectationGuichet)
+router.post('/soumettre-avis', auth, soumettreAvis)
+router.post('/create-agence', auth, createAgence)
+router.post('/update-agent', auth, updateAgent)
+router.post('/delete-agent', auth, deleteAgent)
+router.post('/reactivate-agent', auth, reactivateAgent)
+router.post('/promouvoir-agent', auth, promouvoirAgent)
+router.post('/invite-agent', auth, inviteAgent)
+router.post('/toggle-critere-agence', auth, toggleCritereAgence)
+router.post('/create-critere', auth, createCritere)
+router.post('/create-service', auth, createService)
+router.post('/upsert-objectif', auth, upsertObjectif)
+router.post('/delete-objectif', auth, deleteObjectif)
+router.post('/create-tache-corrective', auth, createTacheCorrective)
+router.post('/update-statut-tache', auth, updateStatutTache)
+router.post('/marquer-alerte-traitee', auth, marquerAlerteTraitee)
+router.post('/update-guichet-services', auth, updateGuichetServices)
+router.post('/move-critere-to-service', auth, moveCritereToService)
+router.post('/remove-critere-from-service', auth, removeCritereFromService)
+router.post('/delete-critere', auth, deleteCritere)
+router.post('/duplicate-critere', auth, duplicateCritere)
+router.post('/update-critere', auth, updateCritere)
+router.post('/reorder-criteres-in-service', auth, reorderCriteresInService)
+router.post('/archiver-guichet', auth, archiverGuichet)
+router.post('/desarchiver-guichet', auth, desarchiverGuichet)
+router.post('/archiver-agence', auth, archiverAgence)
+router.post('/desarchiver-agence', auth, desarchiverAgence)
+router.post('/archiver-alerte', auth, archiverAlerte)
+router.post('/desarchiver-alerte', auth, desarchiverAlerte)
+router.post('/archiver-tache', auth, archiverTache)
+router.post('/desarchiver-tache', auth, desarchiverTache)
+router.post('/archiver-critere', auth, archiverCritere)
+router.post('/desarchiver-critere', auth, desarchiverCritere)
+router.post('/creer-entreprise', auth, creerEntreprise)
+router.post('/suspendre-entreprise', auth, suspendreEntreprise)
+router.post('/reactiver-entreprise', auth, reactiverEntreprise)
+router.post('/changer-limites-entreprise', auth, changerLimitesEntreprise)
+router.post('/renvoyer-invitation', auth, renvoyerInvitation)
+router.post('/inviter-super-admin', auth, inviterSuperAdmin)
+router.post('/activer-compte', auth, activerCompte)
+router.post('/changer-platform-role', auth, changerPlatformRole)
+router.post('/desactiver-compte-platform', auth, desactiverComptePlatform)
+router.post('/setup2fa', auth, setup2fa)
+router.post('/activer2fa', auth, activer2fa)
+router.post('/verifier2fa', auth, verifier2fa)
+router.post('/get-all-files-by-user', auth, getAllFilesByUser)
+router.post('/get-download-file-signed-url', auth, getDownloadFileSignedURL)
+router.post('/get-guichets', auth, getGuichets)
+router.post('/get-agents', auth, getAgents)
+router.post('/get-reponses', auth, getReponses)
+router.post('/get-avis-groupes', auth, getAvisGroupes)
+router.post('/get-stats-filtrees', auth, getStatsFiltrees)
+router.post('/get-agents-by-agence', auth, getAgentsByAgence)
+router.post('/get-agences', auth, getAgences)
+router.post('/get-alertes', auth, getAlertes)
+router.post('/get-criteres', auth, getCriteres)
+router.post('/get-agence-criteres', auth, getAgenceCriteres)
+router.post('/get-form-definition-for-guichet', auth, getFormDefinitionForGuichet)
+router.post('/get-services', auth, getServices)
+router.post('/get-radar-stats', auth, getRadarStats)
+router.post('/get-objectifs', auth, getObjectifs)
+router.post('/get-objectifs-par-agence', auth, getObjectifsParAgence)
+router.post('/get-taches-correctives', auth, getTachesCorrectives)
+router.post('/get-tache-historique', auth, getTacheHistorique)
+router.post('/export-avis-groupes', auth, exportAvisGroupes)
+router.post('/get-affectations-du-jour', auth, getAffectationsDuJour)
+router.post('/get-tendance-mensuelle', auth, getTendanceMensuelle)
+router.post('/get-stats-by-agent', auth, getStatsByAgent)
+router.post('/get-stats-by-guichet', auth, getStatsByGuichet)
+router.post('/get-actions-prioritaires', auth, getActionsPrioritaires)
+router.post('/get-kpis-periode', auth, getKPIsPeriode)
+router.post('/get-criteres-par-operation', auth, getCriteresParOperation)
+router.post('/get-heatmap-reponses', auth, getHeatmapReponses)
+router.post('/get-comparaison-agences', auth, getComparaisonAgences)
+router.post('/get-temps-traitement', auth, getTempsTraitement)
+router.post('/get-recherche-globale', auth, getRechercheGlobale)
+router.post('/get-archives', auth, getArchives)
+router.post('/get-aistatus', auth, getAIStatus)
+router.post('/get-themes-stats', auth, getThemesStats)
+router.post('/get-platform-overview', auth, getPlatformOverview)
+router.post('/get-platform-entreprises', auth, getPlatformEntreprises)
+router.post('/get-platform-entreprise', auth, getPlatformEntreprise)
+router.post('/get-platform-audit', auth, getPlatformAudit)
+router.post('/get-platform-me', auth, getPlatformMe)
+
+export default router

@@ -1,7 +1,9 @@
 node_modules/
 
 # Wasp — artefacts de développement (le build prod est géré par le script deploy)
-.wasp/out/
+.wasp/out/node_modules/
+.wasp/out/sdk/*/node_modules/
+.wasp/out/server/node_modules/
 
 # ── Secrets (JAMAIS commités — voir .env.example pour le template) ──
 .env

@@ -1,0 +1,18 @@
+import { prisma } from 'wasp/server'
+
+import { getObjectifsParAgence } from '../../../../../src/server/queries'
+
+
+export default async function (args, context) {
+  return (getObjectifsParAgence as any)(args, {
+    ...context,
+    entities: {
+      Objectif: prisma.objectif,
+      Critere: prisma.critere,
+      Agence: prisma.agence,
+      User: prisma.user,
+      Reponse: prisma.reponse,
+      Entreprise: prisma.entreprise,
+    },
+  })
+}
