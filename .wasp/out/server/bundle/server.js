@@ -7037,8 +7037,8 @@ async function serveStaticClient({ app }) {
   });
   const anyApp = app;
   const stack = anyApp.router?.stack ?? anyApp._router?.stack;
-  if (Array.isArray(stack) && stack.length >= 2) {
-    const ourLayers = stack.splice(-2);
+  if (Array.isArray(stack) && stack.length >= 3) {
+    const ourLayers = stack.splice(-3);
     const routerIdx = stack.findIndex((l) => l.name === "router");
     stack.splice(routerIdx >= 0 ? routerIdx : 0, 0, ...ourLayers);
     console.log("[static] couches d\xE9plac\xE9es avant le router Wasp");
