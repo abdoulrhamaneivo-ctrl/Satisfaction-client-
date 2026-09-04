@@ -16,6 +16,7 @@ import {
 import { journaliser } from './audit';
 import { emailSender } from 'wasp/server/email';
 import { createUser, createProviderId, sanitizeAndSerializeProviderData, findAuthIdentity, updateAuthIdentityProviderData, getProviderDataWithPassword } from 'wasp/server/auth';
+import { hasEnrolledTotp } from './security/platformMfa';
 
 // ── Plans de référence (Doc 11 §4 — constant code, pas une table) ──
 export const PLANS: Record<string, { agences: number; utilisateurs: number; guichets: number }> = {
@@ -134,6 +135,7 @@ export const creerEntreprise = async (
   context: any
 ) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
 
   // ── Validation zod-like stricte (pas de lib externe, règles locales) ──
   const nomE = args.entreprise?.nom_entreprise?.trim() ?? '';
@@ -467,10 +469,11 @@ export const changerLimitesEntreprise = async (
 };
 
 // ─────────────────────────────────────────────
-// renvoyerInvitation — nouvelle Invitation (l'ancienne expire seule)
+// renvoyerInvitation — nouvelle Invitation (les précédentes sont révoquées)
 // ─────────────────────────────────────────────
-export const renvoyerInvitation = async (args: { id_entreprise: number }, context: any) => {
+export const renvoyerInvitation = async (args: { id_entreprise: number; totpCode?: string }, context: any) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
 
   const entreprise = await context.entities.Entreprise.findUnique({
     where: { id: args.id_entreprise },
@@ -487,6 +490,14 @@ export const renvoyerInvitation = async (args: { id_entreprise: number }, contex
   if (!admin?.email) throw new HttpError(404, "Aucun administrateur avec email trouvé pour cette entreprise.");
 
   const tokenClair = crypto.randomBytes(32).toString('base64url');
+  await context.entities.Invitation.updateMany({
+    where: {
+      id_user: admin.id,
+      id_entreprise: entreprise.id,
+      used_at: null,
+    },
+    data: { used_at: new Date() },
+  });
   await context.entities.Invitation.create({
     data: {
       id_user: admin.id,
@@ -521,10 +532,11 @@ export const renvoyerInvitation = async (args: { id_entreprise: number }, contex
 // Garde : impossible de désactiver/rétrograder le dernier SUPER_ADMIN (S12).
 // ─────────────────────────────────────────────
 export const inviterSuperAdmin = async (
-  args: { email: string; prenom: string; nom: string },
+  args: { email: string; prenom: string; nom: string; totpCode?: string },
   context: any
 ) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
   const email = args.email?.trim().toLowerCase() ?? '';
   if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Email invalide.');
   if (!args.prenom?.trim() || !args.nom?.trim()) {
@@ -757,10 +769,9 @@ import {
 
 /**
  * 2FA ENFORCED (audit ZAP bloc B) : quand le compte a activé sa 2FA
- * (totp_actif=true), toute opération platform sensible exige un code TOTP
- * valide transmis dans args.totpCode. Sans 2FA activée (période de grâce),
- * l'opération passe — le durcissement complet arrivera quand tous les
- * comptes plateforme auront activé leur 2FA.
+ * Toute opération platform sensible exige une 2FA complètement enrôlée et
+ * un code TOTP valide transmis dans args.totpCode. Tant que l'enrôlement
+ * n'est pas terminé, l'opération est bloquée en 428.
  */
 async function exigerTotpSiActif(context: any, args: { totpCode?: string }): Promise<void> {
   // FIX 500 (04/09) : context.entities.User n'existe QUE si « User » est
@@ -772,11 +783,17 @@ async function exigerTotpSiActif(context: any, args: { totpCode?: string }): Pro
     where: { id: context.user.id },
     select: { totp_actif: true, totp_secret: true },
   });
-  if (!compte?.totp_actif || !compte.totp_secret) return;
+  if (!compte || !hasEnrolledTotp(compte)) {
+    throw new HttpError(428, 'Configuration 2FA requise avant toute opération sensible.');
+  }
   if (!args.totpCode) {
     throw new HttpError(428, 'Code 2FA requis pour cette opération sensible.');
   }
-  const secret = dechiffrerSecretTotp(compte.totp_secret);
+  const secretChiffre = compte.totp_secret;
+  if (!secretChiffre) {
+    throw new HttpError(428, 'Configuration 2FA requise avant toute opération sensible.');
+  }
+  const secret = dechiffrerSecretTotp(secretChiffre);
   if (!verifierCodeTotp(args.totpCode, secret)) {
     throw new HttpError(401, 'Code 2FA invalide ou expiré.');
   }
@@ -865,7 +882,7 @@ export const verifier2fa = async (args: { code: string }, context: any) => {
     select: { totp_secret: true, totp_actif: true },
   });
   if (!compte?.totp_actif || !compte.totp_secret) {
-    // 2FA non activée : rien à vérifier (période de grâce avant durcissement)
+    // Le setup/activation reste le seul bootstrap autorisé.
     return { ok: true, deux_fa: false };
   }
 
