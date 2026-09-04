@@ -68,7 +68,7 @@ export const DashboardPage = () => {
 
   // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION ne reçoit pas
   // les réponses brutes — l'API renvoie 403 à getReponses pour elle. On ne
-  // lance donc la query QUE pour les rôles autorisés (CHEF_AGENCE, QUALITE),
+  // lance donc la query QUE pour les rôles autorisés (CHEF_AGENCE),
   // sinon react-query marque la page en erreur et le dashboard casse.
   // La Direction garde tous les agrégats : KPI, tendances, radar, heatmap,
   // comparaisons, thèmes — alimentés par leurs propres queries.
@@ -91,7 +91,7 @@ export const DashboardPage = () => {
   const { data: comparaisonAgences } = useQuery(
     getComparaisonAgences,
     { nbJours: periodeJours },
-    { enabled: estDirection } // requete reservee DIRECTION/QUALITE (403 sinon)
+    { enabled: estDirection } // requete reservee DIRECTION (403 sinon pour les autres roles)
   );
   const { data: tempsTraitement, isLoading: loadingTemps } = useQuery(getTempsTraitement, { nbJours: periodeJours });
   const { data: themesStats, isLoading: loadingThemes } = useQuery(getThemesStats, { nbJours: periodeJours });

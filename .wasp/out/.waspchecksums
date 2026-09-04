@@ -1684,14 +1684,14 @@
             "file",
             "sdk/wasp/src/client/pages/ConfigurationCriteresPage.tsx"
         ],
-        "60f4f37f0e184680f94c89ee8683a36e74624cb5bf0dc91cf2ec38614b4b83f6"
+        "80a3d3ff4f5a1881c9801d8a61baab8d4ce94eb31bdc8fd918d445adf95b09a8"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "fb18142be0b4ac3b38235479239873ad5058f2e9717163c5d57989cc34b5b6e8"
+        "b4e0c590b2778de025722087fc4c37798907692de22d37444fee0f7b7bfdb8bb"
     ],
     [
         [
@@ -2027,7 +2027,7 @@
             "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "4daf9d3da8f1c6e130eb8b3494b638e7db08171e9711afd479977254e15c4869"
+        "8de51ae387bbe8525df03f9b61bd3949bace2499ccba1052cddd5ff8d3cf0048"
     ],
     [
         [
@@ -2139,7 +2139,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "cc4cbad2d1a8c9f9653ebb9c48667e8c117e2dcbbbaa380ea7f1047b03744f54"
+        "8dde468e3590daa09f32f6b1252f9b4d9e7740558005fa8d749d5832d940b674"
     ],
     [
         [

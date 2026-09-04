@@ -421,7 +421,7 @@ export const ConfigurationCriteresPage = () => {
               </form>
             </MotionCard>
 
-            {/* Panneau Objectifs (Module 1 — visible pour DIRECTION et QUALITE) */}
+            {/* Panneau Objectifs (Module 1 — visible pour DIRECTION) */}
             {selectedAgenceId !== undefined && (<ObjectifsPanel selectedAgenceId={selectedAgenceId}/>)}
           </div>
         </div>

@@ -4377,7 +4377,7 @@ const getReponses$2 = async (args, context) => {
   if (context.user.role === "DIRECTION") {
     throw new HttpError(
       403,
-      "Les r\xE9ponses d\xE9taill\xE9es sont r\xE9serv\xE9es aux chefs d'agence et auditeurs qualit\xE9. La Direction dispose des KPI consolid\xE9s, tendances et th\xE8mes agr\xE9g\xE9s."
+      "Les r\xE9ponses d\xE9taill\xE9es sont r\xE9serv\xE9es aux chefs d'agence. La Direction dispose des KPI consolid\xE9s, tendances et th\xE8mes agr\xE9g\xE9s."
     );
   }
   let scopeFilter;

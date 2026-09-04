@@ -717,19 +717,16 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   if (worstScore !== null && worstScore <= 2) {
     // Bug corrigé : `findFirst` avec `role: { in: [...] }` sans `orderBy`
     // renvoyait un destinataire dans un ordre non garanti par la base — si
-    // une agence avait à la fois un CHEF_AGENCE et un compte QUALITE actifs,
-    // celui prévenu d'une note critique dépendait de l'ordre interne de la
-    // base plutôt que d'un choix voulu. On priorise explicitement le chef
-    // d'agence (le mieux placé pour réagir immédiatement sur place), avec
-    // repli sur DIRECTION puis QUALITE — même logique que l'escalade de
-    // silence dans alerteSilence.ts.
+    // renvoyait un destinataire dans un ordre non garanti par la base.
+    // On priorise explicitement le chef d'agence (le mieux placé pour
+    // réagir immédiatement sur place), avec repli sur DIRECTION —
+    // même logique que l'escalade de silence dans alerteSilence.ts.
     const chefAgence = await context.entities.User.findFirst({
       where: { id_agence: guichet.id_agence, role: 'CHEF_AGENCE', actif: true },
     });
-    // DIRECTION/QUALITE sont des rôles à portée ENTREPRISE (toutes les
-    // agences du tenant), jamais une seule agence — voir
-    // rowLevelSecurity.ts. On les cherche donc par id_entreprise, pas par
-    // l'id_agence du guichet.
+    // DIRECTION est un rôle à portée ENTREPRISE (toutes les agences du
+    // tenant), jamais une seule agence — voir rowLevelSecurity.ts. On le
+    // cherche donc par id_entreprise, pas par l'id_agence du guichet.
     const utilisateursEntreprise = chefAgence
       ? []
       : await context.entities.User.findMany({
@@ -1516,7 +1513,7 @@ export const createCritere = async (
 // ============================================================================
 // GLISSER-DÉPOSER DES QUESTIONS SUR LES OPÉRATIONS (type "todo")
 // ============================================================================
-// Permet à la DIRECTION / QUALITE / CHEF_AGENCE de déplacer une question
+// Permet à la DIRECTION / CHEF_AGENCE de déplacer une question
 // (Critere) vers une opération (Service), de la retirer, et de réordonner
 // librement les questions au sein d'une opération, comme une liste de tâches.
 
@@ -2055,7 +2052,7 @@ export const updateStatutTache = async (
   });
   if (!tache) throw new HttpError(404, 'Tâche introuvable.');
 
-  // Bug corrigé : seuls DIRECTION/QUALITE/CHEF_AGENCE pouvaient auparavant
+  // Bug corrigé : seuls DIRECTION/CHEF_AGENCE pouvaient auparavant
   // faire évoluer une tâche — un AGENT auquel une tâche était assignée
   // (cas le plus courant : un chef d'agence délègue l'action corrective à
   // un agent) ne pouvait jamais la faire passer lui-même à "Terminé" et

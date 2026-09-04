@@ -87,7 +87,7 @@ export const getReponses = async (args, context) => {
     // coordonnées). Ce refus est serveur — masquer les cartes côté front ne
     // suffit jamais, l'API est la seule frontière de confiance.
     if (context.user.role === 'DIRECTION') {
-        throw new HttpError(403, "Les réponses détaillées sont réservées aux chefs d'agence et auditeurs qualité. La Direction dispose des KPI consolidés, tendances et thèmes agrégés.");
+        throw new HttpError(403, "Les réponses détaillées sont réservées aux chefs d'agence. La Direction dispose des KPI consolidés, tendances et thèmes agrégés.");
     }
     let scopeFilter;
     if (args.id_agence !== undefined) {
@@ -323,7 +323,7 @@ export const getAgentsByAgence = async (args, context) => {
         orderBy: [{ actif: 'desc' }, { role: 'asc' }, { nom: 'asc' }],
     });
 };
-// Liste les agences DE L'ENTREPRISE de l'utilisateur (DIRECTION/QUALITE
+// Liste les agences DE L'ENTREPRISE de l'utilisateur (DIRECTION
 // uniquement) — jamais toutes les agences de la plateforme.
 export const getAgences = async (_args, context) => {
     requireAuth(context);
@@ -1319,7 +1319,7 @@ export const getTempsTraitement = async (args, context) => {
 // Utilisé par la timeline dans le Kanban pour la traçabilité ARTCI.
 // ============================================================================
 // ============================================================================
-// COMPARAISON INTER-AGENCES (DIRECTION/QUALITE uniquement)
+// COMPARAISON INTER-AGENCES (DIRECTION uniquement)
 // Scores de satisfaction par agence sur la période — c'est LA vue qui
 // différencie le pilotage d'entreprise du pilotage d'agence : la DIRECTION
 // voit quelle agence décroche, le chef d'agence ne voit que la sienne

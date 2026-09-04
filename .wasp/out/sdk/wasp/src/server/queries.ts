@@ -122,7 +122,7 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
   if (context.user.role === 'DIRECTION') {
     throw new HttpError(
       403,
-      "Les réponses détaillées sont réservées aux chefs d'agence et auditeurs qualité. La Direction dispose des KPI consolidés, tendances et thèmes agrégés."
+      "Les réponses détaillées sont réservées aux chefs d'agence. La Direction dispose des KPI consolidés, tendances et thèmes agrégés."
     );
   }
 
@@ -400,7 +400,7 @@ export const getAgentsByAgence = async (args: { id_agence: number }, context: an
   });
 };
 
-// Liste les agences DE L'ENTREPRISE de l'utilisateur (DIRECTION/QUALITE
+// Liste les agences DE L'ENTREPRISE de l'utilisateur (DIRECTION
 // uniquement) — jamais toutes les agences de la plateforme.
 export const getAgences = async (_args: void, context: any) => {
   requireAuth(context);
@@ -1507,7 +1507,7 @@ export const getTempsTraitement = async (args: { nbJours?: number } | void, cont
 // ============================================================================
 
 // ============================================================================
-// COMPARAISON INTER-AGENCES (DIRECTION/QUALITE uniquement)
+// COMPARAISON INTER-AGENCES (DIRECTION uniquement)
 // Scores de satisfaction par agence sur la période — c'est LA vue qui
 // différencie le pilotage d'entreprise du pilotage d'agence : la DIRECTION
 // voit quelle agence décroche, le chef d'agence ne voit que la sienne
