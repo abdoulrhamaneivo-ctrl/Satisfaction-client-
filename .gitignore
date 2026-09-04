@@ -1,4 +1,5 @@
 node_modules/
+.worktrees/
 
 # Wasp — artefacts de développement (le build prod est géré par le script deploy)
 .wasp/out/node_modules/
