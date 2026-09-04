@@ -6996,9 +6996,36 @@ app.use((err, _req, res, next) => {
 const CLIENT_BUILD_DIR = path$1.resolve(process.cwd(), "../web-app/build");
 const SPA_ENTRY = path$1.join(CLIENT_BUILD_DIR, "200.html");
 const API_PREFIXES = ["/operations", "/auth", "/api", "/webhooks"];
+const AUTH_RATE_LIMITS = [
+  { prefixe: "/auth/email/login", capacity: 10, refillPerMinute: 1 },
+  { prefixe: "/auth/email/request-password-reset", capacity: 5, refillPerMinute: 0.5 },
+  { prefixe: "/auth/email/reset-password", capacity: 10, refillPerMinute: 2 },
+  { prefixe: "/auth/email/signup", capacity: 10, refillPerMinute: 2 }
+];
+function ipClient(req) {
+  const fwd = req?.headers?.["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length > 0) return fwd.split(",")[0].trim();
+  return req?.socket?.remoteAddress ?? "inconnue";
+}
 async function serveStaticClient({ app }) {
   app.disable("x-powered-by");
   app.use((req, res, next) => {
+    if (req.method === "POST") {
+      const regle = AUTH_RATE_LIMITS.find((r) => req.path.startsWith(r.prefixe));
+      if (regle) {
+        const verdict = checkRateLimit(`auth:${ipClient(req)}:${regle.prefixe}`, {
+          capacity: regle.capacity,
+          refillPerMinute: regle.refillPerMinute
+        });
+        if (!verdict.allowed) {
+          res.setHeader("Retry-After", String(verdict.retryAfterSeconds));
+          res.status(429).json({
+            message: `Trop de tentatives. R\xE9essayez dans ${verdict.retryAfterSeconds} secondes.`
+          });
+          return;
+        }
+      }
+    }
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

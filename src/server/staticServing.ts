@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Express } from 'express';
 import type { Server } from 'node:http';
+import { checkRateLimit } from './rateLimit';
 
 // Le build Vite est copié dans l'image Docker à ce chemin (Dockerfile.render).
 // process.cwd() = .wasp/out/server → ../web-app/build = .wasp/out/web-app/build
@@ -28,6 +29,26 @@ const API_PREFIXES = ['/operations', '/auth', '/api', '/webhooks'];
 interface ServerSetupContext {
   app: Express;
   server: Server;
+}
+
+// Limites anti brute-force / anti spam sur les routes d'authentification
+// Wasp (le login, le reset et l'inscription sont des routes framework, pas
+// des actions métier — on ne peut donc pas y brancher checkRateLimit comme
+// pour soumettreAvis : c'est ce middleware Express qui les protège).
+// Limites généreuses par IP pour ne jamais bloquer un usage légitime
+// (réseaux NAT partagés), strictes face à un robot.
+const AUTH_RATE_LIMITS: Array<{ prefixe: string; capacity: number; refillPerMinute: number }> = [
+  { prefixe: '/auth/email/login', capacity: 10, refillPerMinute: 1 },
+  { prefixe: '/auth/email/request-password-reset', capacity: 5, refillPerMinute: 0.5 },
+  { prefixe: '/auth/email/reset-password', capacity: 10, refillPerMinute: 2 },
+  { prefixe: '/auth/email/signup', capacity: 10, refillPerMinute: 2 },
+];
+
+/** IP réelle derrière Render + Cloudflare (x-forwarded-for écrasé par le proxy). */
+function ipClient(req: any): string {
+  const fwd = req?.headers?.['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd.length > 0) return fwd.split(',')[0].trim();
+  return req?.socket?.remoteAddress ?? 'inconnue';
 }
 
 export async function serveStaticClient({ app }: ServerSetupContext): Promise<void> {
@@ -43,6 +64,25 @@ export async function serveStaticClient({ app }: ServerSetupContext): Promise<vo
   //  - X-Powered-By supprimé (divulgation de technologie inutile).
   app.disable('x-powered-by');
   app.use((req, res, next) => {
+    // ANTI BRUTE-FORCE (audit) : les routes d'auth Wasp sont limitées par IP
+    // avant tout traitement — un robot qui mitraille le login ou le reset
+    // reçoit 429 avec Retry-After au lieu de frapper la base et SendGrid.
+    if (req.method === 'POST') {
+      const regle = AUTH_RATE_LIMITS.find((r) => req.path.startsWith(r.prefixe));
+      if (regle) {
+        const verdict = checkRateLimit(`auth:${ipClient(req)}:${regle.prefixe}`, {
+          capacity: regle.capacity,
+          refillPerMinute: regle.refillPerMinute,
+        });
+        if (!verdict.allowed) {
+          res.setHeader('Retry-After', String(verdict.retryAfterSeconds));
+          res.status(429).json({
+            message: `Trop de tentatives. Réessayez dans ${verdict.retryAfterSeconds} secondes.`,
+          });
+          return;
+        }
+      }
+    }
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; " +
