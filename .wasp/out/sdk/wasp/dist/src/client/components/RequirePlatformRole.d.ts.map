@@ -1,0 +1,1 @@
+{"version":3,"file":"RequirePlatformRole.d.ts","sourceRoot":"","sources":["../../../../src/client/components/RequirePlatformRole.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAK1B,UAAU,wBAAwB;IAChC,QAAQ,EAAE,KAAK,CAAC,SAAS,CAAC;CAC3B;AAED;;;;;;;GAOG;AACH,wBAAgB,mBAAmB,CAAC,EAAE,QAAQ,EAAE,EAAE,wBAAwB,qBAwBzE"}

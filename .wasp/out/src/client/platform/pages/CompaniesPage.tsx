@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { RequirePlatformRole } from '../../components/RequirePlatformRole'
 import { Link } from 'react-router'
 import { useQuery } from 'wasp/client/operations'
 import { getPlatformEntreprises } from 'wasp/client/operations'
@@ -7,6 +8,14 @@ import { StatusChip, PlanChip } from './PlatformOverviewPage'
 
 /** Liste des entreprises clientes (Doc 12 §4). Cartes, pas de tableau Bootstrap. */
 export default function CompaniesPage() {
+  return (
+    <RequirePlatformRole>
+      <CompaniesInner />
+    </RequirePlatformRole>
+  )
+}
+
+function CompaniesInner() {
   const [search, setSearch] = useState('')
   const [searchDebounced, setSearchDebounced] = useState('')
   const [status, setStatus] = useState('')

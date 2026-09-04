@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { RequirePlatformRole } from '../../components/RequirePlatformRole'
 import { Link, useNavigate } from 'react-router'
 import { useQuery, useAction } from 'wasp/client/operations'
 import {
@@ -31,6 +32,14 @@ const ACTION_LABELS: Record<string, string> = {
 
 /** Détail d'une entreprise cliente (Doc 12 §5). */
 export default function CompanyDetailsPage({ id }: { id: number | string }) {
+  return (
+    <RequirePlatformRole>
+      <CompanyDetailsInner id={id} />
+    </RequirePlatformRole>
+  )
+}
+
+function CompanyDetailsInner({ id }: { id: number | string }) {
   const navigate = useNavigate()
   // Le segment d'URL :id arrive en texte — normaliser avant la requête.
   const idEntreprise = Number(id)

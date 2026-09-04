@@ -1,4 +1,5 @@
 import { useQuery } from 'wasp/client/operations';
+import { RequirePlatformRole } from '../../components/RequirePlatformRole';
 import { getPlatformOverview } from 'wasp/client/operations';
 import { Link } from 'react-router';
 import { Building2, Users, MessageSquare, CheckCircle2, PauseCircle, Plus, ArrowRight } from 'lucide-react';
@@ -26,6 +27,11 @@ export function PlanChip({ plan }) {
 }
 /** Page d'accueil de la console (Doc 12 §3). */
 export default function PlatformOverviewPage() {
+    return (<RequirePlatformRole>
+      <PlatformOverviewInner />
+    </RequirePlatformRole>);
+}
+function PlatformOverviewInner() {
     const { data, isLoading } = useQuery(getPlatformOverview);
     if (isLoading || !data) {
         return <div className="grid min-h-[60vh] place-items-center text-sm text-muted-foreground">Chargement…</div>;

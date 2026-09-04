@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RequirePlatformRole } from '../../components/RequirePlatformRole';
 import { Link, useNavigate } from 'react-router';
 import { useAction } from 'wasp/client/operations';
 import { creerEntreprise } from 'wasp/client/operations';
@@ -13,6 +14,11 @@ const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-border bg-backgrou
 const labelCls = 'block text-xs font-black uppercase tracking-widest text-muted-foreground';
 /** Wizard de création d'entreprise (Doc 12 §6) — 4 étapes, rien créé avant la fin. */
 export default function CreateCompanyPage() {
+    return (<RequirePlatformRole>
+      <CreateCompanyInner />
+    </RequirePlatformRole>);
+}
+function CreateCompanyInner() {
     const navigate = useNavigate();
     const creer = useAction(creerEntreprise);
     const [etape, setEtape] = useState(0);

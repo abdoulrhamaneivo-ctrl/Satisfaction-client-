@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { RequirePlatformRole } from '../../components/RequirePlatformRole'
 import { useQuery } from 'wasp/client/operations'
 import { getPlatformAudit } from 'wasp/client/operations'
 import { ScrollText, Filter } from 'lucide-react'
@@ -29,6 +30,14 @@ const ACTIONS_FILTRE = [
 
 /** Journal d'audit global (Doc 12 §1 — /platform/audit). */
 export default function AuditLogsPage() {
+  return (
+    <RequirePlatformRole>
+      <AuditLogsInner />
+    </RequirePlatformRole>
+  )
+}
+
+function AuditLogsInner() {
   const [action, setAction] = useState('')
   const [actionDebounced, setActionDebounced] = useState('')
 

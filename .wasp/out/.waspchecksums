@@ -1339,6 +1339,13 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/components/RequirePlatformRole.tsx"
+        ],
+        "de98e132429c67f2c7ac81f37f71b977b9f2fc286bec62944b63034157149775"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/components/Sidebar.tsx"
         ],
         "5a598b79093f97fd3253d92b8ac43f4f2d9dac0f10f3d4f5d5a32cd161967c14"
@@ -1754,42 +1761,42 @@
             "file",
             "sdk/wasp/src/client/platform/pages/AuditLogsPage.tsx"
         ],
-        "08d2cd2e82c3ecaa829c2ca8ebca3e7c1322472a8f545df4eb2bc5f9028bf9b9"
+        "8fbad02f6d4efe0bbccb58604e2df269de4593d87a7e5fe68c0eb3cbb8b470ab"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/CompaniesPage.tsx"
         ],
-        "daca7b87bd5cc02ff7529b8781b686304bb097f9a9044fbb2d05cb87f555cc41"
+        "7b701912a2fb20d21b07b413884f933ac9f43e166441cf8a10aaab63b32a0352"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/CompanyDetailsPage.tsx"
         ],
-        "ec8f3109a55d793fc35f3f77dffa5ee8b5928936b236a9bfce442e66eb5d81a0"
+        "f8afb376c325cdd50b592e79228cc00d64cd9f5b7e640e2f47bdf4227388bf19"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/CreateCompanyPage.tsx"
         ],
-        "34b89cf231e2188ad6123a2e6bd85ce99a3bd33b8272c7eb0670cf863e780666"
+        "7764cbd6d0fbaaac57eca0c2cffc8b7da2799c14837dc4858c1bdb9e5eb824ed"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/PlatformOverviewPage.tsx"
         ],
-        "92de27ae9d917050c9255f31050a1ca12eb4a42c9e2819e3e7888aa7e3133442"
+        "e8b6ced9b2263d28768b033db416722d212247fc4951f4b8abd24cb6acb1973a"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/SecurityPage.tsx"
         ],
-        "44e519cd244d67e8a07ae65688193f7885df80cbacfdb215772d34cdcf556a6a"
+        "822035f59bf42e333deb8c3c1d30532504d86dc5dc4c7fce4b5e80565f5c2f93"
     ],
     [
         [

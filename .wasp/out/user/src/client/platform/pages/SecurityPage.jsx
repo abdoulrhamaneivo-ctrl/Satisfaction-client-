@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RequirePlatformRole } from '../../components/RequirePlatformRole';
 import { useQuery, useAction } from 'wasp/client/operations';
 import { getPlatformMe, inviterSuperAdmin } from 'wasp/client/operations';
 import { ShieldCheck, UserPlus, Loader2, CheckCircle2, AlertTriangle, Lock, KeyRound, Timer } from 'lucide-react';
@@ -8,6 +9,11 @@ import { ShieldCheck, UserPlus, Loader2, CheckCircle2, AlertTriangle, Lock, KeyR
  * P3 (futur) : 2FA, gestion des sessions, rate limiting.
  */
 export default function SecurityPage() {
+    return (<RequirePlatformRole>
+      <SecurityInner />
+    </RequirePlatformRole>);
+}
+function SecurityInner() {
     const { data: me } = useQuery(getPlatformMe);
     const inviter = useAction(inviterSuperAdmin);
     const [email, setEmail] = useState('');
