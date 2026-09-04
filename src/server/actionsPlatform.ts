@@ -16,7 +16,7 @@ import {
 import { journaliser } from './audit';
 import { emailSender } from 'wasp/server/email';
 import { createUser, createProviderId, sanitizeAndSerializeProviderData, findAuthIdentity, updateAuthIdentityProviderData, getProviderDataWithPassword } from 'wasp/server/auth';
-import { hasEnrolledTotp } from './security/platformMfa';
+import { canActivateTotpSetup, canStartTotpSetup, hasEnrolledTotp } from './security/platformMfa';
 
 // ── Plans de référence (Doc 11 §4 — constant code, pas une table) ──
 export const PLANS: Record<string, { agences: number; utilisateurs: number; guichets: number }> = {
@@ -130,7 +130,7 @@ export const creerEntreprise = async (
     limite_agences: number;
     limite_utilisateurs: number;
     limite_guichets: number;
-    totpCode?: string;
+    totpCode: string;
   },
   context: any
 ) => {
@@ -347,7 +347,7 @@ export const creerEntreprise = async (
 // suspendreEntreprise / reactiverEntreprise
 // ─────────────────────────────────────────────
 export const suspendreEntreprise = async (
-  args: { id_entreprise: number; motif: string ; totpCode?: string },
+  args: { id_entreprise: number; motif: string ; totpCode: string },
   context: any
 ) => {
   requireSuperAdmin(context);
@@ -380,7 +380,7 @@ export const suspendreEntreprise = async (
   return { ok: true, message: `Entreprise suspendue. Tous ses comptes sont bloqués immédiatement.` };
 };
 
-export const reactiverEntreprise = async (args: { id_entreprise: number ; totpCode?: string }, context: any) => {
+export const reactiverEntreprise = async (args: { id_entreprise: number ; totpCode: string }, context: any) => {
   requireSuperAdmin(context);
   await exigerTotpSiActif(context, args as { totpCode?: string });
   const entreprise = await context.entities.Entreprise.findUnique({ where: { id: args.id_entreprise } });
@@ -415,7 +415,7 @@ export const changerLimitesEntreprise = async (
     limite_utilisateurs?: number;
     limite_guichets?: number;
     plan?: string;
-    totpCode?: string;
+    totpCode: string;
   },
   context: any
 ) => {
@@ -471,7 +471,7 @@ export const changerLimitesEntreprise = async (
 // ─────────────────────────────────────────────
 // renvoyerInvitation — nouvelle Invitation (les précédentes sont révoquées)
 // ─────────────────────────────────────────────
-export const renvoyerInvitation = async (args: { id_entreprise: number; totpCode?: string }, context: any) => {
+export const renvoyerInvitation = async (args: { id_entreprise: number; totpCode: string }, context: any) => {
   requireSuperAdmin(context);
   await exigerTotpSiActif(context, args);
 
@@ -490,22 +490,28 @@ export const renvoyerInvitation = async (args: { id_entreprise: number; totpCode
   if (!admin?.email) throw new HttpError(404, "Aucun administrateur avec email trouvé pour cette entreprise.");
 
   const tokenClair = crypto.randomBytes(32).toString('base64url');
-  await context.entities.Invitation.updateMany({
-    where: {
-      id_user: admin.id,
-      id_entreprise: entreprise.id,
-      used_at: null,
-    },
-    data: { used_at: new Date() },
-  });
-  await context.entities.Invitation.create({
-    data: {
-      id_user: admin.id,
-      id_emetteur: context.user.id,
-      id_entreprise: entreprise.id,
-      token_hash: sha256(tokenClair),
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    },
+  // PostgreSQL advisory lock : deux renvois concurrents pour le même compte
+  // sont sérialisés, de sorte que le dernier token créé est le seul utilisable.
+  const invitationLockKey = `${admin.email.trim().toLowerCase()}:${entreprise.id}`;
+  await prisma.$transaction(async (tx: any) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${invitationLockKey}, 0))`;
+    await tx.invitation.updateMany({
+      where: {
+        id_user: admin.id,
+        id_entreprise: entreprise.id,
+        used_at: null,
+      },
+      data: { used_at: new Date() },
+    });
+    await tx.invitation.create({
+      data: {
+        id_user: admin.id,
+        id_emetteur: context.user.id,
+        id_entreprise: entreprise.id,
+        token_hash: sha256(tokenClair),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
   });
 
   await envoyerEmailActivation({
@@ -532,7 +538,7 @@ export const renvoyerInvitation = async (args: { id_entreprise: number; totpCode
 // Garde : impossible de désactiver/rétrograder le dernier SUPER_ADMIN (S12).
 // ─────────────────────────────────────────────
 export const inviterSuperAdmin = async (
-  args: { email: string; prenom: string; nom: string; totpCode?: string },
+  args: { email: string; prenom: string; nom: string; totpCode: string },
   context: any
 ) => {
   requireSuperAdmin(context);
@@ -620,6 +626,20 @@ export const activerCompte = async (
 
   // Transaction : poser le mot de passe + marquer l'invitation utilisée
   await prisma.$transaction(async (tx: any) => {
+    const claimedAt = new Date();
+    const claimed = await tx.invitation.updateMany({
+      where: {
+        id: invitation.id,
+        token_hash: tokenHash,
+        used_at: null,
+        expires_at: { gt: claimedAt },
+      },
+      data: { used_at: claimedAt },
+    });
+    if (claimed.count !== 1) {
+      throw new HttpError(409, "Ce lien d'activation est invalide ou a déjà été utilisé.");
+    }
+
     // FIX 03/09 : tx.auth n'existe pas (aucun modèle Auth dans le schéma)
     // → 500 systématique. On utilise l'API Wasp findAuthIdentity /
     // updateAuthIdentityProviderData (hors transaction — chaque update est
@@ -644,11 +664,6 @@ export const activerCompte = async (
       data: { mustChangePassword: false },
     });
 
-    await tx.invitation.update({
-      where: { id: invitation.id },
-      data: { used_at: new Date() },
-    });
-
     await tx.auditLog.create({
       data: {
         actor_id: invitation.id_user,
@@ -670,7 +685,7 @@ export const activerCompte = async (
 // sinon la console devient définitivement inaccessible.
 // ─────────────────────────────────────────────
 export const changerPlatformRole = async (
-  args: { id_user_cible: string; nouveauRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE' ; totpCode?: string },
+  args: { id_user_cible: string; nouveauRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE' ; totpCode: string },
   context: any
 ) => {
   requireSuperAdmin(context);
@@ -713,7 +728,7 @@ export const changerPlatformRole = async (
   return { ok: true, message: `Rôle plateforme mis à jour : ${args.nouveauRole}.` };
 };
 
-export const desactiverComptePlatform = async (args: { id_user_cible: string ; totpCode?: string }, context: any) => {
+export const desactiverComptePlatform = async (args: { id_user_cible: string ; totpCode: string }, context: any) => {
   requireSuperAdmin(context);
   await exigerTotpSiActif(context, args as { totpCode?: string });
 
@@ -807,6 +822,14 @@ async function exigerTotpSiActif(context: any, args: { totpCode?: string }): Pro
 export const setup2fa = async (_args: void, context: any) => {
   requireSuperAdmin(context);
 
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_actif: true, totp_secret: true },
+  });
+  if (compte && !canStartTotpSetup(compte)) {
+    throw new HttpError(409, 'La 2FA est déjà activée. Utilisez un code valide pour toute opération sensible.');
+  }
+
   const secret = genererSecretTotp();
   await context.entities.User.update({
     where: { id: context.user.id },
@@ -840,9 +863,12 @@ export const activer2fa = async (args: { code: string }, context: any) => {
 
   const compte = await context.entities.User.findUnique({
     where: { id: context.user.id },
-    select: { totp_secret: true },
+    select: { totp_actif: true, totp_secret: true },
   });
-  if (!compte?.totp_secret) {
+  if (compte?.totp_actif) {
+    throw new HttpError(409, 'La 2FA est déjà activée.');
+  }
+  if (!compte || !canActivateTotpSetup(compte)) {
     throw new HttpError(400, "Aucun setup 2FA en cours. Appelez d'abord setup2fa.");
   }
 
