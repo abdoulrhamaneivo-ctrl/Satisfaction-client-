@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { RequirePlatformRole } from '../../components/RequirePlatformRole'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { useQuery, useAction } from 'wasp/client/operations'
 import {
   getPlatformEntreprise, suspendreEntreprise, reactiverEntreprise,
@@ -31,15 +31,18 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 /** Détail d'une entreprise cliente (Doc 12 §5). */
-export default function CompanyDetailsPage({ id }: { id: number | string }) {
+export default function CompanyDetailsPage(props: { id?: number | string }) {
+  // Wasp 0.24 ne passe PAS les params de route en props — il faut useParams.
+  const params = useParams<{ id: string }>()
+  const rawId = props.id ?? params.id
   return (
     <RequirePlatformRole>
-      <CompanyDetailsInner id={id} />
+      <CompanyDetailsInner id={rawId} />
     </RequirePlatformRole>
   )
 }
 
-function CompanyDetailsInner({ id }: { id: number | string }) {
+function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
   const navigate = useNavigate()
   // Le segment d'URL :id arrive en texte — normaliser avant la requête.
   const idEntreprise = Number(id)

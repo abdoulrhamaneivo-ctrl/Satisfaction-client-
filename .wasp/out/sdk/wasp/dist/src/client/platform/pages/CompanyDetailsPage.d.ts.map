@@ -1,1 +1,1 @@
-{"version":3,"file":"CompanyDetailsPage.d.ts","sourceRoot":"","sources":["../../../../../src/client/platform/pages/CompanyDetailsPage.tsx"],"names":[],"mappings":"AAgCA,mDAAmD;AACnD,MAAM,CAAC,OAAO,UAAU,kBAAkB,CAAC,EAAE,EAAE,EAAE,EAAE;IAAE,EAAE,EAAE,MAAM,GAAG,MAAM,CAAA;CAAE,+BAMzE"}
+{"version":3,"file":"CompanyDetailsPage.d.ts","sourceRoot":"","sources":["../../../../../src/client/platform/pages/CompanyDetailsPage.tsx"],"names":[],"mappings":"AAgCA,mDAAmD;AACnD,MAAM,CAAC,OAAO,UAAU,kBAAkB,CAAC,KAAK,EAAE;IAAE,EAAE,CAAC,EAAE,MAAM,GAAG,MAAM,CAAA;CAAE,+BASzE"}

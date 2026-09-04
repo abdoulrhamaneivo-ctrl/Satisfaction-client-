@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { RequirePlatformRole } from '../../components/RequirePlatformRole';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery, useAction } from 'wasp/client/operations';
 import { getPlatformEntreprise, suspendreEntreprise, reactiverEntreprise, renvoyerInvitation, changerLimitesEntreprise, } from 'wasp/client/operations';
 import { ArrowLeft, Building2, Users, MapPin, MessageSquare, AlertTriangle, MailCheck, Clock, PauseCircle, PlayCircle, Pencil, Mail, Activity, X, Check, } from 'lucide-react';
@@ -20,9 +20,12 @@ const ACTION_LABELS = {
     'invitation.create': 'a envoyé une invitation',
 };
 /** Détail d'une entreprise cliente (Doc 12 §5). */
-export default function CompanyDetailsPage({ id }) {
+export default function CompanyDetailsPage(props) {
+    // Wasp 0.24 ne passe PAS les params de route en props — il faut useParams.
+    const params = useParams();
+    const rawId = props.id ?? params.id;
     return (<RequirePlatformRole>
-      <CompanyDetailsInner id={id}/>
+      <CompanyDetailsInner id={rawId}/>
     </RequirePlatformRole>);
 }
 function CompanyDetailsInner({ id }) {
