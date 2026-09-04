@@ -14,6 +14,9 @@ import {
   Search,
   LogOut,
   ShieldCheck,
+  PlusCircle,
+  ScrollText,
+  Lock,
 } from 'lucide-react';
 import { useAuth, logout } from 'wasp/client/auth';
 import { useBrand } from '../context/BrandContext';
@@ -115,9 +118,21 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
 
           <div className="space-y-1">
             <span className="block px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
-              Plateforme
+              Pilotage
             </span>
-            <NavItem to="/platform" icon={ShieldCheck} label="Console Platform" isActive={isCurrent('/platform')} onNavigate={onNavigate} />
+            <NavItem to="/platform" icon={LayoutDashboard} label="Vue d'ensemble" isActive={location.pathname === '/platform'} onNavigate={onNavigate} />
+            <NavItem to="/platform/entreprises" icon={Building2} label="Entreprises" isActive={isCurrent('/platform/entreprises')} onNavigate={onNavigate} />
+            {platformRole === 'SUPER_ADMIN' && (
+              <NavItem to="/platform/entreprises/nouvelle" icon={PlusCircle} label="Nouvelle entreprise" isActive={isCurrent('/platform/entreprises/nouvelle')} onNavigate={onNavigate} />
+            )}
+          </div>
+
+          <div className="pt-2 space-y-1">
+            <span className="block px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+              Supervision
+            </span>
+            <NavItem to="/platform/audit" icon={ScrollText} label="Journal d'audit" isActive={isCurrent('/platform/audit')} onNavigate={onNavigate} />
+            <NavItem to="/platform/securite" icon={Lock} label="Sécurité" isActive={isCurrent('/platform/securite')} onNavigate={onNavigate} />
           </div>
         </div>
 
@@ -141,8 +156,8 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
               <button
                 type="button"
                 onClick={() => logout()}
-                title="Se deconnecter"
-                aria-label="Se deconnecter"
+                title="Se déconnecter"
+                aria-label="Se déconnecter"
                 className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 <LogOut className="size-4" aria-hidden />
