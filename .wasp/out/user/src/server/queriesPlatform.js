@@ -121,8 +121,14 @@ export const getPlatformEntreprises = async (args, context) => {
 // ─────────────────────────────────────────────
 export const getPlatformEntreprise = async (args, context) => {
     requirePlatformRole(context, ['SUPER_ADMIN', 'SUPPORT']);
+    // L'id vient du segment d'URL (:id) donc arrive en texte — normaliser en
+    // nombre, sinon Prisma cherche un Int avec un string et ne trouve jamais.
+    const id = Number(args?.id);
+    if (!Number.isInteger(id)) {
+        throw new HttpError(400, 'Identifiant entreprise invalide.');
+    }
     const entreprise = await context.entities.Entreprise.findUnique({
-        where: { id: args.id },
+        where: { id },
         select: {
             id: true,
             nom_entreprise: true,

@@ -1768,7 +1768,7 @@
             "file",
             "sdk/wasp/src/client/platform/pages/CompanyDetailsPage.tsx"
         ],
-        "d55dcd101c0e35bfc57302876c675af17e1955bdc04986821ebd5c2cbbc5d054"
+        "ec8f3109a55d793fc35f3f77dffa5ee8b5928936b236a9bfce442e66eb5d81a0"
     ],
     [
         [
@@ -2146,7 +2146,7 @@
             "file",
             "sdk/wasp/src/server/queriesPlatform.ts"
         ],
-        "52df5b367eabc7623bfd18f81ee8adf013dc52d533f2384cb709bed914f5bb8f"
+        "cf75a77c64a5ae9443f03c133ac70565200d83b78a8f6e8b9ae840458b7587cf"
     ],
     [
         [

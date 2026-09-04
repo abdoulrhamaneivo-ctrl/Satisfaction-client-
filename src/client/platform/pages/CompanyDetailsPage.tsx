@@ -30,9 +30,12 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 /** Détail d'une entreprise cliente (Doc 12 §5). */
-export default function CompanyDetailsPage({ id }: { id: number }) {
+export default function CompanyDetailsPage({ id }: { id: number | string }) {
   const navigate = useNavigate()
-  const { data: e, isLoading, error } = useQuery(getPlatformEntreprise, { id })
+  // Le segment d'URL :id arrive en texte — normaliser avant la requête.
+  const idEntreprise = Number(id)
+  const queryArgs = Number.isInteger(idEntreprise) ? { id: idEntreprise } : { id: -1 }
+  const { data: e, isLoading, error } = useQuery(getPlatformEntreprise, queryArgs)
   const suspendre = useAction(suspendreEntreprise)
   const reactiver = useAction(reactiverEntreprise)
   const renvoyerInvitationFn = useAction(renvoyerInvitation)

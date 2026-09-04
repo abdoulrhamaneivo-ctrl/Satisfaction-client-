@@ -6342,8 +6342,12 @@ const getPlatformEntreprises$2 = async (args, context) => {
 };
 const getPlatformEntreprise$2 = async (args, context) => {
   requirePlatformRole(context, ["SUPER_ADMIN", "SUPPORT"]);
+  const id = Number(args?.id);
+  if (!Number.isInteger(id)) {
+    throw new HttpError(400, "Identifiant entreprise invalide.");
+  }
   const entreprise = await context.entities.Entreprise.findUnique({
-    where: { id: args.id },
+    where: { id },
     select: {
       id: true,
       nom_entreprise: true,
