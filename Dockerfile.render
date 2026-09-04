@@ -25,4 +25,4 @@ RUN chmod +x /app/scripts-render/start-render.sh
 
 EXPOSE 10000
 WORKDIR /app/.wasp/out/server
-ENTRYPOINT ["bash", "/app/scripts-render/start-render.sh"]
+ENTRYPOINT ["sh", "/app/scripts-render/start-render.sh"]
