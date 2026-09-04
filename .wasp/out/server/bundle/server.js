@@ -3975,7 +3975,7 @@ const desactiverComptePlatform$2 = async (args, context) => {
   return { ok: true, message: "Compte d\xE9sactiv\xE9." };
 };
 async function exigerTotpSiActif(context, args) {
-  const compte = await context.entities.User.findUnique({
+  const compte = await dbClient.user.findUnique({
     where: { id: context.user.id },
     select: { totp_actif: true, totp_secret: true }
   });

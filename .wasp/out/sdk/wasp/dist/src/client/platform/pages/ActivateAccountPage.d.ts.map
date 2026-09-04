@@ -1,1 +1,1 @@
-{"version":3,"file":"ActivateAccountPage.d.ts","sourceRoot":"","sources":["../../../../../src/client/platform/pages/ActivateAccountPage.tsx"],"names":[],"mappings":"AAQA;;;;GAIG;AACH,MAAM,CAAC,OAAO,UAAU,mBAAmB,gCAyH1C"}
+{"version":3,"file":"ActivateAccountPage.d.ts","sourceRoot":"","sources":["../../../../../src/client/platform/pages/ActivateAccountPage.tsx"],"names":[],"mappings":"AAQA;;;;;;;;;GASG;AACH,MAAM,CAAC,OAAO,UAAU,mBAAmB,gCA2H1C"}

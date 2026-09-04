@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router';
+import { Link, useParams, useSearchParams, useNavigate } from 'react-router';
 import { useAction } from 'wasp/client/operations';
 import { activerCompte } from 'wasp/client/operations';
 import { Card } from '../../components/ds';
@@ -9,9 +9,16 @@ import { CheckCircle2, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react'
  * Page publique d'activation de compte via le lien de l'email d'invitation
  * (Doc 12 §7.2). Le token en clair va dans l'URL ; le serveur vérifie le
  * hash, l'expiration et l'usage unique avant de poser le mot de passe.
+ *
+ * FIX 04/09 : l'email génère `?token=...` (QUERY param) alors que la page
+ * le lisait via useParams (paramètre de CHEMIN, toujours undefined) —
+ * le bouton d'activation ne pouvait jamais s'activer. On lit maintenant
+ * les search params, avec repli sur les path params par robustesse.
  */
 export default function ActivateAccountPage() {
-    const { token } = useParams();
+    const params = useParams();
+    const [search] = useSearchParams();
+    const token = search.get('token') ?? params.token ?? undefined;
     const navigate = useNavigate();
     const activer = useAction(activerCompte);
     const [motDePasse, setMotDePasse] = useState('');

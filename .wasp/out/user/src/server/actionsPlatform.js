@@ -646,7 +646,12 @@ import { genererSecretTotp, urlOtpauth, verifierCodeTotp, chiffrerSecretTotp, de
  * comptes plateforme auront activé leur 2FA.
  */
 async function exigerTotpSiActif(context, args) {
-    const compte = await context.entities.User.findUnique({
+    // FIX 500 (04/09) : context.entities.User n'existe QUE si « User » est
+    // déclaré dans les entities de l'action (main.wasp.ts). suspendre /
+    // reactiver / changerLimites ne déclarent que [Entreprise, AuditLog] →
+    // undefined.findUnique → 500 sur TOUTE suspension. On utilise le client
+    // Prisma global, indépendant des entities déclarées.
+    const compte = await prisma.user.findUnique({
         where: { id: context.user.id },
         select: { totp_actif: true, totp_secret: true },
     });
