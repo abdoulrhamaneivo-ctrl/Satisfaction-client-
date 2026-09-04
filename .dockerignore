@@ -1,0 +1,7 @@
+node_modules
+.git
+hermes*
+*.zip
+.env*
+!.env.example
+!.env.client.example

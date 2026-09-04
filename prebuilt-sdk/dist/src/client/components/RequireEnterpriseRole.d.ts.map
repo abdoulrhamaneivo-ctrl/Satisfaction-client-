@@ -1,1 +1,0 @@
-{"version":3,"file":"RequireEnterpriseRole.d.ts","sourceRoot":"","sources":["../../../../src/client/components/RequireEnterpriseRole.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAI1B,UAAU,0BAA0B;IAClC,QAAQ,EAAE,KAAK,CAAC,SAAS,CAAC;CAC3B;AAED;;;;;;;;;GASG;AACH,wBAAgB,qBAAqB,CAAC,EAAE,QAAQ,EAAE,EAAE,0BAA0B,qBAuB7E"}

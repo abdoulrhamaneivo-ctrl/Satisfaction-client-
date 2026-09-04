@@ -30,3 +30,9 @@ Thumbs.db
 .env.local.old
 .env.old-root
 .railway-proxy.cjs
+# Ménage 04/09 : archives, backups env, doublons build
+*.zip
+.env.old-root
+.env.local.old
+prebuilt-sdk/
+.railway-proxy.cjs

@@ -1,4 +1,0 @@
-type SetValue<T> = T | ((val: T) => T);
-export declare function useLocalStorage<T>(key: string, initialValue: T): [T, (value: SetValue<T>) => void];
-export {};
-//# sourceMappingURL=useLocalStorage.d.ts.map
