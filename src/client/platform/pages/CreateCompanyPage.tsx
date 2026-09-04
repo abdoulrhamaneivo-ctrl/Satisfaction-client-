@@ -32,6 +32,7 @@ function CreateCompanyInner() {
   const [etape, setEtape] = useState(0)
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [conflitId, setConflitId] = useState<number | null>(null)
   const [succes, setSucces] = useState<{ id_entreprise: number; email_envoye: boolean; message?: string } | null>(null)
 
   const [form, setForm] = useState<{
@@ -64,7 +65,7 @@ function CreateCompanyInner() {
   const planCourant = PLANS.find((p) => p.id === form.plan) ?? PLANS[1]
 
   async function soumettre() {
-    setEnvoi(true); setErreur(null)
+    setEnvoi(true); setErreur(null); setConflitId(null)
     try {
       const r = await creer({
         entreprise: {
@@ -87,7 +88,22 @@ function CreateCompanyInner() {
       })
       setSucces({ id_entreprise: r.entreprise.id, email_envoye: r.email_envoye, message: (r as any).message })
     } catch (e: any) {
-      setErreur(e?.message ?? 'Erreur inconnue.')
+      // 409 avec entreprise_id = une première tentative avait en fait réussi
+      // (timeout navigateur pendant que le serveur créait). On propose la
+      // fiche existante au lieu d'une impasse.
+      // NB : Wasp enveloppe l'erreur — le payload peut arriver sous
+      // e.data.entreprise_id OU e.data.data.entreprise_id selon la couche.
+      const payload = (e as any)?.data;
+      const idExistant =
+        typeof payload === 'number'
+          ? payload
+          : (payload?.entreprise_id ?? payload?.data?.entreprise_id);
+      if (typeof idExistant === 'number') {
+        setConflitId(idExistant);
+        setErreur('Cette adresse email est déjà utilisée — l\u2019entreprise a probablement été créée lors d\u2019une tentative précédente.');
+      } else {
+        setErreur(e?.message ?? 'Erreur inconnue.');
+      }
     } finally {
       setEnvoi(false)
     }
@@ -163,8 +179,16 @@ function CreateCompanyInner() {
       </ol>
 
       {erreur && (
-        <div className="flex items-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">
-          <AlertIcon /> {erreur}
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">
+          <span className="flex items-center gap-2"><AlertIcon /> {erreur}</span>
+          {conflitId !== null && (
+            <Link
+              to={`/platform/entreprises/${conflitId}`}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90"
+            >
+              Ouvrir la fiche entreprise <ArrowRight className="size-4" />
+            </Link>
+          )}
         </div>
       )}
 

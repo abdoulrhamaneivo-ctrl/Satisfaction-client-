@@ -3531,7 +3531,12 @@ const creerEntreprise$2 = async (args, context) => {
   const limiteGuichets = Number(args.limite_guichets) || PLANS[plan].guichets;
   const existant = await context.entities.User.findUnique({ where: { email: adminEmail } });
   if (existant) {
-    throw new HttpError(409, "Un utilisateur utilise d\xE9j\xE0 cette adresse email.");
+    const idEntrepriseExistante = existant?.id_entreprise ?? null;
+    throw new HttpError(
+      409,
+      "Un utilisateur utilise d\xE9j\xE0 cette adresse email.",
+      idEntrepriseExistante ? { entreprise_id: idEntrepriseExistante } : void 0
+    );
   }
   const tokenClair = crypto.randomBytes(32).toString("base64url");
   const tokenHash = sha256(tokenClair);
@@ -3605,8 +3610,31 @@ const creerEntreprise$2 = async (args, context) => {
       return { entreprise, admin };
     });
   } catch (e) {
-    await dbClient.authIdentity.deleteMany({ where: { providerUserId: adminEmail } });
-    await dbClient.user.deleteMany({ where: { id: admin.id } });
+    try {
+      const identites = await dbClient.authIdentity.findMany({
+        where: { providerUserId: adminEmail },
+        include: { auth: true }
+      });
+      for (const ident of identites) {
+        if (ident?.auth?.userId === admin.id) {
+          await dbClient.authIdentity.delete({
+            where: {
+              providerName_providerUserId: {
+                providerName: ident.providerName,
+                providerUserId: adminEmail
+              }
+            }
+          });
+        }
+      }
+    } catch (nettoyageErreur) {
+      console.warn("[PLATFORM] creerEntreprise: nettoyage identit\xE9 partiel:", nettoyageErreur?.message);
+    }
+    try {
+      await dbClient.user.deleteMany({ where: { id: admin.id } });
+    } catch (nettoyageErreur) {
+      console.warn("[PLATFORM] creerEntreprise: nettoyage user partiel:", nettoyageErreur?.message);
+    }
     console.warn("[PLATFORM] creerEntreprise: transaction annul\xE9e, compte admin nettoy\xE9:", e?.message);
     throw e;
   }

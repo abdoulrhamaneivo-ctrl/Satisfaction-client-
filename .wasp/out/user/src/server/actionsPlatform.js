@@ -122,10 +122,17 @@ export const creerEntreprise = async (args, context) => {
     const limiteAgences = Number(args.limite_agences) || PLANS[plan].agences;
     const limiteUtilisateurs = Number(args.limite_utilisateurs) || PLANS[plan].utilisateurs;
     const limiteGuichets = Number(args.limite_guichets) || PLANS[plan].guichets;
-    // Unicité de l'email admin (409 si déjà pris)
+    // Unicité de l'email admin (409 si déjà pris).
+    // CAS FRÉQUENT : une première tentative a expiré côté navigateur (cold
+    // start) alors que le serveur avait réussi → le retry retombe ici. Au
+    // lieu d'une impasse, on rend une issue de secours : si l'email appartient
+    // déjà à un compte rattaché à une entreprise, on joint son id pour que la
+    // console propose « Ouvrir la fiche entreprise » (SUPER_ADMIN voit déjà
+    // toutes les entreprises : aucune fuite d'info supplémentaire).
     const existant = await context.entities.User.findUnique({ where: { email: adminEmail } });
     if (existant) {
-        throw new HttpError(409, 'Un utilisateur utilise déjà cette adresse email.');
+        const idEntrepriseExistante = existant?.id_entreprise ?? null;
+        throw new HttpError(409, 'Un utilisateur utilise déjà cette adresse email.', idEntrepriseExistante ? { entreprise_id: idEntrepriseExistante } : undefined);
     }
     // Token d'invitation : le clair n'existe QUE dans le lien email
     const tokenClair = crypto.randomBytes(32).toString('base64url');
@@ -213,11 +220,41 @@ export const creerEntreprise = async (args, context) => {
     }
     catch (e) {
         // NETTOYAGE : la transaction a échoué → le compte admin créé hors tx
-        // devient un orphelin. On le supprime (identité auth + User) pour
-        // garder la base propre ; l'email n'a pas encore été envoyé, donc
-        // l'adresse est immédiatement réutilisable pour une nouvelle tentative.
-        await prisma.authIdentity.deleteMany({ where: { providerUserId: adminEmail } });
-        await prisma.user.deleteMany({ where: { id: admin.id } });
+        // devient un orphelin. On le supprime pour garder la base propre ;
+        // l'email n'a pas encore été envoyé, donc l'adresse est immédiatement
+        // réutilisable pour une nouvelle tentative.
+        // ANTI-COURSE (double-clic / double soumission) : on ne supprime
+        // l'identité auth QUE si elle appartient bien au compte qu'on vient de
+        // créer (même userId) — jamais celle d'une requête jumelle qui aurait
+        // gagné la course avec le même email. Et le nettoyage n'écrase jamais
+        // l'erreur d'origine (chaque étape est protégée).
+        try {
+            const identites = await prisma.authIdentity.findMany({
+                where: { providerUserId: adminEmail },
+                include: { auth: true },
+            });
+            for (const ident of identites) {
+                if (ident?.auth?.userId === admin.id) {
+                    await prisma.authIdentity.delete({
+                        where: {
+                            providerName_providerUserId: {
+                                providerName: ident.providerName,
+                                providerUserId: adminEmail,
+                            },
+                        },
+                    });
+                }
+            }
+        }
+        catch (nettoyageErreur) {
+            console.warn('[PLATFORM] creerEntreprise: nettoyage identité partiel:', nettoyageErreur?.message);
+        }
+        try {
+            await prisma.user.deleteMany({ where: { id: admin.id } });
+        }
+        catch (nettoyageErreur) {
+            console.warn('[PLATFORM] creerEntreprise: nettoyage user partiel:', nettoyageErreur?.message);
+        }
         console.warn('[PLATFORM] creerEntreprise: transaction annulée, compte admin nettoyé:', e?.message);
         throw e;
     }
