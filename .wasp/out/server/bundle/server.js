@@ -4748,7 +4748,13 @@ const BRANDING = {
   form_thank_you: "Merci pour votre avis !",
   qr_slogan: "Scannez ce QR Code",
   ussd_help_text: "Pas de connexion internet ?",
-  hide_yeba_branding: false
+  hide_yeba_branding: false,
+  // Personnalisation QR (table BrandingConfig) : valeurs par défaut quand
+  // l'entreprise n'a rien configuré. Voir KitGuichet pour le rendu.
+  qr_style: "CLASSIQUE",
+  qr_frame: "SIMPLE",
+  qr_color: null,
+  qr_bg_color: null
 };
 
 function requireNumber(value, fieldName) {
@@ -5210,6 +5216,7 @@ const getFormDefinitionForGuichet$2 = async (args, context) => {
   });
   const brandConfig = brandingTenant ? {
     ...BRANDING,
+    platform_name: brandingTenant.nom_affiche?.trim() ? brandingTenant.nom_affiche : BRANDING.platform_name,
     logo_url: brandingTenant.logo_url ?? BRANDING.logo_url,
     form_title: brandingTenant.form_title ?? BRANDING.form_title,
     form_subtitle: brandingTenant.form_subtitle ?? BRANDING.form_subtitle,

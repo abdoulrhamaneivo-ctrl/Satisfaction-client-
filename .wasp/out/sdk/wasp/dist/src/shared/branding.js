@@ -42,5 +42,11 @@ export const BRANDING = {
     qr_slogan: "Scannez ce QR Code",
     ussd_help_text: "Pas de connexion internet ?",
     hide_yeba_branding: false,
+    // Personnalisation QR (table BrandingConfig) : valeurs par défaut quand
+    // l'entreprise n'a rien configuré. Voir KitGuichet pour le rendu.
+    qr_style: "CLASSIQUE",
+    qr_frame: "SIMPLE",
+    qr_color: null,
+    qr_bg_color: null,
 };
 //# sourceMappingURL=branding.js.map

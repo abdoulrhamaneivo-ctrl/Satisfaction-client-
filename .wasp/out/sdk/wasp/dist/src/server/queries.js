@@ -545,6 +545,7 @@ export const getFormDefinitionForGuichet = async (args, context) => {
     const brandConfig = brandingTenant
         ? {
             ...BRANDING,
+            platform_name: brandingTenant.nom_affiche?.trim() ? brandingTenant.nom_affiche : BRANDING.platform_name,
             logo_url: brandingTenant.logo_url ?? BRANDING.logo_url,
             form_title: brandingTenant.form_title ?? BRANDING.form_title,
             form_subtitle: brandingTenant.form_subtitle ?? BRANDING.form_subtitle,

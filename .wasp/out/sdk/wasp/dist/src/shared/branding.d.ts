@@ -39,6 +39,10 @@ export declare const BRANDING: {
     qr_slogan: string;
     ussd_help_text: string;
     hide_yeba_branding: boolean;
+    qr_style: string;
+    qr_frame: string;
+    qr_color: null;
+    qr_bg_color: null;
 };
 export type BrandConfigType = typeof BRANDING;
 //# sourceMappingURL=branding.d.ts.map

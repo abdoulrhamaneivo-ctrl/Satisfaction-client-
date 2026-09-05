@@ -46,6 +46,12 @@ export const BrandProvider = ({ children }: { children: React.ReactNode }) => {
       form_thank_you: texte(s.form_thank_you, BRANDING.form_thank_you),
       qr_slogan: texte(s.qr_slogan, BRANDING.qr_slogan),
       hide_yeba_branding: !!s.hide_yeba_branding,
+      // QR : style/cadre en MAJUSCULES validées, couleurs HEX validées —
+      // une valeur invalide retombe sur le défaut (jamais de QR illisible).
+      qr_style: ['CLASSIQUE', 'MODERNE', 'PREMIUM'].includes(String(s.qr_style)) ? s.qr_style : BRANDING.qr_style,
+      qr_frame: ['AUCUN', 'SIMPLE', 'PREMIUM'].includes(String(s.qr_frame)) ? s.qr_frame : BRANDING.qr_frame,
+      qr_color: /^#[0-9a-fA-F]{6}$/.test(String(s.qr_color ?? '')) ? s.qr_color : null,
+      qr_bg_color: /^#[0-9a-fA-F]{6}$/.test(String(s.qr_bg_color ?? '')) ? s.qr_bg_color : null,
     };
   }, [brandingServeur]);
 

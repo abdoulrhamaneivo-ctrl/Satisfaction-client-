@@ -35,6 +35,25 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
   // qui sérialise le SVG inline. Noir sur blanc volontaire : les couleurs
   // fantaisie dégradent la lecture par les scanners.
   const qrPx = selectedFormat === 'A4' ? 384 : selectedFormat === 'A5' ? 256 : 160;
+  // Personnalisation QR (FIX 05/09) : chaque réglage a un effet visible.
+  // Couleurs validées HEX côté contexte (repli noir/blanc = QR toujours
+  // lisible). Styles : CLASSIQUE = sobre, MODERNE = cadre arrondi + ombre,
+  // PREMIUM = logo de l'entreprise incrusté + double cadre. Cadre : AUCUN =
+  // QR seul, SIMPLE = encadré, PREMIUM = double anneau.
+  const qrFg = (brandConfig as any)?.qr_color || '#111111';
+  const qrBg = (brandConfig as any)?.qr_bg_color || '#ffffff';
+  const qrStyle = (brandConfig as any)?.qr_style || 'CLASSIQUE';
+  const qrFrame = (brandConfig as any)?.qr_frame || 'SIMPLE';
+  const qrLogo = (brandConfig as any)?.logo_url && String((brandConfig as any).logo_url).startsWith('http')
+    ? String((brandConfig as any).logo_url)
+    : null;
+  const cadreClasse = qrFrame === 'AUCUN'
+    ? 'mx-auto mb-5 flex items-center justify-center bg-white p-1'
+    : qrFrame === 'PREMIUM'
+      ? 'mx-auto mb-5 flex items-center justify-center rounded-3xl border-4 border-neutral-900 bg-white p-3 shadow-xl ring-4 ring-primary/30'
+      : qrStyle === 'MODERNE'
+        ? 'mx-auto mb-5 flex items-center justify-center rounded-3xl border-2 border-neutral-800 bg-white p-4 shadow-lg'
+        : 'mx-auto mb-5 flex items-center justify-center rounded-xl border-4 border-neutral-900 bg-white p-3 shadow-inner';
 
   const formatConfigs = {
     A5: {
@@ -157,16 +176,22 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
 
             <div
               style={currentConfig.qrWrapperStyle}
-              className="mx-auto mb-5 flex items-center justify-center rounded-xl border-4 border-neutral-900 bg-white p-3 shadow-inner"
+              className={cadreClasse}
             >
               <QRCodeSVG
                 value={evalUrl}
                 size={qrPx}
                 level="M"
                 marginSize={1}
-                bgColor="#ffffff"
-                fgColor="#111111"
+                bgColor={qrBg}
+                fgColor={qrFg}
                 title="QR Code d'évaluation"
+                imageSettings={qrStyle === 'PREMIUM' && qrLogo ? {
+                  src: qrLogo,
+                  height: Math.round(qrPx * 0.2),
+                  width: Math.round(qrPx * 0.2),
+                  excavate: true,
+                } : undefined}
               />
             </div>
 

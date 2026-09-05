@@ -84,12 +84,12 @@ export declare const getFormDefinitionForGuichet: (args: {
         color_accent: any;
         color_secondary: any;
         color_primary: any;
+        platform_name: any;
         logo_url: any;
         form_title: any;
         form_subtitle: any;
         form_thank_you: any;
         qr_slogan: any;
-        platform_name: string;
         platform_description: string;
         logo_dark_url: null;
         favicon_url: null;
@@ -119,6 +119,10 @@ export declare const getFormDefinitionForGuichet: (args: {
         font_family: string;
         font_url: null;
         ussd_help_text: string;
+        qr_style: string;
+        qr_frame: string;
+        qr_color: null;
+        qr_bg_color: null;
     };
 } | null>;
 export declare const getCriteresParOperation: (args: {

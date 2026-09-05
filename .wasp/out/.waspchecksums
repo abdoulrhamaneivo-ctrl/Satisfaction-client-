@@ -1257,7 +1257,7 @@
             "file",
             "sdk/wasp/src/client/components/KitGuichet.tsx"
         ],
-        "a9300a8fdbbcea566428328c45c64f4bba55b16f89c411a04aabdfb1ef0220d3"
+        "bebb005324c3dd2edf5c7419010bc35a86d63471142889472369edc5d76a316d"
     ],
     [
         [
@@ -1614,7 +1614,7 @@
             "file",
             "sdk/wasp/src/client/context/BrandContext.tsx"
         ],
-        "e2eeed5218439c6543467e9ce0ed6defce266da59352330a0c4ef6b9ed92a81b"
+        "69172927cfe4dc42593efc0db318d762f6573c4bbf029dd660de81ae69595ea8"
     ],
     [
         [
@@ -2160,7 +2160,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "6c001c84d55b422db0636d255a929704a5646c73bd7c2300b1c9e3e4101182d2"
+        "16c04a5bfaa12280bb6f0c7fde816ce0d22d6471592589d02b49a20a6f4ffb60"
     ],
     [
         [
@@ -2251,7 +2251,7 @@
             "file",
             "sdk/wasp/src/shared/branding.ts"
         ],
-        "d074eecebfbbcefc9ea492a50d58cf128a6d6a09be7d1b504623a5792312e489"
+        "7665106c29e2b1723dee84ff86221bcc798d3d6d089e457bb66cb5e643606e08"
     ],
     [
         [
