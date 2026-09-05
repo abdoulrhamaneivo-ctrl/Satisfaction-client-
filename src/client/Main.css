@@ -423,9 +423,12 @@
     outline-offset: 2px;
   }
 
-  /* Réduit le délai tactile sur mobile */
-  :where(button, a, [role="button"]) {
+  /* Réduit le délai tactile sur mobile (clic + focus clavier) : supprime
+     l'attente du double-tap zoom sur tous les contrôles, pas seulement les
+     boutons — le clavier virtuel s'affiche sans retard au focus. */
+  :where(button, a, input, select, textarea, [role="button"]) {
     touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   /* Utilitaire à poser sur toute zone de défilement interne (modale longue,
      rangée de colonnes horizontale...) : rétablit un défilement inertiel

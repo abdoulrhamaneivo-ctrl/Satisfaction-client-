@@ -89,6 +89,10 @@ export function LoginPage() {
               id="email"
               name="email"
               type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              enterKeyHint="next"
               autoComplete="email"
               required
               value={email}
@@ -106,6 +110,7 @@ export function LoginPage() {
             <PasswordInput
               id="password"
               name="password"
+              enterKeyHint="go"
               autoComplete="current-password"
               required
               value={password}

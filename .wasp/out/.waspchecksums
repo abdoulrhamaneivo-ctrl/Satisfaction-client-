@@ -1047,14 +1047,14 @@
             "file",
             "sdk/wasp/src/auth/AuthPageLayout.tsx"
         ],
-        "5b884b33d9ad1b1eff121c2ec25428efeb0018adc7d7aba9b3e0e829b2646d6b"
+        "123837ec6c83defa8992a1b6e218ba31f9ee373f592e5a4383b452c19946190d"
     ],
     [
         [
             "file",
             "sdk/wasp/src/auth/LoginPage.tsx"
         ],
-        "e8ce231846e3fb8f159a1f8b09acf8f91e5567f92f6773c7e9f326f7550e91f7"
+        "1cddd413991f55d88932a09748dbcb22cbffa003b1754eaf5adb5521b37a0d27"
     ],
     [
         [
@@ -1138,7 +1138,7 @@
             "file",
             "sdk/wasp/src/client/Main.css"
         ],
-        "4405f6abc08db67daa3b3ce142a3e0d09ef589d518d7790edd4e4b60fd0d8657"
+        "1cae526a8832341cb25a54c73a390eaae06bff6a70d9d2821652b21a87cfdb60"
     ],
     [
         [

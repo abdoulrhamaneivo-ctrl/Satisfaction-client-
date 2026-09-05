@@ -25,33 +25,21 @@ interface AuthPageLayoutProps {
  * lui donner une identité propre, sans rien changer à la marque.
  */
 function NoteSignature() {
-  const prefersReducedMotion = useReducedMotion();
-
+  // PERFORMANCE MOBILE (fix « saisie lente ») : l'ancienne version animait
+  // 5 étoiles en boucle via framer-motion = boucle JS permanente qui mange
+  // le CPU des téléphones d'entrée de gamme et rend la frappe saccadée.
+  // Ici : pure animation CSS (opacity/transform composés par le GPU, aucun
+  // JS pendant la frappe) + délais échelonnés pour garder l'effet de vague.
   return (
     <div className="flex items-center gap-0.5" aria-hidden>
       {[0, 1, 2, 3, 4].map((i) => (
-        <motion.span
+        <span
           key={i}
-          initial={{ opacity: 0.25, scale: 0.85 }}
-          animate={
-            prefersReducedMotion
-              ? { opacity: 0.85, scale: 1 }
-              : { opacity: [0.25, 1, 1, 0.25], scale: [0.85, 1.08, 1, 0.85] }
-          }
-          transition={
-            prefersReducedMotion
-              ? undefined
-              : {
-                  duration: 4.5,
-                  repeat: Infinity,
-                  repeatDelay: 1.2,
-                  delay: i * 0.22,
-                  ease: "easeInOut",
-                }
-          }
+          className="animate-pulse"
+          style={{ animationDelay: `${i * 0.35}s`, animationDuration: '2.2s' }}
         >
           <Star className="size-3 fill-current text-primary" />
-        </motion.span>
+        </span>
       ))}
     </div>
   );

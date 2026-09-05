@@ -61,14 +61,14 @@ export function LoginPage() {
         <FormField label="Adresse e-mail" htmlFor="email" required>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-            <Input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@entreprise.ci" className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40" disabled={loading}/>
+            <Input id="email" name="email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" enterKeyHint="next" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@entreprise.ci" className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40" disabled={loading}/>
           </div>
         </FormField>
 
         <FormField label="Mot de passe" htmlFor="password" required>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground"/>
-            <PasswordInput id="password" name="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40" disabled={loading}/>
+            <PasswordInput id="password" name="password" enterKeyHint="go" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40" disabled={loading}/>
           </div>
         </FormField>
 
