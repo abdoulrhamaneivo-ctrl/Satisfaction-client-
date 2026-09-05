@@ -71,6 +71,13 @@ export const CollectePage = () => {
         setCasesSelectionnees([]);
     }, [currentQuestionIndex, step]);
     const services = formDef?.services ?? [];
+    // COHÉRENCE OPÉRATION (FIX 05/09) : quand une opération est sélectionnée
+    // mais n'a pas de questions propres, le repli « critères par défaut » ne
+    // doit contenir QUE le vivier « Non assignées » (critères actifs de
+    // l'agence rattachés à AUCUNE opération du guichet). Le serveur n'accepte
+    // avec une opération que ses questions + ce vivier.
+    const idsRattaches = new Set((formDef?.services ?? []).flatMap((s) => (s.criteres ?? []).map((c) => c.id)));
+    const defaultCriteres = (formDef?.agencyCriteres ?? []).filter((c) => !idsRattaches.has(c.id));
     useEffect(() => {
         if (formDef) {
             const servicesDuGuichet = formDef.services ?? [];
@@ -106,9 +113,7 @@ export const CollectePage = () => {
     }
     const criteres = selectedService?.criteres?.length
         ? selectedService.criteres
-        : formDef.agencyCriteres?.length
-            ? formDef.agencyCriteres
-            : [];
+        : defaultCriteres;
     const currentCritere = criteres[currentQuestionIndex];
     const questionnaireDisponible = criteres.length > 0;
     const handleServiceSelect = (service) => {
