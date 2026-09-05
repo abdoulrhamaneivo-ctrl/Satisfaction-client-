@@ -396,7 +396,7 @@
             "file",
             "sdk/wasp/client/app/layout.tsx"
         ],
-        "f1862aaa6b6fe7e71d0117efbe856e3623f6a0ae8d181a0c3f9bfb58c27f1c47"
+        "f80fba00ec6b8347d4698e798d358f301cb87759d67b15f03f032209a438c1ea"
     ],
     [
         [
@@ -1257,7 +1257,7 @@
             "file",
             "sdk/wasp/src/client/components/KitGuichet.tsx"
         ],
-        "092640b888832d6c0e6d017c9f8d338acc7859ba3666be903909aa1f5a5c2af8"
+        "a9300a8fdbbcea566428328c45c64f4bba55b16f89c411a04aabdfb1ef0220d3"
     ],
     [
         [
@@ -1621,7 +1621,7 @@
             "file",
             "sdk/wasp/src/client/head.wasp.ts"
         ],
-        "cc487218ad97e86f0f511a7c99117b76ce5d0309864f8c003511ebe758b2dbd9"
+        "68fd6087baeb131390e9b5e4a39ad6521cc2a879cf56c86a72803f56dd462d91"
     ],
     [
         [
@@ -2230,7 +2230,7 @@
             "file",
             "sdk/wasp/src/server/staticServing.ts"
         ],
-        "47a0d503ab065928ab8d1e55d2101a815de6e18444728f63d54ec5c5264d5d97"
+        "96badfb4aa44e86a00d77a5f7ed31dccae3b692f735c45bf4d79c12369466515"
     ],
     [
         [

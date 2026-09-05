@@ -48,7 +48,7 @@ export function Layout({
 
           <link rel='icon' href='/favicon.ico' />
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=5.0' />
-<meta http-equiv='Content-Security-Policy' content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';" />
+<meta http-equiv='Content-Security-Policy' content="default-src 'self'; script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';" />
 <meta name='robots' content='noindex, nofollow' />
 <meta name='description' content='Yeba — outil interne de collecte et de pilotage de la satisfaction client.' />
 <meta name='author' content='Yeba' />

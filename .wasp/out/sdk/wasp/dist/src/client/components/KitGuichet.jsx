@@ -1,6 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { toPng } from 'html-to-image';
-import { Download, Share2, Loader2 } from 'lucide-react';
+import { Download, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { useToast } from '../hooks/use-toast';
@@ -18,9 +19,15 @@ export const KitGuichet = ({ guichet }) => {
         ? `${window.location.origin}/q/${codeQr}`
         : `https://yeba.ci/q/${codeQr}`;
     const ussdCode = `*789*42*${guichet.id}#`;
-    const [qrDataUrl, setQrDataUrl] = useState('');
-    const [loadingQr, setLoadingQr] = useState(true);
     const [selectedFormat, setSelectedFormat] = useState('A5');
+    // QR 100% LOCAL (FIX 05/09) : l'ancien code récupérait le PNG depuis
+    // api.qrserver.com via fetch — bloqué par connect-src 'self' de notre CSP
+    // (kit vide), dépendance externe fragile et fuite des URLs d'avis vers un
+    // tiers. qrcode.react génère le SVG dans le navigateur : fonctionne
+    // hors-ligne en agence, aucun appel réseau, export PNG via html-to-image
+    // qui sérialise le SVG inline. Noir sur blanc volontaire : les couleurs
+    // fantaisie dégradent la lecture par les scanners.
+    const qrPx = selectedFormat === 'A4' ? 384 : selectedFormat === 'A5' ? 256 : 160;
     const formatConfigs = {
         A5: {
             containerStyle: { width: '420px', minHeight: '594px', padding: '32px' },
@@ -63,48 +70,9 @@ export const KitGuichet = ({ guichet }) => {
         },
     };
     const currentConfig = formatConfigs[selectedFormat];
-    useEffect(() => {
-        let active = true;
-        setLoadingQr(true);
-        const fetchQr = async () => {
-            try {
-                const url = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(evalUrl)}`;
-                const response = await fetch(url);
-                if (!response.ok)
-                    throw new Error('Response error');
-                const blob = await response.blob();
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    if (active) {
-                        setQrDataUrl(reader.result);
-                        setLoadingQr(false);
-                    }
-                };
-                reader.readAsDataURL(blob);
-            }
-            catch (err) {
-                console.error('Failed to pre-load QR code for export:', err);
-                if (active) {
-                    setLoadingQr(false);
-                }
-            }
-        };
-        fetchQr();
-        return () => {
-            active = false;
-        };
-    }, [evalUrl]);
     const downloadKit = async () => {
         if (!kitRef.current)
             return;
-        if (!qrDataUrl) {
-            toast({
-                variant: 'destructive',
-                title: 'QR Code non disponible',
-                description: "Le QR code n'a pas pu être généré. Vérifiez votre connexion puis réessayez.",
-            });
-            return;
-        }
         await new Promise((resolve) => requestAnimationFrame(resolve));
         try {
             const targetWidth = parseInt(currentConfig.containerStyle.width, 10) || 420;
@@ -163,13 +131,7 @@ export const KitGuichet = ({ guichet }) => {
             </p>
 
             <div style={currentConfig.qrWrapperStyle} className="mx-auto mb-5 flex items-center justify-center rounded-xl border-4 border-neutral-900 bg-white p-3 shadow-inner">
-              {loadingQr ? (<div className="flex flex-col items-center justify-center gap-2 text-neutral-500">
-                  <Loader2 className="size-8 animate-spin"/>
-                  <span className="text-xs font-semibold">Génération du QR...</span>
-                </div>) : (<img src={qrDataUrl} alt="QR Code d'évaluation" className="mx-auto block object-contain" style={{
-                width: selectedFormat === 'A4' ? '384px' : selectedFormat === 'A5' ? '256px' : '160px',
-                height: selectedFormat === 'A4' ? '384px' : selectedFormat === 'A5' ? '256px' : '160px',
-            }}/>)}
+              <QRCodeSVG value={evalUrl} size={qrPx} level="M" marginSize={1} bgColor="#ffffff" fgColor="#111111" title="QR Code d'évaluation"/>
             </div>
 
             <p className={`${currentConfig.scanTextClass} font-bold uppercase tracking-wide text-neutral-900`}>
@@ -193,14 +155,9 @@ export const KitGuichet = ({ guichet }) => {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-center print:hidden pt-2">
-        <motion.div whileTap={{ scale: loadingQr ? 1 : 0.95 }}>
-          <Button onClick={downloadKit} disabled={loadingQr} className="gap-2 rounded-xl shadow-sm px-5 py-5 text-sm font-bold">
-            {loadingQr ? (<>
-                <Loader2 size={16} className="animate-spin"/>
-                Chargement...
-              </>) : (<>
-                <Download size={16}/> Télécharger l'affiche ({selectedFormat})
-              </>)}
+        <motion.div whileTap={{ scale: 0.95 }}>
+          <Button onClick={downloadKit} className="gap-2 rounded-xl shadow-sm px-5 py-5 text-sm font-bold">
+            <Download size={16}/> Télécharger l'affiche ({selectedFormat})
           </Button>
         </motion.div>
         <motion.div whileTap={{ scale: 0.95 }}>

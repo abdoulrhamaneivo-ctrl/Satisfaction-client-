@@ -7525,7 +7525,7 @@ async function serveStaticClient({ app }) {
     }
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      "default-src 'self'; script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     );
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Strict-Transport-Security", "max-age=31536000");

@@ -1,1 +1,1 @@
-{"version":3,"file":"KitGuichet.d.ts","sourceRoot":"","sources":["../../../../src/client/components/KitGuichet.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAsC,MAAM,OAAO,CAAC;AAW3D,eAAO,MAAM,UAAU,GAAI,aAAa;IAAE,OAAO,EAAE,GAAG,CAAA;CAAE,sBAkPvD,CAAC"}
+{"version":3,"file":"KitGuichet.d.ts","sourceRoot":"","sources":["../../../../src/client/components/KitGuichet.tsx"],"names":[],"mappings":"AAAA,OAAO,KAA2B,MAAM,OAAO,CAAC;AAYhD,eAAO,MAAM,UAAU,GAAI,aAAa;IAAE,OAAO,EAAE,GAAG,CAAA;CAAE,sBAkMvD,CAAC"}

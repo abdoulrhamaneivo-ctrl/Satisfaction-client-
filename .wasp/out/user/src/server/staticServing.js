@@ -80,7 +80,11 @@ export async function serveStaticClient({ app }) {
             }
         }
         res.setHeader('Content-Security-Policy', "default-src 'self'; " +
-            "script-src 'self'; " +
+            // FIX 05/09 : Wasp injecte <script id="_R_">window.__WASP_SSR_DATA__=…
+            // (contenu statique, hash ci-dessous) — sans lui, le client ne sait
+            // pas qu'il s'agit d'une page fallback et tente une hydratation qui
+            // échoue (React #418). Whitelist par hash, PAS de 'unsafe-inline'.
+            "script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; " +
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: blob: https:; " +
             "font-src 'self'; " +

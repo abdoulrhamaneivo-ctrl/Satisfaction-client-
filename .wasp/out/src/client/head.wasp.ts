@@ -8,8 +8,10 @@ import { type App } from "@wasp.sh/spec";
 // 'unsafe-inline' 'unsafe-eval' https:) rendait la CSP quasi inopérante —
 // https: autorisait tout script externe et unsafe-inline/eval neutralisaient
 // le reste. La nouvelle politique :
-//   - script-src 'self' uniquement (bundle Vite haché, aucun inline nécessaire
-//     car Vite extrait les scripts en fichiers) ;
+//   - script-src 'self' + hash du script inline _R_ de Wasp
+//     (window.__WASP_SSR_DATA__, statique) — sans lui le client tente une
+//     hydratation qui échoue (React #418). Aucun autre inline nécessaire
+//     car Vite extrait les scripts en fichiers ;
 //   - style-src 'self' 'unsafe-inline' : inline conservé UNIQUEMENT pour les
 //     styles (thème BrandContext, pseudo-styles React inline) — le CSS
 //     injecté vient de valeurs serveur validées (HEX, jamais de HTML libre) ;
@@ -21,7 +23,7 @@ import { type App } from "@wasp.sh/spec";
 export const head: App["head"] = [
   "<link rel='icon' href='/favicon.ico' />",
   "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=5.0' />",
-  "<meta http-equiv='Content-Security-Policy' content=\"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';\" />",
+  "<meta http-equiv='Content-Security-Policy' content=\"default-src 'self'; script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';\" />",
   "<meta name='robots' content='noindex, nofollow' />",
   "<meta name='description' content='Yeba — outil interne de collecte et de pilotage de la satisfaction client.' />",
   "<meta name='author' content='Yeba' />",
