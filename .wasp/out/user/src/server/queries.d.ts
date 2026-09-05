@@ -68,6 +68,7 @@ export declare const getAgenceCriteres: (args: {
     id_agence?: number;
 }, context: any) => Promise<any>;
 export declare const getServices: (_args: void, context: any) => Promise<any>;
+export declare const getBranding: (_args: void, context: any) => Promise<any>;
 export declare const getFormDefinitionForGuichet: (args: {
     code_public?: string;
     id_guichet?: number;

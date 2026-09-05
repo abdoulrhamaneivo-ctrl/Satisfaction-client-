@@ -5,6 +5,7 @@ import {
   type _Service,
   type _AffectationGuichet,
   type _Agence,
+  type _Entreprise,
   type _Reponse,
   type _Critere,
   type _AgenceCritere,
@@ -13,9 +14,9 @@ import {
   type _VoteAntiRejeu,
   type _AnalyseAvisIA,
   type _Canal,
-  type _Entreprise,
-  type _Invitation,
+  type _BrandingConfig,
   type _AuditLog,
+  type _Invitation,
   type _Objectif,
   type _TacheCorrective,
   type _TacheCorrectiveHistorique,
@@ -95,6 +96,7 @@ export type CreateGuichet<Input extends Payload = never, Output extends Payload 
       _Service,
       _AffectationGuichet,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -108,6 +110,7 @@ export type AssignAgent<Input extends Payload = never, Output extends Payload = 
       _AffectationGuichet,
       _Guichet,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -121,6 +124,7 @@ export type UpdateAffectationGuichet<Input extends Payload = never, Output exten
       _AffectationGuichet,
       _Guichet,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -133,6 +137,7 @@ export type DeleteAffectationGuichet<Input extends Payload = never, Output exten
       _AffectationGuichet,
       _Guichet,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -177,6 +182,7 @@ export type UpdateAgent<Input extends Payload = never, Output extends Payload = 
     [
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -188,6 +194,7 @@ export type DeleteAgent<Input extends Payload = never, Output extends Payload = 
     [
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -199,6 +206,7 @@ export type ReactivateAgent<Input extends Payload = never, Output extends Payloa
     [
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -210,6 +218,20 @@ export type PromouvoirAgent<Input extends Payload = never, Output extends Payloa
     [
       _User,
       _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type UpdateBranding<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _BrandingConfig,
+      _User,
+      _Entreprise,
+      _AuditLog,
     ],
     Input,
     Output
@@ -236,6 +258,7 @@ export type RenvoyerInvitationAgent<Input extends Payload = never, Output extend
       _Agence,
       _Invitation,
       _AuditLog,
+      _Entreprise,
     ],
     Input,
     Output
@@ -248,6 +271,7 @@ export type ToggleCritereAgence<Input extends Payload = never, Output extends Pa
       _AgenceCritere,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -262,6 +286,7 @@ export type CreateCritere<Input extends Payload = never, Output extends Payload 
       _User,
       _Agence,
       _Service,
+      _Entreprise,
     ],
     Input,
     Output
@@ -273,6 +298,7 @@ export type CreateService<Input extends Payload = never, Output extends Payload 
     [
       _Service,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -286,6 +312,7 @@ export type UpsertObjectif<Input extends Payload = never, Output extends Payload
       _Agence,
       _Critere,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -298,6 +325,7 @@ export type DeleteObjectif<Input extends Payload = never, Output extends Payload
       _Objectif,
       _Agence,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -314,6 +342,7 @@ export type CreateTacheCorrective<Input extends Payload = never, Output extends 
       _Reponse,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -330,6 +359,7 @@ export type UpdateStatutTache<Input extends Payload = never, Output extends Payl
       _Reponse,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -344,6 +374,7 @@ export type MarquerAlerteTraitee<Input extends Payload = never, Output extends P
       _Reponse,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -357,6 +388,7 @@ export type UpdateGuichetServices<Input extends Payload = never, Output extends 
       _Service,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -370,6 +402,7 @@ export type MoveCritereToService<Input extends Payload = never, Output extends P
       _Critere,
       _Service,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -383,6 +416,7 @@ export type RemoveCritereFromService<Input extends Payload = never, Output exten
       _Critere,
       _Service,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -398,6 +432,7 @@ export type DeleteCritere<Input extends Payload = never, Output extends Payload 
       _CritereService,
       _Objectif,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -413,6 +448,7 @@ export type DuplicateCritere<Input extends Payload = never, Output extends Paylo
       _Agence,
       _Service,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -424,6 +460,7 @@ export type UpdateCritere<Input extends Payload = never, Output extends Payload 
     [
       _Critere,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -436,6 +473,7 @@ export type ReorderCriteresInService<Input extends Payload = never, Output exten
       _CritereService,
       _Service,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -448,6 +486,7 @@ export type ArchiverGuichet<Input extends Payload = never, Output extends Payloa
       _Guichet,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -460,6 +499,7 @@ export type DesarchiverGuichet<Input extends Payload = never, Output extends Pay
       _Guichet,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -472,6 +512,7 @@ export type ArchiverAgence<Input extends Payload = never, Output extends Payload
       _Agence,
       _Guichet,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -483,6 +524,7 @@ export type DesarchiverAgence<Input extends Payload = never, Output extends Payl
     [
       _Agence,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -497,6 +539,7 @@ export type ArchiverAlerte<Input extends Payload = never, Output extends Payload
       _Reponse,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -511,6 +554,7 @@ export type DesarchiverAlerte<Input extends Payload = never, Output extends Payl
       _Reponse,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -526,6 +570,7 @@ export type ArchiverTache<Input extends Payload = never, Output extends Payload 
       _Reponse,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -541,6 +586,7 @@ export type DesarchiverTache<Input extends Payload = never, Output extends Paylo
       _Reponse,
       _User,
       _Agence,
+      _Entreprise,
     ],
     Input,
     Output
@@ -552,6 +598,7 @@ export type ArchiverCritere<Input extends Payload = never, Output extends Payloa
     [
       _Critere,
       _User,
+      _Entreprise,
     ],
     Input,
     Output
@@ -563,6 +610,7 @@ export type DesarchiverCritere<Input extends Payload = never, Output extends Pay
     [
       _Critere,
       _User,
+      _Entreprise,
     ],
     Input,
     Output

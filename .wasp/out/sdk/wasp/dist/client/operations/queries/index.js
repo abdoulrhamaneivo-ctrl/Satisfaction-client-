@@ -28,6 +28,8 @@ export const getFormDefinitionForGuichet = createQuery('operations/get-form-defi
 // PUBLIC API
 export const getServices = createQuery('operations/get-services', ['Service', 'User', 'Entreprise']);
 // PUBLIC API
+export const getBranding = createQuery('operations/get-branding', ['BrandingConfig', 'User', 'Entreprise']);
+// PUBLIC API
 export const getRadarStats = createQuery('operations/get-radar-stats', ['User', 'Guichet', 'AffectationGuichet', 'Reponse', 'Alerte', 'TacheCorrective', 'Agence', 'Entreprise']);
 // PUBLIC API
 export const getObjectifs = createQuery('operations/get-objectifs', ['Objectif', 'Critere', 'Agence', 'User', 'Reponse', 'Entreprise']);

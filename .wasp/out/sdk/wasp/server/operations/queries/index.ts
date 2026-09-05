@@ -20,6 +20,7 @@ import { getCriteres as getCriteres_ext } from 'wasp/src/server/queries'
 import { getAgenceCriteres as getAgenceCriteres_ext } from 'wasp/src/server/queries'
 import { getFormDefinitionForGuichet as getFormDefinitionForGuichet_ext } from 'wasp/src/server/queries'
 import { getServices as getServices_ext } from 'wasp/src/server/queries'
+import { getBranding as getBranding_ext } from 'wasp/src/server/queries'
 import { getRadarStats as getRadarStats_ext } from 'wasp/src/server/queries'
 import { getObjectifs as getObjectifs_ext } from 'wasp/src/server/queries'
 import { getObjectifsParAgence as getObjectifsParAgence_ext } from 'wasp/src/server/queries'
@@ -267,6 +268,21 @@ export const getServices: AuthenticatedOperationFor<GetServices_ext> =
     getServices_ext,
     {
       Service: prisma.service,
+      User: prisma.user,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+
+// PRIVATE API
+export type GetBranding_ext = typeof getBranding_ext
+
+// PUBLIC API
+export const getBranding: AuthenticatedOperationFor<GetBranding_ext> =
+  createAuthenticatedOperation(
+    getBranding_ext,
+    {
+      BrandingConfig: prisma.brandingConfig,
       User: prisma.user,
       Entreprise: prisma.entreprise,
     },

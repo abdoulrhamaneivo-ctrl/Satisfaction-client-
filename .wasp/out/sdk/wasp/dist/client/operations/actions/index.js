@@ -12,79 +12,81 @@ export const createFileUploadUrl = createAction('operations/create-file-upload-u
 // PUBLIC API
 export const deleteFile = createAction('operations/delete-file', ['User', 'File']);
 // PUBLIC API
-export const createGuichet = createAction('operations/create-guichet', ['Guichet', 'User', 'Service', 'AffectationGuichet', 'Agence']);
+export const createGuichet = createAction('operations/create-guichet', ['Guichet', 'User', 'Service', 'AffectationGuichet', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const assignAgent = createAction('operations/assign-agent', ['User', 'AffectationGuichet', 'Guichet', 'Agence']);
+export const assignAgent = createAction('operations/assign-agent', ['User', 'AffectationGuichet', 'Guichet', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const updateAffectationGuichet = createAction('operations/update-affectation-guichet', ['User', 'AffectationGuichet', 'Guichet', 'Agence']);
+export const updateAffectationGuichet = createAction('operations/update-affectation-guichet', ['User', 'AffectationGuichet', 'Guichet', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const deleteAffectationGuichet = createAction('operations/delete-affectation-guichet', ['AffectationGuichet', 'Guichet', 'Agence']);
+export const deleteAffectationGuichet = createAction('operations/delete-affectation-guichet', ['AffectationGuichet', 'Guichet', 'Agence', 'Entreprise']);
 // PUBLIC API
 export const soumettreAvis = createAction('operations/soumettre-avis', ['Reponse', 'Critere', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal']);
 // PUBLIC API
 export const createAgence = createAction('operations/create-agence', ['Agence', 'User', 'Entreprise']);
 // PUBLIC API
-export const updateAgent = createAction('operations/update-agent', ['User', 'Agence']);
+export const updateAgent = createAction('operations/update-agent', ['User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const deleteAgent = createAction('operations/delete-agent', ['User', 'Agence']);
+export const deleteAgent = createAction('operations/delete-agent', ['User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const reactivateAgent = createAction('operations/reactivate-agent', ['User', 'Agence']);
+export const reactivateAgent = createAction('operations/reactivate-agent', ['User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const promouvoirAgent = createAction('operations/promouvoir-agent', ['User', 'Agence']);
+export const promouvoirAgent = createAction('operations/promouvoir-agent', ['User', 'Agence', 'Entreprise']);
+// PUBLIC API
+export const updateBranding = createAction('operations/update-branding', ['BrandingConfig', 'User', 'Entreprise', 'AuditLog']);
 // PUBLIC API
 export const inviteAgent = createAction('operations/invite-agent', ['User', 'Agence', 'Entreprise', 'Invitation']);
 // PUBLIC API
-export const renvoyerInvitationAgent = createAction('operations/renvoyer-invitation-agent', ['User', 'Agence', 'Invitation', 'AuditLog']);
+export const renvoyerInvitationAgent = createAction('operations/renvoyer-invitation-agent', ['User', 'Agence', 'Invitation', 'AuditLog', 'Entreprise']);
 // PUBLIC API
-export const toggleCritereAgence = createAction('operations/toggle-critere-agence', ['AgenceCritere', 'User', 'Agence']);
+export const toggleCritereAgence = createAction('operations/toggle-critere-agence', ['AgenceCritere', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const createCritere = createAction('operations/create-critere', ['Critere', 'AgenceCritere', 'User', 'Agence', 'Service']);
+export const createCritere = createAction('operations/create-critere', ['Critere', 'AgenceCritere', 'User', 'Agence', 'Service', 'Entreprise']);
 // PUBLIC API
-export const createService = createAction('operations/create-service', ['Service', 'User']);
+export const createService = createAction('operations/create-service', ['Service', 'User', 'Entreprise']);
 // PUBLIC API
-export const upsertObjectif = createAction('operations/upsert-objectif', ['Objectif', 'Agence', 'Critere', 'User']);
+export const upsertObjectif = createAction('operations/upsert-objectif', ['Objectif', 'Agence', 'Critere', 'User', 'Entreprise']);
 // PUBLIC API
-export const deleteObjectif = createAction('operations/delete-objectif', ['Objectif', 'Agence', 'User']);
+export const deleteObjectif = createAction('operations/delete-objectif', ['Objectif', 'Agence', 'User', 'Entreprise']);
 // PUBLIC API
-export const createTacheCorrective = createAction('operations/create-tache-corrective', ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence']);
+export const createTacheCorrective = createAction('operations/create-tache-corrective', ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const updateStatutTache = createAction('operations/update-statut-tache', ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence']);
+export const updateStatutTache = createAction('operations/update-statut-tache', ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const marquerAlerteTraitee = createAction('operations/marquer-alerte-traitee', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence']);
+export const marquerAlerteTraitee = createAction('operations/marquer-alerte-traitee', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const updateGuichetServices = createAction('operations/update-guichet-services', ['Guichet', 'Service', 'User', 'Agence']);
+export const updateGuichetServices = createAction('operations/update-guichet-services', ['Guichet', 'Service', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const moveCritereToService = createAction('operations/move-critere-to-service', ['CritereService', 'Critere', 'Service', 'User']);
+export const moveCritereToService = createAction('operations/move-critere-to-service', ['CritereService', 'Critere', 'Service', 'User', 'Entreprise']);
 // PUBLIC API
-export const removeCritereFromService = createAction('operations/remove-critere-from-service', ['CritereService', 'Critere', 'Service', 'User']);
+export const removeCritereFromService = createAction('operations/remove-critere-from-service', ['CritereService', 'Critere', 'Service', 'User', 'Entreprise']);
 // PUBLIC API
-export const deleteCritere = createAction('operations/delete-critere', ['Critere', 'Reponse', 'AgenceCritere', 'CritereService', 'Objectif', 'User']);
+export const deleteCritere = createAction('operations/delete-critere', ['Critere', 'Reponse', 'AgenceCritere', 'CritereService', 'Objectif', 'User', 'Entreprise']);
 // PUBLIC API
-export const duplicateCritere = createAction('operations/duplicate-critere', ['Critere', 'AgenceCritere', 'CritereService', 'Agence', 'Service', 'User']);
+export const duplicateCritere = createAction('operations/duplicate-critere', ['Critere', 'AgenceCritere', 'CritereService', 'Agence', 'Service', 'User', 'Entreprise']);
 // PUBLIC API
-export const updateCritere = createAction('operations/update-critere', ['Critere', 'User']);
+export const updateCritere = createAction('operations/update-critere', ['Critere', 'User', 'Entreprise']);
 // PUBLIC API
-export const reorderCriteresInService = createAction('operations/reorder-criteres-in-service', ['CritereService', 'Service', 'User']);
+export const reorderCriteresInService = createAction('operations/reorder-criteres-in-service', ['CritereService', 'Service', 'User', 'Entreprise']);
 // PUBLIC API
-export const archiverGuichet = createAction('operations/archiver-guichet', ['Guichet', 'User', 'Agence']);
+export const archiverGuichet = createAction('operations/archiver-guichet', ['Guichet', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const desarchiverGuichet = createAction('operations/desarchiver-guichet', ['Guichet', 'User', 'Agence']);
+export const desarchiverGuichet = createAction('operations/desarchiver-guichet', ['Guichet', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const archiverAgence = createAction('operations/archiver-agence', ['Agence', 'Guichet', 'User']);
+export const archiverAgence = createAction('operations/archiver-agence', ['Agence', 'Guichet', 'User', 'Entreprise']);
 // PUBLIC API
-export const desarchiverAgence = createAction('operations/desarchiver-agence', ['Agence', 'User']);
+export const desarchiverAgence = createAction('operations/desarchiver-agence', ['Agence', 'User', 'Entreprise']);
 // PUBLIC API
-export const archiverAlerte = createAction('operations/archiver-alerte', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence']);
+export const archiverAlerte = createAction('operations/archiver-alerte', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const desarchiverAlerte = createAction('operations/desarchiver-alerte', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence']);
+export const desarchiverAlerte = createAction('operations/desarchiver-alerte', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const archiverTache = createAction('operations/archiver-tache', ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence']);
+export const archiverTache = createAction('operations/archiver-tache', ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const desarchiverTache = createAction('operations/desarchiver-tache', ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence']);
+export const desarchiverTache = createAction('operations/desarchiver-tache', ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const archiverCritere = createAction('operations/archiver-critere', ['Critere', 'User']);
+export const archiverCritere = createAction('operations/archiver-critere', ['Critere', 'User', 'Entreprise']);
 // PUBLIC API
-export const desarchiverCritere = createAction('operations/desarchiver-critere', ['Critere', 'User']);
+export const desarchiverCritere = createAction('operations/desarchiver-critere', ['Critere', 'User', 'Entreprise']);
 // PUBLIC API
 export const creerEntreprise = createAction('operations/creer-entreprise', ['Entreprise', 'User', 'Invitation', 'AuditLog']);
 // PUBLIC API

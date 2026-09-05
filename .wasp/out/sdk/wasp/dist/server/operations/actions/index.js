@@ -16,6 +16,7 @@ import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions';
 import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions';
 import { reactivateAgent as reactivateAgent_ext } from 'wasp/src/server/actions';
 import { promouvoirAgent as promouvoirAgent_ext } from 'wasp/src/server/actions';
+import { updateBranding as updateBranding_ext } from 'wasp/src/server/actions';
 import { inviteAgent as inviteAgent_ext } from 'wasp/src/server/actions';
 import { renvoyerInvitationAgent as renvoyerInvitationAgent_ext } from 'wasp/src/server/actions';
 import { toggleCritereAgence as toggleCritereAgence_ext } from 'wasp/src/server/actions';
@@ -89,6 +90,7 @@ export const createGuichet = createAuthenticatedOperation(createGuichet_ext, {
     Service: prisma.service,
     AffectationGuichet: prisma.affectationGuichet,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const assignAgent = createAuthenticatedOperation(assignAgent_ext, {
@@ -96,6 +98,7 @@ export const assignAgent = createAuthenticatedOperation(assignAgent_ext, {
     AffectationGuichet: prisma.affectationGuichet,
     Guichet: prisma.guichet,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const updateAffectationGuichet = createAuthenticatedOperation(updateAffectationGuichet_ext, {
@@ -103,12 +106,14 @@ export const updateAffectationGuichet = createAuthenticatedOperation(updateAffec
     AffectationGuichet: prisma.affectationGuichet,
     Guichet: prisma.guichet,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const deleteAffectationGuichet = createAuthenticatedOperation(deleteAffectationGuichet_ext, {
     AffectationGuichet: prisma.affectationGuichet,
     Guichet: prisma.guichet,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const soumettreAvis = createAuthenticatedOperation(soumettreAvis_ext, {
@@ -135,21 +140,32 @@ export const createAgence = createAuthenticatedOperation(createAgence_ext, {
 export const updateAgent = createAuthenticatedOperation(updateAgent_ext, {
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const deleteAgent = createAuthenticatedOperation(deleteAgent_ext, {
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const reactivateAgent = createAuthenticatedOperation(reactivateAgent_ext, {
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const promouvoirAgent = createAuthenticatedOperation(promouvoirAgent_ext, {
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const updateBranding = createAuthenticatedOperation(updateBranding_ext, {
+    BrandingConfig: prisma.brandingConfig,
+    User: prisma.user,
+    Entreprise: prisma.entreprise,
+    AuditLog: prisma.auditLog,
 });
 // PUBLIC API
 export const inviteAgent = createAuthenticatedOperation(inviteAgent_ext, {
@@ -164,12 +180,14 @@ export const renvoyerInvitationAgent = createAuthenticatedOperation(renvoyerInvi
     Agence: prisma.agence,
     Invitation: prisma.invitation,
     AuditLog: prisma.auditLog,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const toggleCritereAgence = createAuthenticatedOperation(toggleCritereAgence_ext, {
     AgenceCritere: prisma.agenceCritere,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const createCritere = createAuthenticatedOperation(createCritere_ext, {
@@ -178,11 +196,13 @@ export const createCritere = createAuthenticatedOperation(createCritere_ext, {
     User: prisma.user,
     Agence: prisma.agence,
     Service: prisma.service,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const createService = createAuthenticatedOperation(createService_ext, {
     Service: prisma.service,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const upsertObjectif = createAuthenticatedOperation(upsertObjectif_ext, {
@@ -190,12 +210,14 @@ export const upsertObjectif = createAuthenticatedOperation(upsertObjectif_ext, {
     Agence: prisma.agence,
     Critere: prisma.critere,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const deleteObjectif = createAuthenticatedOperation(deleteObjectif_ext, {
     Objectif: prisma.objectif,
     Agence: prisma.agence,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const createTacheCorrective = createAuthenticatedOperation(createTacheCorrective_ext, {
@@ -206,6 +228,7 @@ export const createTacheCorrective = createAuthenticatedOperation(createTacheCor
     Reponse: prisma.reponse,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const updateStatutTache = createAuthenticatedOperation(updateStatutTache_ext, {
@@ -216,6 +239,7 @@ export const updateStatutTache = createAuthenticatedOperation(updateStatutTache_
     Reponse: prisma.reponse,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const marquerAlerteTraitee = createAuthenticatedOperation(marquerAlerteTraitee_ext, {
@@ -224,6 +248,7 @@ export const marquerAlerteTraitee = createAuthenticatedOperation(marquerAlerteTr
     Reponse: prisma.reponse,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const updateGuichetServices = createAuthenticatedOperation(updateGuichetServices_ext, {
@@ -231,6 +256,7 @@ export const updateGuichetServices = createAuthenticatedOperation(updateGuichetS
     Service: prisma.service,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const moveCritereToService = createAuthenticatedOperation(moveCritereToService_ext, {
@@ -238,6 +264,7 @@ export const moveCritereToService = createAuthenticatedOperation(moveCritereToSe
     Critere: prisma.critere,
     Service: prisma.service,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const removeCritereFromService = createAuthenticatedOperation(removeCritereFromService_ext, {
@@ -245,6 +272,7 @@ export const removeCritereFromService = createAuthenticatedOperation(removeCrite
     Critere: prisma.critere,
     Service: prisma.service,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const deleteCritere = createAuthenticatedOperation(deleteCritere_ext, {
@@ -254,6 +282,7 @@ export const deleteCritere = createAuthenticatedOperation(deleteCritere_ext, {
     CritereService: prisma.critereService,
     Objectif: prisma.objectif,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const duplicateCritere = createAuthenticatedOperation(duplicateCritere_ext, {
@@ -263,40 +292,47 @@ export const duplicateCritere = createAuthenticatedOperation(duplicateCritere_ex
     Agence: prisma.agence,
     Service: prisma.service,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const updateCritere = createAuthenticatedOperation(updateCritere_ext, {
     Critere: prisma.critere,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const reorderCriteresInService = createAuthenticatedOperation(reorderCriteresInService_ext, {
     CritereService: prisma.critereService,
     Service: prisma.service,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const archiverGuichet = createAuthenticatedOperation(archiverGuichet_ext, {
     Guichet: prisma.guichet,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const desarchiverGuichet = createAuthenticatedOperation(desarchiverGuichet_ext, {
     Guichet: prisma.guichet,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const archiverAgence = createAuthenticatedOperation(archiverAgence_ext, {
     Agence: prisma.agence,
     Guichet: prisma.guichet,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const desarchiverAgence = createAuthenticatedOperation(desarchiverAgence_ext, {
     Agence: prisma.agence,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const archiverAlerte = createAuthenticatedOperation(archiverAlerte_ext, {
@@ -305,6 +341,7 @@ export const archiverAlerte = createAuthenticatedOperation(archiverAlerte_ext, {
     Reponse: prisma.reponse,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const desarchiverAlerte = createAuthenticatedOperation(desarchiverAlerte_ext, {
@@ -313,6 +350,7 @@ export const desarchiverAlerte = createAuthenticatedOperation(desarchiverAlerte_
     Reponse: prisma.reponse,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const archiverTache = createAuthenticatedOperation(archiverTache_ext, {
@@ -322,6 +360,7 @@ export const archiverTache = createAuthenticatedOperation(archiverTache_ext, {
     Reponse: prisma.reponse,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const desarchiverTache = createAuthenticatedOperation(desarchiverTache_ext, {
@@ -331,16 +370,19 @@ export const desarchiverTache = createAuthenticatedOperation(desarchiverTache_ex
     Reponse: prisma.reponse,
     User: prisma.user,
     Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const archiverCritere = createAuthenticatedOperation(archiverCritere_ext, {
     Critere: prisma.critere,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const desarchiverCritere = createAuthenticatedOperation(desarchiverCritere_ext, {
     Critere: prisma.critere,
     User: prisma.user,
+    Entreprise: prisma.entreprise,
 });
 // PUBLIC API
 export const creerEntreprise = createAuthenticatedOperation(creerEntreprise_ext, {

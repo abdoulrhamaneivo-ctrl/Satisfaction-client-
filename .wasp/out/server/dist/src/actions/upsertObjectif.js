@@ -8,6 +8,7 @@ export default async function (args, context) {
             Agence: prisma.agence,
             Critere: prisma.critere,
             User: prisma.user,
+            Entreprise: prisma.entreprise,
         },
     });
 }

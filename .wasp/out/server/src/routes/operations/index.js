@@ -18,6 +18,7 @@ import updateAgent from './updateAgent.js'
 import deleteAgent from './deleteAgent.js'
 import reactivateAgent from './reactivateAgent.js'
 import promouvoirAgent from './promouvoirAgent.js'
+import updateBranding from './updateBranding.js'
 import inviteAgent from './inviteAgent.js'
 import renvoyerInvitationAgent from './renvoyerInvitationAgent.js'
 import toggleCritereAgence from './toggleCritereAgence.js'
@@ -71,6 +72,7 @@ import getCriteres from './getCriteres.js'
 import getAgenceCriteres from './getAgenceCriteres.js'
 import getFormDefinitionForGuichet from './getFormDefinitionForGuichet.js'
 import getServices from './getServices.js'
+import getBranding from './getBranding.js'
 import getRadarStats from './getRadarStats.js'
 import getObjectifs from './getObjectifs.js'
 import getObjectifsParAgence from './getObjectifsParAgence.js'
@@ -115,6 +117,7 @@ router.post('/update-agent', auth, updateAgent)
 router.post('/delete-agent', auth, deleteAgent)
 router.post('/reactivate-agent', auth, reactivateAgent)
 router.post('/promouvoir-agent', auth, promouvoirAgent)
+router.post('/update-branding', auth, updateBranding)
 router.post('/invite-agent', auth, inviteAgent)
 router.post('/renvoyer-invitation-agent', auth, renvoyerInvitationAgent)
 router.post('/toggle-critere-agence', auth, toggleCritereAgence)
@@ -168,6 +171,7 @@ router.post('/get-criteres', auth, getCriteres)
 router.post('/get-agence-criteres', auth, getAgenceCriteres)
 router.post('/get-form-definition-for-guichet', auth, getFormDefinitionForGuichet)
 router.post('/get-services', auth, getServices)
+router.post('/get-branding', auth, getBranding)
 router.post('/get-radar-stats', auth, getRadarStats)
 router.post('/get-objectifs', auth, getObjectifs)
 router.post('/get-objectifs-par-agence', auth, getObjectifsParAgence)

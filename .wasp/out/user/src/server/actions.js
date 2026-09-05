@@ -60,17 +60,23 @@ export const createGuichet = async (args, context) => {
     // id_entreprise = null). Sans ce contrôle, un guichet de l'entreprise A
     // pouvait être relié à un service de l'entreprise B simplement en envoyant
     // son ID dans serviceIds (faille de relation croisée).
+    // FIX 05/09 (500 quota) : l'agence est chargée UNE fois ici et réutilisée
+    // pour le quota plus bas (avant, le bloc quota relisait sans id_entreprise
+    // puis cherchait Entreprise avec { id: undefined } → crash Prisma).
+    const agence = await context.entities.Agence.findUnique({
+        where: { id: id_agence },
+        select: { id_entreprise: true },
+    });
+    if (!agence?.id_entreprise) {
+        throw new HttpError(400, "Agence introuvable pour ce guichet.");
+    }
     if (serviceIds && serviceIds.length > 0) {
-        const agence = await context.entities.Agence.findUnique({
-            where: { id: id_agence },
-            select: { id_entreprise: true },
-        });
         const servicesValides = await context.entities.Service.findMany({
             where: {
                 id: { in: serviceIds.map(Number) },
                 OR: [
                     { id_entreprise: null },
-                    { id_entreprise: agence?.id_entreprise ?? -1 },
+                    { id_entreprise: agence.id_entreprise },
                 ],
             },
             select: { id: true },
@@ -88,12 +94,13 @@ export const createGuichet = async (args, context) => {
     // planning (createAffectation).
     // QUOTA SAAS : limite de guichets du plan, vérifiée côté serveur (via les
     // agences de l'entreprise — un guichet appartient toujours à une agence).
+    const idEntrepriseGuichet = agence.id_entreprise;
     const agencesIds = await context.entities.Agence.findMany({
-        where: { id_entreprise: (await context.entities.Agence.findUnique({ where: { id: id_agence }, select: { id_entreprise: true } }))?.id_entreprise },
+        where: { id_entreprise: idEntrepriseGuichet },
         select: { id: true },
     });
     const entrepriseQuotaGuichets = await context.entities.Entreprise.findUnique({
-        where: { id: agencesIds[0]?.id_entreprise },
+        where: { id: idEntrepriseGuichet },
         select: { limite_guichets: true },
     });
     if (entrepriseQuotaGuichets) {
@@ -906,6 +913,93 @@ export const promouvoirAgent = async (args, context) => {
         where: { id: args.id_agent },
         data: { role: 'CHEF_AGENCE' }
     });
+};
+// ============================================================================
+// PERSONNALISATION (BRANDING) — FIX 05/09 : la table existait mais aucune
+// écriture ni interface. La Direction personnalise ici l'expérience client :
+// formulaires de collecte, kits QR et slogan. Règles : DIRECTION uniquement,
+// textes bornés, masquage du branding Yeba réservé au plan ENTERPRISE.
+// ============================================================================
+const CHAMPS_BRANDING_TEXTE = {
+    logo_url: 500,
+    logo_light_url: 500,
+    favicon_url: 500,
+    nom_affiche: 80,
+    form_title: 120,
+    form_subtitle: 200,
+    form_thank_you: 120,
+    qr_slogan: 80,
+    qr_color: 20,
+    qr_bg_color: 20,
+};
+const QR_STYLES = ['CLASSIQUE', 'MODERNE', 'PREMIUM'];
+const QR_FRAMES = ['AUCUN', 'SIMPLE', 'PREMIUM'];
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+export const updateBranding = async (args, context) => {
+    requireAuth(context);
+    await assertEntrepriseActive(context, context.entities);
+    requireRole(context, ['DIRECTION']);
+    const idEntreprise = context.user.id_entreprise;
+    if (!idEntreprise)
+        throw new HttpError(400, "Votre compte n'est rattaché à aucune entreprise.");
+    const data = {};
+    for (const [champ, max] of Object.entries(CHAMPS_BRANDING_TEXTE)) {
+        if (args[champ] === undefined)
+            continue;
+        const v = String(args[champ] ?? '').trim();
+        if (v.length > max) {
+            throw new HttpError(400, `Le champ ${champ} dépasse ${max} caractères.`);
+        }
+        data[champ] = v ? v : null;
+    }
+    for (const c of ['qr_color', 'qr_bg_color']) {
+        if (data[c] && !HEX_RE.test(data[c])) {
+            throw new HttpError(400, `Couleur QR invalide (${c}) : format #RRGGBB attendu.`);
+        }
+    }
+    if (args.qr_style !== undefined) {
+        const s = String(args.qr_style).toUpperCase();
+        if (!QR_STYLES.includes(s))
+            throw new HttpError(400, 'Style QR invalide.');
+        data.qr_style = s;
+    }
+    if (args.qr_frame !== undefined) {
+        const f = String(args.qr_frame).toUpperCase();
+        if (!QR_FRAMES.includes(f))
+            throw new HttpError(400, 'Cadre QR invalide.');
+        data.qr_frame = f;
+    }
+    if (args.hide_yeba_branding !== undefined) {
+        const veutMasquer = Boolean(args.hide_yeba_branding);
+        if (veutMasquer) {
+            const entreprise = await context.entities.Entreprise.findUnique({
+                where: { id: idEntreprise },
+                select: { plan: true },
+            });
+            if (entreprise?.plan !== 'ENTERPRISE') {
+                throw new HttpError(403, 'Le masquage du branding Yeba est réservé au plan ENTERPRISE.');
+            }
+        }
+        data.hide_yeba_branding = veutMasquer;
+    }
+    if (Object.keys(data).length === 0) {
+        throw new HttpError(400, 'Aucune modification fournie.');
+    }
+    data.updated_by = context.user.id;
+    const actuel = await context.entities.BrandingConfig.upsert({
+        where: { id_entreprise: idEntreprise },
+        update: data,
+        create: { id_entreprise: idEntreprise, ...data },
+    });
+    await journaliser({
+        context,
+        action: 'branding.update',
+        resource: 'BrandingConfig',
+        resource_id: String(actuel.id),
+        entreprise_id: idEntreprise,
+        details: { champs: Object.keys(data) },
+    });
+    return actuel;
 };
 // ============================================================================
 // GESTION DES AGENCES

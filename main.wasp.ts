@@ -40,6 +40,7 @@ import {
   promouvoirAgent,
   inviteAgent,
   renvoyerInvitationAgent,
+  updateBranding,
   createAgence,
   toggleCritereAgence,
   createCritere,
@@ -92,6 +93,7 @@ import {
   getAgenceCriteres,
   getFormDefinitionForGuichet,
   getServices,
+  getBranding,
   getRadarStats,
   getObjectifs,
   getObjectifsParAgence,
@@ -144,52 +146,53 @@ const activateAccountRoute = route("ActivateAccountRoute", "/account/activate", 
 
 // === ACTIONS DEFINITIONS ===
 const createGuichetAction = action(createGuichet, {
-  entities: ["Guichet", "User", "Service", "AffectationGuichet", "Agence"],
+  entities: ["Guichet", "User", "Service", "AffectationGuichet", "Agence", "Entreprise"],
 });
-const assignAgentAction = action(assignAgent, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
-const updateAffectationGuichetAction = action(updateAffectationGuichet, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
-const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence"] });
+const assignAgentAction = action(assignAgent, { entities: ["User", "AffectationGuichet", "Guichet", "Agence", "Entreprise"] });
+const updateAffectationGuichetAction = action(updateAffectationGuichet, { entities: ["User", "AffectationGuichet", "Guichet", "Agence", "Entreprise"] });
+const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence", "Entreprise"] });
 const soumettreAvisAction = action(soumettreAvis, {
   entities: ["Reponse", "Critere", "AgenceCritere", "CritereService", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "AnalyseAvisIA", "Canal"],
 });
 const createAgenceAction = action(createAgence, { entities: ["Agence", "User", "Entreprise"] });
-const updateAgentAction = action(updateAgent, { entities: ["User", "Agence"] });
-const deleteAgentAction = action(deleteAgent, { entities: ["User", "Agence"] });
-const reactivateAgentAction = action(reactivateAgent, { entities: ["User", "Agence"] });
-const promouvoirAgentAction = action(promouvoirAgent, { entities: ["User", "Agence"] });
+const updateAgentAction = action(updateAgent, { entities: ["User", "Agence", "Entreprise"] });
+const deleteAgentAction = action(deleteAgent, { entities: ["User", "Agence", "Entreprise"] });
+const reactivateAgentAction = action(reactivateAgent, { entities: ["User", "Agence", "Entreprise"] });
+const promouvoirAgentAction = action(promouvoirAgent, { entities: ["User", "Agence", "Entreprise"] });
+const updateBrandingAction = action(updateBranding, { entities: ["BrandingConfig", "User", "Entreprise", "AuditLog"] });
 const inviteAgentAction = action(inviteAgent, { entities: ["User", "Agence", "Entreprise", "Invitation"] });
-const renvoyerInvitationAgentAction = action(renvoyerInvitationAgent, { entities: ["User", "Agence", "Invitation", "AuditLog"] });
-const toggleCritereAgenceAction = action(toggleCritereAgence, { entities: ["AgenceCritere", "User", "Agence"] });
-const createCritereAction = action(createCritere, { entities: ["Critere", "AgenceCritere", "User", "Agence", "Service"] });
-const createServiceAction = action(createService, { entities: ["Service", "User"] });
-const upsertObjectifAction = action(upsertObjectif, { entities: ["Objectif", "Agence", "Critere", "User"] });
-const deleteObjectifAction = action(deleteObjectif, { entities: ["Objectif", "Agence", "User"] });
+const renvoyerInvitationAgentAction = action(renvoyerInvitationAgent, { entities: ["User", "Agence", "Invitation", "AuditLog", "Entreprise"] });
+const toggleCritereAgenceAction = action(toggleCritereAgence, { entities: ["AgenceCritere", "User", "Agence", "Entreprise"] });
+const createCritereAction = action(createCritere, { entities: ["Critere", "AgenceCritere", "User", "Agence", "Service", "Entreprise"] });
+const createServiceAction = action(createService, { entities: ["Service", "User", "Entreprise"] });
+const upsertObjectifAction = action(upsertObjectif, { entities: ["Objectif", "Agence", "Critere", "User", "Entreprise"] });
+const deleteObjectifAction = action(deleteObjectif, { entities: ["Objectif", "Agence", "User", "Entreprise"] });
 const createTacheCorrectiveAction = action(createTacheCorrective, {
-  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"],
+  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"],
 });
 const updateStatutTacheAction = action(updateStatutTache, {
-  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence"],
+  entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"],
 });
 const marquerAlerteTraiteeAction = action(marquerAlerteTraitee, {
-  entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"],
+  entities: ["Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"],
 });
-const updateGuichetServicesAction = action(updateGuichetServices, { entities: ["Guichet", "Service", "User", "Agence"] });
-const moveCritereToServiceAction = action(moveCritereToService, { entities: ["CritereService", "Critere", "Service", "User"] });
-const removeCritereFromServiceAction = action(removeCritereFromService, { entities: ["CritereService", "Critere", "Service", "User"] });
-const deleteCritereAction = action(deleteCritere, { entities: ["Critere", "Reponse", "AgenceCritere", "CritereService", "Objectif", "User"] });
-const duplicateCritereAction = action(duplicateCritere, { entities: ["Critere", "AgenceCritere", "CritereService", "Agence", "Service", "User"] });
-const updateCritereAction = action(updateCritere, { entities: ["Critere", "User"] });
-const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User"] });
-const archiverGuichetAction = action(archiverGuichet, { entities: ["Guichet", "User", "Agence"] });
-const desarchiverGuichetAction = action(desarchiverGuichet, { entities: ["Guichet", "User", "Agence"] });
-const archiverAgenceAction = action(archiverAgence, { entities: ["Agence", "Guichet", "User"] });
-const desarchiverAgenceAction = action(desarchiverAgence, { entities: ["Agence", "User"] });
-const archiverAlerteAction = action(archiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"] });
-const desarchiverAlerteAction = action(desarchiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence"] });
-const archiverTacheAction = action(archiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
-const desarchiverTacheAction = action(desarchiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence"] });
-const archiverCritereAction = action(archiverCritere, { entities: ["Critere", "User"] });
-const desarchiverCritereAction = action(desarchiverCritere, { entities: ["Critere", "User"] });
+const updateGuichetServicesAction = action(updateGuichetServices, { entities: ["Guichet", "Service", "User", "Agence", "Entreprise"] });
+const moveCritereToServiceAction = action(moveCritereToService, { entities: ["CritereService", "Critere", "Service", "User", "Entreprise"] });
+const removeCritereFromServiceAction = action(removeCritereFromService, { entities: ["CritereService", "Critere", "Service", "User", "Entreprise"] });
+const deleteCritereAction = action(deleteCritere, { entities: ["Critere", "Reponse", "AgenceCritere", "CritereService", "Objectif", "User", "Entreprise"] });
+const duplicateCritereAction = action(duplicateCritere, { entities: ["Critere", "AgenceCritere", "CritereService", "Agence", "Service", "User", "Entreprise"] });
+const updateCritereAction = action(updateCritere, { entities: ["Critere", "User", "Entreprise"] });
+const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User", "Entreprise"] });
+const archiverGuichetAction = action(archiverGuichet, { entities: ["Guichet", "User", "Agence", "Entreprise"] });
+const desarchiverGuichetAction = action(desarchiverGuichet, { entities: ["Guichet", "User", "Agence", "Entreprise"] });
+const archiverAgenceAction = action(archiverAgence, { entities: ["Agence", "Guichet", "User", "Entreprise"] });
+const desarchiverAgenceAction = action(desarchiverAgence, { entities: ["Agence", "User", "Entreprise"] });
+const archiverAlerteAction = action(archiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
+const desarchiverAlerteAction = action(desarchiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
+const archiverTacheAction = action(archiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
+const desarchiverTacheAction = action(desarchiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
+const archiverCritereAction = action(archiverCritere, { entities: ["Critere", "User", "Entreprise"] });
+const desarchiverCritereAction = action(desarchiverCritere, { entities: ["Critere", "User", "Entreprise"] });
 
 // === QUERIES DEFINITIONS ===
 const getGuichetsQuery = query(getGuichets, { entities: ["Guichet", "User", "Service", "Agence", "Entreprise"] });
@@ -204,6 +207,7 @@ const getCriteresQuery = query(getCriteres, { entities: ["Critere", "User", "Ent
 const getAgenceCriteresQuery = query(getAgenceCriteres, { entities: ["AgenceCritere", "User", "Agence", "Entreprise"] });
 const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, { entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise", "BrandingConfig"] });
 const getServicesQuery = query(getServices, { entities: ["Service", "User", "Entreprise"] });
+const getBrandingQuery = query(getBranding, { entities: ["BrandingConfig", "User", "Entreprise"] });
 const getRadarStatsQuery = query(getRadarStats, { entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence", "Entreprise"] });
 const getObjectifsQuery = query(getObjectifs, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse", "Entreprise"] });
 const getObjectifsParAgenceQuery = query(getObjectifsParAgence, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse", "Entreprise"] });
@@ -331,6 +335,7 @@ export default app({
     deleteAgentAction,
     reactivateAgentAction,
     promouvoirAgentAction,
+    updateBrandingAction,
     inviteAgentAction,
     renvoyerInvitationAgentAction,
     toggleCritereAgenceAction,
@@ -384,6 +389,7 @@ export default app({
     getAgenceCriteresQuery,
     getFormDefinitionForGuichetQuery,
     getServicesQuery,
+    getBrandingQuery,
     getRadarStatsQuery,
     getObjectifsQuery,
     getObjectifsParAgenceQuery,

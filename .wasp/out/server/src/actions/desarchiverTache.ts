@@ -13,6 +13,7 @@ export default async function (args, context) {
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   })
 }

@@ -6,6 +6,7 @@ export default async function (args, context) {
         entities: {
             Critere: prisma.critere,
             User: prisma.user,
+            Entreprise: prisma.entreprise,
         },
     });
 }

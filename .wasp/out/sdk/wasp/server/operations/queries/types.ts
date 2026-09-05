@@ -209,6 +209,18 @@ export type GetServices<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
+export type GetBranding<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _BrandingConfig,
+      _User,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
 export type GetRadarStats<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [

@@ -12,6 +12,7 @@ export default async function (args, context) {
       Service: prisma.service,
       AffectationGuichet: prisma.affectationGuichet,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   })
 }

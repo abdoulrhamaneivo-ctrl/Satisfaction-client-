@@ -13,6 +13,7 @@ export default async function (args, context) {
       CritereService: prisma.critereService,
       Objectif: prisma.objectif,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   })
 }

@@ -8,6 +8,7 @@ export default async function (args, context) {
             Agence: prisma.agence,
             Invitation: prisma.invitation,
             AuditLog: prisma.auditLog,
+            Entreprise: prisma.entreprise,
         },
     });
 }

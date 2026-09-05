@@ -1385,17 +1385,20 @@ const createGuichet$2 = async (args, context) => {
     throw new HttpError(400, "Le nom du guichet et l'agence parente sont requis.");
   }
   await assertAgenceAccess(context, context.entities, id_agence, "agence");
+  const agence = await context.entities.Agence.findUnique({
+    where: { id: id_agence },
+    select: { id_entreprise: true }
+  });
+  if (!agence?.id_entreprise) {
+    throw new HttpError(400, "Agence introuvable pour ce guichet.");
+  }
   if (serviceIds && serviceIds.length > 0) {
-    const agence = await context.entities.Agence.findUnique({
-      where: { id: id_agence },
-      select: { id_entreprise: true }
-    });
     const servicesValides = await context.entities.Service.findMany({
       where: {
         id: { in: serviceIds.map(Number) },
         OR: [
           { id_entreprise: null },
-          { id_entreprise: agence?.id_entreprise ?? -1 }
+          { id_entreprise: agence.id_entreprise }
         ]
       },
       select: { id: true }
@@ -1405,12 +1408,13 @@ const createGuichet$2 = async (args, context) => {
     }
   }
   const servicesConnect = serviceIds && serviceIds.length > 0 ? { connect: serviceIds.map((id) => ({ id })) } : void 0;
+  const idEntrepriseGuichet = agence.id_entreprise;
   const agencesIds = await context.entities.Agence.findMany({
-    where: { id_entreprise: (await context.entities.Agence.findUnique({ where: { id: id_agence }, select: { id_entreprise: true } }))?.id_entreprise },
+    where: { id_entreprise: idEntrepriseGuichet },
     select: { id: true }
   });
   const entrepriseQuotaGuichets = await context.entities.Entreprise.findUnique({
-    where: { id: agencesIds[0]?.id_entreprise },
+    where: { id: idEntrepriseGuichet },
     select: { limite_guichets: true }
   });
   if (entrepriseQuotaGuichets) {
@@ -2027,6 +2031,83 @@ const promouvoirAgent$2 = async (args, context) => {
     where: { id: args.id_agent },
     data: { role: "CHEF_AGENCE" }
   });
+};
+const CHAMPS_BRANDING_TEXTE = {
+  logo_url: 500,
+  logo_light_url: 500,
+  favicon_url: 500,
+  nom_affiche: 80,
+  form_title: 120,
+  form_subtitle: 200,
+  form_thank_you: 120,
+  qr_slogan: 80,
+  qr_color: 20,
+  qr_bg_color: 20
+};
+const QR_STYLES = ["CLASSIQUE", "MODERNE", "PREMIUM"];
+const QR_FRAMES = ["AUCUN", "SIMPLE", "PREMIUM"];
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const updateBranding$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ["DIRECTION"]);
+  const idEntreprise = context.user.id_entreprise;
+  if (!idEntreprise) throw new HttpError(400, "Votre compte n'est rattach\xE9 \xE0 aucune entreprise.");
+  const data = {};
+  for (const [champ, max] of Object.entries(CHAMPS_BRANDING_TEXTE)) {
+    if (args[champ] === void 0) continue;
+    const v = String(args[champ] ?? "").trim();
+    if (v.length > max) {
+      throw new HttpError(400, `Le champ ${champ} d\xE9passe ${max} caract\xE8res.`);
+    }
+    data[champ] = v ? v : null;
+  }
+  for (const c of ["qr_color", "qr_bg_color"]) {
+    if (data[c] && !HEX_RE.test(data[c])) {
+      throw new HttpError(400, `Couleur QR invalide (${c}) : format #RRGGBB attendu.`);
+    }
+  }
+  if (args.qr_style !== void 0) {
+    const s = String(args.qr_style).toUpperCase();
+    if (!QR_STYLES.includes(s)) throw new HttpError(400, "Style QR invalide.");
+    data.qr_style = s;
+  }
+  if (args.qr_frame !== void 0) {
+    const f = String(args.qr_frame).toUpperCase();
+    if (!QR_FRAMES.includes(f)) throw new HttpError(400, "Cadre QR invalide.");
+    data.qr_frame = f;
+  }
+  if (args.hide_yeba_branding !== void 0) {
+    const veutMasquer = Boolean(args.hide_yeba_branding);
+    if (veutMasquer) {
+      const entreprise = await context.entities.Entreprise.findUnique({
+        where: { id: idEntreprise },
+        select: { plan: true }
+      });
+      if (entreprise?.plan !== "ENTERPRISE") {
+        throw new HttpError(403, "Le masquage du branding Yeba est r\xE9serv\xE9 au plan ENTERPRISE.");
+      }
+    }
+    data.hide_yeba_branding = veutMasquer;
+  }
+  if (Object.keys(data).length === 0) {
+    throw new HttpError(400, "Aucune modification fournie.");
+  }
+  data.updated_by = context.user.id;
+  const actuel = await context.entities.BrandingConfig.upsert({
+    where: { id_entreprise: idEntreprise },
+    update: data,
+    create: { id_entreprise: idEntreprise, ...data }
+  });
+  await journaliser({
+    context,
+    action: "branding.update",
+    resource: "BrandingConfig",
+    resource_id: String(actuel.id),
+    entreprise_id: idEntreprise,
+    details: { champs: Object.keys(data) }
+  });
+  return actuel;
 };
 const createAgence$2 = async (args, context) => {
   requireAuth(context);
@@ -3030,7 +3111,8 @@ async function createGuichet$1(args, context) {
       User: dbClient.user,
       Service: dbClient.service,
       AffectationGuichet: dbClient.affectationGuichet,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3044,7 +3126,8 @@ async function assignAgent$1(args, context) {
       User: dbClient.user,
       AffectationGuichet: dbClient.affectationGuichet,
       Guichet: dbClient.guichet,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3058,7 +3141,8 @@ async function updateAffectationGuichet$1(args, context) {
       User: dbClient.user,
       AffectationGuichet: dbClient.affectationGuichet,
       Guichet: dbClient.guichet,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3071,7 +3155,8 @@ async function deleteAffectationGuichet$1(args, context) {
     entities: {
       AffectationGuichet: dbClient.affectationGuichet,
       Guichet: dbClient.guichet,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3118,7 +3203,8 @@ async function updateAgent$1(args, context) {
     ...context,
     entities: {
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3130,7 +3216,8 @@ async function deleteAgent$1(args, context) {
     ...context,
     entities: {
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3142,7 +3229,8 @@ async function reactivateAgent$1(args, context) {
     ...context,
     entities: {
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3154,12 +3242,27 @@ async function promouvoirAgent$1(args, context) {
     ...context,
     entities: {
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
 
 var promouvoirAgent = createAction(promouvoirAgent$1);
+
+async function updateBranding$1(args, context) {
+  return updateBranding$2(args, {
+    ...context,
+    entities: {
+      BrandingConfig: dbClient.brandingConfig,
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise,
+      AuditLog: dbClient.auditLog
+    }
+  });
+}
+
+var updateBranding = createAction(updateBranding$1);
 
 async function inviteAgent$1(args, context) {
   return inviteAgent$2(args, {
@@ -3182,7 +3285,8 @@ async function renvoyerInvitationAgent$1(args, context) {
       User: dbClient.user,
       Agence: dbClient.agence,
       Invitation: dbClient.invitation,
-      AuditLog: dbClient.auditLog
+      AuditLog: dbClient.auditLog,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3195,7 +3299,8 @@ async function toggleCritereAgence$1(args, context) {
     entities: {
       AgenceCritere: dbClient.agenceCritere,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3210,7 +3315,8 @@ async function createCritere$1(args, context) {
       AgenceCritere: dbClient.agenceCritere,
       User: dbClient.user,
       Agence: dbClient.agence,
-      Service: dbClient.service
+      Service: dbClient.service,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3222,7 +3328,8 @@ async function createService$1(args, context) {
     ...context,
     entities: {
       Service: dbClient.service,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3236,7 +3343,8 @@ async function upsertObjectif$1(args, context) {
       Objectif: dbClient.objectif,
       Agence: dbClient.agence,
       Critere: dbClient.critere,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3249,7 +3357,8 @@ async function deleteObjectif$1(args, context) {
     entities: {
       Objectif: dbClient.objectif,
       Agence: dbClient.agence,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3266,7 +3375,8 @@ async function createTacheCorrective$1(args, context) {
       Guichet: dbClient.guichet,
       Reponse: dbClient.reponse,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3283,7 +3393,8 @@ async function updateStatutTache$1(args, context) {
       Guichet: dbClient.guichet,
       Reponse: dbClient.reponse,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3298,7 +3409,8 @@ async function marquerAlerteTraitee$1(args, context) {
       Guichet: dbClient.guichet,
       Reponse: dbClient.reponse,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3312,7 +3424,8 @@ async function updateGuichetServices$1(args, context) {
       Guichet: dbClient.guichet,
       Service: dbClient.service,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3326,7 +3439,8 @@ async function moveCritereToService$1(args, context) {
       CritereService: dbClient.critereService,
       Critere: dbClient.critere,
       Service: dbClient.service,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3340,7 +3454,8 @@ async function removeCritereFromService$1(args, context) {
       CritereService: dbClient.critereService,
       Critere: dbClient.critere,
       Service: dbClient.service,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3356,7 +3471,8 @@ async function deleteCritere$1(args, context) {
       AgenceCritere: dbClient.agenceCritere,
       CritereService: dbClient.critereService,
       Objectif: dbClient.objectif,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3372,7 +3488,8 @@ async function duplicateCritere$1(args, context) {
       CritereService: dbClient.critereService,
       Agence: dbClient.agence,
       Service: dbClient.service,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3384,7 +3501,8 @@ async function updateCritere$1(args, context) {
     ...context,
     entities: {
       Critere: dbClient.critere,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3397,7 +3515,8 @@ async function reorderCriteresInService$1(args, context) {
     entities: {
       CritereService: dbClient.critereService,
       Service: dbClient.service,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3410,7 +3529,8 @@ async function archiverGuichet$1(args, context) {
     entities: {
       Guichet: dbClient.guichet,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3423,7 +3543,8 @@ async function desarchiverGuichet$1(args, context) {
     entities: {
       Guichet: dbClient.guichet,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3436,7 +3557,8 @@ async function archiverAgence$1(args, context) {
     entities: {
       Agence: dbClient.agence,
       Guichet: dbClient.guichet,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3448,7 +3570,8 @@ async function desarchiverAgence$1(args, context) {
     ...context,
     entities: {
       Agence: dbClient.agence,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3463,7 +3586,8 @@ async function archiverAlerte$1(args, context) {
       Guichet: dbClient.guichet,
       Reponse: dbClient.reponse,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3478,7 +3602,8 @@ async function desarchiverAlerte$1(args, context) {
       Guichet: dbClient.guichet,
       Reponse: dbClient.reponse,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3494,7 +3619,8 @@ async function archiverTache$1(args, context) {
       Guichet: dbClient.guichet,
       Reponse: dbClient.reponse,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3510,7 +3636,8 @@ async function desarchiverTache$1(args, context) {
       Guichet: dbClient.guichet,
       Reponse: dbClient.reponse,
       User: dbClient.user,
-      Agence: dbClient.agence
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3522,7 +3649,8 @@ async function archiverCritere$1(args, context) {
     ...context,
     entities: {
       Critere: dbClient.critere,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -3534,7 +3662,8 @@ async function desarchiverCritere$1(args, context) {
     ...context,
     entities: {
       Critere: dbClient.critere,
-      User: dbClient.user
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
     }
   });
 }
@@ -4959,6 +5088,15 @@ const getServices$2 = async (_args, context) => {
     orderBy: { id: "asc" }
   });
 };
+const getBranding$2 = async (_args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ["DIRECTION"]);
+  if (!context.user.id_entreprise) return null;
+  return context.entities.BrandingConfig.findUnique({
+    where: { id_entreprise: context.user.id_entreprise }
+  });
+};
 const getFormDefinitionForGuichet$2 = async (args, context) => {
   if (!args.code_public && !args.id_guichet) return null;
   const guichet = await context.entities.Guichet.findUnique({
@@ -6249,6 +6387,19 @@ async function getServices$1(args, context) {
 
 var getServices = createQuery(getServices$1);
 
+async function getBranding$1(args, context) {
+  return getBranding$2(args, {
+    ...context,
+    entities: {
+      BrandingConfig: dbClient.brandingConfig,
+      User: dbClient.user,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var getBranding = createQuery(getBranding$1);
+
 async function getRadarStats$1(args, context) {
   return getRadarStats$2(args, {
     ...context,
@@ -6845,6 +6996,7 @@ router$3.post("/update-agent", auth, updateAgent);
 router$3.post("/delete-agent", auth, deleteAgent);
 router$3.post("/reactivate-agent", auth, reactivateAgent);
 router$3.post("/promouvoir-agent", auth, promouvoirAgent);
+router$3.post("/update-branding", auth, updateBranding);
 router$3.post("/invite-agent", auth, inviteAgent);
 router$3.post("/renvoyer-invitation-agent", auth, renvoyerInvitationAgent);
 router$3.post("/toggle-critere-agence", auth, toggleCritereAgence);
@@ -6898,6 +7050,7 @@ router$3.post("/get-criteres", auth, getCriteres);
 router$3.post("/get-agence-criteres", auth, getAgenceCriteres);
 router$3.post("/get-form-definition-for-guichet", auth, getFormDefinitionForGuichet);
 router$3.post("/get-services", auth, getServices);
+router$3.post("/get-branding", auth, getBranding);
 router$3.post("/get-radar-stats", auth, getRadarStats);
 router$3.post("/get-objectifs", auth, getObjectifs);
 router$3.post("/get-objectifs-par-agence", auth, getObjectifsParAgence);

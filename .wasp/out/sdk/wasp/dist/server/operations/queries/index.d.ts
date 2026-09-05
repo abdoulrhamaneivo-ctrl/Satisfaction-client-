@@ -13,6 +13,7 @@ import { getCriteres as getCriteres_ext } from 'wasp/src/server/queries';
 import { getAgenceCriteres as getAgenceCriteres_ext } from 'wasp/src/server/queries';
 import { getFormDefinitionForGuichet as getFormDefinitionForGuichet_ext } from 'wasp/src/server/queries';
 import { getServices as getServices_ext } from 'wasp/src/server/queries';
+import { getBranding as getBranding_ext } from 'wasp/src/server/queries';
 import { getRadarStats as getRadarStats_ext } from 'wasp/src/server/queries';
 import { getObjectifs as getObjectifs_ext } from 'wasp/src/server/queries';
 import { getObjectifsParAgence as getObjectifsParAgence_ext } from 'wasp/src/server/queries';
@@ -66,6 +67,8 @@ export type GetFormDefinitionForGuichet_ext = typeof getFormDefinitionForGuichet
 export declare const getFormDefinitionForGuichet: AuthenticatedOperationFor<GetFormDefinitionForGuichet_ext>;
 export type GetServices_ext = typeof getServices_ext;
 export declare const getServices: AuthenticatedOperationFor<GetServices_ext>;
+export type GetBranding_ext = typeof getBranding_ext;
+export declare const getBranding: AuthenticatedOperationFor<GetBranding_ext>;
 export type GetRadarStats_ext = typeof getRadarStats_ext;
 export declare const getRadarStats: AuthenticatedOperationFor<GetRadarStats_ext>;
 export type GetObjectifs_ext = typeof getObjectifs_ext;

@@ -31,6 +31,8 @@ export { getFormDefinitionForGuichet } from './queries/index.js'
 
 export { getServices } from './queries/index.js'
 
+export { getBranding } from './queries/index.js'
+
 export { getRadarStats } from './queries/index.js'
 
 export { getObjectifs } from './queries/index.js'
@@ -112,6 +114,8 @@ export { deleteAgent } from './actions/index.js'
 export { reactivateAgent } from './actions/index.js'
 
 export { promouvoirAgent } from './actions/index.js'
+
+export { updateBranding } from './actions/index.js'
 
 export { inviteAgent } from './actions/index.js'
 

@@ -505,6 +505,19 @@ export const getServices = async (_args: void, context: any) => {
   });
 };
 
+// Personnalisation : configuration brute de l'entreprise (FIX 05/09 —
+// l'onglet Paramètres de la Direction). Les valeurs nulles signifient
+// « défaut Yéba » (voir BRANDING dans shared/branding.ts).
+export const getBranding = async (_args: void, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ['DIRECTION']);
+  if (!context.user.id_entreprise) return null;
+  return context.entities.BrandingConfig.findUnique({
+    where: { id_entreprise: context.user.id_entreprise },
+  });
+};
+
 // Route PUBLIQUE volontairement (formulaire de collecte scanné par un client
 // anonyme via QR code) : pas d'authentification requise ici par design.
 // Résolution par code_public OPAQUE (Doc 11 §7) : le QR n'expose jamais

@@ -15,6 +15,7 @@ import { UpdateAgent_ext } from 'wasp/server/operations/actions'
 import { DeleteAgent_ext } from 'wasp/server/operations/actions'
 import { ReactivateAgent_ext } from 'wasp/server/operations/actions'
 import { PromouvoirAgent_ext } from 'wasp/server/operations/actions'
+import { UpdateBranding_ext } from 'wasp/server/operations/actions'
 import { InviteAgent_ext } from 'wasp/server/operations/actions'
 import { RenvoyerInvitationAgent_ext } from 'wasp/server/operations/actions'
 import { ToggleCritereAgence_ext } from 'wasp/server/operations/actions'
@@ -94,25 +95,25 @@ export const deleteFile: ActionFor<DeleteFile_ext> = createAction<DeleteFile_ext
 // PUBLIC API
 export const createGuichet: ActionFor<CreateGuichet_ext> = createAction<CreateGuichet_ext>(
   'operations/create-guichet',
-  ['Guichet', 'User', 'Service', 'AffectationGuichet', 'Agence'],
+  ['Guichet', 'User', 'Service', 'AffectationGuichet', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const assignAgent: ActionFor<AssignAgent_ext> = createAction<AssignAgent_ext>(
   'operations/assign-agent',
-  ['User', 'AffectationGuichet', 'Guichet', 'Agence'],
+  ['User', 'AffectationGuichet', 'Guichet', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const updateAffectationGuichet: ActionFor<UpdateAffectationGuichet_ext> = createAction<UpdateAffectationGuichet_ext>(
   'operations/update-affectation-guichet',
-  ['User', 'AffectationGuichet', 'Guichet', 'Agence'],
+  ['User', 'AffectationGuichet', 'Guichet', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const deleteAffectationGuichet: ActionFor<DeleteAffectationGuichet_ext> = createAction<DeleteAffectationGuichet_ext>(
   'operations/delete-affectation-guichet',
-  ['AffectationGuichet', 'Guichet', 'Agence'],
+  ['AffectationGuichet', 'Guichet', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
@@ -130,25 +131,31 @@ export const createAgence: ActionFor<CreateAgence_ext> = createAction<CreateAgen
 // PUBLIC API
 export const updateAgent: ActionFor<UpdateAgent_ext> = createAction<UpdateAgent_ext>(
   'operations/update-agent',
-  ['User', 'Agence'],
+  ['User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const deleteAgent: ActionFor<DeleteAgent_ext> = createAction<DeleteAgent_ext>(
   'operations/delete-agent',
-  ['User', 'Agence'],
+  ['User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const reactivateAgent: ActionFor<ReactivateAgent_ext> = createAction<ReactivateAgent_ext>(
   'operations/reactivate-agent',
-  ['User', 'Agence'],
+  ['User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const promouvoirAgent: ActionFor<PromouvoirAgent_ext> = createAction<PromouvoirAgent_ext>(
   'operations/promouvoir-agent',
-  ['User', 'Agence'],
+  ['User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const updateBranding: ActionFor<UpdateBranding_ext> = createAction<UpdateBranding_ext>(
+  'operations/update-branding',
+  ['BrandingConfig', 'User', 'Entreprise', 'AuditLog'],
 )
 
 // PUBLIC API
@@ -160,157 +167,157 @@ export const inviteAgent: ActionFor<InviteAgent_ext> = createAction<InviteAgent_
 // PUBLIC API
 export const renvoyerInvitationAgent: ActionFor<RenvoyerInvitationAgent_ext> = createAction<RenvoyerInvitationAgent_ext>(
   'operations/renvoyer-invitation-agent',
-  ['User', 'Agence', 'Invitation', 'AuditLog'],
+  ['User', 'Agence', 'Invitation', 'AuditLog', 'Entreprise'],
 )
 
 // PUBLIC API
 export const toggleCritereAgence: ActionFor<ToggleCritereAgence_ext> = createAction<ToggleCritereAgence_ext>(
   'operations/toggle-critere-agence',
-  ['AgenceCritere', 'User', 'Agence'],
+  ['AgenceCritere', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const createCritere: ActionFor<CreateCritere_ext> = createAction<CreateCritere_ext>(
   'operations/create-critere',
-  ['Critere', 'AgenceCritere', 'User', 'Agence', 'Service'],
+  ['Critere', 'AgenceCritere', 'User', 'Agence', 'Service', 'Entreprise'],
 )
 
 // PUBLIC API
 export const createService: ActionFor<CreateService_ext> = createAction<CreateService_ext>(
   'operations/create-service',
-  ['Service', 'User'],
+  ['Service', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const upsertObjectif: ActionFor<UpsertObjectif_ext> = createAction<UpsertObjectif_ext>(
   'operations/upsert-objectif',
-  ['Objectif', 'Agence', 'Critere', 'User'],
+  ['Objectif', 'Agence', 'Critere', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const deleteObjectif: ActionFor<DeleteObjectif_ext> = createAction<DeleteObjectif_ext>(
   'operations/delete-objectif',
-  ['Objectif', 'Agence', 'User'],
+  ['Objectif', 'Agence', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const createTacheCorrective: ActionFor<CreateTacheCorrective_ext> = createAction<CreateTacheCorrective_ext>(
   'operations/create-tache-corrective',
-  ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence'],
+  ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const updateStatutTache: ActionFor<UpdateStatutTache_ext> = createAction<UpdateStatutTache_ext>(
   'operations/update-statut-tache',
-  ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence'],
+  ['TacheCorrective', 'TacheCorrectiveHistorique', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const marquerAlerteTraitee: ActionFor<MarquerAlerteTraitee_ext> = createAction<MarquerAlerteTraitee_ext>(
   'operations/marquer-alerte-traitee',
-  ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence'],
+  ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const updateGuichetServices: ActionFor<UpdateGuichetServices_ext> = createAction<UpdateGuichetServices_ext>(
   'operations/update-guichet-services',
-  ['Guichet', 'Service', 'User', 'Agence'],
+  ['Guichet', 'Service', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const moveCritereToService: ActionFor<MoveCritereToService_ext> = createAction<MoveCritereToService_ext>(
   'operations/move-critere-to-service',
-  ['CritereService', 'Critere', 'Service', 'User'],
+  ['CritereService', 'Critere', 'Service', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const removeCritereFromService: ActionFor<RemoveCritereFromService_ext> = createAction<RemoveCritereFromService_ext>(
   'operations/remove-critere-from-service',
-  ['CritereService', 'Critere', 'Service', 'User'],
+  ['CritereService', 'Critere', 'Service', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const deleteCritere: ActionFor<DeleteCritere_ext> = createAction<DeleteCritere_ext>(
   'operations/delete-critere',
-  ['Critere', 'Reponse', 'AgenceCritere', 'CritereService', 'Objectif', 'User'],
+  ['Critere', 'Reponse', 'AgenceCritere', 'CritereService', 'Objectif', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const duplicateCritere: ActionFor<DuplicateCritere_ext> = createAction<DuplicateCritere_ext>(
   'operations/duplicate-critere',
-  ['Critere', 'AgenceCritere', 'CritereService', 'Agence', 'Service', 'User'],
+  ['Critere', 'AgenceCritere', 'CritereService', 'Agence', 'Service', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const updateCritere: ActionFor<UpdateCritere_ext> = createAction<UpdateCritere_ext>(
   'operations/update-critere',
-  ['Critere', 'User'],
+  ['Critere', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const reorderCriteresInService: ActionFor<ReorderCriteresInService_ext> = createAction<ReorderCriteresInService_ext>(
   'operations/reorder-criteres-in-service',
-  ['CritereService', 'Service', 'User'],
+  ['CritereService', 'Service', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const archiverGuichet: ActionFor<ArchiverGuichet_ext> = createAction<ArchiverGuichet_ext>(
   'operations/archiver-guichet',
-  ['Guichet', 'User', 'Agence'],
+  ['Guichet', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const desarchiverGuichet: ActionFor<DesarchiverGuichet_ext> = createAction<DesarchiverGuichet_ext>(
   'operations/desarchiver-guichet',
-  ['Guichet', 'User', 'Agence'],
+  ['Guichet', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const archiverAgence: ActionFor<ArchiverAgence_ext> = createAction<ArchiverAgence_ext>(
   'operations/archiver-agence',
-  ['Agence', 'Guichet', 'User'],
+  ['Agence', 'Guichet', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const desarchiverAgence: ActionFor<DesarchiverAgence_ext> = createAction<DesarchiverAgence_ext>(
   'operations/desarchiver-agence',
-  ['Agence', 'User'],
+  ['Agence', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const archiverAlerte: ActionFor<ArchiverAlerte_ext> = createAction<ArchiverAlerte_ext>(
   'operations/archiver-alerte',
-  ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence'],
+  ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const desarchiverAlerte: ActionFor<DesarchiverAlerte_ext> = createAction<DesarchiverAlerte_ext>(
   'operations/desarchiver-alerte',
-  ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence'],
+  ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const archiverTache: ActionFor<ArchiverTache_ext> = createAction<ArchiverTache_ext>(
   'operations/archiver-tache',
-  ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence'],
+  ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const desarchiverTache: ActionFor<DesarchiverTache_ext> = createAction<DesarchiverTache_ext>(
   'operations/desarchiver-tache',
-  ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence'],
+  ['TacheCorrective', 'Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API
 export const archiverCritere: ActionFor<ArchiverCritere_ext> = createAction<ArchiverCritere_ext>(
   'operations/archiver-critere',
-  ['Critere', 'User'],
+  ['Critere', 'User', 'Entreprise'],
 )
 
 // PUBLIC API
 export const desarchiverCritere: ActionFor<DesarchiverCritere_ext> = createAction<DesarchiverCritere_ext>(
   'operations/desarchiver-critere',
-  ['Critere', 'User'],
+  ['Critere', 'User', 'Entreprise'],
 )
 
 // PUBLIC API

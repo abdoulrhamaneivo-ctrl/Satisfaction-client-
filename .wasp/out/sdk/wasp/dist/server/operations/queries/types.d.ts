@@ -86,6 +86,11 @@ export type GetServices<Input extends Payload = never, Output extends Payload = 
     _User,
     _Entreprise
 ], Input, Output>;
+export type GetBranding<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
+    _BrandingConfig,
+    _User,
+    _Entreprise
+], Input, Output>;
 export type GetRadarStats<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
     _User,
     _Guichet,

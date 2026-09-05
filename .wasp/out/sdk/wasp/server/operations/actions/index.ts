@@ -22,6 +22,7 @@ import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions'
 import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions'
 import { reactivateAgent as reactivateAgent_ext } from 'wasp/src/server/actions'
 import { promouvoirAgent as promouvoirAgent_ext } from 'wasp/src/server/actions'
+import { updateBranding as updateBranding_ext } from 'wasp/src/server/actions'
 import { inviteAgent as inviteAgent_ext } from 'wasp/src/server/actions'
 import { renvoyerInvitationAgent as renvoyerInvitationAgent_ext } from 'wasp/src/server/actions'
 import { toggleCritereAgence as toggleCritereAgence_ext } from 'wasp/src/server/actions'
@@ -150,6 +151,7 @@ export const createGuichet: AuthenticatedOperationFor<CreateGuichet_ext> =
       Service: prisma.service,
       AffectationGuichet: prisma.affectationGuichet,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -165,6 +167,7 @@ export const assignAgent: AuthenticatedOperationFor<AssignAgent_ext> =
       AffectationGuichet: prisma.affectationGuichet,
       Guichet: prisma.guichet,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -180,6 +183,7 @@ export const updateAffectationGuichet: AuthenticatedOperationFor<UpdateAffectati
       AffectationGuichet: prisma.affectationGuichet,
       Guichet: prisma.guichet,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -194,6 +198,7 @@ export const deleteAffectationGuichet: AuthenticatedOperationFor<DeleteAffectati
       AffectationGuichet: prisma.affectationGuichet,
       Guichet: prisma.guichet,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -244,6 +249,7 @@ export const updateAgent: AuthenticatedOperationFor<UpdateAgent_ext> =
     {
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -257,6 +263,7 @@ export const deleteAgent: AuthenticatedOperationFor<DeleteAgent_ext> =
     {
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -270,6 +277,7 @@ export const reactivateAgent: AuthenticatedOperationFor<ReactivateAgent_ext> =
     {
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -283,6 +291,22 @@ export const promouvoirAgent: AuthenticatedOperationFor<PromouvoirAgent_ext> =
     {
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type UpdateBranding_ext = typeof updateBranding_ext
+
+// PUBLIC API
+export const updateBranding: AuthenticatedOperationFor<UpdateBranding_ext> =
+  createAuthenticatedOperation(
+    updateBranding_ext,
+    {
+      BrandingConfig: prisma.brandingConfig,
+      User: prisma.user,
+      Entreprise: prisma.entreprise,
+      AuditLog: prisma.auditLog,
     },
   )
 
@@ -313,6 +337,7 @@ export const renvoyerInvitationAgent: AuthenticatedOperationFor<RenvoyerInvitati
       Agence: prisma.agence,
       Invitation: prisma.invitation,
       AuditLog: prisma.auditLog,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -327,6 +352,7 @@ export const toggleCritereAgence: AuthenticatedOperationFor<ToggleCritereAgence_
       AgenceCritere: prisma.agenceCritere,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -343,6 +369,7 @@ export const createCritere: AuthenticatedOperationFor<CreateCritere_ext> =
       User: prisma.user,
       Agence: prisma.agence,
       Service: prisma.service,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -356,6 +383,7 @@ export const createService: AuthenticatedOperationFor<CreateService_ext> =
     {
       Service: prisma.service,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -371,6 +399,7 @@ export const upsertObjectif: AuthenticatedOperationFor<UpsertObjectif_ext> =
       Agence: prisma.agence,
       Critere: prisma.critere,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -385,6 +414,7 @@ export const deleteObjectif: AuthenticatedOperationFor<DeleteObjectif_ext> =
       Objectif: prisma.objectif,
       Agence: prisma.agence,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -403,6 +433,7 @@ export const createTacheCorrective: AuthenticatedOperationFor<CreateTacheCorrect
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -421,6 +452,7 @@ export const updateStatutTache: AuthenticatedOperationFor<UpdateStatutTache_ext>
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -437,6 +469,7 @@ export const marquerAlerteTraitee: AuthenticatedOperationFor<MarquerAlerteTraite
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -452,6 +485,7 @@ export const updateGuichetServices: AuthenticatedOperationFor<UpdateGuichetServi
       Service: prisma.service,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -467,6 +501,7 @@ export const moveCritereToService: AuthenticatedOperationFor<MoveCritereToServic
       Critere: prisma.critere,
       Service: prisma.service,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -482,6 +517,7 @@ export const removeCritereFromService: AuthenticatedOperationFor<RemoveCritereFr
       Critere: prisma.critere,
       Service: prisma.service,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -499,6 +535,7 @@ export const deleteCritere: AuthenticatedOperationFor<DeleteCritere_ext> =
       CritereService: prisma.critereService,
       Objectif: prisma.objectif,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -516,6 +553,7 @@ export const duplicateCritere: AuthenticatedOperationFor<DuplicateCritere_ext> =
       Agence: prisma.agence,
       Service: prisma.service,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -529,6 +567,7 @@ export const updateCritere: AuthenticatedOperationFor<UpdateCritere_ext> =
     {
       Critere: prisma.critere,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -543,6 +582,7 @@ export const reorderCriteresInService: AuthenticatedOperationFor<ReorderCriteres
       CritereService: prisma.critereService,
       Service: prisma.service,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -557,6 +597,7 @@ export const archiverGuichet: AuthenticatedOperationFor<ArchiverGuichet_ext> =
       Guichet: prisma.guichet,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -571,6 +612,7 @@ export const desarchiverGuichet: AuthenticatedOperationFor<DesarchiverGuichet_ex
       Guichet: prisma.guichet,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -585,6 +627,7 @@ export const archiverAgence: AuthenticatedOperationFor<ArchiverAgence_ext> =
       Agence: prisma.agence,
       Guichet: prisma.guichet,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -598,6 +641,7 @@ export const desarchiverAgence: AuthenticatedOperationFor<DesarchiverAgence_ext>
     {
       Agence: prisma.agence,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -614,6 +658,7 @@ export const archiverAlerte: AuthenticatedOperationFor<ArchiverAlerte_ext> =
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -630,6 +675,7 @@ export const desarchiverAlerte: AuthenticatedOperationFor<DesarchiverAlerte_ext>
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -647,6 +693,7 @@ export const archiverTache: AuthenticatedOperationFor<ArchiverTache_ext> =
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -664,6 +711,7 @@ export const desarchiverTache: AuthenticatedOperationFor<DesarchiverTache_ext> =
       Reponse: prisma.reponse,
       User: prisma.user,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -677,6 +725,7 @@ export const archiverCritere: AuthenticatedOperationFor<ArchiverCritere_ext> =
     {
       Critere: prisma.critere,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 
@@ -690,6 +739,7 @@ export const desarchiverCritere: AuthenticatedOperationFor<DesarchiverCritere_ex
     {
       Critere: prisma.critere,
       User: prisma.user,
+      Entreprise: prisma.entreprise,
     },
   )
 

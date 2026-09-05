@@ -6,6 +6,7 @@ export default async function (args, context) {
         entities: {
             Service: prisma.service,
             User: prisma.user,
+            Entreprise: prisma.entreprise,
         },
     });
 }

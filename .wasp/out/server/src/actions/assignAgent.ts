@@ -11,6 +11,7 @@ export default async function (args, context) {
       AffectationGuichet: prisma.affectationGuichet,
       Guichet: prisma.guichet,
       Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
     },
   })
 }

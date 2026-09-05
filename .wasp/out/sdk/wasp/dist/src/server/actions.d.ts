@@ -56,6 +56,7 @@ export declare const reactivateAgent: (args: {
 export declare const promouvoirAgent: (args: {
     id_agent: string;
 }, context: any) => Promise<any>;
+export declare const updateBranding: (args: Record<string, any>, context: any) => Promise<any>;
 export declare const createAgence: (args: {
     nom_agence: string;
     commune: string;
