@@ -23,6 +23,7 @@ import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions'
 import { reactivateAgent as reactivateAgent_ext } from 'wasp/src/server/actions'
 import { promouvoirAgent as promouvoirAgent_ext } from 'wasp/src/server/actions'
 import { inviteAgent as inviteAgent_ext } from 'wasp/src/server/actions'
+import { renvoyerInvitationAgent as renvoyerInvitationAgent_ext } from 'wasp/src/server/actions'
 import { toggleCritereAgence as toggleCritereAgence_ext } from 'wasp/src/server/actions'
 import { createCritere as createCritere_ext } from 'wasp/src/server/actions'
 import { createService as createService_ext } from 'wasp/src/server/actions'
@@ -296,6 +297,22 @@ export const inviteAgent: AuthenticatedOperationFor<InviteAgent_ext> =
       User: prisma.user,
       Agence: prisma.agence,
       Entreprise: prisma.entreprise,
+      Invitation: prisma.invitation,
+    },
+  )
+
+// PRIVATE API
+export type RenvoyerInvitationAgent_ext = typeof renvoyerInvitationAgent_ext
+
+// PUBLIC API
+export const renvoyerInvitationAgent: AuthenticatedOperationFor<RenvoyerInvitationAgent_ext> =
+  createAuthenticatedOperation(
+    renvoyerInvitationAgent_ext,
+    {
+      User: prisma.user,
+      Agence: prisma.agence,
+      Invitation: prisma.invitation,
+      AuditLog: prisma.auditLog,
     },
   )
 

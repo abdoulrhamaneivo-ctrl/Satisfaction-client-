@@ -23,7 +23,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function sha256(valeur) {
     return crypto.createHash('sha256').update(valeur).digest('hex');
 }
-function lienActivation(tokenClair) {
+export function lienActivation(tokenClair) {
     const base = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
     return `${base}/account/activate?token=${tokenClair}`;
 }

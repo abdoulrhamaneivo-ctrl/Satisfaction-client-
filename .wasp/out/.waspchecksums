@@ -480,7 +480,7 @@
             "file",
             "sdk/wasp/client/operations/actions/index.ts"
         ],
-        "895043b320c102fff17f3383440fb0977bfee3325e15fb7e6fcbcfb5bfe3468e"
+        "27060840a325a4c33b0797eef2099b9ff1d4cc04e8817cdfbd0cc8b1e7445d5c"
     ],
     [
         [
@@ -984,21 +984,21 @@
             "file",
             "sdk/wasp/server/operations/actions/index.ts"
         ],
-        "44620aa01228905a8a3a5e47669927bfdb94eb07fea107fd1b9e133c857cbfac"
+        "2bf5d1e5285dcebc153fd52c1e521ab6cbf13416ac7fedaf93e194baf71ebca9"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/actions/types.ts"
         ],
-        "ba0477c7e4f300663f391675f8f2b17d9983b72c2c96218fa62cdbfbbb04e7ac"
+        "0fb6f05ac53d772c30e2c72ef7682271d7a247645e3baf377aaca74f992b861f"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/index.ts"
         ],
-        "967ac1b6a14c12acba6a8c758b7d84556358e8e812aaed30abbbcc418f5271d1"
+        "6c064b385537baaf6f5bf31cc3c92b1c9694540371cd707fae86900c477eddb2"
     ],
     [
         [
@@ -1670,7 +1670,7 @@
             "file",
             "sdk/wasp/src/client/pages/AdminPersonnelPage.tsx"
         ],
-        "51fc01694d4a0048807e547b8ceda912b746788907ad80e4732da92b001a051a"
+        "1cb61792e4db491205a66434324285efda2fdfb50ff98b333b8571f8132948c2"
     ],
     [
         [
@@ -1726,7 +1726,7 @@
             "file",
             "sdk/wasp/src/client/pages/GuichetsPage.tsx"
         ],
-        "70ee434fae4671b145edc5b5b893c04125d9f33f95edc42f26db98397503c78a"
+        "1cbd828a1ca59f612505b5a595e493f52cf27c71d361d14593f6f77f8719af4b"
     ],
     [
         [
@@ -2048,14 +2048,14 @@
             "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "81d7dfd5d4dcfb358823cda185552b3763340e31642762b0be606e010c5450e5"
+        "bc04c277da8fffb9366060fc32c7baf45687a7af9475ac85239683df6bd527b9"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/actionsPlatform.ts"
         ],
-        "ffe3d1549b28fba43a98ad094b8cda7fe1f871e333d4a6a9adb9d1cce8548c55"
+        "bd659e161b0d54cab03d70c70dacab9aa6fa5e735a759ea578bc7867a04fbf0a"
     ],
     [
         [
@@ -2636,7 +2636,7 @@
             "file",
             "server/src/actions/inviteAgent.ts"
         ],
-        "2c562ec3dd8e9ec681a11451a7e68ce178048b82852fa6c33c0e0fa645bff5fb"
+        "f68ff873639c0d65510de31a362c754804b959e4671bda9f8e568ad479c2fc7c"
     ],
     [
         [
@@ -2693,6 +2693,13 @@
             "server/src/actions/renvoyerInvitation.ts"
         ],
         "5e7b0b52150f3ac3a675a07610e94b8c7f38714422de697b6348dc371216e8ee"
+    ],
+    [
+        [
+            "file",
+            "server/src/actions/renvoyerInvitationAgent.ts"
+        ],
+        "e6ef5017b2cdc757d08b857ea933ec7ea9fd8c73c58df80003adfe2ce24335c2"
     ],
     [
         [
@@ -3721,7 +3728,7 @@
             "file",
             "server/src/routes/operations/index.js"
         ],
-        "97bb2b6c8b68287154207e51682735b889f32fe6dcedb5c6f570f095ac948b0f"
+        "1d1cd3ed8c29a5c05f0776a4546a81022e3242bad1d170a0258978b8427595fd"
     ],
     [
         [
@@ -3785,6 +3792,13 @@
             "server/src/routes/operations/renvoyerInvitation.js"
         ],
         "b1e3345ad63945e29af2e6cb1809e0f5263017409a437721aad47251d412c90e"
+    ],
+    [
+        [
+            "file",
+            "server/src/routes/operations/renvoyerInvitationAgent.js"
+        ],
+        "9c7e30b0b7fc992e18619e3f6412735e732d508781b6138c832bc53b2bc93d4d"
     ],
     [
         [

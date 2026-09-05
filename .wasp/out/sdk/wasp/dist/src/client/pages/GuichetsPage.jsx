@@ -1,6 +1,6 @@
 // src/client/pages/GuichetsPage.tsx
-import React, { useState, useRef } from 'react';
-import { useQuery, createGuichet, getGuichets, getServices, updateGuichetServices, createService, archiverGuichet } from 'wasp/client/operations';
+import React, { useState, useRef, useEffect } from 'react';
+import { useQuery, createGuichet, getGuichets, getServices, getAgences, updateGuichetServices, createService, archiverGuichet } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { motion } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
@@ -74,7 +74,21 @@ export const GuichetsPage = () => {
     const [archivingId, setArchivingId] = useState(null);
     const [recherche, setRecherche] = useState('');
     const userAgenceId = user?.id_agence;
-    const { data: guichets, isLoading, error: queryError, refetch: refetchGuichets, } = useQuery(getGuichets, { id_agence: userAgenceId || 0 }, { enabled: !!userAgenceId });
+    // FIX 05/09 : la Direction n'a PAS d'agence (compte entreprise, id_agence
+    // null par construction) mais doit voir les guichets et kits QR — même
+    // pattern que la page Avis : sélecteur d'agence pour la Direction, agence
+    // propre pour les autres rôles. Sans ça, tout compte DIRECTION (dont
+    // l'admin créé par le super admin) tombait sur « Compte non rattaché ».
+    const isDirection = user?.role === 'DIRECTION';
+    const { data: agences } = useQuery(getAgences, undefined, { enabled: !!user && isDirection });
+    const [selectedAgenceId, setSelectedAgenceId] = useState(undefined);
+    useEffect(() => {
+        if (isDirection && !selectedAgenceId && agences && agences.length > 0) {
+            setSelectedAgenceId(agences[0].id);
+        }
+    }, [isDirection, selectedAgenceId, agences]);
+    const effectiveAgenceId = isDirection ? selectedAgenceId : (userAgenceId || undefined);
+    const { data: guichets, isLoading, error: queryError, refetch: refetchGuichets, } = useQuery(getGuichets, { id_agence: effectiveAgenceId || 0 }, { enabled: !!effectiveAgenceId });
     const { data: allServices } = useQuery(getServices);
     const componentRef = useRef(null);
     const handlePrint = useReactToPrint({
@@ -83,7 +97,7 @@ export const GuichetsPage = () => {
     });
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!userAgenceId)
+        if (!effectiveAgenceId)
             return;
         setLoading(true);
         setError(null);
@@ -91,7 +105,7 @@ export const GuichetsPage = () => {
             await createGuichet({
                 nomGuichet,
                 typeGuichet,
-                id_agence: userAgenceId,
+                id_agence: effectiveAgenceId,
                 serviceIds: selectedServiceIds
             });
             setNomGuichet('');
@@ -167,7 +181,11 @@ export const GuichetsPage = () => {
             setUpdatingServices(false);
         }
     };
-    if (!userAgenceId) {
+    // Seul vrai cas bloquant restant : un compte NON-Direction sans agence
+    // (anomalie de rattachement). La Direction passe par le sélecteur
+    // ci-dessus ; si l'entreprise n'a encore AUCUNE agence, on le dit
+    // clairement avec l'action à faire au lieu d'une erreur générique.
+    if (!effectiveAgenceId) {
         return (<RequireEnterpriseRole>
       <RequireAuth>
         <AmbientBackground className="flex items-center justify-center p-8">
@@ -176,12 +194,12 @@ export const GuichetsPage = () => {
               <AlertCircle className="size-6"/>
             </span>
             <p className="mb-2 text-lg font-bold text-foreground font-satoshi">
-              Compte non rattaché à une agence
+              {isDirection ? "Aucune agence dans votre réseau" : "Compte non rattaché à une agence"}
             </p>
             <p className="mb-6 text-sm text-muted-foreground font-medium">
-              Votre compte n'est rattaché à aucune agence. Contactez votre
-              Chef d'Agence ou l'administrateur technique de Yeba pour
-              régulariser votre accès.
+              {isDirection
+                ? "Créez d'abord une agence dans « Réseau Agences », puis revenez ici pour y ajouter des guichets."
+                : "Votre compte n'est rattaché à aucune agence. Contactez votre Chef d'Agence ou l'administrateur technique de Yeba pour régulariser votre accès."}
             </p>
           </Card>
         </AmbientBackground>
@@ -209,7 +227,14 @@ export const GuichetsPage = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
               <span>Agences</span>
               <span>/</span>
-              <span className="text-foreground">{user?.agence?.nom_agence || "Agence Principale"}</span>
+              {isDirection ? (<Select value={selectedAgenceId ? String(selectedAgenceId) : ''} onValueChange={(v) => setSelectedAgenceId(Number(v))}>
+                  <SelectTrigger className="h-8 w-auto min-w-[180px] border-border/70 text-foreground">
+                    <SelectValue placeholder="Choisir une agence"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agences?.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>))}
+                  </SelectContent>
+                </Select>) : (<span className="text-foreground">{user?.agence?.nom_agence || "Agence Principale"}</span>)}
               <span>/</span>
               <span className="text-primary font-bold">Guichets & Kits</span>
             </div>
@@ -305,9 +330,13 @@ export const GuichetsPage = () => {
                 </Card>
               </Reveal>) : (<Card className="h-fit p-6 lg:sticky lg:top-8 text-center rounded-3xl">
                 <Store className="mx-auto mb-3 size-8 text-muted-foreground"/>
-                <p className="font-bold text-foreground font-satoshi">Gestion réservée au Chef d'Agence</p>
+                <p className="font-bold text-foreground font-satoshi">
+                  {isDirection ? "Vue Direction — lecture seule" : "Gestion réservée au Chef d'Agence"}
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground font-medium">
-                  La création des guichets se fait désormais par le Chef d'Agence, agence par agence.
+                  {isDirection
+                ? "Vous voyez les guichets et kits QR de l'agence sélectionnée. La création des guichets se fait par le Chef d'Agence, agence par agence."
+                : "La création des guichets se fait désormais par le Chef d'Agence, agence par agence."}
                 </p>
               </Card>)}
 

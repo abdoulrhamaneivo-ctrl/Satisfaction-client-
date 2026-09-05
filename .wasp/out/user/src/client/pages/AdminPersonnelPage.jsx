@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, inviteAgent, updateAgent, deleteAgent, reactivateAgent, getAgentsByAgence, getAgences, } from 'wasp/client/operations';
+import { useQuery, inviteAgent, updateAgent, deleteAgent, reactivateAgent, renvoyerInvitationAgent, getAgentsByAgence, getAgences, } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, Trash2, RotateCcw, Mail, Phone, ShieldUser, ShieldAlert, Users, CheckCircle2, UsersRound, Search, } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
@@ -148,6 +148,25 @@ export const AdminPersonnelPage = () => {
         }
         catch (error) {
             toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de réactiver cet agent." });
+        }
+    };
+    // FIX 05/09 : un chef/agent qui n'a jamais activé son compte (lien de
+    // 24 h expiré ou email perdu) restait bloqué sans recours. Ce bouton
+    // révoque les anciens liens et renvoie une invitation avec un lien
+    // « Définir mon mot de passe » neuf.
+    const handleRenvoyerInvitation = async (id, email) => {
+        if (!email) {
+            toast({ variant: 'destructive', title: 'Sans email', description: "Ce compte n'a pas d'email : aucune invitation à renvoyer." });
+            return;
+        }
+        try {
+            const r = await renvoyerInvitationAgent({ id_user: id });
+            toast({ variant: 'success', title: 'Invitation renvoyée', description: r.message });
+            setSubmitted(true);
+            setTimeout(() => setSubmitted(false), 3000);
+        }
+        catch (error) {
+            toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de renvoyer l'invitation." });
         }
     };
     const agentsFiltres = (agents ?? []).filter((agent) => {
@@ -331,6 +350,9 @@ export const AdminPersonnelPage = () => {
                                   <RotateCcw className="size-4"/>
                                 </Button>) : (<Button type="button" variant="ghost" size="icon" onClick={() => setAgentAConfirmerSuppression({ id: agent.id, nom: agent.nom, prenom: agent.prenom })} aria-label="Suspendre" title="Suspendre ce compte" className="size-8 rounded-xl text-muted-foreground hover:bg-destructive/15 hover:text-destructive">
                                   <Trash2 className="size-4"/>
+                                </Button>)}
+                              {agent.email && (<Button type="button" variant="ghost" size="icon" onClick={() => handleRenvoyerInvitation(agent.id, agent.email)} aria-label="Renvoyer l'invitation" title="Renvoyer le lien « Définir mon mot de passe » (révoque les anciens liens)" className="size-8 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary">
+                                  <Mail className="size-4"/>
                                 </Button>)}
                             </div>
                           </div>

@@ -6,6 +6,7 @@ import { createProviderId, createUser, sanitizeAndSerializeProviderData, } from 
 import crypto from 'node:crypto';
 import { envoyerAlerteWhatsApp } from './notifications/gateway';
 import { checkRateLimit, extraireIp } from './rateLimit';
+import { journaliser } from './audit';
 import { requireAuth, requireRole, assertAgenceAccess, assertEntrepriseActive, resolveAgenceId, } from './middleware/rowLevelSecurity';
 // Utilisé pour construire des liens directs vers l'application dans les
 // notifications SMS/WhatsApp (ex. lien vers /alertes-taches).
@@ -1117,6 +1118,26 @@ export const inviteAgent = async (args, context) => {
     // avis, mais ne se connectent pas.
     if (args.role === 'CHEF_AGENCE') {
         const frontendUrl = process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+        // FIX 05/09 : le bouton « Définir mon mot de passe » pointait vers
+        // /request-password-reset (réinitialisation) alors que le compte vient
+        // d'être créé avec un mot de passe aléatoire inconnu. Désormais on crée
+        // une vraie Invitation (token à usage unique, 24 h — même modèle que
+        // l'activation entreprise) et le bouton mène à /account/activate qui
+        // DÉFINIT le mot de passe directement. Le reset reste possible ensuite
+        // via « Mot de passe oublié » sur /login en cas de perte.
+        const { lienActivation } = await import('./actionsPlatform');
+        const tokenClair = crypto.randomBytes(32).toString('base64url');
+        const tokenHash = crypto.createHash('sha256').update(tokenClair).digest('hex');
+        await context.entities.Invitation.create({
+            data: {
+                id_user: newUser.id,
+                id_emetteur: context.user.id,
+                id_entreprise: targetAgence.id_entreprise,
+                token_hash: tokenHash,
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+        });
+        const lienDef = lienActivation(tokenClair);
         // Récupérer le nom de l'agence pour personnaliser l'email
         const agence = await context.entities.Agence.findUnique({
             where: { id: targetAgenceId },
@@ -1202,7 +1223,7 @@ export const inviteAgent = async (args, context) => {
 
       <!-- CTA principal -->
       <div style="text-align: center; margin: 28px 0 8px;">
-        <a href="${frontendUrl}/request-password-reset"
+        <a href="${lienDef}"
            style="
              display: inline-block;
              background: linear-gradient(135deg, #1a3a5c, #c47a20);
@@ -1219,7 +1240,7 @@ export const inviteAgent = async (args, context) => {
       </div>
 
       <p style="margin: 16px 0 0; color: #9ca3af; font-size: 12px; text-align: center;">
-        Ce lien vous permettra de définir votre mot de passe en toute sécurité.
+        Ce lien vous permettra de définir votre mot de passe en toute sécurité. Il expire dans 24 h — passé ce délai, demandez à votre direction de vous renvoyer une invitation.
       </p>
     </div>
 
@@ -1244,7 +1265,7 @@ export const inviteAgent = async (args, context) => {
                 `Email de connexion : ${args.email}`,
                 ``,
                 `Étapes :`,
-                `1. Définissez votre mot de passe : ${frontendUrl}/request-password-reset`,
+                `1. Définissez votre mot de passe : ${lienDef} (lien valable 24 h)`,
                 `2. Connectez-vous sur : ${frontendUrl}/login`,
                 `3. Retrouvez votre espace Yeba depuis votre tableau de bord.`,
                 ``,
@@ -1259,6 +1280,87 @@ export const inviteAgent = async (args, context) => {
         console.log(`event=agent_created_silent agence=${targetAgenceId}`);
     }
     return newUser;
+};
+// ─────────────────────────────────────────────
+// renvoyerInvitationAgent — lien d'activation perdu/expiré (FIX 05/09)
+// ─────────────────────────────────────────────
+// Un chef ou un agent qui n'a jamais activé son compte (lien expiré après
+// 24 h, email perdu) restait bloqué : réinviter échouait en 409 (email déjà
+// pris) et aucun renvoi n'existait côté entreprise. Cette action révoque les
+// anciennes invitations non utilisées puis en crée une neuve.
+// Périmètre (mêmes règles que inviteAgent) :
+// - DIRECTION → tout compte de son entreprise ;
+// - CHEF_AGENCE → uniquement les AGENT de SA propre agence.
+export const renvoyerInvitationAgent = async (args, context) => {
+    requireAuth(context);
+    await assertEntrepriseActive(context, context.entities);
+    requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
+    const cible = await context.entities.User.findUnique({ where: { id: args.id_user } });
+    if (!cible)
+        throw new HttpError(404, 'Utilisateur introuvable.');
+    if (cible.id_entreprise !== context.user.id_entreprise) {
+        throw new HttpError(403, "Ce compte appartient à une autre entreprise.");
+    }
+    if (!cible.actif) {
+        throw new HttpError(400, "Ce compte est désactivé. Réactivez-le d'abord.");
+    }
+    if (!cible.email) {
+        throw new HttpError(400, "Ce compte n'a pas d'email : aucune invitation à renvoyer.");
+    }
+    if (context.user.role === 'CHEF_AGENCE') {
+        if (cible.role !== 'AGENT' || cible.id_agence !== context.user.id_agence) {
+            throw new HttpError(403, "Vous ne pouvez renvoyer une invitation qu'aux agents de votre propre agence.");
+        }
+    }
+    const { lienActivation } = await import('./actionsPlatform');
+    const tokenClair = crypto.randomBytes(32).toString('base64url');
+    const tokenHash = crypto.createHash('sha256').update(tokenClair).digest('hex');
+    const cleVerrou = `invitation-agent:${cible.email.trim().toLowerCase()}:${cible.id_entreprise}`;
+    await prisma.$transaction(async (tx) => {
+        try {
+            await tx.$executeRaw `SELECT pg_advisory_xact_lock(hashtextextended(${cleVerrou}, 0))`;
+        }
+        catch {
+            // Base non-Postgres en dev local : on continue sans verrou.
+        }
+        await tx.invitation.updateMany({
+            where: { id_user: cible.id, used_at: null },
+            data: { used_at: new Date() },
+        });
+        await tx.invitation.create({
+            data: {
+                id_user: cible.id,
+                id_emetteur: context.user.id,
+                id_entreprise: cible.id_entreprise,
+                token_hash: tokenHash,
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            },
+        });
+    });
+    const agence = cible.id_agence
+        ? await context.entities.Agence.findUnique({ where: { id: cible.id_agence }, select: { nom_agence: true, commune: true } })
+        : null;
+    const nomAgence = agence ? `${agence.nom_agence} — ${agence.commune}` : 'votre agence';
+    await emailSender.send({
+        to: cible.email,
+        subject: '🔑 Yeba — Nouveau lien pour définir votre mot de passe',
+        html: `<div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #111827;">Bonjour ${cible.prenom || ''},</h2>
+      <p style="color: #374151;">Voici votre nouveau lien d'activation pour <strong>${nomAgence}</strong> (valable 24 h) :</p>
+      <p style="text-align: center; margin: 24px 0;"><a href="${lienActivation(tokenClair)}" style="display: inline-block; background: #1a3a5c; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 800;">Définir mon mot de passe →</a></p>
+      <p style="color: #9ca3af; font-size: 12px;">Si vous avez déjà activé votre compte, ignorez cet email et connectez-vous avec votre mot de passe.</p>
+    </div>`,
+        text: `Bonjour ${cible.prenom || ''}, définissez votre mot de passe ici (24 h) : ${lienActivation(tokenClair)}`,
+    });
+    await journaliser({
+        context,
+        action: 'invitation.create',
+        resource: 'Invitation',
+        resource_id: cible.id,
+        entreprise_id: cible.id_entreprise,
+        details: { type: 'renvoi-agent' },
+    });
+    return { ok: true, message: `Nouveau lien d'activation envoyé à ${cible.email}.` };
 };
 // ============================================================================
 // CRITÈRES D'ÉVALUATION

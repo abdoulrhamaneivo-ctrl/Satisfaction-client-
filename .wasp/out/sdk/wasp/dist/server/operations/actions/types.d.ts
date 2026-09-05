@@ -1,4 +1,4 @@
-import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Reponse, type _Critere, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _Entreprise, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _Invitation, type _AuditLog, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Reponse, type _Critere, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _Entreprise, type _Invitation, type _AuditLog, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
 export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User
 ], Input, Output>;
@@ -82,7 +82,14 @@ export type PromouvoirAgent<Input extends Payload = never, Output extends Payloa
 export type InviteAgent<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User,
     _Agence,
-    _Entreprise
+    _Entreprise,
+    _Invitation
+], Input, Output>;
+export type RenvoyerInvitationAgent<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _User,
+    _Agence,
+    _Invitation,
+    _AuditLog
 ], Input, Output>;
 export type ToggleCritereAgence<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _AgenceCritere,

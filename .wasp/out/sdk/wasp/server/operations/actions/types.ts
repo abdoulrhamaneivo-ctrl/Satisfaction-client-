@@ -14,11 +14,11 @@ import {
   type _AnalyseAvisIA,
   type _Canal,
   type _Entreprise,
+  type _Invitation,
+  type _AuditLog,
   type _Objectif,
   type _TacheCorrective,
   type _TacheCorrectiveHistorique,
-  type _Invitation,
-  type _AuditLog,
   type AuthenticatedActionDefinition,
   type Payload,
 } from 'wasp/server/_types'
@@ -222,6 +222,20 @@ export type InviteAgent<Input extends Payload = never, Output extends Payload = 
       _User,
       _Agence,
       _Entreprise,
+      _Invitation,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type RenvoyerInvitationAgent<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _User,
+      _Agence,
+      _Invitation,
+      _AuditLog,
     ],
     Input,
     Output

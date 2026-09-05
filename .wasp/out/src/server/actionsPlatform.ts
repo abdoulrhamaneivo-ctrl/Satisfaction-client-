@@ -32,7 +32,7 @@ function sha256(valeur: string): string {
   return crypto.createHash('sha256').update(valeur).digest('hex');
 }
 
-function lienActivation(tokenClair: string): string {
+export function lienActivation(tokenClair: string): string {
   const base = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
   return `${base}/account/activate?token=${tokenClair}`;
 }

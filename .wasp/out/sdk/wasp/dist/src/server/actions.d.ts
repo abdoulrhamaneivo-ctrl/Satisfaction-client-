@@ -91,6 +91,12 @@ export declare const inviteAgent: (args: {
     role: string;
     telephone?: string;
 }, context: any) => Promise<any>;
+export declare const renvoyerInvitationAgent: (args: {
+    id_user: string;
+}, context: any) => Promise<{
+    ok: boolean;
+    message: string;
+}>;
 export declare const toggleCritereAgence: (args: {
     id_critere: number;
     id_agence?: number;

@@ -4,6 +4,7 @@ export declare const PLANS: Record<string, {
     utilisateurs: number;
     guichets: number;
 }>;
+export declare function lienActivation(tokenClair: string): string;
 export declare function envoyerEmailActivation(params: {
     to: string;
     prenom: string;

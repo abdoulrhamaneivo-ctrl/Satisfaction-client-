@@ -6,6 +6,7 @@ import {
   updateAgent,
   deleteAgent,
   reactivateAgent,
+  renvoyerInvitationAgent,
   getAgentsByAgence,
   getAgences,
 } from 'wasp/client/operations';
@@ -194,6 +195,25 @@ export const AdminPersonnelPage = () => {
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de réactiver cet agent." });
+    }
+  };
+
+  // FIX 05/09 : un chef/agent qui n'a jamais activé son compte (lien de
+  // 24 h expiré ou email perdu) restait bloqué sans recours. Ce bouton
+  // révoque les anciens liens et renvoie une invitation avec un lien
+  // « Définir mon mot de passe » neuf.
+  const handleRenvoyerInvitation = async (id: string, email: string | null) => {
+    if (!email) {
+      toast({ variant: 'destructive', title: 'Sans email', description: "Ce compte n'a pas d'email : aucune invitation à renvoyer." });
+      return;
+    }
+    try {
+      const r = await renvoyerInvitationAgent({ id_user: id });
+      toast({ variant: 'success', title: 'Invitation renvoyée', description: r.message });
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de renvoyer l'invitation." });
     }
   };
 
@@ -489,6 +509,19 @@ export const AdminPersonnelPage = () => {
                                   className="size-8 rounded-xl text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
                                 >
                                   <Trash2 className="size-4" />
+                                </Button>
+                              )}
+                              {agent.email && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRenvoyerInvitation(agent.id, agent.email)}
+                                  aria-label="Renvoyer l'invitation"
+                                  title="Renvoyer le lien « Définir mon mot de passe » (révoque les anciens liens)"
+                                  className="size-8 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                                >
+                                  <Mail className="size-4" />
                                 </Button>
                               )}
                             </div>

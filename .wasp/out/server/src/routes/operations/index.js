@@ -19,6 +19,7 @@ import deleteAgent from './deleteAgent.js'
 import reactivateAgent from './reactivateAgent.js'
 import promouvoirAgent from './promouvoirAgent.js'
 import inviteAgent from './inviteAgent.js'
+import renvoyerInvitationAgent from './renvoyerInvitationAgent.js'
 import toggleCritereAgence from './toggleCritereAgence.js'
 import createCritere from './createCritere.js'
 import createService from './createService.js'
@@ -115,6 +116,7 @@ router.post('/delete-agent', auth, deleteAgent)
 router.post('/reactivate-agent', auth, reactivateAgent)
 router.post('/promouvoir-agent', auth, promouvoirAgent)
 router.post('/invite-agent', auth, inviteAgent)
+router.post('/renvoyer-invitation-agent', auth, renvoyerInvitationAgent)
 router.post('/toggle-critere-agence', auth, toggleCritereAgence)
 router.post('/create-critere', auth, createCritere)
 router.post('/create-service', auth, createService)

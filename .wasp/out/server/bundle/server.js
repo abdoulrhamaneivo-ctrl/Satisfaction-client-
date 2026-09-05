@@ -1318,6 +1318,38 @@ function extraireIp(context) {
   return req?.socket?.remoteAddress ?? "inconnue";
 }
 
+async function journaliser({
+  context,
+  action,
+  resource,
+  resource_id = null,
+  entreprise_id = null,
+  details = void 0
+}) {
+  try {
+    const user = context?.user;
+    if (!user?.id) return;
+    const req = context?.req ?? context?.request;
+    const ip = req?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || req?.socket?.remoteAddress || null;
+    const userAgent = req?.headers?.["user-agent"]?.slice(0, 300) || null;
+    await context.entities.AuditLog.create({
+      data: {
+        actor_id: user.id,
+        actor_role: user.platformRole && user.platformRole !== "NONE" ? user.platformRole : user.role ?? null,
+        action,
+        resource,
+        resource_id: resource_id != null ? String(resource_id) : null,
+        entreprise_id: entreprise_id ?? user.id_entreprise ?? null,
+        details: details ?? void 0,
+        ip,
+        user_agent: userAgent
+      }
+    });
+  } catch (e) {
+    console.warn("[AUDIT] \xC9chec \xE9criture audit (non bloquant):", e?.message);
+  }
+}
+
 const FRONTEND_URL$3 = process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:3000";
 if (!process.env.TELEPHONE_HASH_SALT && process.env.NODE_ENV === "production") {
   throw new Error(
@@ -2154,6 +2186,19 @@ const inviteAgent$2 = async (args, context) => {
   }
   if (args.role === "CHEF_AGENCE") {
     const frontendUrl = process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+    const { lienActivation } = await Promise.resolve().then(function () { return actionsPlatform; });
+    const tokenClair = crypto.randomBytes(32).toString("base64url");
+    const tokenHash = crypto.createHash("sha256").update(tokenClair).digest("hex");
+    await context.entities.Invitation.create({
+      data: {
+        id_user: newUser.id,
+        id_emetteur: context.user.id,
+        id_entreprise: targetAgence.id_entreprise,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1e3)
+      }
+    });
+    const lienDef = lienActivation(tokenClair);
     const agence = await context.entities.Agence.findUnique({
       where: { id: targetAgenceId },
       select: { nom_agence: true, commune: true }
@@ -2234,7 +2279,7 @@ const inviteAgent$2 = async (args, context) => {
 
       <!-- CTA principal -->
       <div style="text-align: center; margin: 28px 0 8px;">
-        <a href="${frontendUrl}/request-password-reset"
+        <a href="${lienDef}"
            style="
              display: inline-block;
              background: linear-gradient(135deg, #1a3a5c, #c47a20);
@@ -2251,7 +2296,7 @@ const inviteAgent$2 = async (args, context) => {
       </div>
 
       <p style="margin: 16px 0 0; color: #9ca3af; font-size: 12px; text-align: center;">
-        Ce lien vous permettra de d\xE9finir votre mot de passe en toute s\xE9curit\xE9.
+        Ce lien vous permettra de d\xE9finir votre mot de passe en toute s\xE9curit\xE9. Il expire dans 24 h \u2014 pass\xE9 ce d\xE9lai, demandez \xE0 votre direction de vous renvoyer une invitation.
       </p>
     </div>
 
@@ -2276,7 +2321,7 @@ const inviteAgent$2 = async (args, context) => {
         `Email de connexion : ${args.email}`,
         ``,
         `\xC9tapes :`,
-        `1. D\xE9finissez votre mot de passe : ${frontendUrl}/request-password-reset`,
+        `1. D\xE9finissez votre mot de passe : ${lienDef} (lien valable 24 h)`,
         `2. Connectez-vous sur : ${frontendUrl}/login`,
         `3. Retrouvez votre espace Yeba depuis votre tableau de bord.`,
         ``,
@@ -2288,6 +2333,72 @@ const inviteAgent$2 = async (args, context) => {
     console.log(`event=agent_created_silent agence=${targetAgenceId}`);
   }
   return newUser;
+};
+const renvoyerInvitationAgent$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ["DIRECTION", "CHEF_AGENCE"]);
+  const cible = await context.entities.User.findUnique({ where: { id: args.id_user } });
+  if (!cible) throw new HttpError(404, "Utilisateur introuvable.");
+  if (cible.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient \xE0 une autre entreprise.");
+  }
+  if (!cible.actif) {
+    throw new HttpError(400, "Ce compte est d\xE9sactiv\xE9. R\xE9activez-le d'abord.");
+  }
+  if (!cible.email) {
+    throw new HttpError(400, "Ce compte n'a pas d'email : aucune invitation \xE0 renvoyer.");
+  }
+  if (context.user.role === "CHEF_AGENCE") {
+    if (cible.role !== "AGENT" || cible.id_agence !== context.user.id_agence) {
+      throw new HttpError(403, "Vous ne pouvez renvoyer une invitation qu'aux agents de votre propre agence.");
+    }
+  }
+  const { lienActivation } = await Promise.resolve().then(function () { return actionsPlatform; });
+  const tokenClair = crypto.randomBytes(32).toString("base64url");
+  const tokenHash = crypto.createHash("sha256").update(tokenClair).digest("hex");
+  const cleVerrou = `invitation-agent:${cible.email.trim().toLowerCase()}:${cible.id_entreprise}`;
+  await dbClient.$transaction(async (tx) => {
+    try {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${cleVerrou}, 0))`;
+    } catch {
+    }
+    await tx.invitation.updateMany({
+      where: { id_user: cible.id, used_at: null },
+      data: { used_at: /* @__PURE__ */ new Date() }
+    });
+    await tx.invitation.create({
+      data: {
+        id_user: cible.id,
+        id_emetteur: context.user.id,
+        id_entreprise: cible.id_entreprise,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1e3)
+      }
+    });
+  });
+  const agence = cible.id_agence ? await context.entities.Agence.findUnique({ where: { id: cible.id_agence }, select: { nom_agence: true, commune: true } }) : null;
+  const nomAgence = agence ? `${agence.nom_agence} \u2014 ${agence.commune}` : "votre agence";
+  await emailSender.send({
+    to: cible.email,
+    subject: "\u{1F511} Yeba \u2014 Nouveau lien pour d\xE9finir votre mot de passe",
+    html: `<div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #111827;">Bonjour ${cible.prenom || ""},</h2>
+      <p style="color: #374151;">Voici votre nouveau lien d'activation pour <strong>${nomAgence}</strong> (valable 24 h) :</p>
+      <p style="text-align: center; margin: 24px 0;"><a href="${lienActivation(tokenClair)}" style="display: inline-block; background: #1a3a5c; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 800;">D\xE9finir mon mot de passe \u2192</a></p>
+      <p style="color: #9ca3af; font-size: 12px;">Si vous avez d\xE9j\xE0 activ\xE9 votre compte, ignorez cet email et connectez-vous avec votre mot de passe.</p>
+    </div>`,
+    text: `Bonjour ${cible.prenom || ""}, d\xE9finissez votre mot de passe ici (24 h) : ${lienActivation(tokenClair)}`
+  });
+  await journaliser({
+    context,
+    action: "invitation.create",
+    resource: "Invitation",
+    resource_id: cible.id,
+    entreprise_id: cible.id_entreprise,
+    details: { type: "renvoi-agent" }
+  });
+  return { ok: true, message: `Nouveau lien d'activation envoy\xE9 \xE0 ${cible.email}.` };
 };
 const toggleCritereAgence$2 = async (args, context) => {
   requireAuth(context);
@@ -3056,12 +3167,27 @@ async function inviteAgent$1(args, context) {
     entities: {
       User: dbClient.user,
       Agence: dbClient.agence,
-      Entreprise: dbClient.entreprise
+      Entreprise: dbClient.entreprise,
+      Invitation: dbClient.invitation
     }
   });
 }
 
 var inviteAgent = createAction(inviteAgent$1);
+
+async function renvoyerInvitationAgent$1(args, context) {
+  return renvoyerInvitationAgent$2(args, {
+    ...context,
+    entities: {
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Invitation: dbClient.invitation,
+      AuditLog: dbClient.auditLog
+    }
+  });
+}
+
+var renvoyerInvitationAgent = createAction(renvoyerInvitationAgent$1);
 
 async function toggleCritereAgence$1(args, context) {
   return toggleCritereAgence$2(args, {
@@ -3414,38 +3540,6 @@ async function desarchiverCritere$1(args, context) {
 }
 
 var desarchiverCritere = createAction(desarchiverCritere$1);
-
-async function journaliser({
-  context,
-  action,
-  resource,
-  resource_id = null,
-  entreprise_id = null,
-  details = void 0
-}) {
-  try {
-    const user = context?.user;
-    if (!user?.id) return;
-    const req = context?.req ?? context?.request;
-    const ip = req?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || req?.socket?.remoteAddress || null;
-    const userAgent = req?.headers?.["user-agent"]?.slice(0, 300) || null;
-    await context.entities.AuditLog.create({
-      data: {
-        actor_id: user.id,
-        actor_role: user.platformRole && user.platformRole !== "NONE" ? user.platformRole : user.role ?? null,
-        action,
-        resource,
-        resource_id: resource_id != null ? String(resource_id) : null,
-        entreprise_id: entreprise_id ?? user.id_entreprise ?? null,
-        details: details ?? void 0,
-        ip,
-        user_agent: userAgent
-      }
-    });
-  } catch (e) {
-    console.warn("[AUDIT] \xC9chec \xE9criture audit (non bloquant):", e?.message);
-  }
-}
 
 function hasEnrolledTotp(account) {
   return account.totp_actif === true && typeof account.totp_secret === "string" && account.totp_secret.length > 0;
@@ -4216,6 +4310,25 @@ const verifier2fa$2 = async (args, context) => {
   });
   return { ok: true, deux_fa: true };
 };
+
+var actionsPlatform = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    PLANS: PLANS,
+    activer2fa: activer2fa$2,
+    activerCompte: activerCompte$2,
+    changerLimitesEntreprise: changerLimitesEntreprise$2,
+    changerPlatformRole: changerPlatformRole$2,
+    creerEntreprise: creerEntreprise$2,
+    desactiverComptePlatform: desactiverComptePlatform$2,
+    envoyerEmailActivation: envoyerEmailActivation,
+    inviterSuperAdmin: inviterSuperAdmin$2,
+    lienActivation: lienActivation,
+    reactiverEntreprise: reactiverEntreprise$2,
+    renvoyerInvitation: renvoyerInvitation$2,
+    setup2fa: setup2fa$2,
+    suspendreEntreprise: suspendreEntreprise$2,
+    verifier2fa: verifier2fa$2
+});
 
 async function creerEntreprise$1(args, context) {
   return creerEntreprise$2(args, {
@@ -6722,6 +6835,7 @@ router$3.post("/delete-agent", auth, deleteAgent);
 router$3.post("/reactivate-agent", auth, reactivateAgent);
 router$3.post("/promouvoir-agent", auth, promouvoirAgent);
 router$3.post("/invite-agent", auth, inviteAgent);
+router$3.post("/renvoyer-invitation-agent", auth, renvoyerInvitationAgent);
 router$3.post("/toggle-critere-agence", auth, toggleCritereAgence);
 router$3.post("/create-critere", auth, createCritere);
 router$3.post("/create-service", auth, createService);

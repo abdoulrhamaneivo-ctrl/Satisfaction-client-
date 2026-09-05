@@ -16,6 +16,7 @@ import { DeleteAgent_ext } from 'wasp/server/operations/actions'
 import { ReactivateAgent_ext } from 'wasp/server/operations/actions'
 import { PromouvoirAgent_ext } from 'wasp/server/operations/actions'
 import { InviteAgent_ext } from 'wasp/server/operations/actions'
+import { RenvoyerInvitationAgent_ext } from 'wasp/server/operations/actions'
 import { ToggleCritereAgence_ext } from 'wasp/server/operations/actions'
 import { CreateCritere_ext } from 'wasp/server/operations/actions'
 import { CreateService_ext } from 'wasp/server/operations/actions'
@@ -153,7 +154,13 @@ export const promouvoirAgent: ActionFor<PromouvoirAgent_ext> = createAction<Prom
 // PUBLIC API
 export const inviteAgent: ActionFor<InviteAgent_ext> = createAction<InviteAgent_ext>(
   'operations/invite-agent',
-  ['User', 'Agence', 'Entreprise'],
+  ['User', 'Agence', 'Entreprise', 'Invitation'],
+)
+
+// PUBLIC API
+export const renvoyerInvitationAgent: ActionFor<RenvoyerInvitationAgent_ext> = createAction<RenvoyerInvitationAgent_ext>(
+  'operations/renvoyer-invitation-agent',
+  ['User', 'Agence', 'Invitation', 'AuditLog'],
 )
 
 // PUBLIC API

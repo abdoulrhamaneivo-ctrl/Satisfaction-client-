@@ -39,6 +39,7 @@ import {
   reactivateAgent,
   promouvoirAgent,
   inviteAgent,
+  renvoyerInvitationAgent,
   createAgence,
   toggleCritereAgence,
   createCritere,
@@ -156,7 +157,8 @@ const updateAgentAction = action(updateAgent, { entities: ["User", "Agence"] });
 const deleteAgentAction = action(deleteAgent, { entities: ["User", "Agence"] });
 const reactivateAgentAction = action(reactivateAgent, { entities: ["User", "Agence"] });
 const promouvoirAgentAction = action(promouvoirAgent, { entities: ["User", "Agence"] });
-const inviteAgentAction = action(inviteAgent, { entities: ["User", "Agence", "Entreprise"] });
+const inviteAgentAction = action(inviteAgent, { entities: ["User", "Agence", "Entreprise", "Invitation"] });
+const renvoyerInvitationAgentAction = action(renvoyerInvitationAgent, { entities: ["User", "Agence", "Invitation", "AuditLog"] });
 const toggleCritereAgenceAction = action(toggleCritereAgence, { entities: ["AgenceCritere", "User", "Agence"] });
 const createCritereAction = action(createCritere, { entities: ["Critere", "AgenceCritere", "User", "Agence", "Service"] });
 const createServiceAction = action(createService, { entities: ["Service", "User"] });
@@ -330,6 +332,7 @@ export default app({
     reactivateAgentAction,
     promouvoirAgentAction,
     inviteAgentAction,
+    renvoyerInvitationAgentAction,
     toggleCritereAgenceAction,
     createCritereAction,
     createServiceAction,

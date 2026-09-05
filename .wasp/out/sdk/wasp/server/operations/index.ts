@@ -115,6 +115,8 @@ export { promouvoirAgent } from './actions/index.js'
 
 export { inviteAgent } from './actions/index.js'
 
+export { renvoyerInvitationAgent } from './actions/index.js'
+
 export { toggleCritereAgence } from './actions/index.js'
 
 export { createCritere } from './actions/index.js'
