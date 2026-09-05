@@ -1753,8 +1753,16 @@ const soumettreAvisImpl = async (args, context) => {
       },
       select: { id_critere: true }
     });
-    if (rattachements.length !== critereIds.length) {
-      throw new HttpError(400, "Un ou plusieurs crit\xE8res ne font pas partie de l\u2019op\xE9ration s\xE9lectionn\xE9e.");
+    const rattaches = new Set(rattachements.map((r) => r.id_critere));
+    const orphelins = critereIds.filter((id) => !rattaches.has(id));
+    if (orphelins.length > 0) {
+      const autresRattachements = await context.entities.CritereService.findMany({
+        where: { id_critere: { in: orphelins } },
+        select: { id_critere: true }
+      });
+      if (autresRattachements.length > 0) {
+        throw new HttpError(400, "Un ou plusieurs crit\xE8res ne font pas partie de l\u2019op\xE9ration s\xE9lectionn\xE9e.");
+      }
     }
   }
   for (const item of itemsToInsert) {

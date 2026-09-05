@@ -610,6 +610,12 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     // FIX 05/09 (audit) : chaque critère soumis doit être rattaché à
     // l'opération choisie. Sinon un appel forgé fausse les stats par service
     // en injectant des réponses de critères d'une autre opération.
+    // CORRECTIF : les critères « par défaut » (actifs pour l'agence mais
+    // rattachés à AUCUNE opération — le vivier « Non assignées ») restent
+    // valables pour toutes les opérations : c'est exactement ce que le
+    // formulaire affiche quand l'opération choisie n'a pas de questions
+    // propres (repli sur agencyCriteres côté CollectePage). Sans cette
+    // tolérance, tout avis avec opération + critères par défaut échouait.
     const rattachements = await context.entities.CritereService.findMany({
       where: {
         id_service: serviceDuGuichet.id,
@@ -617,8 +623,19 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       },
       select: { id_critere: true },
     });
-    if (rattachements.length !== critereIds.length) {
-      throw new HttpError(400, "Un ou plusieurs critères ne font pas partie de l’opération sélectionnée.");
+    const rattaches = new Set(rattachements.map((r: any) => r.id_critere));
+    const orphelins = critereIds.filter((id) => !rattaches.has(id));
+    if (orphelins.length > 0) {
+      // Un critère non rattaché à l'opération choisie n'est accepté que s'il
+      // n'est rattaché à aucune opération (critère par défaut). Rattaché à
+      // une AUTRE opération → rejet (appel forgé ou formulaire désynchronisé).
+      const autresRattachements = await context.entities.CritereService.findMany({
+        where: { id_critere: { in: orphelins } },
+        select: { id_critere: true },
+      });
+      if (autresRattachements.length > 0) {
+        throw new HttpError(400, "Un ou plusieurs critères ne font pas partie de l’opération sélectionnée.");
+      }
     }
   }
 
