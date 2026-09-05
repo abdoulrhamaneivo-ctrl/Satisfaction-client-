@@ -8537,9 +8537,17 @@ Retourne exclusivement le JSON demand\xE9.`;
       temperature: 0.1,
       max_tokens: 500
     });
-    const content = response.choices[0]?.message?.content;
+    const msg = response.choices[0]?.message;
+    let content = msg?.content;
+    if (!content && typeof msg?.reasoning_content === "string" && msg.reasoning_content.trim()) {
+      content = msg.reasoning_content;
+    }
+    if (!content && typeof msg?.reasoning === "string" && msg.reasoning.trim()) {
+      content = msg.reasoning;
+    }
     if (!content) {
-      throw new Error("R\xE9ponse vide du mod\xE8le DeepSeek.");
+      const fin = response.choices[0]?.finish_reason ?? "?";
+      throw new Error(`R\xE9ponse vide du mod\xE8le DeepSeek (${this.model}, fin=${fin}).`);
     }
     let jsonStr = content.trim();
     if (jsonStr.startsWith("```")) {
@@ -8548,8 +8556,17 @@ Retourne exclusivement le JSON demand\xE9.`;
     let rawJson;
     try {
       rawJson = JSON.parse(jsonStr);
-    } catch (err) {
-      throw new Error(`JSON malform\xE9 retourn\xE9 par DeepSeek: ${err?.message}`);
+    } catch {
+      const debut = jsonStr.indexOf("{");
+      const fin = jsonStr.lastIndexOf("}");
+      if (debut === -1 || fin <= debut) {
+        throw new Error("JSON malform\xE9 retourn\xE9 par DeepSeek (aucun objet d\xE9tect\xE9).");
+      }
+      try {
+        rawJson = JSON.parse(jsonStr.slice(debut, fin + 1));
+      } catch (err) {
+        throw new Error(`JSON malform\xE9 retourn\xE9 par DeepSeek: ${err?.message}`);
+      }
     }
     const parseResult = AnalyseResultSchema.safeParse(rawJson);
     if (!parseResult.success) {
@@ -8661,9 +8678,17 @@ Retourne exclusivement le JSON demand\xE9.`;
       }
       throw err;
     });
-    const content = response.choices[0]?.message?.content;
+    const msg = response.choices[0]?.message;
+    let content = msg?.content;
+    if (!content && typeof msg?.reasoning_content === "string" && msg.reasoning_content.trim()) {
+      content = msg.reasoning_content;
+    }
+    if (!content && typeof msg?.reasoning === "string" && msg.reasoning.trim()) {
+      content = msg.reasoning;
+    }
     if (!content) {
-      throw new Error("R\xE9ponse vide du mod\xE8le.");
+      const fin = response.choices[0]?.finish_reason ?? "?";
+      throw new Error(`R\xE9ponse vide du mod\xE8le (${this.model}, fin=${fin}).`);
     }
     let jsonStr = content.trim();
     if (jsonStr.startsWith("```")) {
@@ -8672,8 +8697,17 @@ Retourne exclusivement le JSON demand\xE9.`;
     let rawJson;
     try {
       rawJson = JSON.parse(jsonStr);
-    } catch (err) {
-      throw new Error(`JSON malform\xE9 retourn\xE9 par l'IA: ${err?.message}`);
+    } catch {
+      const debut = jsonStr.indexOf("{");
+      const fin = jsonStr.lastIndexOf("}");
+      if (debut === -1 || fin <= debut) {
+        throw new Error(`JSON malform\xE9 retourn\xE9 par l'IA (aucun objet d\xE9tect\xE9).`);
+      }
+      try {
+        rawJson = JSON.parse(jsonStr.slice(debut, fin + 1));
+      } catch (err) {
+        throw new Error(`JSON malform\xE9 retourn\xE9 par l'IA: ${err?.message}`);
+      }
     }
     const parseResult = AnalyseResultSchema.safeParse(rawJson);
     if (!parseResult.success) {

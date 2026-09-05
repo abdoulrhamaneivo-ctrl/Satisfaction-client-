@@ -103,11 +103,25 @@ Retourne exclusivement le JSON demandé.`;
             }
             throw err;
         });
-        const content = response.choices[0]?.message?.content;
-        if (!content) {
-            throw new Error('Réponse vide du modèle.');
+        const msg = response.choices[0]?.message;
+        // FIX 05/09 (« IA indisponible ») : les modèles « reasoning » (Nemotron,
+        // DeepSeek-R1...) renvoient HTTP 200 avec content=null — leur production
+        // est dans reasoning_content / reasoning. Sans ce repli, chaque analyse
+        // échouait en « Réponse vide du modèle » après 3 tentatives.
+        let content = msg?.content;
+        if (!content && typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim()) {
+            content = msg.reasoning_content;
         }
-        // Extraction propre du JSON si le modèle inclut des balises Markdown ```json ... ```
+        if (!content && typeof msg?.reasoning === 'string' && msg.reasoning.trim()) {
+            content = msg.reasoning;
+        }
+        if (!content) {
+            const fin = response.choices[0]?.finish_reason ?? '?';
+            throw new Error(`Réponse vide du modèle (${this.model}, fin=${fin}).`);
+        }
+        // Extraction du JSON : direct si le modèle répond proprement, sinon on
+        // isole le premier objet {...} (cas reasoning : longue réflexion + JSON
+        // à la fin). La validation Zod stricte derrière reste la vraie barrière.
         let jsonStr = content.trim();
         if (jsonStr.startsWith('```')) {
             jsonStr = jsonStr.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
@@ -116,8 +130,18 @@ Retourne exclusivement le JSON demandé.`;
         try {
             rawJson = JSON.parse(jsonStr);
         }
-        catch (err) {
-            throw new Error(`JSON malformé retourné par l'IA: ${err?.message}`);
+        catch {
+            const debut = jsonStr.indexOf('{');
+            const fin = jsonStr.lastIndexOf('}');
+            if (debut === -1 || fin <= debut) {
+                throw new Error(`JSON malformé retourné par l'IA (aucun objet détecté).`);
+            }
+            try {
+                rawJson = JSON.parse(jsonStr.slice(debut, fin + 1));
+            }
+            catch (err) {
+                throw new Error(`JSON malformé retourné par l'IA: ${err?.message}`);
+            }
         }
         // Validation stricte Zod côté serveur
         const parseResult = AnalyseResultSchema.safeParse(rawJson);

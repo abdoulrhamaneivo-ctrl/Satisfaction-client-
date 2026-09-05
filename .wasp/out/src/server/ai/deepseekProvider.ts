@@ -83,9 +83,20 @@ Retourne exclusivement le JSON demandé.`;
       max_tokens: 500,
     });
 
-    const content = response.choices[0]?.message?.content;
+    const msg: any = response.choices[0]?.message;
+    // FIX 05/09 (même repli que le provider OpenRouter) : un modèle reasoning
+    // (DeepSeek-R1...) renvoie content=null avec la production dans
+    // reasoning_content — sinon « Réponse vide » systématique.
+    let content: string | null | undefined = msg?.content;
+    if (!content && typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim()) {
+      content = msg.reasoning_content;
+    }
+    if (!content && typeof msg?.reasoning === 'string' && msg.reasoning.trim()) {
+      content = msg.reasoning;
+    }
     if (!content) {
-      throw new Error('Réponse vide du modèle DeepSeek.');
+      const fin = (response.choices[0] as any)?.finish_reason ?? '?';
+      throw new Error(`Réponse vide du modèle DeepSeek (${this.model}, fin=${fin}).`);
     }
 
     // Extraction propre du JSON si le modèle inclut des balises Markdown ```json ... ```
@@ -97,8 +108,18 @@ Retourne exclusivement le JSON demandé.`;
     let rawJson: unknown;
     try {
       rawJson = JSON.parse(jsonStr);
-    } catch (err: any) {
-      throw new Error(`JSON malformé retourné par DeepSeek: ${err?.message}`);
+    } catch {
+      // Repli : isole le premier objet {...} (réflexion + JSON à la fin).
+      const debut = jsonStr.indexOf('{');
+      const fin = jsonStr.lastIndexOf('}');
+      if (debut === -1 || fin <= debut) {
+        throw new Error('JSON malformé retourné par DeepSeek (aucun objet détecté).');
+      }
+      try {
+        rawJson = JSON.parse(jsonStr.slice(debut, fin + 1));
+      } catch (err: any) {
+        throw new Error(`JSON malformé retourné par DeepSeek: ${err?.message}`);
+      }
     }
 
     // Validation stricte Zod côté serveur
