@@ -55,6 +55,10 @@ export const CollectePage = () => {
         ? { code_public: codePublic }
         : { id_guichet: idGuichetValide ? idGuichetNum : 0 }, { enabled: !!codePublic || idGuichetValide });
     const { brandConfig } = useBrand();
+    // Personnalisation du guichet (FIX 05/09) : la page publique n'est pas
+    // connectée donc le contexte garde les défauts — on prend la marque
+    // fusionnée du guichet (entreprise → défaut Yéba) quand elle existe.
+    const marque = formDef?.brandConfig ?? brandConfig;
     const [step, setStep] = useState('SERVICE_SELECT');
     const [selectedService, setSelectedService] = useState(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -220,8 +224,8 @@ export const CollectePage = () => {
               <ArrowLeft size={16} className="mr-1" aria-hidden/> Retour
             </Button>) : (<span className="size-11" aria-hidden/>)}
           <div className="text-right ml-auto">
-            {brandConfig?.logo_url ? (<img src={brandConfig.logo_url} alt={brandConfig.platform_name} className="h-9 max-w-[140px] object-contain"/>) : (<span className="text-xs font-bold uppercase tracking-widest text-primary font-satoshi">
-                {brandConfig?.platform_name || "Yéba"}
+            {marque?.logo_url ? (<img src={marque.logo_url} alt={marque.platform_name} className="h-9 max-w-[140px] object-contain"/>) : (<span className="text-xs font-bold uppercase tracking-widest text-primary font-satoshi">
+                {marque?.platform_name || "Yéba"}
               </span>)}
           </div>
         </header>
@@ -237,10 +241,10 @@ export const CollectePage = () => {
                       {formDef.guichetName}
                     </Eyebrow>
                     <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-satoshi">
-                      {brandConfig?.form_title || "Bienvenue au guichet"}
+                      {marque?.form_title || "Bienvenue au guichet"}
                     </h1>
                     <p className="text-xs text-muted-foreground mt-2 font-medium max-w-sm mx-auto">
-                      {brandConfig?.form_subtitle || "Quelle opération venez-vous d'effectuer ?"}
+                      {marque?.form_subtitle || "Quelle opération venez-vous d'effectuer ?"}
                     </p>
                   </div>
 
@@ -419,7 +423,7 @@ export const CollectePage = () => {
                   </div>
                   <div className="space-y-2">
                     <h2 className="text-2xl sm:text-3xl font-bold text-foreground font-satoshi">
-                      {brandConfig?.form_thank_you || "Merci pour votre avis !"}
+                      {marque?.form_thank_you || "Merci pour votre avis !"}
                     </h2>
                     <p className="text-sm text-muted-foreground max-w-[280px] mx-auto font-medium">
                       Votre retour précieux nous aide à améliorer constamment votre expérience au guichet.
@@ -434,9 +438,9 @@ export const CollectePage = () => {
         </div>
 
         {/* Footer Branding */}
-        {!brandConfig?.hide_yeba_branding && (<div className="py-2 text-center">
+        {!marque?.hide_yeba_branding && (<div className="py-2 text-center">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              Propulsé par {brandConfig?.platform_name || "Yeba"}
+              Propulsé par {marque?.platform_name || "Yeba"}
             </p>
           </div>)}
       </div>

@@ -424,7 +424,10 @@ export const getServices = async (_args, context) => {
 export const getBranding = async (_args, context) => {
     requireAuth(context);
     await assertEntrepriseActive(context, context.entities);
-    requireRole(context, ['DIRECTION']);
+    // FIX 05/09 : lecture étendue au Chef d'Agence — le kit QR des guichets
+    // est géré par les chefs, ils doivent voir la personnalisation de leur
+    // entreprise (lecture seule, même tenant, aucun secret).
+    requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
     if (!context.user.id_entreprise)
         return null;
     return context.entities.BrandingConfig.findUnique({

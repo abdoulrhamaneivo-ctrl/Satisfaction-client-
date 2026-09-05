@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import { useAuth } from 'wasp/client/auth';
+import { useQuery, getBranding } from 'wasp/client/operations';
 import { BRANDING } from '../../shared/branding';
 const BrandContext = createContext({
     brandConfig: BRANDING,
@@ -6,6 +8,41 @@ const BrandContext = createContext({
 });
 export const useBrand = () => useContext(BrandContext);
 export const BrandProvider = ({ children }) => {
+    const { data: user } = useAuth();
+    // Personnalisation tenant (FIX 05/09) : le contexte était 100% statique —
+    // la Direction enregistrait (updateBranding) mais rien ne lisait. On charge
+    // la config de l'entreprise connectée (lecture seule, même tenant).
+    // Page publique de collecte (non connectée) : le contexte garde les
+    // défauts, c'est CollectePage qui utilise formDef.brandConfig du guichet.
+    const { data: brandingServeur } = useQuery(getBranding, undefined, { enabled: !!user?.id_entreprise });
+    const brandConfig = useMemo(() => {
+        const s = brandingServeur;
+        if (!s)
+            return BRANDING;
+        // Fusion CHAMPS TEXTE uniquement : les couleurs serveur sont en HEX
+        // (#RRGGBB) alors que le thème attend du HSL (« H S% L% ») — les appliquer
+        // brutes casserait tout le CSS. Textes + logo + favicon : sûrs.
+        const texte = (v, defaut) => typeof v === 'string' && v.trim() ? v : defaut;
+        return {
+            ...BRANDING,
+            platform_name: texte(s.nom_affiche, BRANDING.platform_name),
+            logo_url: s.logo_url ?? BRANDING.logo_url,
+            favicon_url: s.favicon_url ?? BRANDING.favicon_url,
+            form_title: texte(s.form_title, BRANDING.form_title),
+            form_subtitle: texte(s.form_subtitle, BRANDING.form_subtitle),
+            form_thank_you: texte(s.form_thank_you, BRANDING.form_thank_you),
+            qr_slogan: texte(s.qr_slogan, BRANDING.qr_slogan),
+            hide_yeba_branding: !!s.hide_yeba_branding,
+        };
+    }, [brandingServeur]);
+    return (<BrandContext.Provider value={{ brandConfig, isLoading: false }}>
+      <AppliqueThemeMarque brandConfig={brandConfig}/>
+      {children}
+    </BrandContext.Provider>);
+};
+/** Effets DOM du thème (ombres, favicon, titre) — séparés pour ne pas
+ *  re-déclencher le fetch de personnalisation. */
+function AppliqueThemeMarque({ brandConfig, children }) {
     useEffect(() => {
         // Définir les ombres personnalisées
         let shadowStyles = '';
@@ -89,22 +126,21 @@ export const BrandProvider = ({ children }) => {
       }
     `;
         // Mettre à jour la Favicon si présente
-        if (BRANDING.favicon_url) {
+        if (brandConfig.favicon_url) {
             let faviconElement = document.querySelector("link[rel*='icon']");
             if (!faviconElement) {
                 faviconElement = document.createElement('link');
                 faviconElement.rel = 'shortcut icon';
                 document.head.appendChild(faviconElement);
             }
-            faviconElement.href = BRANDING.favicon_url;
+            faviconElement.href = brandConfig.favicon_url;
         }
         // Mettre à jour le titre du document si on est hors de la landing page
-        if (window.location.pathname !== '/' && BRANDING.platform_name) {
-            document.title = `${BRANDING.platform_name} — Satisfaction`;
+        if (window.location.pathname !== '/' && brandConfig.platform_name) {
+            document.title = `${brandConfig.platform_name} — Satisfaction`;
         }
-    }, []);
-    return (<BrandContext.Provider value={{ brandConfig: BRANDING, isLoading: false }}>
-      {children}
-    </BrandContext.Provider>);
-};
+    }, [brandConfig]);
+    return <>{children}</>;
+}
+;
 //# sourceMappingURL=BrandContext.jsx.map

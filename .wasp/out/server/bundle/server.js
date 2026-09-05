@@ -1757,7 +1757,10 @@ const soumettreAvisImpl = async (args, context) => {
     const orphelins = critereIds.filter((id) => !rattaches.has(id));
     if (orphelins.length > 0) {
       const autresRattachements = await context.entities.CritereService.findMany({
-        where: { id_critere: { in: orphelins } },
+        where: {
+          id_critere: { in: orphelins },
+          service: { guichets: { some: { id: guichet.id } } }
+        },
         select: { id_critere: true }
       });
       if (autresRattachements.length > 0) {
@@ -5110,7 +5113,7 @@ const getServices$2 = async (_args, context) => {
 const getBranding$2 = async (_args, context) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ["DIRECTION"]);
+  requireRole(context, ["DIRECTION", "CHEF_AGENCE"]);
   if (!context.user.id_entreprise) return null;
   return context.entities.BrandingConfig.findUnique({
     where: { id_entreprise: context.user.id_entreprise }

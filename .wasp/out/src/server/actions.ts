@@ -627,10 +627,17 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     const orphelins = critereIds.filter((id) => !rattaches.has(id));
     if (orphelins.length > 0) {
       // Un critère non rattaché à l'opération choisie n'est accepté que s'il
-      // n'est rattaché à aucune opération (critère par défaut). Rattaché à
-      // une AUTRE opération → rejet (appel forgé ou formulaire désynchronisé).
+      // n'est rattaché à AUCUNE opération DU GUICHET (critère par défaut —
+      // périmètre guichet, le même que le formulaire qui n'affiche que les
+      // questions de l'opération + ce vivier). Rattaché à une AUTRE
+      // opération du même guichet → rejet (appel forgé ou formulaire
+      // désynchronisé). Un rattachement sur un AUTRE guichet ne disqualifie
+      // pas : l'organisation en opérations est propre à chaque guichet.
       const autresRattachements = await context.entities.CritereService.findMany({
-        where: { id_critere: { in: orphelins } },
+        where: {
+          id_critere: { in: orphelins },
+          service: { guichets: { some: { id: guichet.id } } },
+        },
         select: { id_critere: true },
       });
       if (autresRattachements.length > 0) {
