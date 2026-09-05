@@ -155,7 +155,10 @@ export function SidebarContent({ onNavigate, className }) {
             Écoute Client
           </span>
 
-          <NavItem to="/avis" icon={MessageSquareQuote} label="Avis & CSAT" isActive={isCurrent('/avis')} onNavigate={onNavigate}/>
+          {/* FIX 05/09 : la Direction ne voit jamais les verbatims (règle de
+            confidentialité) — au lieu d'une page vide avec message, l'entrée
+            est retirée et /avis redirige vers le tableau de bord. */}
+          {!isDirection && (<NavItem to="/avis" icon={MessageSquareQuote} label="Avis & CSAT" isActive={isCurrent('/avis')} onNavigate={onNavigate}/>)}
 
           <NavItem to="/criteres" icon={SlidersHorizontal} label="Formulaires & Critères" isActive={isCurrent('/criteres')} onNavigate={onNavigate}/>
         </div>

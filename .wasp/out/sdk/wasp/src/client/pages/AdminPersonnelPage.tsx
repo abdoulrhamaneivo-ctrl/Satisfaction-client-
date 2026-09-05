@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import {
   useQuery,
@@ -56,6 +57,14 @@ export const AdminPersonnelPage = () => {
   const [selectedAgenceId, setSelectedAgenceId] = useState<number | null>(
     user?.id_agence ?? null,
   );
+  // FIX 05/09 : arrivée depuis « Désigner son chef » (Réseau Agences) avec
+  // ?agence=ID — l'agence cible est présélectionnée dans le formulaire.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const cible = Number(searchParams.get('agence'));
+    if (Number.isSafeInteger(cible) && cible > 0) setSelectedAgenceId(cible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { data: agences } = useQuery(getAgences, undefined, { enabled: user?.role === 'DIRECTION' });
 
   useEffect(() => {

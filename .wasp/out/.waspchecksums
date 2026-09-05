@@ -1362,7 +1362,7 @@
             "file",
             "sdk/wasp/src/client/components/Sidebar.tsx"
         ],
-        "2df9c0869794ef6a9b047c5ee9678514131fb04a38e4868b69c4a551143a7d16"
+        "bbdbf7c05f3ce16bb5cb15a93808988ec60e85e7dfc281454212486cd6e4adf1"
     ],
     [
         [
@@ -1670,7 +1670,7 @@
             "file",
             "sdk/wasp/src/client/pages/AdminPersonnelPage.tsx"
         ],
-        "313f7c4974dd9b1865be2911b22a1453fe1bc3a0f61a73928464d966ff9308f1"
+        "f1b5822c42b549ca332e23e9eca7619e88e9ab86e2706d59590d1d4e2b673d3f"
     ],
     [
         [
@@ -1691,7 +1691,7 @@
             "file",
             "sdk/wasp/src/client/pages/AvisPage.tsx"
         ],
-        "c225449e93934989373528b463a8affbdf7059db1eed5bb2851d4c170ced07bd"
+        "8fc5031910fe77f7a86899d28d95632c0f6b1504672f7d7c92cd949ee43d77ee"
     ],
     [
         [
@@ -1719,7 +1719,7 @@
             "file",
             "sdk/wasp/src/client/pages/GestionAgencesPage.tsx"
         ],
-        "339b94fcb8d4aaa2671658a3fdeff6171f6e1dbf52c41ea40355bfef98dbde00"
+        "c401b2b7d4257288da947e32581bfe5683ce69f03074b007a59d00ad2cd4496c"
     ],
     [
         [
@@ -2160,7 +2160,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "8817a00dd6593298bf44a7674fbc1a908730770b8d53b8d0888cd3966fd6489d"
+        "1785d62bd2cfbf9d4fe498651532dbceabc7f596fda026d2cee7202241754bd7"
     ],
     [
         [

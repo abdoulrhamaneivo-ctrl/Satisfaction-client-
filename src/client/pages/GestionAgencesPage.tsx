@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Navigate } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, getAgences, createAgence, archiverAgence } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,6 +34,7 @@ export const GestionAgencesPage = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [agenceAArchiver, setAgenceAArchiver] = useState<{ id: number; nom: string } | null>(null);
+  const [agenceCree, setAgenceCree] = useState<{ id: number; nom: string } | null>(null);
   const [archivingId, setArchivingId] = useState<number | null>(null);
   const [recherche, setRecherche] = useState('');
 
@@ -46,7 +48,7 @@ export const GestionAgencesPage = () => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await createAgence({
+      const cree: any = await createAgence({
         nom_agence: formData.nom_agence,
         commune: formData.commune,
         adresse: formData.adresse || undefined,
@@ -56,6 +58,9 @@ export const GestionAgencesPage = () => {
         title: 'Agence créée',
         description: `"${formData.nom_agence}" a été ajoutée à votre réseau.`,
       });
+      // FIX 05/09 : après création, proposer aussitôt la désignation du
+      // chef — avant, l'agence naissait sans chef et sans aucun rappel.
+      setAgenceCree({ id: cree?.id, nom: formData.nom_agence });
       setFormData({ nom_agence: '', commune: '', adresse: '' });
     } catch (error: any) {
       toast({
@@ -88,25 +93,10 @@ export const GestionAgencesPage = () => {
 
   // Cette page ne concerne que le chef d'entreprise : c'est lui qui
   // structure son réseau d'agences avant d'y rattacher des chefs d'agence
-  // (via la page Personnel) et des guichets.
+  // (via la page Personnel) et des guichets. Pas de message d'erreur :
+  // l'entrée menu est déjà réservée Direction, on redirige ailleurs.
   if (user && user.role !== 'DIRECTION') {
-    return (
-      <RequireEnterpriseRole>
-      <RequireAuth>
-        <AmbientBackground>
-          <div className="flex min-h-screen items-center justify-center p-8">
-            <div className="flex max-w-md flex-col items-center gap-3 rounded-3xl border border-border/70 bg-card p-10 text-center shadow-premium">
-              <ShieldAlert className="size-10 text-warning" />
-              <h1 className="text-lg font-bold">Accès réservé à la direction</h1>
-              <p className="text-sm text-muted-foreground">
-                Seul le chef d'entreprise peut créer ou gérer les agences du réseau.
-              </p>
-            </div>
-          </div>
-        </AmbientBackground>
-      </RequireAuth>
-      </RequireEnterpriseRole>
-    );
+    return <Navigate to="/dashboard" replace />;
   }
 
   const agenceCount = agences?.length ?? 0;
@@ -198,6 +188,32 @@ export const GestionAgencesPage = () => {
                   </div>
                 )}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {/* FIX 05/09 : CTA post-création — l'agence naît sans chef,
+                    on propose aussitôt sa désignation au lieu de l'oublier. */}
+                {agenceCree?.id && (
+                  <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-success/30 bg-success/10 p-5">
+                    <p className="text-sm font-bold text-success">
+                      « {agenceCree.nom} » créée. Désignez maintenant son Chef d'Agence :
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => (window.location.href = `/admin/personnel?agence=${agenceCree.id}`)}
+                        className="rounded-xl font-bold"
+                      >
+                        <PlusCircle className="size-4" /> Désigner son chef
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setAgenceCree(null)}
+                        className="rounded-xl font-bold"
+                      >
+                        Plus tard
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {isLoading && (
                   <>
                     {[0, 1].map((i) => (
@@ -231,6 +247,23 @@ export const GestionAgencesPage = () => {
                             <p className="flex items-center gap-1 text-xs text-muted-foreground">
                               <MapPin className="size-3" /> {agence.commune}
                             </p>
+                            {/* FIX 05/09 : le chef en place (ou son absence) est
+                                visible et actionnable depuis la carte — avant,
+                                aucun moyen de désigner un chef après création,
+                                et le clic sur la carte ne donnait rien. */}
+                            {agence.utilisateurs?.[0] ? (
+                              <p className="mt-1 truncate text-xs font-semibold text-success">
+                                Chef : {agence.utilisateurs[0].prenom} {agence.utilisateurs[0].nom}
+                              </p>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => (window.location.href = `/admin/personnel?agence=${agence.id}`)}
+                                className="mt-1 inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-1 text-[11px] font-bold text-warning hover:bg-warning/20 transition-colors"
+                              >
+                                <PlusCircle className="size-3" /> Aucun chef — désigner
+                              </button>
+                            )}
                           </div>
                         </div>
                         <Button

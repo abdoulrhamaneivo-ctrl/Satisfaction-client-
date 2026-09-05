@@ -411,7 +411,18 @@ export const getAgences = async (_args: void, context: any) => {
 
   return context.entities.Agence.findMany({
     where: { id_entreprise: context.user.id_entreprise, archive: false },
-    select: { id: true, nom_agence: true, commune: true },
+    // FIX 05/09 : la carte agence doit afficher le chef en place (ou son
+    // absence) pour permettre de le désigner directement depuis le réseau.
+    select: {
+      id: true,
+      nom_agence: true,
+      commune: true,
+      utilisateurs: {
+        where: { role: 'CHEF_AGENCE', actif: true },
+        select: { id: true, prenom: true, nom: true, email: true },
+        take: 1,
+      },
+    },
     orderBy: { id: 'asc' },
   });
 };

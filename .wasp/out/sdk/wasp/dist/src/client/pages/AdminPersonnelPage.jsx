@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, inviteAgent, updateAgent, deleteAgent, reactivateAgent, renvoyerInvitationAgent, getAgentsByAgence, getAgences, } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,6 +18,15 @@ export const AdminPersonnelPage = () => {
     const { data: user } = useAuth();
     const { toast } = useToast();
     const [selectedAgenceId, setSelectedAgenceId] = useState(user?.id_agence ?? null);
+    // FIX 05/09 : arrivée depuis « Désigner son chef » (Réseau Agences) avec
+    // ?agence=ID — l'agence cible est présélectionnée dans le formulaire.
+    const [searchParams] = useSearchParams();
+    useEffect(() => {
+        const cible = Number(searchParams.get('agence'));
+        if (Number.isSafeInteger(cible) && cible > 0)
+            setSelectedAgenceId(cible);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const { data: agences } = useQuery(getAgences, undefined, { enabled: user?.role === 'DIRECTION' });
     useEffect(() => {
         if (selectedAgenceId !== null)

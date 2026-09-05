@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { Navigate } from 'react-router';
 import { useQuery, getAvisGroupes, getAgences, getGuichets, getServices, exportAvisGroupes } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,7 +7,6 @@ import {
   MessageSquareQuote, Inbox, Filter, RotateCcw, Calendar,
   User as UserIcon, HelpCircle, Layers, Building, Store,
   Download, Loader2, ChevronDown, FileSpreadsheet,
-  ShieldCheck, BarChart3,
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -30,6 +30,13 @@ import { AIAnalysisBadge } from '../components/AIAnalysisBadge';
 export const AvisPage = () => {
   const { data: user } = useAuth();
   const { toast } = useToast();
+
+  // FIX 05/09 : la Direction ne voit jamais les verbatims — au lieu d'une
+  // page vide avec message, redirection directe vers le tableau de bord
+  // (les chiffres). L'entrée menu est également retirée pour ce rôle.
+  if (user && user.role === 'DIRECTION') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   // Filter States
   const [selectedAgenceId, setSelectedAgenceId] = useState<number | undefined>(undefined);
@@ -399,24 +406,7 @@ export const AvisPage = () => {
           </MotionCard>
 
           {/* Responses List or states */}
-          {isDirection ? (
-            <MotionCard className="p-8 text-center border-border/70">
-              <ShieldCheck className="mx-auto size-10 text-primary" />
-              <h2 className="mt-4 text-lg font-bold text-foreground font-satoshi">
-                Confidentialité — chiffres seuls pour la Direction
-              </h2>
-              <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground font-medium">
-                Par règle de confidentialité, la Direction ne voit jamais les
-                verbatims clients. Retrouvez les notes moyennes, volumes et
-                comparaisons par agence dans le Tableau de bord.
-              </p>
-              <div className="mt-6 flex justify-center gap-3">
-                <Button onClick={() => (window.location.href = '/dashboard')} className="rounded-xl font-bold">
-                  <BarChart3 className="size-4" /> Voir le Tableau de bord
-                </Button>
-              </div>
-            </MotionCard>
-          ) : isLoading && page === 1 ? (
+          {isLoading && page === 1 ? (
             <div className="space-y-4">
               {[0, 1, 2].map((i) => (
                 <div
