@@ -10,6 +10,7 @@ import { ChevronRight, MessageSquare, Phone, ArrowLeft, Loader2, ShieldCheck, Lo
 import { useBrand } from '../context/BrandContext';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { Card, Eyebrow } from '../components/ds';
+import { parseCollecteIdentifier } from '../collecte/routeParams';
 
 type ServiceType = {
   id: number;
@@ -52,10 +53,14 @@ const normaliserTelephone = (valeur: string): string => {
 export const CollectePage = () => {
   // QR opaque (Doc 11 §7) : la route porte un code public non prédictible
   // (/q/BXYUUEHM9Y). Les vieux QR numériques (/q/12) restent supportés.
+  // Le parsing centralisé (routeParams.ts, couvert par tests) distingue les
+  // deux formes ; un identifiant vide ou invalide bloque le chargement.
   const params = useParams<{ code?: string; guichetId?: string }>();
-  const codePublic = params.code?.trim() || null;
-  const idGuichetNum = Number(params.guichetId);
-  const idGuichetValide = !codePublic && Number.isSafeInteger(idGuichetNum) && idGuichetNum > 0;
+  const identifiantBrut = (params.code ?? params.guichetId ?? '').trim();
+  const identifiant = parseCollecteIdentifier(identifiantBrut);
+  const codePublic = identifiant?.kind === 'publicCode' ? identifiant.code : null;
+  const idGuichetNum = identifiant?.kind === 'guichetId' ? identifiant.guichetId : NaN;
+  const idGuichetValide = identifiant?.kind === 'guichetId';
 
   const { data: formDef, isLoading, isError } = useQuery(
     getFormDefinitionForGuichet,
@@ -109,7 +114,11 @@ export const CollectePage = () => {
     );
   }
 
-  if (!Number.isSafeInteger(idGuichetNum) || idGuichetNum <= 0 || isError || !formDef) {
+  // FIX QR OPAQUE (05/09) : pour un QR code il n'y a pas d'id numérique —
+  // seul le formDef chargé compte. L'ancien test sur idGuichetNum rejetait
+  // TOUS les QR opaques avec "n'existe pas".
+  const identifiantInvalide = !codePublic && (!idGuichetValide);
+  if (identifiantInvalide || isError || !formDef) {
     return (
       <AmbientBackground>
         <div className="flex min-h-screen items-center justify-center p-4">
@@ -190,7 +199,11 @@ export const CollectePage = () => {
       const reponsesRenseignees = answers.filter((a) => a && a.critereId !== undefined);
 
       await soumettreAvis({
-        guichetId: idGuichetNum,
+        // FIX QR OPAQUE (05/09) : pour un QR code, idGuichetNum vaut NaN
+        // (pas de :guichetId dans l'URL) — on envoie le code_public que le
+        // serveur résout, ou l'id renvoyé par le formDef.
+        guichetId: idGuichetValide ? idGuichetNum : ((formDef as any)?.id_guichet || undefined),
+        code_public: codePublic || undefined,
         canalId: 1, // QR_WEB
         commentaire: commentaire.trim(),
         telephone: telephone.trim() ? normaliserTelephone(telephone) : undefined,

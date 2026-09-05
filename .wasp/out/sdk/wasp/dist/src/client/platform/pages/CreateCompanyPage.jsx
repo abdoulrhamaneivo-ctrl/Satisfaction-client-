@@ -40,11 +40,13 @@ function CreateCompanyInner() {
         limite_agences: PLANS[1].agences,
         limite_utilisateurs: PLANS[1].utilisateurs,
         limite_guichets: PLANS[1].guichets,
+        totpCode: '',
     });
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
     const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.admin_email || form.email_administratif || '');
     const etape1Ok = form.nom_entreprise.trim().length >= 2 && emailValide;
     const etape2Ok = form.admin_prenom.trim() && form.admin_nom.trim() && emailValide;
+    const totpCodeValide = /^\d{6}$/.test(form.totpCode);
     const planCourant = PLANS.find((p) => p.id === form.plan) ?? PLANS[1];
     async function soumettre() {
         setEnvoi(true);
@@ -69,6 +71,7 @@ function CreateCompanyInner() {
                 limite_agences: form.limite_agences,
                 limite_utilisateurs: form.limite_utilisateurs,
                 limite_guichets: form.limite_guichets,
+                totpCode: form.totpCode,
             });
             setSucces({ id_entreprise: r.entreprise.id, email_envoye: r.email_envoye, message: r.message });
         }
@@ -264,6 +267,11 @@ function CreateCompanyInner() {
             <ul className="space-y-1.5 text-sm text-muted-foreground">
               {['Compte entreprise (statut ACTIVE)', 'Compte administrateur (DIRECTION)', 'Invitation sécurisée par email (24 h)', 'Action journalisée (AuditLog)'].map((x) => (<li key={x} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-success"/> {x}</li>))}
             </ul>
+            <div className="max-w-xs">
+              <label className={labelCls} htmlFor="w-totp">Code 2FA (6 chiffres) *</label>
+              <input id="w-totp" inputMode="numeric" maxLength={6} required className={inputCls} value={form.totpCode} onChange={(e) => set('totpCode', e.target.value.replace(/\D/g, ''))}/>
+              <p className="mt-1 text-xs text-muted-foreground">Confirmation obligatoire pour créer une entreprise.</p>
+            </div>
           </section>)}
 
         {/* Navigation */}
@@ -273,7 +281,7 @@ function CreateCompanyInner() {
             </button>) : <span />}
           {etape < 3 ? (<button onClick={() => setEtape(etape + 1)} disabled={(etape === 0 && !etape1Ok) || (etape === 1 && !etape2Ok)} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
               Continuer <ArrowRight className="size-4"/>
-            </button>) : (<button onClick={soumettre} disabled={envoi} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+            </button>) : (<button onClick={soumettre} disabled={envoi || !totpCodeValide} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
               {envoi ? <><Loader2 className="size-4 animate-spin"/> Création…</> : <><CheckCircle2 className="size-4"/> Créer l'entreprise</>}
             </button>)}
         </div>

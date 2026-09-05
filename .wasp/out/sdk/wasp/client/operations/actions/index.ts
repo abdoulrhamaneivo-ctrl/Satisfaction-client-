@@ -117,7 +117,7 @@ export const deleteAffectationGuichet: ActionFor<DeleteAffectationGuichet_ext> =
 // PUBLIC API
 export const soumettreAvis: ActionFor<SoumettreAvis_ext> = createAction<SoumettreAvis_ext>(
   'operations/soumettre-avis',
-  ['Reponse', 'Critere', 'AgenceCritere', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal'],
+  ['Reponse', 'Critere', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal'],
 )
 
 // PUBLIC API
@@ -231,7 +231,7 @@ export const deleteCritere: ActionFor<DeleteCritere_ext> = createAction<DeleteCr
 // PUBLIC API
 export const duplicateCritere: ActionFor<DuplicateCritere_ext> = createAction<DuplicateCritere_ext>(
   'operations/duplicate-critere',
-  ['Critere', 'AgenceCritere', 'CritereService', 'User'],
+  ['Critere', 'AgenceCritere', 'CritereService', 'Agence', 'Service', 'User'],
 )
 
 // PUBLIC API

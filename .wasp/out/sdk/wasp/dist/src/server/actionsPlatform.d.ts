@@ -28,19 +28,19 @@ export declare const creerEntreprise: (args: {
     limite_agences: number;
     limite_utilisateurs: number;
     limite_guichets: number;
-    totpCode?: string;
+    totpCode: string;
 }, context: any) => Promise<any>;
 export declare const suspendreEntreprise: (args: {
     id_entreprise: number;
     motif: string;
-    totpCode?: string;
+    totpCode: string;
 }, context: any) => Promise<{
     ok: boolean;
     message: string;
 }>;
 export declare const reactiverEntreprise: (args: {
     id_entreprise: number;
-    totpCode?: string;
+    totpCode: string;
 }, context: any) => Promise<{
     ok: boolean;
     message: string;
@@ -51,13 +51,14 @@ export declare const changerLimitesEntreprise: (args: {
     limite_utilisateurs?: number;
     limite_guichets?: number;
     plan?: string;
-    totpCode?: string;
+    totpCode: string;
 }, context: any) => Promise<{
     ok: boolean;
     message: string;
 }>;
 export declare const renvoyerInvitation: (args: {
     id_entreprise: number;
+    totpCode: string;
 }, context: any) => Promise<{
     ok: boolean;
     message: string;
@@ -66,6 +67,7 @@ export declare const inviterSuperAdmin: (args: {
     email: string;
     prenom: string;
     nom: string;
+    totpCode: string;
 }, context: any) => Promise<{
     ok: boolean;
     message: string;
@@ -81,14 +83,14 @@ export declare const activerCompte: (args: {
 export declare const changerPlatformRole: (args: {
     id_user_cible: string;
     nouveauRole: "SUPER_ADMIN" | "SUPPORT" | "NONE";
-    totpCode?: string;
+    totpCode: string;
 }, context: any) => Promise<{
     ok: boolean;
     message: string;
 }>;
 export declare const desactiverComptePlatform: (args: {
     id_user_cible: string;
-    totpCode?: string;
+    totpCode: string;
 }, context: any) => Promise<{
     ok: boolean;
     message: string;

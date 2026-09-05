@@ -1075,6 +1075,10 @@ const addFileToDb$2 = async (rawArgs, context) => {
     addFileToDbInputSchema,
     rawArgs
   );
+  const prefixeAttendu = `${context.user.id}/`;
+  if (!args.s3Key.startsWith(prefixeAttendu) || args.s3Key.length <= prefixeAttendu.length) {
+    throw new HttpError(403, "Cl\xE9 de fichier non autoris\xE9e pour ce compte.");
+  }
   const fileExists = await checkFileExistsInS3({ s3Key: args.s3Key });
   if (!fileExists) {
     throw new HttpError(404, "File not found in S3.");
@@ -1578,13 +1582,24 @@ const deleteAffectationGuichet$2 = async (args, context) => {
   return { success: true };
 };
 const soumettreAvisImpl = async (args, context) => {
-  const { guichetId, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
+  const { guichetId, code_public, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
   let hachageTelephone = null;
-  if (!guichetId) {
+  let idGuichetEffectif = guichetId;
+  if (!idGuichetEffectif && code_public) {
+    const guichetParCode = await context.entities.Guichet.findUnique({
+      where: { code_public: String(code_public).toUpperCase().trim() },
+      select: { id: true }
+    });
+    if (!guichetParCode) {
+      throw new HttpError(404, "Guichet introuvable.");
+    }
+    idGuichetEffectif = guichetParCode.id;
+  }
+  if (!idGuichetEffectif) {
     throw new HttpError(400, "Identifiant du guichet requis.");
   }
   const ipClient = extraireIp(context);
-  const rl1 = checkRateLimit(`avis:${ipClient}:${guichetId}`, { capacity: 8, refillPerMinute: 2 });
+  const rl1 = checkRateLimit(`avis:${ipClient}:${idGuichetEffectif}`, { capacity: 8, refillPerMinute: 2 });
   if (!rl1.allowed) {
     throw new HttpError(429, `Trop de soumissions depuis cet appareil pour ce guichet. R\xE9essayez dans ${rl1.retryAfterSeconds} s.`);
   }
@@ -1606,7 +1621,7 @@ const soumettreAvisImpl = async (args, context) => {
     }
   }
   const guichet = await context.entities.Guichet.findUnique({
-    where: { id: Number(guichetId) },
+    where: { id: Number(idGuichetEffectif) },
     include: { agence: { select: { archive: true, id_entreprise: true } } }
   });
   if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) {
@@ -1637,7 +1652,8 @@ const soumettreAvisImpl = async (args, context) => {
     }
   });
   const submissionId = args.id_soumission || crypto.randomUUID();
-  if (args.id_soumission) {
+  const idempotenceDemandee = Boolean(args.id_soumission);
+  if (idempotenceDemandee) {
     const soumissionExistante = await context.entities.Reponse.findFirst({
       where: { id_soumission: submissionId },
       orderBy: { date_reponse: "asc" }
@@ -1694,6 +1710,16 @@ const soumettreAvisImpl = async (args, context) => {
     if (!serviceDuGuichet) {
       throw new HttpError(400, "L\u2019op\xE9ration s\xE9lectionn\xE9e n\u2019est pas disponible pour ce guichet.");
     }
+    const rattachements = await context.entities.CritereService.findMany({
+      where: {
+        id_service: serviceDuGuichet.id,
+        id_critere: { in: critereIds }
+      },
+      select: { id_critere: true }
+    });
+    if (rattachements.length !== critereIds.length) {
+      throw new HttpError(400, "Un ou plusieurs crit\xE8res ne font pas partie de l\u2019op\xE9ration s\xE9lectionn\xE9e.");
+    }
   }
   for (const item of itemsToInsert) {
     const critere = critereById.get(item.critereId);
@@ -1748,18 +1774,45 @@ const soumettreAvisImpl = async (args, context) => {
   });
   const lignes = itemsToInsert.map(construireLigne);
   let createdReponses;
+  const insererLignes = async (tx) => {
+    try {
+      await tx.reponse.createMany({ data: lignes });
+    } catch (e) {
+      const isFkCanal = e?.code === "P2003" && String(e?.meta?.field_name ?? "").includes("id_canal");
+      if (!isFkCanal) throw e;
+      await assurerCanalExiste();
+      await tx.reponse.createMany({ data: lignes });
+    }
+  };
   try {
-    await context.entities.Reponse.createMany({ data: lignes });
+    createdReponses = await dbClient.$transaction(async (tx) => {
+      if (idempotenceDemandee) {
+        try {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${submissionId}, 0))`;
+        } catch {
+        }
+        const deja = await tx.reponse.findFirst({
+          where: { id_soumission: submissionId },
+          orderBy: { date_reponse: "asc" }
+        });
+        if (deja) return [deja];
+      }
+      await insererLignes(tx);
+      return await tx.reponse.findMany({
+        where: { id_soumission: submissionId },
+        orderBy: { id: "asc" }
+      });
+    });
   } catch (e) {
     const isFkCanal = e?.code === "P2003" && String(e?.meta?.field_name ?? "").includes("id_canal");
     if (!isFkCanal) throw e;
     await assurerCanalExiste();
     await context.entities.Reponse.createMany({ data: lignes });
+    createdReponses = await context.entities.Reponse.findMany({
+      where: { id_soumission: submissionId },
+      orderBy: { id: "asc" }
+    });
   }
-  createdReponses = await context.entities.Reponse.findMany({
-    where: { id_soumission: submissionId },
-    orderBy: { id: "asc" }
-  });
   let worstScore = null;
   for (const item of itemsToInsert) {
     const scoreNormalise = normaliserScoreSur5(critereById.get(item.critereId), item.score);
@@ -1851,12 +1904,42 @@ const updateAgent$2 = async (args, context) => {
   if (args.id_agence) {
     await assertAgenceAccess(context, context.entities, args.id_agence, "agence de destination");
   }
+  const nouvelEmail = args.email !== void 0 ? args.email.trim() ? args.email.trim().toLowerCase() : null : void 0;
+  const emailChange = nouvelEmail !== void 0 && nouvelEmail !== (existing.email?.toLowerCase() ?? null);
+  if (emailChange && existing.email && nouvelEmail) {
+    const conflit = await dbClient.user.findUnique({ where: { email: nouvelEmail } });
+    if (conflit && conflit.id !== existing.id) {
+      throw new HttpError(409, "Un autre compte utilise d\xE9j\xE0 cette adresse email.");
+    }
+    const ancienneIdentite = await dbClient.authIdentity.findUnique({
+      where: { providerName_providerUserId: { providerName: "email", providerUserId: existing.email } }
+    });
+    await dbClient.$transaction(async (tx) => {
+      if (ancienneIdentite) {
+        await tx.authIdentity.create({
+          data: {
+            providerName: "email",
+            providerUserId: nouvelEmail,
+            providerData: ancienneIdentite.providerData,
+            authId: ancienneIdentite.authId
+          }
+        });
+        await tx.authIdentity.delete({
+          where: { providerName_providerUserId: { providerName: "email", providerUserId: existing.email } }
+        });
+      }
+      await tx.user.update({
+        where: { id: args.id },
+        data: { email: nouvelEmail }
+      });
+    });
+  }
   return context.entities.User.update({
     where: { id: args.id },
     data: {
       ...args.nom ? { nom: args.nom } : {},
       ...args.prenom ? { prenom: args.prenom } : {},
-      ...args.email !== void 0 ? { email: args.email.trim() ? args.email.trim() : null } : {},
+      ...!emailChange && args.email !== void 0 ? { email: args.email.trim() ? args.email.trim() : null } : {},
       ...args.telephone !== void 0 ? { telephone: args.telephone.trim() ? args.telephone.trim() : null } : {},
       ...args.id_agence ? { id_agence: args.id_agence } : {}
     }
@@ -2505,10 +2588,27 @@ const duplicateCritere$2 = async (args, context) => {
     throw new HttpError(400, "Identifiant invalide.");
   }
   const original = await assertCritereAccessible(context, idCritere);
+  const agencesDuTenant = await context.entities.Agence.findMany({
+    where: { id_entreprise: context.user.id_entreprise },
+    select: { id: true }
+  });
+  const idsAgencesDuTenant = new Set(agencesDuTenant.map((a) => a.id));
+  const servicesDuTenant = await context.entities.Service.findMany({
+    where: {
+      OR: [
+        { id_entreprise: null },
+        { id_entreprise: context.user.id_entreprise }
+      ]
+    },
+    select: { id: true }
+  });
+  const idsServicesDuTenant = new Set(servicesDuTenant.map((s) => s.id));
   const [agenceLiens, serviceLiens] = await Promise.all([
     context.entities.AgenceCritere.findMany({ where: { id_critere: idCritere } }),
     context.entities.CritereService.findMany({ where: { id_critere: idCritere } })
   ]);
+  const agenceLiensPropres = agenceLiens.filter((lien) => idsAgencesDuTenant.has(lien.id_agence));
+  const serviceLiensPropres = serviceLiens.filter((lien) => idsServicesDuTenant.has(lien.id_service));
   const libelleCopie = `${original.libelle_critere} (copie)`.slice(0, 300);
   const copie = await dbClient.$transaction(async (tx) => {
     const created = await tx.critere.create({
@@ -2525,12 +2625,12 @@ const duplicateCritere$2 = async (args, context) => {
         id_entreprise: context.user.id_entreprise
       }
     });
-    for (const lien of agenceLiens) {
+    for (const lien of agenceLiensPropres) {
       await tx.agenceCritere.create({
         data: { id_agence: lien.id_agence, id_critere: created.id }
       });
     }
-    for (const lien of serviceLiens) {
+    for (const lien of serviceLiensPropres) {
       const nbExistants = await tx.critereService.count({ where: { id_service: lien.id_service } });
       await tx.critereService.create({
         data: { id_critere: created.id, id_service: lien.id_service, ordre: nbExistants }
@@ -2874,6 +2974,7 @@ async function soumettreAvis$1(args, context) {
       Reponse: dbClient.reponse,
       Critere: dbClient.critere,
       AgenceCritere: dbClient.agenceCritere,
+      CritereService: dbClient.critereService,
       Guichet: dbClient.guichet,
       AffectationGuichet: dbClient.affectationGuichet,
       Alerte: dbClient.alerte,
@@ -3143,6 +3244,8 @@ async function duplicateCritere$1(args, context) {
       Critere: dbClient.critere,
       AgenceCritere: dbClient.agenceCritere,
       CritereService: dbClient.critereService,
+      Agence: dbClient.agence,
+      Service: dbClient.service,
       User: dbClient.user
     }
   });
@@ -3344,6 +3447,16 @@ async function journaliser({
   }
 }
 
+function hasEnrolledTotp(account) {
+  return account.totp_actif === true && typeof account.totp_secret === "string" && account.totp_secret.length > 0;
+}
+function canStartTotpSetup(account) {
+  return !hasEnrolledTotp(account);
+}
+function canActivateTotpSetup(account) {
+  return account.totp_actif === false && typeof account.totp_secret === "string" && account.totp_secret.length > 0;
+}
+
 const ALPHABET_BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 function base32Encode(buf) {
   let bits = 0;
@@ -3509,6 +3622,7 @@ async function envoyerEmailActivation(params) {
 }
 const creerEntreprise$2 = async (args, context) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
   const nomE = args.entreprise?.nom_entreprise?.trim() ?? "";
   if (nomE.length < 2 || nomE.length > 120) {
     throw new HttpError(400, "Le nom de l'entreprise est requis (2 \xE0 120 caract\xE8res).");
@@ -3764,6 +3878,7 @@ const changerLimitesEntreprise$2 = async (args, context) => {
 };
 const renvoyerInvitation$2 = async (args, context) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
   const entreprise = await context.entities.Entreprise.findUnique({
     where: { id: args.id_entreprise },
     include: {
@@ -3778,14 +3893,26 @@ const renvoyerInvitation$2 = async (args, context) => {
   const admin = entreprise.utilisateurs[0];
   if (!admin?.email) throw new HttpError(404, "Aucun administrateur avec email trouv\xE9 pour cette entreprise.");
   const tokenClair = crypto.randomBytes(32).toString("base64url");
-  await context.entities.Invitation.create({
-    data: {
-      id_user: admin.id,
-      id_emetteur: context.user.id,
-      id_entreprise: entreprise.id,
-      token_hash: sha256(tokenClair),
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1e3)
-    }
+  const invitationLockKey = `${admin.email.trim().toLowerCase()}:${entreprise.id}`;
+  await dbClient.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${invitationLockKey}, 0))`;
+    await tx.invitation.updateMany({
+      where: {
+        id_user: admin.id,
+        id_entreprise: entreprise.id,
+        used_at: null
+      },
+      data: { used_at: /* @__PURE__ */ new Date() }
+    });
+    await tx.invitation.create({
+      data: {
+        id_user: admin.id,
+        id_emetteur: context.user.id,
+        id_entreprise: entreprise.id,
+        token_hash: sha256(tokenClair),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1e3)
+      }
+    });
   });
   await envoyerEmailActivation({
     to: admin.email,
@@ -3805,6 +3932,7 @@ const renvoyerInvitation$2 = async (args, context) => {
 };
 const inviterSuperAdmin$2 = async (args, context) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
   const email = args.email?.trim().toLowerCase() ?? "";
   if (!EMAIL_RE.test(email)) throw new HttpError(400, "Email invalide.");
   if (!args.prenom?.trim() || !args.nom?.trim()) {
@@ -3874,6 +4002,19 @@ const activerCompte$2 = async (args, context) => {
   if (invitation.used_at) throw new HttpError(409, "Ce lien a d\xE9j\xE0 \xE9t\xE9 utilis\xE9. Utilisez \xAB Mot de passe oubli\xE9 \xBB pour vous connecter.");
   if (invitation.expires_at < /* @__PURE__ */ new Date()) throw new HttpError(410, "Ce lien a expir\xE9. Demandez un nouveau lien d'activation.");
   await dbClient.$transaction(async (tx) => {
+    const claimedAt = /* @__PURE__ */ new Date();
+    const claimed = await tx.invitation.updateMany({
+      where: {
+        id: invitation.id,
+        token_hash: tokenHash,
+        used_at: null,
+        expires_at: { gt: claimedAt }
+      },
+      data: { used_at: claimedAt }
+    });
+    if (claimed.count !== 1) {
+      throw new HttpError(409, "Ce lien d'activation est invalide ou a d\xE9j\xE0 \xE9t\xE9 utilis\xE9.");
+    }
     const compte = await tx.user.findUnique({
       where: { id: invitation.id_user },
       select: { email: true }
@@ -3890,10 +4031,6 @@ const activerCompte$2 = async (args, context) => {
     await tx.user.update({
       where: { id: invitation.id_user },
       data: { mustChangePassword: false }
-    });
-    await tx.invitation.update({
-      where: { id: invitation.id },
-      data: { used_at: /* @__PURE__ */ new Date() }
     });
     await tx.auditLog.create({
       data: {
@@ -3979,17 +4116,30 @@ async function exigerTotpSiActif(context, args) {
     where: { id: context.user.id },
     select: { totp_actif: true, totp_secret: true }
   });
-  if (!compte?.totp_actif || !compte.totp_secret) return;
+  if (!compte || !hasEnrolledTotp(compte)) {
+    throw new HttpError(428, "Configuration 2FA requise avant toute op\xE9ration sensible.");
+  }
   if (!args.totpCode) {
     throw new HttpError(428, "Code 2FA requis pour cette op\xE9ration sensible.");
   }
-  const secret = dechiffrerSecretTotp(compte.totp_secret);
+  const secretChiffre = compte.totp_secret;
+  if (!secretChiffre) {
+    throw new HttpError(428, "Configuration 2FA requise avant toute op\xE9ration sensible.");
+  }
+  const secret = dechiffrerSecretTotp(secretChiffre);
   if (!verifierCodeTotp(args.totpCode, secret)) {
     throw new HttpError(401, "Code 2FA invalide ou expir\xE9.");
   }
 }
 const setup2fa$2 = async (_args, context) => {
   requireSuperAdmin(context);
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_actif: true, totp_secret: true }
+  });
+  if (compte && !canStartTotpSetup(compte)) {
+    throw new HttpError(409, "La 2FA est d\xE9j\xE0 activ\xE9e. Utilisez un code valide pour toute op\xE9ration sensible.");
+  }
   const secret = genererSecretTotp();
   await context.entities.User.update({
     where: { id: context.user.id },
@@ -4017,9 +4167,12 @@ const activer2fa$2 = async (args, context) => {
   requireSuperAdmin(context);
   const compte = await context.entities.User.findUnique({
     where: { id: context.user.id },
-    select: { totp_secret: true }
+    select: { totp_actif: true, totp_secret: true }
   });
-  if (!compte?.totp_secret) {
+  if (compte?.totp_actif) {
+    throw new HttpError(409, "La 2FA est d\xE9j\xE0 activ\xE9e.");
+  }
+  if (!compte || !canActivateTotpSetup(compte)) {
     throw new HttpError(400, "Aucun setup 2FA en cours. Appelez d'abord setup2fa.");
   }
   const secret = dechiffrerSecretTotp(compte.totp_secret);
@@ -4776,6 +4929,9 @@ const getFormDefinitionForGuichet$2 = async (args, context) => {
   const criteresDejaRattaches = /* @__PURE__ */ new Set();
   return {
     guichetName: guichet.nom_guichet,
+    // FIX QR OPAQUE (05/09) : la page de collecte par code a besoin de l'id
+    // numérique pour la soumission — le code public ne suffit pas.
+    id_guichet: guichet.id,
     id_agence: guichet.id_agence,
     services: guichet.services.map((s) => ({
       id: s.id,
@@ -4809,6 +4965,18 @@ const getCriteresParOperation$2 = async (args, context) => {
       where: entrepriseFilter,
       include: {
         criteresServices: {
+          // FIX 05/09 (audit) : un critère d'une AUTRE entreprise rattaché
+          // à un service partagé (socle) ne doit jamais apparaître ici.
+          // Sans ce filtre, l'entreprise B voyait les critères privés de
+          // l'entreprise A via le service commun.
+          where: {
+            critere: {
+              OR: [
+                { id_entreprise: null },
+                { id_entreprise: context.user.id_entreprise ?? -1 }
+              ]
+            }
+          },
           include: { critere: true },
           orderBy: { ordre: "asc" }
         }
@@ -6458,11 +6626,16 @@ const getPlatformAudit$2 = async (args, context) => {
 };
 const getPlatformMe$2 = async (_args, context) => {
   requirePlatformRole(context, ["SUPER_ADMIN", "SUPPORT"]);
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_actif: true }
+  });
   return {
     platformRole: context.user.platformRole,
     email: context.user.email,
     nom: context.user.nom,
-    prenom: context.user.prenom
+    prenom: context.user.prenom,
+    totp_actif: compte?.totp_actif === true
   };
 };
 
@@ -7021,6 +7194,10 @@ app.use((err, _req, res, next) => {
   return next(err);
 });
 
+function isPublicSignupRequest(method, path) {
+  return method.toUpperCase() === "POST" && path === "/auth/email/signup";
+}
+
 const CLIENT_BUILD_DIR = path$1.resolve(process.cwd(), "../web-app/build");
 const SPA_ENTRY = path$1.join(CLIENT_BUILD_DIR, "200.html");
 const API_PREFIXES = ["/operations", "/auth", "/api", "/webhooks"];
@@ -7036,6 +7213,9 @@ function ipClient(req) {
   return req?.socket?.remoteAddress ?? "inconnue";
 }
 async function serveStaticClient({ app }) {
+  const anyApp = app;
+  const stackAvantInstallation = anyApp.router?.stack ?? anyApp._router?.stack;
+  const longueurAvantInstallation = stackAvantInstallation?.length ?? null;
   app.disable("x-powered-by");
   app.use((req, res, next) => {
     if (req.method === "POST") {
@@ -7067,12 +7247,28 @@ async function serveStaticClient({ app }) {
     }
     next();
   });
+  app.use((req, res, next) => {
+    if (isPublicSignupRequest(req.method, req.path)) {
+      res.status(404).end();
+      return;
+    }
+    next();
+  });
+  const d\u00E9placerCouchesAvantRouteurWasp = () => {
+    const stack = anyApp.router?.stack ?? anyApp._router?.stack;
+    if (!Array.isArray(stack) || longueurAvantInstallation === null) return;
+    const ourLayers = stack.splice(longueurAvantInstallation);
+    const routerIdx = stack.findIndex((l) => l.name === "router");
+    stack.splice(routerIdx >= 0 ? routerIdx : 0, 0, ...ourLayers);
+    console.log("[static] couches d\xE9plac\xE9es avant le router Wasp");
+  };
   if (!fs.existsSync(SPA_ENTRY)) {
     console.log(
       "[static] pas de build client dans",
       CLIENT_BUILD_DIR,
       "\u2014 client non servi par ce serveur"
     );
+    d\u00E9placerCouchesAvantRouteurWasp();
     return;
   }
   app.use(
@@ -7094,14 +7290,7 @@ async function serveStaticClient({ app }) {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     fs.createReadStream(SPA_ENTRY).on("error", () => next()).pipe(res);
   });
-  const anyApp = app;
-  const stack = anyApp.router?.stack ?? anyApp._router?.stack;
-  if (Array.isArray(stack) && stack.length >= 3) {
-    const ourLayers = stack.splice(-3);
-    const routerIdx = stack.findIndex((l) => l.name === "router");
-    stack.splice(routerIdx >= 0 ? routerIdx : 0, 0, ...ourLayers);
-    console.log("[static] couches d\xE9plac\xE9es avant le router Wasp");
-  }
+  d\u00E9placerCouchesAvantRouteurWasp();
   console.log("[static] client servi depuis", CLIENT_BUILD_DIR);
 }
 

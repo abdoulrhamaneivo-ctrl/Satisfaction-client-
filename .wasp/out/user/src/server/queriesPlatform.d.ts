@@ -37,4 +37,5 @@ export declare const getPlatformMe: (_args: void, context: any) => Promise<{
     email: any;
     nom: any;
     prenom: any;
+    totp_actif: boolean;
 }>;

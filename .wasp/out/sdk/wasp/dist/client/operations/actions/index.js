@@ -20,7 +20,7 @@ export const updateAffectationGuichet = createAction('operations/update-affectat
 // PUBLIC API
 export const deleteAffectationGuichet = createAction('operations/delete-affectation-guichet', ['AffectationGuichet', 'Guichet', 'Agence']);
 // PUBLIC API
-export const soumettreAvis = createAction('operations/soumettre-avis', ['Reponse', 'Critere', 'AgenceCritere', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal']);
+export const soumettreAvis = createAction('operations/soumettre-avis', ['Reponse', 'Critere', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal']);
 // PUBLIC API
 export const createAgence = createAction('operations/create-agence', ['Agence', 'User', 'Entreprise']);
 // PUBLIC API
@@ -58,7 +58,7 @@ export const removeCritereFromService = createAction('operations/remove-critere-
 // PUBLIC API
 export const deleteCritere = createAction('operations/delete-critere', ['Critere', 'Reponse', 'AgenceCritere', 'CritereService', 'Objectif', 'User']);
 // PUBLIC API
-export const duplicateCritere = createAction('operations/duplicate-critere', ['Critere', 'AgenceCritere', 'CritereService', 'User']);
+export const duplicateCritere = createAction('operations/duplicate-critere', ['Critere', 'AgenceCritere', 'CritereService', 'Agence', 'Service', 'User']);
 // PUBLIC API
 export const updateCritere = createAction('operations/update-critere', ['Critere', 'User']);
 // PUBLIC API

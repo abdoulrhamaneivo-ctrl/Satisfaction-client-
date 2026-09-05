@@ -207,6 +207,7 @@ export const soumettreAvis: AuthenticatedOperationFor<SoumettreAvis_ext> =
       Reponse: prisma.reponse,
       Critere: prisma.critere,
       AgenceCritere: prisma.agenceCritere,
+      CritereService: prisma.critereService,
       Guichet: prisma.guichet,
       AffectationGuichet: prisma.affectationGuichet,
       Alerte: prisma.alerte,
@@ -495,6 +496,8 @@ export const duplicateCritere: AuthenticatedOperationFor<DuplicateCritere_ext> =
       Critere: prisma.critere,
       AgenceCritere: prisma.agenceCritere,
       CritereService: prisma.critereService,
+      Agence: prisma.agence,
+      Service: prisma.service,
       User: prisma.user,
     },
   )

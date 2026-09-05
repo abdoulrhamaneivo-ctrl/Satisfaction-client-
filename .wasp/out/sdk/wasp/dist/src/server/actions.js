@@ -332,9 +332,22 @@ export const deleteAffectationGuichet = async (args, context) => {
 // COLLECTE D'AVIS (avec anti-rejeu + notifications)
 // ============================================================================
 const soumettreAvisImpl = async (args, context) => {
-    const { guichetId, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
+    const { guichetId, code_public, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
     let hachageTelephone = null;
-    if (!guichetId) {
+    // FIX QR OPAQUE (05/09) : la page de collecte par code envoie le
+    // code_public ; on le résout en guichet ici, côté serveur.
+    let idGuichetEffectif = guichetId;
+    if (!idGuichetEffectif && code_public) {
+        const guichetParCode = await context.entities.Guichet.findUnique({
+            where: { code_public: String(code_public).toUpperCase().trim() },
+            select: { id: true },
+        });
+        if (!guichetParCode) {
+            throw new HttpError(404, "Guichet introuvable.");
+        }
+        idGuichetEffectif = guichetParCode.id;
+    }
+    if (!idGuichetEffectif) {
         throw new HttpError(400, "Identifiant du guichet requis.");
     }
     // ANTI-ABUS (Doc 11 §9 S8 adapté à la route publique) : la route de
@@ -346,7 +359,7 @@ const soumettreAvisImpl = async (args, context) => {
     //    opérateur mobile) servant plusieurs guichets reste fluide.
     // Le téléphone seul ne suffit pas comme protection car il est optionnel.
     const ipClient = extraireIp(context);
-    const rl1 = checkRateLimit(`avis:${ipClient}:${guichetId}`, { capacity: 8, refillPerMinute: 2 });
+    const rl1 = checkRateLimit(`avis:${ipClient}:${idGuichetEffectif}`, { capacity: 8, refillPerMinute: 2 });
     if (!rl1.allowed) {
         throw new HttpError(429, `Trop de soumissions depuis cet appareil pour ce guichet. Réessayez dans ${rl1.retryAfterSeconds} s.`);
     }
@@ -373,7 +386,7 @@ const soumettreAvisImpl = async (args, context) => {
     }
     // -----------------------------------------------------------
     const guichet = await context.entities.Guichet.findUnique({
-        where: { id: Number(guichetId) },
+        where: { id: Number(idGuichetEffectif) },
         include: { agence: { select: { archive: true, id_entreprise: true } } },
     });
     // La route est publique : la validation doit être répétée côté serveur
@@ -420,7 +433,12 @@ const soumettreAvisImpl = async (args, context) => {
     // Une reprise réseau ne doit pas transformer une même soumission en deux
     // avis. Le client conserve cet identifiant pendant son envoi ; si la
     // réponse a déjà été enregistrée, l'action est idempotente.
-    if (args.id_soumission) {
+    // FIX 05/09 (audit) : le contrôle seul laisse passer les doubles
+    // soumissions concurrentes. Le check ET l'insertion sont donc exécutés
+    // dans une seule transaction (voir plus bas) : la seconde requête jumelle
+    // voit la ligne créée par la première et renvoie l'existant.
+    const idempotenceDemandee = Boolean(args.id_soumission);
+    if (idempotenceDemandee) {
         const soumissionExistante = await context.entities.Reponse.findFirst({
             where: { id_soumission: submissionId },
             orderBy: { date_reponse: 'asc' },
@@ -489,6 +507,19 @@ const soumettreAvisImpl = async (args, context) => {
         });
         if (!serviceDuGuichet) {
             throw new HttpError(400, "L’opération sélectionnée n’est pas disponible pour ce guichet.");
+        }
+        // FIX 05/09 (audit) : chaque critère soumis doit être rattaché à
+        // l'opération choisie. Sinon un appel forgé fausse les stats par service
+        // en injectant des réponses de critères d'une autre opération.
+        const rattachements = await context.entities.CritereService.findMany({
+            where: {
+                id_service: serviceDuGuichet.id,
+                id_critere: { in: critereIds },
+            },
+            select: { id_critere: true },
+        });
+        if (rattachements.length !== critereIds.length) {
+            throw new HttpError(400, "Un ou plusieurs critères ne font pas partie de l’opération sélectionnée.");
         }
     }
     // Validation des scores : bornée à l'échelle propre à chaque critère
@@ -568,8 +599,50 @@ const soumettreAvisImpl = async (args, context) => {
     });
     const lignes = itemsToInsert.map(construireLigne);
     let createdReponses;
+    // FIX 05/09 (audit) : check + insertion atomiques. Sans transaction, deux
+    // requêtes concurrentes avec le même id_soumission passent toutes les deux
+    // le contrôle d'existence (plus haut) puis insèrent en double. Ici le
+    // verrou consultatif sérialise les jumelles DANS la transaction : la
+    // seconde voit les lignes de la première et renvoie l'existant.
+    const insererLignes = async (tx) => {
+        try {
+            await tx.reponse.createMany({ data: lignes });
+        }
+        catch (e) {
+            // Reroll ciblé : violation FK id_canal uniquement (canal absent d'une
+            // base non seedée). P2003 = Foreign key constraint violated (Prisma).
+            const isFkCanal = e?.code === 'P2003' && String(e?.meta?.field_name ?? '').includes('id_canal');
+            if (!isFkCanal)
+                throw e;
+            await assurerCanalExiste();
+            await tx.reponse.createMany({ data: lignes });
+        }
+    };
     try {
-        await context.entities.Reponse.createMany({ data: lignes });
+        createdReponses = await prisma.$transaction(async (tx) => {
+            if (idempotenceDemandee) {
+                try {
+                    await tx.$executeRaw `SELECT pg_advisory_xact_lock(hashtextextended(${submissionId}, 0))`;
+                }
+                catch {
+                    // Base non-Postgres en dev local : on continue sans verrou.
+                }
+                const deja = await tx.reponse.findFirst({
+                    where: { id_soumission: submissionId },
+                    orderBy: { date_reponse: 'asc' },
+                });
+                if (deja)
+                    return [deja];
+            }
+            await insererLignes(tx);
+            // createMany ne renvoie pas les lignes : une seule lecture pour
+            // récupérer les IDs générés (nécessaire pour l'analyse IA et l'alerte
+            // critique).
+            return await tx.reponse.findMany({
+                where: { id_soumission: submissionId },
+                orderBy: { id: 'asc' },
+            });
+        });
     }
     catch (e) {
         // Reroll ciblé : violation FK id_canal uniquement (canal absent d'une
@@ -579,13 +652,11 @@ const soumettreAvisImpl = async (args, context) => {
             throw e;
         await assurerCanalExiste();
         await context.entities.Reponse.createMany({ data: lignes });
+        createdReponses = await context.entities.Reponse.findMany({
+            where: { id_soumission: submissionId },
+            orderBy: { id: 'asc' },
+        });
     }
-    // createMany ne renvoie pas les lignes : une seule lecture pour récupérer
-    // les IDs générés (nécessaire pour l'analyse IA et l'alerte critique).
-    createdReponses = await context.entities.Reponse.findMany({
-        where: { id_soumission: submissionId },
-        orderBy: { id: 'asc' },
-    });
     let worstScore = null;
     for (const item of itemsToInsert) {
         const scoreNormalise = normaliserScoreSur5(critereById.get(item.critereId), item.score);
@@ -727,12 +798,50 @@ export const updateAgent = async (args, context) => {
     if (args.id_agence) {
         await assertAgenceAccess(context, context.entities, args.id_agence, 'agence de destination');
     }
+    // FIX 05/09 (audit) : l'email est AUSSI l'identifiant de connexion Wasp
+    // (AuthIdentity.providerUserId). Mettre à jour User.email seul laissait
+    // l'ancien email comme login, avec le nouveau affiché dans l'interface.
+    // On migre donc l'identité auth dans la même transaction : création de la
+    // nouvelle identité (même compte Auth, même mot de passe haché) puis
+    // suppression de l'ancienne. Sans email en base, rien à migrer.
+    const nouvelEmail = args.email !== undefined
+        ? (args.email.trim() ? args.email.trim().toLowerCase() : null)
+        : undefined;
+    const emailChange = nouvelEmail !== undefined && nouvelEmail !== (existing.email?.toLowerCase() ?? null);
+    if (emailChange && existing.email && nouvelEmail) {
+        const conflit = await prisma.user.findUnique({ where: { email: nouvelEmail } });
+        if (conflit && conflit.id !== existing.id) {
+            throw new HttpError(409, 'Un autre compte utilise déjà cette adresse email.');
+        }
+        const ancienneIdentite = await prisma.authIdentity.findUnique({
+            where: { providerName_providerUserId: { providerName: 'email', providerUserId: existing.email } },
+        });
+        await prisma.$transaction(async (tx) => {
+            if (ancienneIdentite) {
+                await tx.authIdentity.create({
+                    data: {
+                        providerName: 'email',
+                        providerUserId: nouvelEmail,
+                        providerData: ancienneIdentite.providerData,
+                        authId: ancienneIdentite.authId,
+                    },
+                });
+                await tx.authIdentity.delete({
+                    where: { providerName_providerUserId: { providerName: 'email', providerUserId: existing.email } },
+                });
+            }
+            await tx.user.update({
+                where: { id: args.id },
+                data: { email: nouvelEmail },
+            });
+        });
+    }
     return context.entities.User.update({
         where: { id: args.id },
         data: {
             ...(args.nom ? { nom: args.nom } : {}),
             ...(args.prenom ? { prenom: args.prenom } : {}),
-            ...(args.email !== undefined ? { email: args.email.trim() ? args.email.trim() : null } : {}),
+            ...(!emailChange && args.email !== undefined ? { email: args.email.trim() ? args.email.trim() : null } : {}),
             ...(args.telephone !== undefined ? { telephone: args.telephone.trim() ? args.telephone.trim() : null } : {}),
             ...(args.id_agence ? { id_agence: args.id_agence } : {}),
         },
@@ -1564,10 +1673,31 @@ export const duplicateCritere = async (args, context) => {
         throw new HttpError(400, 'Identifiant invalide.');
     }
     const original = await assertCritereAccessible(context, idCritere);
+    // FIX 05/09 (audit) : la copie ne reprend QUE les rattachements du tenant
+    // courant. Sans ce scope, dupliquer un critère socle recopiait les liens
+    // vers les agences (et services) de TOUTES les entreprises — fuite et
+    // corruption inter-tenants.
+    const agencesDuTenant = await context.entities.Agence.findMany({
+        where: { id_entreprise: context.user.id_entreprise },
+        select: { id: true },
+    });
+    const idsAgencesDuTenant = new Set(agencesDuTenant.map((a) => a.id));
+    const servicesDuTenant = await context.entities.Service.findMany({
+        where: {
+            OR: [
+                { id_entreprise: null },
+                { id_entreprise: context.user.id_entreprise },
+            ],
+        },
+        select: { id: true },
+    });
+    const idsServicesDuTenant = new Set(servicesDuTenant.map((s) => s.id));
     const [agenceLiens, serviceLiens] = await Promise.all([
         context.entities.AgenceCritere.findMany({ where: { id_critere: idCritere } }),
         context.entities.CritereService.findMany({ where: { id_critere: idCritere } }),
     ]);
+    const agenceLiensPropres = agenceLiens.filter((lien) => idsAgencesDuTenant.has(lien.id_agence));
+    const serviceLiensPropres = serviceLiens.filter((lien) => idsServicesDuTenant.has(lien.id_service));
     const libelleCopie = `${original.libelle_critere} (copie)`.slice(0, 300);
     const copie = await prisma.$transaction(async (tx) => {
         const created = await tx.critere.create({
@@ -1584,12 +1714,12 @@ export const duplicateCritere = async (args, context) => {
                 id_entreprise: context.user.id_entreprise,
             },
         });
-        for (const lien of agenceLiens) {
+        for (const lien of agenceLiensPropres) {
             await tx.agenceCritere.create({
                 data: { id_agence: lien.id_agence, id_critere: created.id },
             });
         }
-        for (const lien of serviceLiens) {
+        for (const lien of serviceLiensPropres) {
             const nbExistants = await tx.critereService.count({ where: { id_service: lien.id_service } });
             await tx.critereService.create({
                 data: { id_critere: created.id, id_service: lien.id_service, ordre: nbExistants },

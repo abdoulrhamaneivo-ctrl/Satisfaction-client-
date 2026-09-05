@@ -480,7 +480,7 @@
             "file",
             "sdk/wasp/client/operations/actions/index.ts"
         ],
-        "4f49b61009ff4e3eb8322ab96cf97aa53d058839e0b00beab0d28756eb65e883"
+        "895043b320c102fff17f3383440fb0977bfee3325e15fb7e6fcbcfb5bfe3468e"
     ],
     [
         [
@@ -984,14 +984,14 @@
             "file",
             "sdk/wasp/server/operations/actions/index.ts"
         ],
-        "8ad46078e0c7bb21055e4b879fa46a2add795e64b7608b56eff89d1e9459014d"
+        "44620aa01228905a8a3a5e47669927bfdb94eb07fea107fd1b9e133c857cbfac"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/actions/types.ts"
         ],
-        "d0e697807e9165268abc691694e18a08aa883bbf148138dd18f5cd6c0a9fd4b6"
+        "ba0477c7e4f300663f391675f8f2b17d9983b72c2c96218fa62cdbfbbb04e7ac"
     ],
     [
         [
@@ -1139,6 +1139,20 @@
             "sdk/wasp/src/client/Main.css"
         ],
         "4405f6abc08db67daa3b3ce142a3e0d09ef589d518d7790edd4e4b60fd0d8657"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/collecte/routeParams.test.ts"
+        ],
+        "2b7b6dab3261e5efe7c527a33f55a466bbbb4fc8f435973428c032173aed7003"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/collecte/routeParams.ts"
+        ],
+        "180dad5653e4d6bc0ba3a51aa52b1bffa956e6cc1197e97dafddae43b9fd5bb8"
     ],
     [
         [
@@ -1684,7 +1698,7 @@
             "file",
             "sdk/wasp/src/client/pages/CollectePage.tsx"
         ],
-        "c996c05fe04e6f9db614674e33850638299b0205e62b02e97af33b723b88746f"
+        "7ef2bcb3bda75df43cd6baf1a75af835face988dc66e1baf84e2f4db53abfca7"
     ],
     [
         [
@@ -1775,14 +1789,14 @@
             "file",
             "sdk/wasp/src/client/platform/pages/CompanyDetailsPage.tsx"
         ],
-        "cc7f06aa8881777177e7a167c088ae76218632249eea0950f6afdf7048062e23"
+        "68c75c10176f080c11d43fce604e6b49e63ce4e3dbf5589df93527d29c9998f4"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/CreateCompanyPage.tsx"
         ],
-        "21cdcad098f7049526e0c1ef107f3cab7f748a20c9caf25a451aa2c51adddfad"
+        "d495aa05e1f5c6347d7541c8cd86890b1e3d208aef33b6d54e06e8a6f6cdbb3b"
     ],
     [
         [
@@ -1796,7 +1810,7 @@
             "file",
             "sdk/wasp/src/client/platform/pages/SecurityPage.tsx"
         ],
-        "822035f59bf42e333deb8c3c1d30532504d86dc5dc4c7fce4b5e80565f5c2f93"
+        "9f853c3162f19510d0f64e861b7184149ac1897f8e8daa2b2fd6d48c28683426"
     ],
     [
         [
@@ -2013,7 +2027,7 @@
             "file",
             "sdk/wasp/src/file-upload/operations.ts"
         ],
-        "0634378b15896dd800987faad53a81144f35452e12d7fe1ddd0129430590fccf"
+        "f6a77a9ed85f6c0338a5c284820a5cbac6f0976613f0f450a9f935915dcc118f"
     ],
     [
         [
@@ -2034,14 +2048,14 @@
             "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "8de51ae387bbe8525df03f9b61bd3949bace2499ccba1052cddd5ff8d3cf0048"
+        "81d7dfd5d4dcfb358823cda185552b3763340e31642762b0be606e010c5450e5"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/actionsPlatform.ts"
         ],
-        "8fe6dda4225b9e1e9654d5f4eae9693240d5d6e8632993b01aea7b2c7e77bbb9"
+        "ffe3d1549b28fba43a98ad094b8cda7fe1f871e333d4a6a9adb9d1cce8548c55"
     ],
     [
         [
@@ -2146,14 +2160,14 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "8dde468e3590daa09f32f6b1252f9b4d9e7740558005fa8d749d5832d940b674"
+        "8817a00dd6593298bf44a7674fbc1a908730770b8d53b8d0888cd3966fd6489d"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/queriesPlatform.ts"
         ],
-        "cf75a77c64a5ae9443f03c133ac70565200d83b78a8f6e8b9ae840458b7587cf"
+        "c51fed1573a2297801134b828210eea9a0f346dbe8dc83eca022a23d52a56633"
     ],
     [
         [
@@ -2172,6 +2186,34 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/security/platformMfa.test.ts"
+        ],
+        "49ea280307672d7c38bda97242838dfab73ad0efca63ea8bc17d02dfc2010cd2"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/security/platformMfa.ts"
+        ],
+        "2bce543d6a03c0eda903f996a07a3a672dc8879370fe76cdd078889e2c4a1abd"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/security/policies.test.ts"
+        ],
+        "9e1f90c56410d5c781866f042fcfd870acab4633edcee79fea545c3377b5e326"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/security/policies.ts"
+        ],
+        "83a25e178adde7a224fc4eeec9287c6e8a4a9a34fbf3a33257fd5e1726f65a88"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/soumissions.ts"
         ],
         "5b32e7f6b78f5b6f71ade18d3cfe49ed97e5068443371738c963b40960aea407"
@@ -2179,9 +2221,16 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/staticServing.test.ts"
+        ],
+        "6d59da6832c3136010be646872c8e2f4195b59b3d95f15f1fa008d7fdaa4e73c"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/staticServing.ts"
         ],
-        "5ea590b5734bdc6de40abe7ea4ef96a8d9575cb0ac89381b6470e46d9888201f"
+        "47a0d503ab065928ab8d1e55d2101a815de6e18444728f63d54ec5c5264d5d97"
     ],
     [
         [
@@ -2580,7 +2629,7 @@
             "file",
             "server/src/actions/duplicateCritere.ts"
         ],
-        "0021f71c70eeca0f414b2eb1be523916009cd4dcd08636070e0e929605107a5f"
+        "6ea134edaae0bfbd7c153f1d4baed1061e754facc3e0730e88fb23493bfee478"
     ],
     [
         [
@@ -2664,7 +2713,7 @@
             "file",
             "server/src/actions/soumettreAvis.ts"
         ],
-        "72d992a0dbf21c56a4e9acee9214d62a18ec5e4b208c3d66a3c5078d159b9970"
+        "f5b078e1b79099c7e10ca91380fa910a70667391164b9ea3e5f75690410012a4"
     ],
     [
         [

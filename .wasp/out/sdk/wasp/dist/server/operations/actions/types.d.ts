@@ -1,4 +1,4 @@
-import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Reponse, type _Critere, type _AgenceCritere, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _Entreprise, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _CritereService, type _Invitation, type _AuditLog, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Reponse, type _Critere, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _Entreprise, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _Invitation, type _AuditLog, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
 export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User
 ], Input, Output>;
@@ -48,6 +48,7 @@ export type SoumettreAvis<Input extends Payload = never, Output extends Payload 
     _Reponse,
     _Critere,
     _AgenceCritere,
+    _CritereService,
     _Guichet,
     _AffectationGuichet,
     _Alerte,
@@ -165,6 +166,8 @@ export type DuplicateCritere<Input extends Payload = never, Output extends Paylo
     _Critere,
     _AgenceCritere,
     _CritereService,
+    _Agence,
+    _Service,
     _User
 ], Input, Output>;
 export type UpdateCritere<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[

@@ -16,6 +16,7 @@ import {
 import { journaliser } from './audit';
 import { emailSender } from 'wasp/server/email';
 import { createUser, createProviderId, sanitizeAndSerializeProviderData, findAuthIdentity, updateAuthIdentityProviderData, getProviderDataWithPassword } from 'wasp/server/auth';
+import { canActivateTotpSetup, canStartTotpSetup, hasEnrolledTotp } from './security/platformMfa';
 
 // ── Plans de référence (Doc 11 §4 — constant code, pas une table) ──
 export const PLANS: Record<string, { agences: number; utilisateurs: number; guichets: number }> = {
@@ -129,11 +130,12 @@ export const creerEntreprise = async (
     limite_agences: number;
     limite_utilisateurs: number;
     limite_guichets: number;
-    totpCode?: string;
+    totpCode: string;
   },
   context: any
 ) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
 
   // ── Validation zod-like stricte (pas de lib externe, règles locales) ──
   const nomE = args.entreprise?.nom_entreprise?.trim() ?? '';
@@ -345,7 +347,7 @@ export const creerEntreprise = async (
 // suspendreEntreprise / reactiverEntreprise
 // ─────────────────────────────────────────────
 export const suspendreEntreprise = async (
-  args: { id_entreprise: number; motif: string ; totpCode?: string },
+  args: { id_entreprise: number; motif: string ; totpCode: string },
   context: any
 ) => {
   requireSuperAdmin(context);
@@ -378,7 +380,7 @@ export const suspendreEntreprise = async (
   return { ok: true, message: `Entreprise suspendue. Tous ses comptes sont bloqués immédiatement.` };
 };
 
-export const reactiverEntreprise = async (args: { id_entreprise: number ; totpCode?: string }, context: any) => {
+export const reactiverEntreprise = async (args: { id_entreprise: number ; totpCode: string }, context: any) => {
   requireSuperAdmin(context);
   await exigerTotpSiActif(context, args as { totpCode?: string });
   const entreprise = await context.entities.Entreprise.findUnique({ where: { id: args.id_entreprise } });
@@ -413,7 +415,7 @@ export const changerLimitesEntreprise = async (
     limite_utilisateurs?: number;
     limite_guichets?: number;
     plan?: string;
-    totpCode?: string;
+    totpCode: string;
   },
   context: any
 ) => {
@@ -467,10 +469,11 @@ export const changerLimitesEntreprise = async (
 };
 
 // ─────────────────────────────────────────────
-// renvoyerInvitation — nouvelle Invitation (l'ancienne expire seule)
+// renvoyerInvitation — nouvelle Invitation (les précédentes sont révoquées)
 // ─────────────────────────────────────────────
-export const renvoyerInvitation = async (args: { id_entreprise: number }, context: any) => {
+export const renvoyerInvitation = async (args: { id_entreprise: number; totpCode: string }, context: any) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
 
   const entreprise = await context.entities.Entreprise.findUnique({
     where: { id: args.id_entreprise },
@@ -487,14 +490,28 @@ export const renvoyerInvitation = async (args: { id_entreprise: number }, contex
   if (!admin?.email) throw new HttpError(404, "Aucun administrateur avec email trouvé pour cette entreprise.");
 
   const tokenClair = crypto.randomBytes(32).toString('base64url');
-  await context.entities.Invitation.create({
-    data: {
-      id_user: admin.id,
-      id_emetteur: context.user.id,
-      id_entreprise: entreprise.id,
-      token_hash: sha256(tokenClair),
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    },
+  // PostgreSQL advisory lock : deux renvois concurrents pour le même compte
+  // sont sérialisés, de sorte que le dernier token créé est le seul utilisable.
+  const invitationLockKey = `${admin.email.trim().toLowerCase()}:${entreprise.id}`;
+  await prisma.$transaction(async (tx: any) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${invitationLockKey}, 0))`;
+    await tx.invitation.updateMany({
+      where: {
+        id_user: admin.id,
+        id_entreprise: entreprise.id,
+        used_at: null,
+      },
+      data: { used_at: new Date() },
+    });
+    await tx.invitation.create({
+      data: {
+        id_user: admin.id,
+        id_emetteur: context.user.id,
+        id_entreprise: entreprise.id,
+        token_hash: sha256(tokenClair),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
   });
 
   await envoyerEmailActivation({
@@ -521,10 +538,11 @@ export const renvoyerInvitation = async (args: { id_entreprise: number }, contex
 // Garde : impossible de désactiver/rétrograder le dernier SUPER_ADMIN (S12).
 // ─────────────────────────────────────────────
 export const inviterSuperAdmin = async (
-  args: { email: string; prenom: string; nom: string },
+  args: { email: string; prenom: string; nom: string; totpCode: string },
   context: any
 ) => {
   requireSuperAdmin(context);
+  await exigerTotpSiActif(context, args);
   const email = args.email?.trim().toLowerCase() ?? '';
   if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Email invalide.');
   if (!args.prenom?.trim() || !args.nom?.trim()) {
@@ -608,6 +626,20 @@ export const activerCompte = async (
 
   // Transaction : poser le mot de passe + marquer l'invitation utilisée
   await prisma.$transaction(async (tx: any) => {
+    const claimedAt = new Date();
+    const claimed = await tx.invitation.updateMany({
+      where: {
+        id: invitation.id,
+        token_hash: tokenHash,
+        used_at: null,
+        expires_at: { gt: claimedAt },
+      },
+      data: { used_at: claimedAt },
+    });
+    if (claimed.count !== 1) {
+      throw new HttpError(409, "Ce lien d'activation est invalide ou a déjà été utilisé.");
+    }
+
     // FIX 03/09 : tx.auth n'existe pas (aucun modèle Auth dans le schéma)
     // → 500 systématique. On utilise l'API Wasp findAuthIdentity /
     // updateAuthIdentityProviderData (hors transaction — chaque update est
@@ -632,11 +664,6 @@ export const activerCompte = async (
       data: { mustChangePassword: false },
     });
 
-    await tx.invitation.update({
-      where: { id: invitation.id },
-      data: { used_at: new Date() },
-    });
-
     await tx.auditLog.create({
       data: {
         actor_id: invitation.id_user,
@@ -658,7 +685,7 @@ export const activerCompte = async (
 // sinon la console devient définitivement inaccessible.
 // ─────────────────────────────────────────────
 export const changerPlatformRole = async (
-  args: { id_user_cible: string; nouveauRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE' ; totpCode?: string },
+  args: { id_user_cible: string; nouveauRole: 'SUPER_ADMIN' | 'SUPPORT' | 'NONE' ; totpCode: string },
   context: any
 ) => {
   requireSuperAdmin(context);
@@ -701,7 +728,7 @@ export const changerPlatformRole = async (
   return { ok: true, message: `Rôle plateforme mis à jour : ${args.nouveauRole}.` };
 };
 
-export const desactiverComptePlatform = async (args: { id_user_cible: string ; totpCode?: string }, context: any) => {
+export const desactiverComptePlatform = async (args: { id_user_cible: string ; totpCode: string }, context: any) => {
   requireSuperAdmin(context);
   await exigerTotpSiActif(context, args as { totpCode?: string });
 
@@ -757,10 +784,9 @@ import {
 
 /**
  * 2FA ENFORCED (audit ZAP bloc B) : quand le compte a activé sa 2FA
- * (totp_actif=true), toute opération platform sensible exige un code TOTP
- * valide transmis dans args.totpCode. Sans 2FA activée (période de grâce),
- * l'opération passe — le durcissement complet arrivera quand tous les
- * comptes plateforme auront activé leur 2FA.
+ * Toute opération platform sensible exige une 2FA complètement enrôlée et
+ * un code TOTP valide transmis dans args.totpCode. Tant que l'enrôlement
+ * n'est pas terminé, l'opération est bloquée en 428.
  */
 async function exigerTotpSiActif(context: any, args: { totpCode?: string }): Promise<void> {
   // FIX 500 (04/09) : context.entities.User n'existe QUE si « User » est
@@ -772,11 +798,17 @@ async function exigerTotpSiActif(context: any, args: { totpCode?: string }): Pro
     where: { id: context.user.id },
     select: { totp_actif: true, totp_secret: true },
   });
-  if (!compte?.totp_actif || !compte.totp_secret) return;
+  if (!compte || !hasEnrolledTotp(compte)) {
+    throw new HttpError(428, 'Configuration 2FA requise avant toute opération sensible.');
+  }
   if (!args.totpCode) {
     throw new HttpError(428, 'Code 2FA requis pour cette opération sensible.');
   }
-  const secret = dechiffrerSecretTotp(compte.totp_secret);
+  const secretChiffre = compte.totp_secret;
+  if (!secretChiffre) {
+    throw new HttpError(428, 'Configuration 2FA requise avant toute opération sensible.');
+  }
+  const secret = dechiffrerSecretTotp(secretChiffre);
   if (!verifierCodeTotp(args.totpCode, secret)) {
     throw new HttpError(401, 'Code 2FA invalide ou expiré.');
   }
@@ -789,6 +821,14 @@ async function exigerTotpSiActif(context: any, args: { totpCode?: string }): Pro
  */
 export const setup2fa = async (_args: void, context: any) => {
   requireSuperAdmin(context);
+
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_actif: true, totp_secret: true },
+  });
+  if (compte && !canStartTotpSetup(compte)) {
+    throw new HttpError(409, 'La 2FA est déjà activée. Utilisez un code valide pour toute opération sensible.');
+  }
 
   const secret = genererSecretTotp();
   await context.entities.User.update({
@@ -823,9 +863,12 @@ export const activer2fa = async (args: { code: string }, context: any) => {
 
   const compte = await context.entities.User.findUnique({
     where: { id: context.user.id },
-    select: { totp_secret: true },
+    select: { totp_actif: true, totp_secret: true },
   });
-  if (!compte?.totp_secret) {
+  if (compte?.totp_actif) {
+    throw new HttpError(409, 'La 2FA est déjà activée.');
+  }
+  if (!compte || !canActivateTotpSetup(compte)) {
     throw new HttpError(400, "Aucun setup 2FA en cours. Appelez d'abord setup2fa.");
   }
 
@@ -865,7 +908,7 @@ export const verifier2fa = async (args: { code: string }, context: any) => {
     select: { totp_secret: true, totp_actif: true },
   });
   if (!compte?.totp_actif || !compte.totp_secret) {
-    // 2FA non activée : rien à vérifier (période de grâce avant durcissement)
+    // Le setup/activation reste le seul bootstrap autorisé.
     return { ok: true, deux_fa: false };
   }
 

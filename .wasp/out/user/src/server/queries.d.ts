@@ -73,6 +73,7 @@ export declare const getFormDefinitionForGuichet: (args: {
     id_guichet?: number;
 }, context: any) => Promise<{
     guichetName: any;
+    id_guichet: any;
     id_agence: any;
     services: any;
     agencyCriteres: any;

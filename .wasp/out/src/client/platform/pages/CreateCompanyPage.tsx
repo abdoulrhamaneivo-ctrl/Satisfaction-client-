@@ -39,7 +39,7 @@ function CreateCompanyInner() {
     nom_entreprise: string; nom_court: string; email_administratif: string;
     telephone: string; pays: string; admin_prenom: string; admin_nom: string;
     admin_email: string; admin_telephone: string; plan: string;
-    limite_agences: number; limite_utilisateurs: number; limite_guichets: number;
+    limite_agences: number; limite_utilisateurs: number; limite_guichets: number; totpCode: string;
   }>({
     nom_entreprise: '',
     nom_court: '',
@@ -54,6 +54,7 @@ function CreateCompanyInner() {
     limite_agences: PLANS[1].agences,
     limite_utilisateurs: PLANS[1].utilisateurs,
     limite_guichets: PLANS[1].guichets,
+    totpCode: '',
   })
 
   const set = (k: string, v: string | number) => setForm((f) => ({ ...f, [k]: v }))
@@ -61,6 +62,7 @@ function CreateCompanyInner() {
   const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.admin_email || form.email_administratif || '')
   const etape1Ok = form.nom_entreprise.trim().length >= 2 && emailValide
   const etape2Ok = form.admin_prenom.trim() && form.admin_nom.trim() && emailValide
+  const totpCodeValide = /^\d{6}$/.test(form.totpCode)
 
   const planCourant = PLANS.find((p) => p.id === form.plan) ?? PLANS[1]
 
@@ -85,6 +87,7 @@ function CreateCompanyInner() {
         limite_agences: form.limite_agences,
         limite_utilisateurs: form.limite_utilisateurs,
         limite_guichets: form.limite_guichets,
+        totpCode: form.totpCode,
       })
       setSucces({ id_entreprise: r.entreprise.id, email_envoye: r.email_envoye, message: (r as any).message })
     } catch (e: any) {
@@ -324,6 +327,11 @@ function CreateCompanyInner() {
                 <li key={x} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-success" /> {x}</li>
               ))}
             </ul>
+            <div className="max-w-xs">
+              <label className={labelCls} htmlFor="w-totp">Code 2FA (6 chiffres) *</label>
+              <input id="w-totp" inputMode="numeric" maxLength={6} required className={inputCls} value={form.totpCode} onChange={(e) => set('totpCode', e.target.value.replace(/\D/g, ''))} />
+              <p className="mt-1 text-xs text-muted-foreground">Confirmation obligatoire pour créer une entreprise.</p>
+            </div>
           </section>
         )}
 
@@ -345,7 +353,7 @@ function CreateCompanyInner() {
           ) : (
             <button
               onClick={soumettre}
-              disabled={envoi}
+              disabled={envoi || !totpCodeValide}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {envoi ? <><Loader2 className="size-4 animate-spin" /> Création…</> : <><CheckCircle2 className="size-4" /> Créer l'entreprise</>}

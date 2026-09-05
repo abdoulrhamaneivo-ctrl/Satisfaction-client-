@@ -7,6 +7,8 @@ export default async function (args, context) {
             Critere: prisma.critere,
             AgenceCritere: prisma.agenceCritere,
             CritereService: prisma.critereService,
+            Agence: prisma.agence,
+            Service: prisma.service,
             User: prisma.user,
         },
     });

@@ -7,6 +7,7 @@ export default async function (args, context) {
             Reponse: prisma.reponse,
             Critere: prisma.critere,
             AgenceCritere: prisma.agenceCritere,
+            CritereService: prisma.critereService,
             Guichet: prisma.guichet,
             AffectationGuichet: prisma.affectationGuichet,
             Alerte: prisma.alerte,

@@ -57,8 +57,10 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
   const [motif, setMotif] = useState('')
   const [modalLimites, setModalLimites] = useState(false)
   const [limites, setLimites] = useState({ agences: 0, utilisateurs: 0, guichets: 0 })
+  const [totpCode, setTotpCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [erreurAction, setErreurAction] = useState<string | null>(null)
+  const totpCodeValide = /^\d{6}$/.test(totpCode)
 
   if (isLoading) return <div className="grid min-h-[50vh] place-items-center text-sm text-muted-foreground">Chargement…</div>
   if (error || !e) {
@@ -89,6 +91,11 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
         <ArrowLeft className="size-4" /> Entreprises
       </Link>
 
+      <div className="max-w-xs">
+        <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground" htmlFor="company-totp">Code 2FA (6 chiffres) *</label>
+        <input id="company-totp" inputMode="numeric" maxLength={6} required className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40" value={totpCode} onChange={(ev) => setTotpCode(ev.target.value.replace(/\D/g, ''))} />
+      </div>
+
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -105,9 +112,10 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
           {e.status === 'SUSPENDED' ? (
             <button
               onClick={async () => {
-                try { const r = await reactiver({ id_entreprise: e.id }); setMessage(r.message) }
+                try { const r = await reactiver({ id_entreprise: e.id, totpCode }); setMessage(r.message) }
                 catch (err: any) { setErreurAction(err?.message) }
               }}
+              disabled={!totpCodeValide}
               className="inline-flex items-center gap-2 rounded-xl bg-success px-4 py-2.5 text-sm font-bold text-white hover:bg-success/90"
             >
               <PlayCircle className="size-4" /> Réactiver
@@ -115,20 +123,22 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
           ) : (
             <button
               onClick={ouvrirSuspendre}
+              disabled={!totpCodeValide}
               className="inline-flex items-center gap-2 rounded-xl border border-destructive/40 px-4 py-2.5 text-sm font-bold text-destructive hover:bg-destructive/10"
             >
               <PauseCircle className="size-4" /> Suspendre
             </button>
           )}
-          <button onClick={ouvrirLimites} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted">
+          <button onClick={ouvrirLimites} disabled={!totpCodeValide} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50">
             <Pencil className="size-4" /> Limites & plan
           </button>
           {e.invitation_active && (
             <button
               onClick={async () => {
-                try { const r = await renvoyerInvitationFn({ id_entreprise: e.id }); setMessage(r.message) }
+                try { const r = await renvoyerInvitationFn({ id_entreprise: e.id, totpCode }); setMessage(r.message) }
                 catch (err: any) { setErreurAction(err?.message) }
               }}
+              disabled={!totpCodeValide}
               className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted"
             >
               <Mail className="size-4" /> Renvoyer l'invitation
@@ -259,11 +269,11 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
               <button
                 onClick={async () => {
                   try {
-                    const r = await suspendre({ id_entreprise: e.id, motif })
+                    const r = await suspendre({ id_entreprise: e.id, motif, totpCode })
                     setModalSuspendre(false); setMessage(r.message); navigate(0)
                   } catch (err: any) { setErreurAction(err?.message) }
                 }}
-                disabled={motif.trim().length < 5}
+                disabled={motif.trim().length < 5 || !totpCodeValide}
                 className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-bold text-white hover:bg-destructive/90 disabled:opacity-50"
               >
                 Confirmer la suspension
@@ -318,6 +328,7 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
                       limite_utilisateurs: limites.utilisateurs,
                       limite_guichets: limites.guichets,
                       plan: planEl?.value || undefined,
+                      totpCode,
                     })
                     setModalLimites(false); setMessage(r.message); navigate(0)
                   } catch (err: any) { setErreurAction(err?.message) }

@@ -1,0 +1,1 @@
+{"version":3,"file":"routeParams.d.ts","sourceRoot":"","sources":["../../../../src/client/collecte/routeParams.ts"],"names":[],"mappings":"AAAA,KAAK,kBAAkB,GACnB;IAAE,IAAI,EAAE,WAAW,CAAC;IAAC,SAAS,EAAE,MAAM,CAAA;CAAE,GACxC;IAAE,IAAI,EAAE,YAAY,CAAC;IAAC,IAAI,EAAE,MAAM,CAAA;CAAE,CAAC;AAIzC,wBAAgB,uBAAuB,CAAC,WAAW,EAAE,MAAM,GAAG,kBAAkB,GAAG,IAAI,CAetF"}

@@ -149,7 +149,7 @@ const assignAgentAction = action(assignAgent, { entities: ["User", "AffectationG
 const updateAffectationGuichetAction = action(updateAffectationGuichet, { entities: ["User", "AffectationGuichet", "Guichet", "Agence"] });
 const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence"] });
 const soumettreAvisAction = action(soumettreAvis, {
-  entities: ["Reponse", "Critere", "AgenceCritere", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "AnalyseAvisIA", "Canal"],
+  entities: ["Reponse", "Critere", "AgenceCritere", "CritereService", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "AnalyseAvisIA", "Canal"],
 });
 const createAgenceAction = action(createAgence, { entities: ["Agence", "User", "Entreprise"] });
 const updateAgentAction = action(updateAgent, { entities: ["User", "Agence"] });
@@ -175,7 +175,7 @@ const updateGuichetServicesAction = action(updateGuichetServices, { entities: ["
 const moveCritereToServiceAction = action(moveCritereToService, { entities: ["CritereService", "Critere", "Service", "User"] });
 const removeCritereFromServiceAction = action(removeCritereFromService, { entities: ["CritereService", "Critere", "Service", "User"] });
 const deleteCritereAction = action(deleteCritere, { entities: ["Critere", "Reponse", "AgenceCritere", "CritereService", "Objectif", "User"] });
-const duplicateCritereAction = action(duplicateCritere, { entities: ["Critere", "AgenceCritere", "CritereService", "User"] });
+const duplicateCritereAction = action(duplicateCritere, { entities: ["Critere", "AgenceCritere", "CritereService", "Agence", "Service", "User"] });
 const updateCritereAction = action(updateCritere, { entities: ["Critere", "User"] });
 const reorderCriteresInServiceAction = action(reorderCriteresInService, { entities: ["CritereService", "Service", "User"] });
 const archiverGuichetAction = action(archiverGuichet, { entities: ["Guichet", "User", "Agence"] });

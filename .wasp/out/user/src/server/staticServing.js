@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
 import { checkRateLimit } from './rateLimit';
+import { isPublicSignupRequest } from './security/policies';
 // Le build Vite est copié dans l'image Docker à ce chemin (Dockerfile.render).
 // process.cwd() = .wasp/out/server → ../web-app/build = .wasp/out/web-app/build
 const CLIENT_BUILD_DIR = path.resolve(process.cwd(), '../web-app/build');
@@ -41,6 +42,12 @@ function ipClient(req) {
     return req?.socket?.remoteAddress ?? 'inconnue';
 }
 export async function serveStaticClient({ app }) {
+    // Le routeur Wasp est déjà monté quand setupFn s'exécute. On mémorise la
+    // taille de la pile afin de déplacer toutes les couches ajoutées ici avant
+    // ce routeur, y compris quand le build SPA est absent.
+    const anyApp = app;
+    const stackAvantInstallation = anyApp.router?.stack ?? anyApp._router?.stack;
+    const longueurAvantInstallation = stackAvantInstallation?.length ?? null;
     // ── DURCISSEMENT HTTP (audit ZAP, bloc A) ──────────────────────────────
     // Ces headers s'appliquent à TOUTES les réponses (API + statiques) :
     //  - CSP complète en header HTTP (frame-ancestors n'est PAS supporté via
@@ -93,10 +100,29 @@ export async function serveStaticClient({ app }) {
         }
         next();
     });
+    // L'inscription publique n'est pas utilisée par Yeba : les comptes sont
+    // créés uniquement par invitation. Ce refus doit précéder le routeur Wasp.
+    app.use((req, res, next) => {
+        if (isPublicSignupRequest(req.method, req.path)) {
+            res.status(404).end();
+            return;
+        }
+        next();
+    });
+    const déplacerCouchesAvantRouteurWasp = () => {
+        const stack = anyApp.router?.stack ?? anyApp._router?.stack;
+        if (!Array.isArray(stack) || longueurAvantInstallation === null)
+            return;
+        const ourLayers = stack.splice(longueurAvantInstallation);
+        const routerIdx = stack.findIndex((l) => l.name === 'router');
+        stack.splice(routerIdx >= 0 ? routerIdx : 0, 0, ...ourLayers);
+        console.log('[static] couches déplacées avant le router Wasp');
+    };
     // Uniquement si le build client est présent (déploiement mono-service).
     // En déploiement client séparé (Railway), ce dossier est absent → no-op.
     if (!fs.existsSync(SPA_ENTRY)) {
         console.log('[static] pas de build client dans', CLIENT_BUILD_DIR, '— client non servi par ce serveur');
+        déplacerCouchesAvantRouteurWasp();
         return;
     }
     // 1. Fichiers statiques Vite (noms hashés → cache immuable 1 an).
@@ -129,21 +155,8 @@ export async function serveStaticClient({ app }) {
             .on('error', () => next())
             .pipe(res);
     });
-    // CAS PARTICULIER '/' : le router Wasp déclare GET / (healthcheck qui
-    // renvoie 200 vide) et il est enregistré AVANT setupFn — il gagnerait
-    // toujours pour la racine. On déplace donc nos trois couches (headers +
-    // static + fallback) juste AVANT le router Wasp dans le stack Express.
-    // Sinon le middleware headers (ajouté en dernier) ne s'exécute jamais
-    // pour les routes API déjà traitées en amont.
-    // Express 5 : le stack vit sur app.router (fonction bound), pas _router.
-    const anyApp = app;
-    const stack = anyApp.router?.stack ?? anyApp._router?.stack;
-    if (Array.isArray(stack) && stack.length >= 3) {
-        const ourLayers = stack.splice(-3); // nos 3 dernières couches
-        // Insérer juste avant la 1re couche 'router' (le indexRouter Wasp)
-        const routerIdx = stack.findIndex((l) => l.name === 'router');
-        stack.splice(routerIdx >= 0 ? routerIdx : 0, 0, ...ourLayers);
-        console.log('[static] couches déplacées avant le router Wasp');
-    }
+    // Le routeur Wasp déclare GET / (healthcheck qui renvoie 200 vide) et est
+    // enregistré AVANT setupFn : nos couches doivent donc toutes le précéder.
+    déplacerCouchesAvantRouteurWasp();
     console.log('[static] client servi depuis', CLIENT_BUILD_DIR);
 }

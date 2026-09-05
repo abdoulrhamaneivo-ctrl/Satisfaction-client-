@@ -524,6 +524,9 @@ export const getFormDefinitionForGuichet = async (args, context) => {
     const criteresDejaRattaches = new Set();
     return {
         guichetName: guichet.nom_guichet,
+        // FIX QR OPAQUE (05/09) : la page de collecte par code a besoin de l'id
+        // numérique pour la soumission — le code public ne suffit pas.
+        id_guichet: guichet.id,
         id_agence: guichet.id_agence,
         services: guichet.services.map((s) => ({
             id: s.id,
@@ -569,6 +572,18 @@ export const getCriteresParOperation = async (args, context) => {
             where: entrepriseFilter,
             include: {
                 criteresServices: {
+                    // FIX 05/09 (audit) : un critère d'une AUTRE entreprise rattaché
+                    // à un service partagé (socle) ne doit jamais apparaître ici.
+                    // Sans ce filtre, l'entreprise B voyait les critères privés de
+                    // l'entreprise A via le service commun.
+                    where: {
+                        critere: {
+                            OR: [
+                                { id_entreprise: null },
+                                { id_entreprise: context.user.id_entreprise ?? -1 },
+                            ],
+                        },
+                    },
                     include: { critere: true },
                     orderBy: { ordre: 'asc' },
                 },

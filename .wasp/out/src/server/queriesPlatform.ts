@@ -248,10 +248,15 @@ export const getPlatformAudit = async (
 // ─────────────────────────────────────────────
 export const getPlatformMe = async (_args: void, context: any) => {
   requirePlatformRole(context, ['SUPER_ADMIN', 'SUPPORT']);
+  const compte = await context.entities.User.findUnique({
+    where: { id: context.user.id },
+    select: { totp_actif: true },
+  });
   return {
     platformRole: context.user.platformRole,
     email: context.user.email,
     nom: context.user.nom,
     prenom: context.user.prenom,
+    totp_actif: compte?.totp_actif === true,
   };
 };

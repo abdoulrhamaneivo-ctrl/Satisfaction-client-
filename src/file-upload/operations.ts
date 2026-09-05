@@ -70,6 +70,16 @@ export const addFileToDb: AddFileToDb<AddFileToDbInput, File> = async (
     rawArgs,
   );
 
+  // FIX 05/09 (audit) : sans ce contrôle, un utilisateur pouvait associer à
+  // son compte n'importe quelle clé S3 existante (ex. devinée ou fuitée)
+  // puis la télécharger ou la faire supprimer. Les clés générées par Yeba
+  // ont la forme `${userId}/${uuid}.${ext}` — on exige ce préfixe.
+  // Conforme au helper isS3KeyOwnedByUser (src/server/security/policies.ts).
+  const prefixeAttendu = `${context.user.id}/`;
+  if (!args.s3Key.startsWith(prefixeAttendu) || args.s3Key.length <= prefixeAttendu.length) {
+    throw new HttpError(403, "Clé de fichier non autorisée pour ce compte.");
+  }
+
   const fileExists = await checkFileExistsInS3({ s3Key: args.s3Key });
   if (!fileExists) {
     throw new HttpError(404, "File not found in S3.");
