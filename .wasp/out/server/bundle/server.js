@@ -4812,7 +4812,12 @@ const getStatsFiltrees$2 = async (args, context) => {
       date_reponse: true,
       id_guichet: true,
       guichet: { select: { id: true, nom_guichet: true } },
-      critere: { select: { id: true, libelle_critere: true, type_reponse: true } }
+      critere: { select: { id: true, libelle_critere: true, type_reponse: true } },
+      // SÉPARATION OPÉRATIONS (FIX 05/09) : sans l'opération, le tableau de
+      // bord ne peut pas ventiler les notes par opération — la séparation
+      // s'arrêtait à la collecte. Lecture seule, même périmètre agence.
+      id_service: true,
+      service: { select: { id: true, libelle_service: true } }
     }
   });
 };
@@ -5749,7 +5754,12 @@ const getKPIsPeriode$2 = async (args, context) => {
         id: true,
         id_soumission: true,
         score_brut: true,
-        critere: { select: { type_reponse: true, options_reponse: true } }
+        critere: { select: { type_reponse: true, options_reponse: true } },
+        // SÉPARATION OPÉRATIONS (FIX 05/09) : ventiler les KPI par opération
+        // (par_operation ci-dessous). Sans l'opération sur chaque ligne, les
+        // notes restaient mélangées toutes opérations confondues.
+        id_service: true,
+        service: { select: { id: true, libelle_service: true } }
       }
     }),
     context.entities.Reponse.findMany({
@@ -5783,9 +5793,30 @@ const getKPIsPeriode$2 = async (args, context) => {
     periode_precedente: prev,
     delta_satisfaction_pts: deltaPoints(cur.satisfaction, prev.satisfaction),
     delta_note_pts: deltaPoints(cur.moyenne, prev.moyenne),
-    delta_volume_pct: deltaVolumePct
+    delta_volume_pct: deltaVolumePct,
+    // Ventilation par opération (même méthode que le global : moyenne PAR
+    // AVIS). « Général » = avis sans opération (guichet sans opérations).
+    // Agrégats seuls, aucun verbatim : lisible par la Direction.
+    par_operation: parOperation(actuelles, calc)
   };
 };
+function parOperation(list, calc) {
+  const groupes = /* @__PURE__ */ new Map();
+  for (const r of list) {
+    const cle = r.id_service != null ? `s:${r.id_service}` : "general";
+    let g = groupes.get(cle);
+    if (!g) {
+      g = {
+        id: r.id_service ?? null,
+        libelle: r.service?.libelle_service || "G\xE9n\xE9ral",
+        lignes: []
+      };
+      groupes.set(cle, g);
+    }
+    g.lignes.push(r);
+  }
+  return [...groupes.values()].map((g) => ({ id: g.id, libelle: g.libelle, ...calc(g.lignes) })).sort((a, b) => b.nb - a.nb);
+}
 const getTempsTraitement$2 = async (args, context) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);

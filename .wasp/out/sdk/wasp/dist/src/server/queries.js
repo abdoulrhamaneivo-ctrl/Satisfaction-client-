@@ -76,6 +76,11 @@ export const getStatsFiltrees = async (args, context) => {
             id_guichet: true,
             guichet: { select: { id: true, nom_guichet: true } },
             critere: { select: { id: true, libelle_critere: true, type_reponse: true } },
+            // SÉPARATION OPÉRATIONS (FIX 05/09) : sans l'opération, le tableau de
+            // bord ne peut pas ventiler les notes par opération — la séparation
+            // s'arrêtait à la collecte. Lecture seule, même périmètre agence.
+            id_service: true,
+            service: { select: { id: true, libelle_service: true } },
         },
     });
 };
@@ -1213,6 +1218,11 @@ export const getKPIsPeriode = async (args, context) => {
                 id_soumission: true,
                 score_brut: true,
                 critere: { select: { type_reponse: true, options_reponse: true } },
+                // SÉPARATION OPÉRATIONS (FIX 05/09) : ventiler les KPI par opération
+                // (par_operation ci-dessous). Sans l'opération sur chaque ligne, les
+                // notes restaient mélangées toutes opérations confondues.
+                id_service: true,
+                service: { select: { id: true, libelle_service: true } },
             },
         }),
         context.entities.Reponse.findMany({
@@ -1255,8 +1265,36 @@ export const getKPIsPeriode = async (args, context) => {
         delta_satisfaction_pts: deltaPoints(cur.satisfaction, prev.satisfaction),
         delta_note_pts: deltaPoints(cur.moyenne, prev.moyenne),
         delta_volume_pct: deltaVolumePct,
+        // Ventilation par opération (même méthode que le global : moyenne PAR
+        // AVIS). « Général » = avis sans opération (guichet sans opérations).
+        // Agrégats seuls, aucun verbatim : lisible par la Direction.
+        par_operation: parOperation(actuelles, calc),
     };
 };
+/** Regroupe les lignes de réponses par opération et calcule les KPI de
+ *  chaque groupe avec la même méthode que le global (score moyen par avis).
+ *  Toutes les lignes d'une même soumission portent la même opération
+ *  (posée à l'insertion dans soumettreAvis), donc aucun avis n'est compté
+ *  dans deux opérations. Trié par volume décroissant. */
+function parOperation(list, calc) {
+    const groupes = new Map();
+    for (const r of list) {
+        const cle = r.id_service != null ? `s:${r.id_service}` : 'general';
+        let g = groupes.get(cle);
+        if (!g) {
+            g = {
+                id: r.id_service ?? null,
+                libelle: r.service?.libelle_service || 'Général',
+                lignes: [],
+            };
+            groupes.set(cle, g);
+        }
+        g.lignes.push(r);
+    }
+    return [...groupes.values()]
+        .map((g) => ({ id: g.id, libelle: g.libelle, ...calc(g.lignes) }))
+        .sort((a, b) => b.nb - a.nb);
+}
 // ============================================================================
 // TEMPS MOYEN DE TRAITEMENT (Module "actions" — décision)
 // Deux délais distincts, à ne pas confondre :

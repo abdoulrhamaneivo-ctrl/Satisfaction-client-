@@ -1712,7 +1712,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "b4e0c590b2778de025722087fc4c37798907692de22d37444fee0f7b7bfdb8bb"
+        "f00ff58ccf4e490a36da249e7df684e8a832a5acf58cc3226b9a481687375d74"
     ],
     [
         [
@@ -2160,7 +2160,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "ca9fabd163159ae20211f5d65f12a4822ab011164a5c4b0f5cce4502b013b61e"
+        "a295146eab6aae262a8cecce4aee165c26eeef0de2dd39694cd21c51e155b630"
     ],
     [
         [

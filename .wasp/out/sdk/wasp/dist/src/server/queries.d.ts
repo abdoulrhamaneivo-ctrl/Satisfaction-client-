@@ -184,6 +184,13 @@ export declare const getKPIsPeriode: (args: {
     delta_satisfaction_pts: number;
     delta_note_pts: number;
     delta_volume_pct: number;
+    par_operation: {
+        nb: number;
+        moyenne: number;
+        satisfaction: number;
+        id: number | null;
+        libelle: string;
+    }[];
 }>;
 export declare const getTempsTraitement: (args: {
     nbJours?: number;

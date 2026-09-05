@@ -427,6 +427,37 @@ export const DashboardPage = () => {
             })}
               </div>
             </section>)}
+
+          {/* NOTES PAR OPÉRATION (FIX 05/09) : la séparation des opérations
+            s'arrêtait à la collecte — ici la ventilation par opération sur
+            la période (moyenne par avis, même méthode que le global).
+            Agrégats seuls, aucun verbatim : visible Direction + Chef. */}
+          {!isLoading && kpisPeriode?.par_operation?.length > 0 && (<section className="mt-6">
+              <div className="mb-4 flex items-center justify-between">
+                <Eyebrow tone="neutral">Notes par opération ({labelPeriode})</Eyebrow>
+              </div>
+              <div className="space-y-2">
+                {kpisPeriode.par_operation.map((o) => (<div key={o.id ?? 'general'} className="rounded-xl border border-border/60 bg-card/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold font-satoshi text-foreground">
+                          {o.libelle}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">{o.nb} avis</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-lg font-bold font-satoshi text-foreground">
+                          {o.nb > 0 ? `${o.moyenne}/5` : '—'}
+                        </p>
+                        {o.nb > 0 && (<p className="text-[11px] font-semibold text-muted-foreground">{o.satisfaction}% satisfaits</p>)}
+                      </div>
+                    </div>
+                    {o.nb > 0 && (<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/60">
+                        <div className={`h-full rounded-full ${o.moyenne >= 4 ? 'bg-success' : o.moyenne >= 3 ? 'bg-warning' : 'bg-destructive'}`} style={{ width: `${(o.moyenne / 5) * 100}%` }}/>
+                      </div>)}
+                  </div>))}
+              </div>
+            </section>)}
         </div>
 
         <div className="hidden">
