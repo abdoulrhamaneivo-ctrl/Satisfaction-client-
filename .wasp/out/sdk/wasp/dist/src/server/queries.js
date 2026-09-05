@@ -470,6 +470,14 @@ export const getFormDefinitionForGuichet = async (args, context) => {
                     criteresServices: {
                         orderBy: { ordre: 'asc' },
                         select: {
+                            // BUG RÉEL 05/09 : il manquait id_critere dans ce select —
+                            // Prisma ne le renvoyait pas, donc cs.id_critere valait
+                            // undefined et les deux filtres ci-dessous (agence active,
+                            // dédoublonnage) jetaient TOUTES les questions des opérations.
+                            // Résultat : le formulaire n'affichait jamais les questions
+                            // d'une opération, basculait sur les critères d'agence, et la
+                            // soumission échouait (« ne font pas partie de l'opération »).
+                            id_critere: true,
                             ordre: true,
                             critere: {
                                 select: {
