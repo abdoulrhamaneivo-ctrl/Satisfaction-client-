@@ -17,6 +17,7 @@ import {
   PlusCircle,
   ScrollText,
   Lock,
+  UserRound,
 } from 'lucide-react';
 import { useAuth, logout } from 'wasp/client/auth';
 import { useBrand } from '../context/BrandContext';
@@ -259,6 +260,11 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
             <NavItem to="/archives" icon={Archive} label="Archives" isActive={isCurrent('/archives')} onNavigate={onNavigate} />
 
             <NavItem to="/settings" icon={Settings} label="Paramètres" isActive={isCurrent('/settings')} onNavigate={onNavigate} />
+
+            {/* FIX 05/09 : « Mon compte » (mot de passe, profil) n'était lié
+                nulle part — le seul /account existant n'était atteignable que
+                par redirection forcée. Entrée explicite pour tous les rôles. */}
+            <NavItem to="/account" icon={UserRound} label="Mon compte" isActive={isCurrent('/account')} onNavigate={onNavigate} />
           </div>
         )}
       </div>
@@ -280,7 +286,12 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
         )}
 
         <div className="flex items-center gap-2.5 pt-1">
-          <div className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0">
+          <Link
+            to="/account"
+            onClick={onNavigate}
+            title="Mon compte"
+            className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0 rounded-xl px-1 py-1 hover:bg-muted/60 transition-colors"
+          >
             <div className="size-8 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-xs shrink-0">
               {user ? (user as any).email?.[0]?.toUpperCase() : 'A'}
             </div>
@@ -292,7 +303,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
                 {user ? (user as any).role || 'CHEF_AGENCE' : 'Non connecté'}
               </span>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className="flex items-center justify-between gap-1 pt-1">

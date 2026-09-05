@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useQuery, getAvisGroupes, getAgences, getGuichets, getServices, exportAvisGroupes } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquareQuote, Inbox, Filter, RotateCcw, Calendar, User as UserIcon, HelpCircle, Layers, Building, Store, Download, Loader2, ChevronDown, FileSpreadsheet, } from 'lucide-react';
+import { MessageSquareQuote, Inbox, Filter, RotateCcw, Calendar, User as UserIcon, HelpCircle, Layers, Building, Store, Download, Loader2, ChevronDown, FileSpreadsheet, ShieldCheck, BarChart3, } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
@@ -296,7 +296,22 @@ export const AvisPage = () => {
           </MotionCard>
 
           {/* Responses List or states */}
-          {isLoading && page === 1 ? (<div className="space-y-4">
+          {isDirection ? (<MotionCard className="p-8 text-center border-border/70">
+              <ShieldCheck className="mx-auto size-10 text-primary"/>
+              <h2 className="mt-4 text-lg font-bold text-foreground font-satoshi">
+                Confidentialité — chiffres seuls pour la Direction
+              </h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground font-medium">
+                Par règle de confidentialité, la Direction ne voit jamais les
+                verbatims clients. Retrouvez les notes moyennes, volumes et
+                comparaisons par agence dans le Tableau de bord.
+              </p>
+              <div className="mt-6 flex justify-center gap-3">
+                <Button onClick={() => (window.location.href = '/dashboard')} className="rounded-xl font-bold">
+                  <BarChart3 className="size-4"/> Voir le Tableau de bord
+                </Button>
+              </div>
+            </MotionCard>) : isLoading && page === 1 ? (<div className="space-y-4">
               {[0, 1, 2].map((i) => (<div key={i} className="h-28 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50"/>))}
             </div>) : allAvis.length === 0 ? (<EmptyState icon={Inbox} title="Aucun retour ne correspond à vos filtres" description="Essayez de modifier vos critères de filtrage ou de réinitialiser le panneau de recherche."/>) : (<>
               <div className="grid gap-5">

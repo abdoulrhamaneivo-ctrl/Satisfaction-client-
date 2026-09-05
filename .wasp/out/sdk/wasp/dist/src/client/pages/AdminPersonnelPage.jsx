@@ -17,7 +17,7 @@ export const AdminPersonnelPage = () => {
     const { data: user } = useAuth();
     const { toast } = useToast();
     const [selectedAgenceId, setSelectedAgenceId] = useState(user?.id_agence ?? null);
-    const { data: agences } = useQuery(getAgences, { enabled: user?.role === 'DIRECTION' });
+    const { data: agences } = useQuery(getAgences, undefined, { enabled: user?.role === 'DIRECTION' });
     useEffect(() => {
         if (selectedAgenceId !== null)
             return;
