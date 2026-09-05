@@ -2131,9 +2131,12 @@ const createAgence$2 = async (args, context) => {
   }
   const entreprise = await context.entities.Entreprise.findUnique({
     where: { id: context.user.id_entreprise },
-    select: { limite_agences: true, _count: { select: { agences: true } } }
+    select: { limite_agences: true }
   });
-  if (entreprise && entreprise._count.agences >= entreprise.limite_agences) {
+  const nbAgencesActives = await context.entities.Agence.count({
+    where: { id_entreprise: context.user.id_entreprise, archive: false }
+  });
+  if (entreprise && nbAgencesActives >= entreprise.limite_agences) {
     throw new HttpError(
       403,
       `Limite du plan atteinte (${entreprise.limite_agences} agences). Passez \xE0 un plan sup\xE9rieur ou contactez Yeba.`
@@ -2226,9 +2229,12 @@ const inviteAgent$2 = async (args, context) => {
   }
   const entrepriseQuota = await context.entities.Entreprise.findUnique({
     where: { id: targetAgence.id_entreprise },
-    select: { limite_utilisateurs: true, _count: { select: { utilisateurs: true } } }
+    select: { limite_utilisateurs: true }
   });
-  if (entrepriseQuota && entrepriseQuota._count.utilisateurs >= entrepriseQuota.limite_utilisateurs) {
+  const nbUtilisateursActifs = await context.entities.User.count({
+    where: { id_entreprise: targetAgence.id_entreprise, actif: true }
+  });
+  if (entrepriseQuota && nbUtilisateursActifs >= entrepriseQuota.limite_utilisateurs) {
     throw new HttpError(
       403,
       `Limite du plan atteinte (${entrepriseQuota.limite_utilisateurs} utilisateurs). Passez \xE0 un plan sup\xE9rieur ou contactez Yeba.`
@@ -4083,6 +4089,11 @@ const changerLimitesEntreprise$2 = async (args, context) => {
     const plan = args.plan.toUpperCase();
     if (!PLANS[plan]) throw new HttpError(400, "Plan invalide.");
     data.plan = plan;
+    if (args.limite_agences === void 0 && args.limite_utilisateurs === void 0 && args.limite_guichets === void 0) {
+      data.limite_agences = PLANS[plan].agences;
+      data.limite_utilisateurs = PLANS[plan].utilisateurs;
+      data.limite_guichets = PLANS[plan].guichets;
+    }
   }
   if (Object.keys(data).length === 0) {
     throw new HttpError(400, "Aucune modification fournie.");

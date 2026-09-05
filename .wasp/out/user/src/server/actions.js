@@ -1035,11 +1035,17 @@ export const createAgence = async (args, context) => {
     // QUOTA SAAS (Doc 11 §4) : la limite du plan est vérifiée ICI, côté
     // serveur — source unique de vérité. Désactiver le bouton front ne
     // protège rien : un appel API forgé doit être refusé.
+    // FIX 05/09 : les agences archivées ne consomment plus de quota (cohérent
+    // avec les guichets qui excluent déjà archive:true) — sinon une agence
+    // fermée bloquait définitivement la création d'une nouvelle agence.
     const entreprise = await context.entities.Entreprise.findUnique({
         where: { id: context.user.id_entreprise },
-        select: { limite_agences: true, _count: { select: { agences: true } } },
+        select: { limite_agences: true },
     });
-    if (entreprise && entreprise._count.agences >= entreprise.limite_agences) {
+    const nbAgencesActives = await context.entities.Agence.count({
+        where: { id_entreprise: context.user.id_entreprise, archive: false },
+    });
+    if (entreprise && nbAgencesActives >= entreprise.limite_agences) {
         throw new HttpError(403, `Limite du plan atteinte (${entreprise.limite_agences} agences). Passez à un plan supérieur ou contactez Yeba.`);
     }
     return context.entities.Agence.create({
@@ -1161,11 +1167,17 @@ export const inviteAgent = async (args, context) => {
         }
     }
     // QUOTA SAAS : limite d'utilisateurs du plan, vérifiée côté serveur.
+    // FIX 05/09 : seuls les comptes actifs consomment le quota — un agent
+    // parti (actif:false) libère sa place, sinon chaque départ consommait
+    // définitivement un siège du plan.
     const entrepriseQuota = await context.entities.Entreprise.findUnique({
         where: { id: targetAgence.id_entreprise },
-        select: { limite_utilisateurs: true, _count: { select: { utilisateurs: true } } },
+        select: { limite_utilisateurs: true },
     });
-    if (entrepriseQuota && entrepriseQuota._count.utilisateurs >= entrepriseQuota.limite_utilisateurs) {
+    const nbUtilisateursActifs = await context.entities.User.count({
+        where: { id_entreprise: targetAgence.id_entreprise, actif: true },
+    });
+    if (entrepriseQuota && nbUtilisateursActifs >= entrepriseQuota.limite_utilisateurs) {
         throw new HttpError(403, `Limite du plan atteinte (${entrepriseQuota.limite_utilisateurs} utilisateurs). Passez à un plan supérieur ou contactez Yeba.`);
     }
     const tempPassword = crypto.randomBytes(16).toString('hex');

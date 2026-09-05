@@ -448,6 +448,19 @@ export const changerLimitesEntreprise = async (
     const plan = args.plan.toUpperCase();
     if (!PLANS[plan]) throw new HttpError(400, 'Plan invalide.');
     data.plan = plan;
+    // FIX 05/09 : changer de plan seul ne changeait rien aux quotas (plan et
+    // limites totalement indépendants) — le super-admin devait ajuster les 3
+    // limites à la main, source d'oubli (ex. plan BUSINESS avec quotas
+    // STARTER). Sans limites explicites, on applique les presets du plan.
+    if (
+      args.limite_agences === undefined &&
+      args.limite_utilisateurs === undefined &&
+      args.limite_guichets === undefined
+    ) {
+      data.limite_agences = PLANS[plan].agences;
+      data.limite_utilisateurs = PLANS[plan].utilisateurs;
+      data.limite_guichets = PLANS[plan].guichets;
+    }
   }
 
   if (Object.keys(data).length === 0) {
