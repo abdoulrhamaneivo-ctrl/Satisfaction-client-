@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router";
 import { routes } from "wasp/client/router";
+import { configureQueryClient } from "wasp/client/operations";
 import { Toaster } from "../client/components/ui/toaster";
 import "./Main.css";
 import { Sidebar, MobileSidebarDrawer } from "./components/Sidebar";
@@ -8,6 +9,24 @@ import { MobileAppHeader } from "./components/MobileAppHeader";
 import { OnboardingTour } from "./components/OnboardingTour";
 import { BrandProvider } from "./context/BrandContext";
 import { CommandPalette } from "./components/CommandPalette";
+// PERFORMANCE FRONT (FIX 05/09) : sans staleTime, chaque focus de fenêtre /
+// retour d'onglet re-déclenche TOUTES les queries visibles (14 sur le
+// dashboard) → sensations de lenteur et surcharge Neon. Politique :
+// - 30 s fraîcheur : les allers-retours rapides ne rechargent rien ;
+// - refetch au retour d'onglet après 60 s (données de pilotage fraîches) ;
+// - 2 retries espacés (fini le triple appel en rafale sur une erreur).
+configureQueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 30_000,
+            gcTime: 5 * 60_000,
+            refetchOnWindowFocus: true,
+            refetchOnWindowFocusMinStaleTime: 60_000,
+            retry: 2,
+            retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
+        },
+    },
+});
 export function App() {
     const location = useLocation();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);

@@ -396,7 +396,7 @@
             "file",
             "sdk/wasp/client/app/layout.tsx"
         ],
-        "f80fba00ec6b8347d4698e798d358f301cb87759d67b15f03f032209a438c1ea"
+        "86931208aeac7879aa352dafef5dae0496c7c88303a3b6af4e00f082c7a05d71"
     ],
     [
         [
@@ -1124,7 +1124,7 @@
             "file",
             "sdk/wasp/src/client/App.tsx"
         ],
-        "b4920ba0c43db69f22eebfef35e9105fc41510afaa10700bb1f649146d8c5b38"
+        "d4587de8a511d5a4daf789894e09999c03c1353e342d8576e4f10621bc8e4164"
     ],
     [
         [
@@ -1621,7 +1621,7 @@
             "file",
             "sdk/wasp/src/client/head.wasp.ts"
         ],
-        "68fd6087baeb131390e9b5e4a39ad6521cc2a879cf56c86a72803f56dd462d91"
+        "119dc673d3fa00afe729b9a0c9242b3658812543e6645eb2042fa720bf6996fc"
     ],
     [
         [
@@ -1712,7 +1712,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "f00ff58ccf4e490a36da249e7df684e8a832a5acf58cc3226b9a481687375d74"
+        "01f187231573c0f252563c6adfb3abc0a91c4fb00b3aaf50dd1d04bbe66e1b0e"
     ],
     [
         [

@@ -22,6 +22,10 @@ import { type App } from "@wasp.sh/spec";
 // en extrayant le script, PAS en relâchant la CSP.
 export const head: App["head"] = [
   "<link rel='icon' href='/favicon.ico' />",
+  // PERFORMANCE (FIX 05/09) : précharge la police principale — elle démarre
+  // son téléchargement dès la réception du HTML au lieu d'attendre le CSS.
+  "<link rel='preload' href='/fonts/Satoshi-Regular.woff2' as='font' type='font/woff2' />",
+  "<link rel='preload' href='/fonts/Satoshi-Bold.woff2' as='font' type='font/woff2' />",
   "<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=5.0' />",
   "<meta http-equiv='Content-Security-Policy' content=\"default-src 'self'; script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';\" />",
   "<meta name='robots' content='noindex, nofollow' />",

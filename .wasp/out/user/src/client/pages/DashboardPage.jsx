@@ -57,10 +57,15 @@ export const DashboardPage = () => {
     const { data: actionsPrioritaires, isLoading: loadingActions } = useQuery(getActionsPrioritaires);
     const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode, { nbJours: periodeJours });
     const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
-    const { data: heatmap, isLoading: loadingHeatmap } = useQuery(getHeatmapReponses, { nbJours: 90 });
+    // PERFORMANCE (FIX 05/09) : la heatmap 90 jours est lourde côté Neon et
+    // peu consultée — chargée seulement quand sa section est visible
+    // (IntersectionObserver ci-dessous). Idem temps de traitement.
+    const [refHeatmap, visibleHeatmap] = useVisibleOnce();
+    const [refTemps, visibleTemps] = useVisibleOnce();
+    const { data: heatmap, isLoading: loadingHeatmap } = useQuery(getHeatmapReponses, { nbJours: 90 }, { enabled: visibleHeatmap });
     const { data: comparaisonAgences } = useQuery(getComparaisonAgences, { nbJours: periodeJours }, { enabled: estDirection } // requete reservee DIRECTION (403 sinon pour les autres roles)
     );
-    const { data: tempsTraitement, isLoading: loadingTemps } = useQuery(getTempsTraitement, { nbJours: periodeJours });
+    const { data: tempsTraitement, isLoading: loadingTemps } = useQuery(getTempsTraitement, { nbJours: periodeJours }, { enabled: !loadingKpis });
     const { data: themesStats, isLoading: loadingThemes } = useQuery(getThemesStats, { nbJours: periodeJours });
     const reponsesList = reponses || [];
     const avisGroupes = regrouperAvisParSoumission(reponsesList);
@@ -296,7 +301,7 @@ export const DashboardPage = () => {
                       {loadingGuichets ? (<ClassementGuichetsSkeleton />) : (<ClassementGuichets data={guichetsList}/>)}
                     </section>
 
-                    <section>
+                    <section ref={refHeatmap}>
                       <div className="mb-4 flex items-center gap-2">
                         <Clock className="size-5 text-secondary"/>
                         <h2 className="text-lg font-bold text-foreground font-satoshi">Quand les avis arrivent-ils</h2>
@@ -471,3 +476,23 @@ export const DashboardPage = () => {
     </RequireAuth>
       </RequireEnterpriseRole>);
 };
+/** PERFORMANCE : hook « visible une fois » — déclenche le chargement d'une
+ *  query lourde seulement quand sa section entre dans le viewport (mobile :
+ *  l'utilisateur ne voit qu'un tiers du dashboard au premier écran). */
+function useVisibleOnce() {
+    const [visible, setVisible] = useState(false);
+    const observerRef = useRef(null);
+    const ref = useCallback((node) => {
+        observerRef.current?.disconnect();
+        if (!node || visible)
+            return;
+        observerRef.current = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) {
+                setVisible(true);
+                observerRef.current?.disconnect();
+            }
+        }, { rootMargin: '200px' });
+        observerRef.current.observe(node);
+    }, [visible]);
+    return [ref, visible];
+}
