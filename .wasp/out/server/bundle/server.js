@@ -8666,7 +8666,11 @@ Retourne exclusivement le JSON demand\xE9.`;
         { role: "user", content: promptUtilisateur }
       ],
       temperature: 0.1,
-      max_tokens: 500
+      // FIX 05/09 : les modèles « reasoning » brûlent des tokens en réflexion
+      // AVANT le JSON — à 500, la réflexion seule saturait la sortie et le
+      // JSON n'était jamais émis (« aucun objet détecté »). 1500 laisse la
+      // réflexion + le JSON tenir ensemble ; le JSON reste borné (~200 tokens).
+      max_tokens: 1500
       // Les modèles « reasoning » (Nemotron, DeepSeek-R1...) produisent un
       // texte de réflexion avant le JSON : on le désactive explicitement
       // pour que la réponse soit directement parsable. Certains modèles
@@ -8680,7 +8684,7 @@ Retourne exclusivement le JSON demand\xE9.`;
             { role: "user", content: promptUtilisateur }
           ],
           temperature: 0.1,
-          max_tokens: 500
+          max_tokens: 1500
         });
       }
       throw err;
