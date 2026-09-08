@@ -104,7 +104,7 @@ async function creerAlerteIncoherenceNote(reponse: any, note: number | null, coh
 
 export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
   if (!AIService.isConfigured()) {
-    return { status: 'skipped', message: 'Clé IA non configurée (OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
+    return { status: 'skipped', message: 'Clé IA non configurée (NVIDIA_API_KEY, OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
   }
 
   // Sélectionne les analyses en attente ou en échec avec des tentatives restantes

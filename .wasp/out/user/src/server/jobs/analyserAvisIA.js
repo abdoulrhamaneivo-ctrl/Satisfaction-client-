@@ -96,7 +96,7 @@ async function creerAlerteIncoherenceNote(reponse, note, coherence) {
 }
 export const analyserAvisIAJob = async (_args, _context) => {
     if (!AIService.isConfigured()) {
-        return { status: 'skipped', message: 'Clé IA non configurée (OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
+        return { status: 'skipped', message: 'Clé IA non configurée (NVIDIA_API_KEY, OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
     }
     // Sélectionne les analyses en attente ou en échec avec des tentatives restantes
     const pendingAnalyses = await prisma.analyseAvisIA.findMany({

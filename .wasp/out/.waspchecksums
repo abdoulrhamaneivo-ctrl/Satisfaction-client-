@@ -2067,6 +2067,13 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/ai/nvidiaProvider.ts"
+        ],
+        "caa7bba5986d8e3308f24d566a71debf7fa024f005b8be856a3bb565fffc0e1b"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/ai/openrouterProvider.ts"
         ],
         "62b6bc54f5816bfe2d9746c37e8c258b28c87f560a413a13c9f1c787bb4ef68e"
@@ -2076,7 +2083,7 @@
             "file",
             "sdk/wasp/src/server/ai/service.ts"
         ],
-        "3aa29c572589db04477461ab77df00e6012c53f2b04fe31c8825bed92abd30ab"
+        "5c99a087f2e105a06c4facc31eeb6f56835aacc7afe852b5dde24362ef72239e"
     ],
     [
         [
@@ -2111,7 +2118,7 @@
             "file",
             "sdk/wasp/src/server/jobs/analyserAvisIA.ts"
         ],
-        "d2a440b513386d8357ccc7c1ad7bb99c1b1e1464cd7f2e8343f4ef0dcfa93f90"
+        "a3da869cedc0dd3a8143d615e13d6418ff4c2c8d3e5b7345456b6c94290fb038"
     ],
     [
         [
@@ -2160,7 +2167,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "16c04a5bfaa12280bb6f0c7fde816ce0d22d6471592589d02b49a20a6f4ffb60"
+        "45ccd925915f62ba7fb4bb4170c507d6aace89dc58badd103de03b3802bc457c"
     ],
     [
         [

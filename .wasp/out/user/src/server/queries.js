@@ -1771,14 +1771,23 @@ export const getRechercheGlobale = async (args, context) => {
 export const getAIStatus = async (_args, context) => {
     requireAuth(context);
     await assertEntrepriseActive(context, context.entities);
-    const usingDeepseek = process.env.AI_PROVIDER === 'deepseek';
-    const hasApiKey = !!((usingDeepseek ? process.env.DEEPSEEK_API_KEY : process.env.OPENROUTER_API_KEY) ?? '').trim();
-    const baseUrl = usingDeepseek
-        ? process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
-        : process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-    const model = usingDeepseek
-        ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
-        : process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free';
+    const providerRaw = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
+    const usingDeepseek = providerRaw === 'deepseek';
+    const usingNvidia = providerRaw === 'nvidia';
+    const nvidiaKey = (process.env.NVIDIA_API_KEY ?? '').trim();
+    const openrouterKey = (process.env.OPENROUTER_API_KEY ?? '').trim();
+    const deepseekKey = (process.env.DEEPSEEK_API_KEY ?? '').trim();
+    const hasApiKey = Boolean(nvidiaKey || openrouterKey || deepseekKey);
+    const baseUrl = usingNvidia
+        ? process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1'
+        : usingDeepseek
+            ? process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
+            : process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+    const model = usingNvidia
+        ? process.env.NVIDIA_MODEL || 'mistralai/mistral-large-2-instruct'
+        : usingDeepseek
+            ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+            : process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free';
     const [totalAnalyses, doneAnalyses, pendingAnalyses, failedAnalyses] = await Promise.all([
         context.entities.AnalyseAvisIA.count(),
         context.entities.AnalyseAvisIA.count({ where: { status: 'DONE' } }),
@@ -1787,7 +1796,7 @@ export const getAIStatus = async (_args, context) => {
     ]);
     return {
         configured: hasApiKey,
-        provider: usingDeepseek ? 'DeepSeek' : 'OpenRouter',
+        provider: usingNvidia ? 'Nvidia' : usingDeepseek ? 'DeepSeek' : 'OpenRouter',
         model,
         baseUrl,
         stats: {
