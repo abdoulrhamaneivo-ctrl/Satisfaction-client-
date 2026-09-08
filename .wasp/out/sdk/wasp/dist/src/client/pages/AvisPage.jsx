@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { exportToCSV, exportToXLSX, formaterAvisPourCSV } from '../utils/exportData';
 import { useToast } from '../hooks/use-toast';
 import { AIAnalysisBadge } from '../components/AIAnalysisBadge';
+import { visuelPourNote, GrandVisuelNote, BarreNote } from '../components/NoteVisuel';
 export const AvisPage = () => {
     const { data: user } = useAuth();
     const { toast } = useToast();
@@ -148,23 +149,9 @@ export const AvisPage = () => {
             setExportingXLSX(false);
         }
     }, [effectiveAgenceId, selectedGuichetId, selectedServiceId, startDate, endDate, toast]);
-    const getScoreEmoji = (score) => {
-        switch (score) {
-            case 1: return '😡';
-            case 2: return '😟';
-            case 3: return '😐';
-            case 4: return '🙂';
-            case 5: return '🤩';
-            default: return '💬';
-        }
-    };
-    const getScoreColorClass = (score) => {
-        if (score <= 2)
-            return 'bg-destructive/10 text-destructive border border-destructive/20';
-        if (score === 3)
-            return 'bg-warning/10 text-warning border border-warning/20';
-        return 'bg-success/10 text-success border border-success/20';
-    };
+    // (Note visuelle unique importée de NoteVisuel.tsx : même emoji/libellé/
+    // couleur que la collecte publique — voir GrandVisuelNote et BarreNote
+    // utilisés dans les cartes ci-dessous.)
     return (<RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
@@ -309,23 +296,33 @@ export const AvisPage = () => {
               <div className="grid gap-5">
                 <AnimatePresence initial={false}>
                   {allAvis.map((rep, i) => (<motion.div key={rep.id_soumission?.toString() ?? i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(i * 0.02, 0.2) }}>
-                      <MotionCard interactive={false} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-sm border-border/70">
-                        <div className="space-y-2.5 flex-1">
-                          {/* Badge / Header row */}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${getScoreColorClass(Math.round(rep.score_moyen))}`}>
-                              <span className="text-sm">{getScoreEmoji(Math.round(rep.score_moyen))}</span>
-                              Note moyenne : {rep.score_moyen}/5
-                            </span>
-
-                            {rep.service && (<span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary text-[10px] font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-md">
+                      <MotionCard interactive={false} className="p-5 flex flex-col md:flex-row gap-5 shadow-sm border-border/70">
+                        <div className="space-y-3 flex-1">
+                          {/* Note globale — grand visuel lisible d'un coup d'œil */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/40 p-4">
+                            <GrandVisuelNote score={Math.round(rep.score_moyen)}/>
+                            {rep.service && (<span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-md">
                                 {rep.service.libelle_service}
                               </span>)}
-
-                            {rep.reponses?.map((r) => (<span key={r.id.toString()} className="flex items-center gap-1 text-xs font-bold text-muted-foreground bg-muted border border-border/40 rounded-md px-2 py-0.5" title={r.critere?.libelle_critere}>
-                                {getScoreEmoji(r.score_brut)} {r.critere?.libelle_critere || 'Critère'} ({r.score_brut}/5)
-                              </span>))}
                           </div>
+
+                          {/* Détail par critère : emoji + libellé + barre X/5 */}
+                          {rep.reponses?.length > 0 && (<ul className="space-y-2">
+                              {rep.reponses.map((r) => (<li key={r.id.toString()} className="flex items-center gap-3 rounded-xl border border-border/40 bg-background px-3 py-2" title={r.critere?.libelle_critere}>
+                                  <span className="text-2xl leading-none" aria-hidden>
+                                    {visuelPourNote(r.score_brut).icon}
+                                  </span>
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-xs font-bold text-foreground">
+                                      {r.critere?.libelle_critere || 'Critère'}
+                                    </span>
+                                    <BarreNote score={r.score_brut}/>
+                                  </span>
+                                  <span className="shrink-0 text-sm font-bold text-foreground font-satoshi">
+                                    {r.score_brut}<span className="text-[11px] font-semibold text-muted-foreground">/5</span>
+                                  </span>
+                                </li>))}
+                            </ul>)}
 
                           {/* Comment text */}
                           <p className="text-sm md:text-base font-medium text-foreground pl-1 leading-relaxed">

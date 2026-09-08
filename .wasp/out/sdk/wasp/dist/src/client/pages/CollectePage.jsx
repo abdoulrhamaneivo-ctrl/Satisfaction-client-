@@ -10,6 +10,7 @@ import { ChevronRight, MessageSquare, Phone, ArrowLeft, Loader2, ShieldCheck } f
 import { useBrand } from '../context/BrandContext';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { Card, Eyebrow } from '../components/ds';
+import { NOTE_CONFIG, visuelPourNote } from '../components/NoteVisuel';
 import { parseCollecteIdentifier } from '../collecte/routeParams';
 // ---------- CONSTANTES HORS COMPOSANT (performance) ----------
 // Toute valeur recréée à chaque render devient un nouvel objet/la même valeur
@@ -21,15 +22,10 @@ const TRANSITION = { duration: 0.18, ease: [0.16, 1, 0.3, 1] };
 // Propriétés d'animation communes : opacity seul (composité GPU, ne déclenche
 // ni layout ni paint — contrairement à x/y qui reflowent).
 const FADE_IN = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: TRANSITION };
-const SMILEYS = [
-    { note: 1, icon: '😡', label: 'Très mécontent' },
-    { note: 2, icon: '😟', label: 'Mécontent' },
-    { note: 3, icon: '😐', label: 'Neutre' },
-    { note: 4, icon: '🙂', label: 'Satisfait' },
-    { note: 5, icon: '🤩', label: 'Très satisfait' },
-];
 // Styles statiques pré-calculés (pas de template-literals ré-évalués par frappe)
 const BTN_BASE = 'cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40';
+// Délai d'accusé visuel : le client VOIT sa note (emoji + barre basse)
+// avant de passer à la question suivante. Zéro frustration, zéro doute.
 const normaliserTelephone = (valeur) => {
     const chiffres = valeur.replace(/[^\d]/g, '');
     if (!chiffres)
@@ -70,10 +66,22 @@ export const CollectePage = () => {
     const [envoiEnCours, setEnvoiEnCours] = useState(false);
     const [erreur, setErreur] = useState(null);
     const soumissionIdRef = useRef(null);
+    // Accusé visuel de la note choisie (emoji + barre basse) avant transition.
+    const [noteChoisie, setNoteChoisie] = useState(null);
+    const delaiRef = useRef(null);
     useEffect(() => {
         setTexteReponseCourante('');
         setCasesSelectionnees([]);
+        setNoteChoisie(null);
+        if (delaiRef.current) {
+            clearTimeout(delaiRef.current);
+            delaiRef.current = null;
+        }
     }, [currentQuestionIndex, step]);
+    useEffect(() => () => {
+        if (delaiRef.current)
+            clearTimeout(delaiRef.current);
+    }, []);
     const services = formDef?.services ?? [];
     // COHÉRENCE OPÉRATION (FIX 05/09) : quand une opération est sélectionnée
     // mais n'a pas de questions propres, le repli « critères par défaut » ne
@@ -149,10 +157,30 @@ export const CollectePage = () => {
             setStep('COMMENT_STEP');
         }
     };
+    // Réponse avec accusé visuel : on affiche la note choisie (bouton animé
+    // + barre basse récapitulative) 500 ms avant d'avancer. Anti double-tap :
+    // tout second appui pendant l'accusé est ignoré.
+    const repondreAvecAccuse = (score, texte) => {
+        if (noteChoisie !== null)
+            return;
+        setNoteChoisie(score);
+        if (delaiRef.current)
+            clearTimeout(delaiRef.current);
+        delaiRef.current = setTimeout(() => {
+            delaiRef.current = null;
+            setNoteChoisie(null);
+            handleAnswer(score, texte);
+        }, 500);
+    };
     const canGoBack = step === 'COMMENT_STEP' ||
         (step === 'QUESTIONS' && (currentQuestionIndex > 0 || services.length > 1)) ||
         (step === 'SERVICE_SELECT' && selectedService !== null && services.length > 1);
     const handleBack = () => {
+        if (delaiRef.current) {
+            clearTimeout(delaiRef.current);
+            delaiRef.current = null;
+        }
+        setNoteChoisie(null);
         if (step === 'COMMENT_STEP') {
             setStep('QUESTIONS');
             setCurrentQuestionIndex(criteres.length - 1);
@@ -297,20 +325,30 @@ export const CollectePage = () => {
                       </p>)}
                   </div>
 
-                  {/* Smiley Input */}
+                  {/* Smiley Input — accusé visuel : le choix s'agrandit et
+                s'entoure avant la transition (repondreAvecAccuse). */}
                   {currentCritere.type_reponse === 'SMILEY' && (<div className="flex justify-between items-center gap-1 sm:gap-2 pt-3 w-full min-w-0">
-                      {SMILEYS.map((s) => (<button key={s.note} type="button" onClick={() => handleAnswer(s.note)} aria-label={s.label} className={`text-3xl sm:text-4xl p-2 sm:p-3 flex-1 max-w-[72px] min-h-[52px] min-w-[44px] flex justify-center items-center rounded-2xl hover:bg-muted/80 border border-transparent hover:border-border/60 transition-transform hover:scale-110 active:scale-95 ${BTN_BASE}`}>
-                          {s.icon}
-                        </button>))}
+                      {NOTE_CONFIG.map((s) => {
+                    const choisi = noteChoisie === s.note;
+                    return (<motion.button key={s.note} type="button" onClick={() => repondreAvecAccuse(s.note)} aria-label={`${s.label} — note ${s.note} sur 5`} aria-pressed={choisi} animate={choisi ? { scale: 1.25 } : { scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }} className={`text-3xl sm:text-4xl p-2 sm:p-3 flex-1 max-w-[72px] min-h-[52px] min-w-[44px] flex justify-center items-center rounded-2xl border transition-colors ${BTN_BASE} ${choisi
+                            ? 'bg-primary/15 border-primary shadow-md'
+                            : 'border-transparent hover:bg-muted/80 hover:border-border/60'}`}>
+                            {s.icon}
+                          </motion.button>);
+                })}
                     </div>)}
 
                   {/* Oui/Non Input */}
                   {currentCritere.type_reponse === 'OUI_NON' && (<div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
-                      <button type="button" onClick={() => handleAnswer(5)} className={`bg-success/10 hover:bg-success/20 text-success border border-success/30 font-bold py-5 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm min-h-[88px] ${BTN_BASE}`}>
+                      <button type="button" onClick={() => repondreAvecAccuse(5)} aria-pressed={noteChoisie === 5} className={`font-bold py-5 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm min-h-[88px] border ${BTN_BASE} ${noteChoisie === 5
+                    ? 'bg-success/25 border-success text-success'
+                    : 'bg-success/10 hover:bg-success/20 text-success border-success/30'}`}>
                         <span className="text-3xl">👍</span>
                         <span>Oui</span>
                       </button>
-                      <button type="button" onClick={() => handleAnswer(1)} className={`bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/30 font-bold py-5 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm min-h-[88px] ${BTN_BASE}`}>
+                      <button type="button" onClick={() => repondreAvecAccuse(1)} aria-pressed={noteChoisie === 1} className={`font-bold py-5 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm min-h-[88px] border ${BTN_BASE} ${noteChoisie === 1
+                    ? 'bg-destructive/25 border-destructive text-destructive'
+                    : 'bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30'}`}>
                         <span className="text-3xl">👎</span>
                         <span>Non</span>
                       </button>
@@ -318,7 +356,9 @@ export const CollectePage = () => {
 
                   {/* QCM Input */}
                   {currentCritere.type_reponse === 'QCM' && (<div className="flex flex-col gap-2.5 pt-2">
-                      {currentCritere.options_reponse?.split(',').map((option, index) => (<button key={index} type="button" onClick={() => handleAnswer(index + 1)} className={`w-full text-left p-4 border border-border/80 rounded-2xl hover:bg-muted text-foreground text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE}`}>
+                      {currentCritere.options_reponse?.split(',').map((option, index) => (<button key={index} type="button" onClick={() => repondreAvecAccuse(index + 1)} aria-pressed={noteChoisie === index + 1} className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${noteChoisie === index + 1
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border/80 hover:bg-muted text-foreground'}`}>
                           <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0"/>
                           <span>{option.trim()}</span>
                         </button>))}
@@ -340,7 +380,9 @@ export const CollectePage = () => {
                 const valeurs = Array.from({ length: max - min + 1 }, (_, i) => min + i);
                 const colsClass = valeurs.length <= 5 ? 'grid-cols-5' : valeurs.length <= 8 ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-5 sm:grid-cols-10';
                 return (<div className={`grid ${colsClass} gap-2 pt-2 w-full min-w-0`}>
-                        {valeurs.map((v) => (<button key={v} type="button" onClick={() => handleAnswer(v)} className={`w-full h-12 rounded-2xl border border-border/80 bg-background hover:bg-primary/15 hover:border-primary/50 text-base font-bold text-foreground transition-colors flex items-center justify-center font-satoshi ${BTN_BASE}`}>
+                        {valeurs.map((v) => (<button key={v} type="button" onClick={() => repondreAvecAccuse(v)} aria-pressed={noteChoisie === v} aria-label={`Note ${v} sur ${max}`} className={`w-full h-12 rounded-2xl border text-base font-bold transition-colors flex items-center justify-center font-satoshi ${BTN_BASE} ${noteChoisie === v
+                            ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                            : 'border-border/80 bg-background hover:bg-primary/15 hover:border-primary/50 text-foreground'}`}>
                             {v}
                           </button>))}
                       </div>);
@@ -429,6 +471,22 @@ export const CollectePage = () => {
                       Votre retour précieux nous aide à améliorer constamment votre expérience au guichet.
                     </p>
                   </div>
+                  {/* Récapitulatif clair : chaque avis donné, sa note, son emoji. */}
+                  {answers.filter((a) => a && a.critereId !== undefined).length > 0 && (<ul className="space-y-2 rounded-2xl border border-border/60 bg-muted/40 p-4 text-left">
+                      {answers.filter((a) => a && a.critereId !== undefined).map((a, i) => {
+                    const crit = criteres.find((c) => c.id === a.critereId);
+                    const v = visuelPourNote(a.score);
+                    return (<li key={i} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="truncate font-semibold text-foreground">
+                              {crit?.libelle_critere || `Question ${i + 1}`}
+                            </span>
+                            <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-background px-2.5 py-1 text-xs font-bold">
+                              <span className="text-base leading-none">{v.icon}</span>
+                              {a.score}/5
+                            </span>
+                          </li>);
+                })}
+                    </ul>)}
                   <div className="pt-2">
                     <p className="text-xs text-muted-foreground font-medium">Vous pouvez fermer cet onglet en toute sécurité.</p>
                   </div>
@@ -436,6 +494,40 @@ export const CollectePage = () => {
               </motion.div>)}
           </AnimatePresence>
         </div>
+
+        {/* Barre basse : le client voit TOUJOURS quelle note il donne.
+            Sticky : reste visible en scrollant. Masquée sur accueil/succès
+            (le succès a son propre récapitulatif détaillé). */}
+        {(step === 'QUESTIONS' || step === 'COMMENT_STEP') && (<div className="sticky bottom-3 z-20 mt-2">
+            <AnimatePresence mode="wait" initial={false}>
+              {noteChoisie !== null && step === 'QUESTIONS' ? (<motion.div key={`choix-${currentQuestionIndex}-${noteChoisie}`} {...FADE_IN} className="flex items-center justify-center gap-3 rounded-2xl border border-primary/40 bg-card/95 px-4 py-3 shadow-lg backdrop-blur" role="status" aria-live="polite">
+                  <motion.span initial={{ scale: 0.5 }} animate={{ scale: [0.5, 1.3, 1] }} transition={{ duration: 0.4 }} className="text-3xl" aria-hidden>
+                    {visuelPourNote(noteChoisie).icon}
+                  </motion.span>
+                  <span className="text-sm font-bold text-foreground">
+                    Votre note : {noteChoisie}/5 — {visuelPourNote(noteChoisie).label}
+                  </span>
+                </motion.div>) : (<motion.div key="progression" {...FADE_IN} className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/95 px-4 py-2.5 shadow-md backdrop-blur">
+                  <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {step === 'COMMENT_STEP' ? 'Vos notes' : `Question ${Math.min(currentQuestionIndex + 1, criteres.length)}/${criteres.length}`}
+                  </span>
+                  <span className="flex items-center gap-1.5 overflow-hidden" aria-label="Notes déjà données">
+                    {(step === 'COMMENT_STEP' ? answers : criteres).map((_, i) => {
+                    const rep = answers[i];
+                    if (rep && rep.critereId !== undefined) {
+                        return (<span key={i} className="text-lg leading-none" title={`Question ${i + 1} : ${rep.score}/5`}>
+                            {visuelPourNote(rep.score).icon}
+                          </span>);
+                    }
+                    if (step === 'QUESTIONS' && i === currentQuestionIndex) {
+                        return (<motion.span key={i} animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.4, repeat: Infinity }} className="size-5 rounded-full border-2 border-primary"/>);
+                    }
+                    return <span key={i} className="size-5 rounded-full bg-muted border border-border/60"/>;
+                })}
+                  </span>
+                </motion.div>)}
+            </AnimatePresence>
+          </div>)}
 
         {/* Footer Branding */}
         {!marque?.hide_yeba_branding && (<div className="py-2 text-center">

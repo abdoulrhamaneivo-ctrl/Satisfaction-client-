@@ -1304,6 +1304,13 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/components/NoteVisuel.tsx"
+        ],
+        "c4a1eca9560e89f1dbfca5aea3b12673ce91304dfe8d78f56698ee9011a98b1d"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/components/ObjectifsPanel.tsx"
         ],
         "748f94ef1d0dfa399cdfa2a103534150a8824e51e78b26e19fbe00696b205664"
@@ -1698,14 +1705,14 @@
             "file",
             "sdk/wasp/src/client/pages/AvisPage.tsx"
         ],
-        "8fc5031910fe77f7a86899d28d95632c0f6b1504672f7d7c92cd949ee43d77ee"
+        "7a9b93959de369707a6a9d9ca1c33606dfa0bb3c5ccd4d582d6966e8053b2016"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/CollectePage.tsx"
         ],
-        "2080b8749944f64dd561c78ed67e0493e6e6bae2cf18142c28ccd94c51556106"
+        "523704895d1c845f1c5ec7cf531850044aac54240e3f9616a4cab44967f0c0a5"
     ],
     [
         [
