@@ -62,7 +62,17 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
   const [erreurAction, setErreurAction] = useState<string | null>(null)
   const totpCodeValide = /^\d{6}$/.test(totpCode)
 
-  if (isLoading) return <div className="grid min-h-[50vh] place-items-center text-sm text-muted-foreground">Chargement…</div>
+  if (isLoading) return (
+    <div className="mx-auto max-w-5xl space-y-6" aria-busy="true" aria-label="Chargement de l'entreprise">
+      <div className="h-8 w-48 animate-pulse rounded-xl bg-muted" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-32 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+        ))}
+      </div>
+      <div className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+    </div>
+  )
   if (error || !e) {
     return (
       <div className="mx-auto max-w-2xl rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
@@ -293,13 +303,13 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
               <select
                 value={e.plan}
                 onChange={(ev) => { /* plan modifiable via changerLimites plan */ (window as any).__newPlan = ev.target.value }}
-                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 id="select-plan"
                 defaultValue={e.plan}
               >
-                <option value="STARTER">Starter</option>
+                <option value="STARTER">Démarrage</option>
                 <option value="BUSINESS">Business</option>
-                <option value="ENTERPRISE">Enterprise</option>
+                <option value="ENTERPRISE">Entreprise</option>
               </select>
               {([['agences', 'Agences'], ['utilisateurs', 'Utilisateurs'], ['guichets', 'Guichets']] as const).map(([key, label]) => (
                 <div key={key}>

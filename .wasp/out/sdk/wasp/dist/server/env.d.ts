@@ -11,7 +11,10 @@ export declare const env: {
     JWT_SECRET: string;
     PORT: number;
     DATABASE_URL: string;
-    SENDGRID_API_KEY: string;
+    SMTP_HOST: string;
+    SMTP_PORT: number;
+    SMTP_USERNAME: string;
+    SMTP_PASSWORD: string;
     SKIP_EMAIL_VERIFICATION_IN_DEV: boolean;
     PG_BOSS_NEW_OPTIONS?: string | undefined;
 } | {
@@ -21,7 +24,10 @@ export declare const env: {
     JWT_SECRET: string;
     PORT: number;
     DATABASE_URL: string;
-    SENDGRID_API_KEY: string;
+    SMTP_HOST: string;
+    SMTP_PORT: number;
+    SMTP_USERNAME: string;
+    SMTP_PASSWORD: string;
     SKIP_EMAIL_VERIFICATION_IN_DEV: boolean;
     PG_BOSS_NEW_OPTIONS?: string | undefined;
 });

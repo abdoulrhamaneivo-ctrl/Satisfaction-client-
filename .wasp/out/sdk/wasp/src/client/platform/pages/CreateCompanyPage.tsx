@@ -6,9 +6,9 @@ import { creerEntreprise } from 'wasp/client/operations'
 import { ArrowLeft, ArrowRight, Building2, UserCog, Layers, CheckCircle2, Loader2, Plus, PartyPopper } from 'lucide-react'
 
 const PLANS = [
-  { id: 'STARTER', label: 'Starter', agences: 5, utilisateurs: 50, guichets: 25, features: ['Logo', 'Couleur primaire', 'Messages personnalisés'] },
+  { id: 'STARTER', label: 'Démarrage', agences: 5, utilisateurs: 50, guichets: 25, features: ['Logo', 'Couleur primaire', 'Messages personnalisés'] },
   { id: 'BUSINESS', label: 'Business', agences: 50, utilisateurs: 500, guichets: 200, features: ['Charte complète', 'QR Designer', 'Surcharge par guichet'] },
-  { id: 'ENTERPRISE', label: 'Enterprise', agences: 9999, utilisateurs: 9999, guichets: 9999, features: ['Illimité', 'Modèles QR avancés', 'Sans marque Yeba'] },
+  { id: 'ENTERPRISE', label: 'Entreprise', agences: 9999, utilisateurs: 9999, guichets: 9999, features: ['Illimité', 'Modèles QR avancés', 'Sans marque Yeba'] },
 ] as const
 
 const ETAPES = ['Entreprise', 'Admin', 'Plan', 'Confirmation'] as const
@@ -282,7 +282,7 @@ function CreateCompanyInner() {
                     <p className="mt-2 text-xs text-muted-foreground">
                       {p.agences >= 9999 ? 'Illimité' : `${p.agences} agences`}
                       <br />
-                      {p.utilisateurs >= 9999 ? 'Illimité' : `${p.utilisateurs} users`}
+                      {p.utilisateurs >= 9999 ? 'Illimité' : `${p.utilisateurs} utilisateurs`}
                     </p>
                     <ul className="mt-2 space-y-1">
                       {p.features.map((f) => (
@@ -319,7 +319,7 @@ function CreateCompanyInner() {
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Administrateur</dt><dd className="text-right font-bold text-foreground">{form.admin_prenom} {form.admin_nom}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Email</dt><dd className="text-right font-bold text-foreground">{form.admin_email || form.email_administratif}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Plan</dt><dd className="text-right font-bold text-foreground">{planCourant.label}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Limites</dt><dd className="text-right font-bold text-foreground">{form.limite_agences} agences · {form.limite_utilisateurs} users · {form.limite_guichets} guichets</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Limites</dt><dd className="text-right font-bold text-foreground">{form.limite_agences} agences · {form.limite_utilisateurs} utilisateurs · {form.limite_guichets} guichets</dd></div>
             </dl>
             <p className="text-xs font-semibold text-muted-foreground">À la création :</p>
             <ul className="space-y-1.5 text-sm text-muted-foreground">

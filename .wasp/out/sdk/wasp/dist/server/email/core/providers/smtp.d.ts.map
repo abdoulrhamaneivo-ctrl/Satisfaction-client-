@@ -1,0 +1,1 @@
+{"version":3,"file":"smtp.d.ts","sourceRoot":"","sources":["../../../../../server/email/core/providers/smtp.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,iBAAiB,EAAE,WAAW,EAAE,MAAM,UAAU,CAAC;AAG/D,wBAAgB,mBAAmB,CAAC,MAAM,EAAE,iBAAiB,GAAG,WAAW,CAuB1E"}

@@ -18,6 +18,9 @@ export function StatusChip({ status }: { status: string }) {
   const labels: Record<string, string> = {
     ACTIVE: 'ACTIVE', TRIAL: 'ESSAI', SUSPENDED: 'SUSPENDUE', CANCELLED: 'RÉSILIÉE',
   }
+  // Libellés FR : le CSS uppercase se charge de la casse, on garde des
+  // libellés lisibles (les codes STARTER/BUSINESS restent en base, jamais
+  // exposés tels quels dans l'UI).
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest ${styles[status] ?? styles.CANCELLED}`}>
       {status === 'SUSPENDED' && <PauseCircle className="size-3" />}
@@ -27,9 +30,14 @@ export function StatusChip({ status }: { status: string }) {
 }
 
 export function PlanChip({ plan }: { plan: string }) {
+  const labels: Record<string, string> = {
+    STARTER: 'Démarrage',
+    BUSINESS: 'Business',
+    ENTERPRISE: 'Entreprise',
+  }
   return (
     <span className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
-      {plan}
+      {labels[plan] ?? plan}
     </span>
   )
 }
@@ -47,7 +55,17 @@ function PlatformOverviewInner() {
   const { data, isLoading } = useQuery(getPlatformOverview)
 
   if (isLoading || !data) {
-    return <div className="grid min-h-[60vh] place-items-center text-sm text-muted-foreground">Chargement…</div>
+    return (
+      <div className="mx-auto max-w-6xl space-y-8" aria-busy="true" aria-label="Chargement de la vue d'ensemble">
+        <div className="h-10 w-64 animate-pulse rounded-xl bg-muted" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          ))}
+        </div>
+        <div className="h-56 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+      </div>
+    )
   }
 
   const tiles = [

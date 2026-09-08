@@ -8,8 +8,17 @@ const waspCommonServerEnvSchema = z.object({
         error: 'DATABASE_URL is required',
     }),
     PG_BOSS_NEW_OPTIONS: z.string().optional(),
-    SENDGRID_API_KEY: z.string({
-        error: getRequiredEnvVarErrorMessage('SendGrid email sender', 'SENDGRID_API_KEY'),
+    SMTP_HOST: z.string({
+        error: getRequiredEnvVarErrorMessage('SMTP email sender', 'SMTP_HOST'),
+    }),
+    SMTP_PORT: z.coerce.number({
+        error: getRequiredEnvVarErrorMessage('SMTP email sender', 'SMTP_PORT'),
+    }),
+    SMTP_USERNAME: z.string({
+        error: getRequiredEnvVarErrorMessage('SMTP email sender', 'SMTP_USERNAME'),
+    }),
+    SMTP_PASSWORD: z.string({
+        error: getRequiredEnvVarErrorMessage('SMTP email sender', 'SMTP_PASSWORD'),
     }),
     SKIP_EMAIL_VERIFICATION_IN_DEV: z
         .enum(['true', 'false'], {

@@ -15,6 +15,7 @@ import { Input } from '../components/ui/input';
 import { Checkbox } from '../components/ui/checkbox';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell, PageTopNav } from '../components/PageShell';
 import { useToast } from '../hooks/use-toast';
 import { Card, Eyebrow, Reveal } from '../components/ds';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, } from '../components/ui/dialog';
@@ -207,6 +208,7 @@ export const GuichetsPage = () => {
       </RequireEnterpriseRole>);
     }
     const guichetCount = guichets?.length ?? 0;
+    const imprimerKit = guichetCount > 0;
     const rechercheNormalisee = recherche.trim().toLocaleLowerCase('fr-FR');
     const guichetsFiltres = (guichets ?? []).filter((guichet) => {
         if (!rechercheNormalisee)
@@ -221,30 +223,19 @@ export const GuichetsPage = () => {
     return (<RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
-        <div className="mx-auto max-w-[1440px] p-6 lg:p-10 space-y-8">
-          {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-              <span>Agences</span>
-              <span>/</span>
-              {isDirection ? (<Select value={selectedAgenceId ? String(selectedAgenceId) : ''} onValueChange={(v) => setSelectedAgenceId(Number(v))}>
-                  <SelectTrigger className="h-8 w-auto min-w-[180px] border-border/70 text-foreground">
-                    <SelectValue placeholder="Choisir une agence"/>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agences?.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>))}
-                  </SelectContent>
-                </Select>) : (<span className="text-foreground">{user?.agence?.nom_agence || "Agence Principale"}</span>)}
-              <span>/</span>
-              <span className="text-primary font-bold">Guichets & Kits</span>
-            </div>
-            
-            <div className="flex items-center gap-6 text-xs font-bold">
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href = '/dashboard'}>Tableau synthétique</span>
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href = '/alertes-taches'}>Kanban Incidents</span>
-              <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Guichets & Kits</span>
-            </div>
-          </div>
+        <PageShell>
+          <PageTopNav racine="Agences" agence={isDirection ? (<Select value={selectedAgenceId ? String(selectedAgenceId) : ''} onValueChange={(v) => setSelectedAgenceId(Number(v))} aria-label="Choisir une agence">
+                <SelectTrigger className="h-8 w-auto min-w-[180px] border-border/70 text-foreground">
+                  <SelectValue placeholder="Choisir une agence"/>
+                </SelectTrigger>
+                <SelectContent>
+                  {agences?.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>))}
+                </SelectContent>
+              </Select>) : (user?.agence?.nom_agence || "Agence Principale")} actuel="Guichets & Kits" onglets={[
+            { label: 'Tableau synthétique', to: '/dashboard' },
+            { label: 'Kanban Incidents', to: '/alertes-taches' },
+            { label: 'Guichets & Kits', to: '/guichets' },
+        ]}/>
 
           <Reveal direction="down">
             <PageHeader icon={Store} eyebrow="Points de contact" title="Gestion des Guichets Physiques" description="Ajoutez vos caisses et téléchargez vos kits d'évaluation (QR Codes & USSD)." actions={guichetCount > 0 && (<motion.div whileTap={{ scale: 0.97 }}>
@@ -349,7 +340,7 @@ export const GuichetsPage = () => {
                   </span>)}
               </div>
 
-              {guichetCount > 0 && (<div className="sticky top-16 lg:top-4 z-20 rounded-2xl border border-border/80 bg-card/90 p-1.5 shadow-sm ">
+              {guichetCount > 0 && (<div className="sticky top-[72px] lg:top-4 z-20 rounded-2xl border border-border/80 bg-card/95 backdrop-blur p-1.5 shadow-sm">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
                     <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher un guichet, type ou opération…" className="h-10 pl-9 rounded-xl border-border/60" aria-label="Rechercher un guichet"/>
@@ -372,7 +363,7 @@ export const GuichetsPage = () => {
               {guichetCount > 0 && guichetsFiltres.length === 0 && (<EmptyState icon={Search} title="Aucun guichet ne correspond à votre recherche" description="Essayez le nom du guichet, son type ou une opération associée." action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>} className="py-10"/>)}
 
               <div className="grid grid-cols-1 gap-5">
-                {guichetsFiltres.map((g, i) => (<Reveal key={g.id} delay={i * 0.05}>
+                {guichetsFiltres.map((g, i) => (<Reveal key={g.id} delay={Math.min(i * 0.05, 0.2)}>
                     <Card variant="feature" className="p-6 rounded-3xl">
                       <div className="flex flex-col items-start justify-between gap-6 md:flex-row border-b border-border/60 pb-5 mb-5">
                         <div>
@@ -447,16 +438,17 @@ export const GuichetsPage = () => {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Printable Area */}
-        <div className="hidden">
-          <div ref={componentRef}>
-            {guichets?.map((g) => (<div key={g.id} className="flex min-h-screen items-center justify-center p-10" style={{ pageBreakAfter: 'always', breakAfter: 'page' }}>
-                <KitGuichet guichet={g}/>
-              </div>))}
-          </div>
-        </div>
+        {/* Zone imprimable — montée uniquement si des kits existent,
+            pour ne pas doubler le coût QR/SVG au premier rendu. */}
+        {imprimerKit && (<div className="hidden" aria-hidden="true">
+            <div ref={componentRef}>
+              {guichets?.map((g) => (<div key={g.id} className="flex min-h-screen items-center justify-center p-10" style={{ pageBreakAfter: 'always', breakAfter: 'page' }}>
+                  <KitGuichet guichet={g}/>
+                </div>))}
+            </div>
+          </div>)}
+        </PageShell>
       </AmbientBackground>
 
       <AlertDialog open={guichetAConfirmer !== null} onOpenChange={(open) => !open && setGuichetAConfirmer(null)}>

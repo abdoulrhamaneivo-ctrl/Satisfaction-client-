@@ -2,9 +2,12 @@ import { env } from '../env.js';
 import { initEmailSender } from "./core/index.js";
 import { EmailSender } from "./core/types.js";
 
-const emailProvider = {
-  type: "sendgrid",
-  apiKey: env.SENDGRID_API_KEY,
+const emailProvider = { 
+    type: "smtp",
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    username: env.SMTP_USERNAME,
+    password: env.SMTP_PASSWORD,
 } as const;
 
 // PUBLIC API

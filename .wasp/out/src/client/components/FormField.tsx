@@ -29,7 +29,12 @@ export const FormField = ({
     <div className={cn('space-y-1.5', className)}>
       <Label htmlFor={htmlFor} className="text-foreground">
         {label}
-        {required && <span className="ml-0.5 text-secondary">*</span>}
+        {required && (
+          <span className="ml-0.5 text-destructive" aria-hidden="true">
+            *
+          </span>
+        )}
+        {required && <span className="sr-only">(obligatoire)</span>}
       </Label>
       {children}
       {error ? (

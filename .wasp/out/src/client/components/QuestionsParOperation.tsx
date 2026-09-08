@@ -596,7 +596,7 @@ function ColumnView({
             setNouveauType('SMILEY');
             setAddingToColumn(isAdding ? null : column.key);
           }}
-          className="size-7 shrink-0 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+          className="size-11 shrink-0 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           aria-label={`Ajouter une question à ${column.title}`}
           title="Ajouter une question"
         >
@@ -624,8 +624,8 @@ function ColumnView({
               variant="ghost"
               size="icon"
               onClick={() => setAddingToColumn(null)}
-              className="size-8 shrink-0"
-              aria-label="Annuler"
+              className="size-11 shrink-0"
+              aria-label="Annuler l'ajout de question"
             >
               <X className="size-3.5" />
             </Button>
@@ -649,9 +649,10 @@ function ColumnView({
               size="sm"
               disabled={creatingInline || !nouvelleQuestion.trim()}
               onClick={() => onAddQuestion(column)}
-              className="h-8 shrink-0 text-xs"
+              className="min-h-11 shrink-0 px-3 text-xs"
+              aria-label={`Ajouter à ${column.title}`}
             >
-              OK
+              Ajouter
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
@@ -835,7 +836,7 @@ function QuestionCard({
                   e.stopPropagation();
                   onEdit(critere);
                 }}
-                className="h-6 px-1.5 text-[11px] font-medium"
+                className="min-h-11 px-1.5 text-[11px] font-medium"
                 aria-label={`Modifier « ${critere.libelle_critere} »`}
                 title="Modifier cette question"
               >
@@ -853,7 +854,7 @@ function QuestionCard({
                   onDuplicate(critere);
                 }}
                 disabled={isDuplicating}
-                className="h-6 px-1.5 text-[11px] font-medium"
+                className="min-h-11 px-1.5 text-[11px] font-medium"
                 aria-label={`Dupliquer « ${critere.libelle_critere} »`}
                 title="Dupliquer cette question"
               >
@@ -871,7 +872,7 @@ function QuestionCard({
                   onDelete(critere);
                 }}
                 disabled={isDeleting}
-                className="h-6 px-1.5 text-[11px] font-medium hover:bg-destructive/10 hover:text-destructive"
+                className="min-h-11 px-1.5 text-[11px] font-medium hover:bg-destructive/10 hover:text-destructive"
                 aria-label={`Supprimer « ${critere.libelle_critere} »`}
                 title="Supprimer cette question"
               >

@@ -53,7 +53,7 @@ function AuditLogsInner() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header>
-        <h1 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">Audit</h1>
+        <h1 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">Journal d'audit</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Journal des actions sensibles — acteur, action, horodatage. Immuable.
         </p>
@@ -64,7 +64,7 @@ function AuditLogsInner() {
         <select
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+          className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           aria-label="Filtrer par action"
         >
           {ACTIONS_FILTRE.map((a) => (
@@ -74,7 +74,11 @@ function AuditLogsInner() {
       </div>
 
       {isLoading ? (
-        <div className="grid min-h-[40vh] place-items-center text-sm text-muted-foreground">Chargement…</div>
+        <div className="space-y-3" aria-busy="true" aria-label="Chargement du journal d'audit">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          ))}
+        </div>
       ) : !data || data.logs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center">
           <ScrollText className="mx-auto size-10 text-muted-foreground/40" />
@@ -82,7 +86,8 @@ function AuditLogsInner() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border/80 bg-card">
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto momentum-scroll scroll-fade-x" role="region" aria-label="Journal d'audit" tabIndex={0}>
+            <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Date</th>
@@ -116,7 +121,8 @@ function AuditLogsInner() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
 

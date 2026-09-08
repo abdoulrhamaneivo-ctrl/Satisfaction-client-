@@ -1,3 +1,3 @@
 // PRIVATE API
-export { initSendGridEmailSender as initEmailSender } from "./providers/sendgrid.js";
+export { initSmtpEmailSender as initEmailSender } from "./providers/smtp.js";
 //# sourceMappingURL=index.js.map

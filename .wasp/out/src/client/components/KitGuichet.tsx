@@ -153,8 +153,11 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
       </div>
 
       {/* Wrapper responsive avec scroll horizontal & centrage pour aperçu mobile parfait */}
-      <div className="w-full overflow-x-auto momentum-scroll scroll-fade-x p-4 sm:p-6 bg-neutral-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-border/80 flex justify-center items-center">
-        <div className="shrink-0 max-w-full">
+      <p className="text-center text-[11px] text-muted-foreground sm:hidden print:hidden">
+        Faites défiler horizontalement pour voir toute l'affiche — l'export PNG garde la taille réelle.
+      </p>
+      <div className="w-full overflow-x-auto momentum-scroll scroll-fade-x snap-x p-4 sm:p-6 bg-neutral-50/50 dark:bg-slate-900/10 rounded-2xl border border-dashed border-border/80 flex justify-center items-center">
+        <div className="shrink-0 max-w-full snap-center">
           <div
             ref={kitRef}
             style={{ ...currentConfig.containerStyle, ...primaryColorStyle }}

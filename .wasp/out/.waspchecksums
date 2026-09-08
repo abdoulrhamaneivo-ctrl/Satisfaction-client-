@@ -753,7 +753,7 @@
             "file",
             "sdk/wasp/package.json"
         ],
-        "c0c02bd7a7d38ab64939050569f7ff704366e42cbe54b33ef42f7d4dc2846fd6"
+        "e41893c2b2eb9a756c04b870277ef4e0edba57645322e8b410f9a8af52855472"
     ],
     [
         [
@@ -851,14 +851,14 @@
             "file",
             "sdk/wasp/server/email/core/index.ts"
         ],
-        "bb01f17d0383daa546d4fb5362f0da400576aa0580353c7158720a5aec82a872"
+        "8d0b793a65306ee3aeca117c1fb8cc1f29d6759ac65fe76231b5fdaa1fbfb71a"
     ],
     [
         [
             "file",
-            "sdk/wasp/server/email/core/providers/sendgrid.ts"
+            "sdk/wasp/server/email/core/providers/smtp.ts"
         ],
-        "6c49ccaf2b536ffd0aa9e2e53a6137e8440b42bd53b05c9b84b87d48e0f10660"
+        "4c06498aa8441d4b6b151fb8b6d5052c727bc00a7479758c0a45acbc077ace41"
     ],
     [
         [
@@ -872,14 +872,14 @@
             "file",
             "sdk/wasp/server/email/index.ts"
         ],
-        "199b8d91048f446e0491964c9dfe0e946875a19b9a5757aa7e600880d6f52f98"
+        "5815f706767a91c23ef4d889a4a4ab322e9bad0c31bdc39bf51668b5745e7b0e"
     ],
     [
         [
             "file",
             "sdk/wasp/server/env.ts"
         ],
-        "fecbfaf55d7c94874c95f03170b7a310798da1fec66e954813ace3f618942b6a"
+        "7d2cd05e9be32e0b092c7ba78b975d15bcc2d15b12c008c610f744e0356c9cb8"
     ],
     [
         [
@@ -1054,14 +1054,14 @@
             "file",
             "sdk/wasp/src/auth/AuthPageLayout.tsx"
         ],
-        "123837ec6c83defa8992a1b6e218ba31f9ee373f592e5a4383b452c19946190d"
+        "2c1e2ef3212104c9b4c8f1e9413be7d917f9a320cf140516dd5ee102a0926ef9"
     ],
     [
         [
             "file",
             "sdk/wasp/src/auth/LoginPage.tsx"
         ],
-        "1cddd413991f55d88932a09748dbcb22cbffa003b1754eaf5adb5521b37a0d27"
+        "a2dbcd567ae55697fd40a1f8c7757d7e389d906f0318ab1e7383f619d962ee81"
     ],
     [
         [
@@ -1145,7 +1145,7 @@
             "file",
             "sdk/wasp/src/client/Main.css"
         ],
-        "1cae526a8832341cb25a54c73a390eaae06bff6a70d9d2821652b21a87cfdb60"
+        "0e84c9fee515e5dfc05cff526f4641713ac2774554b80f7b44d11dbd0c2f36a9"
     ],
     [
         [
@@ -1250,7 +1250,7 @@
             "file",
             "sdk/wasp/src/client/components/FormField.tsx"
         ],
-        "55e2a2e3b492abfe3f6bff01a2a5cd948529b5cd8aec7b0887b15a64fe42e812"
+        "041cc8edd2bbd476bce7d58fdb55e45b0da5dab950aa13920b66b0f43124aabf"
     ],
     [
         [
@@ -1264,14 +1264,14 @@
             "file",
             "sdk/wasp/src/client/components/KitGuichet.tsx"
         ],
-        "bebb005324c3dd2edf5c7419010bc35a86d63471142889472369edc5d76a316d"
+        "80fb16a18d52dca20d08f4117d2f2f49a26a9581322706ca60d1d73c04c2a92f"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/components/MobileAppHeader.tsx"
         ],
-        "4175ce45694869a61a16e6bed32499b9e22a986f49e74dc30169d831e5351553"
+        "d3d310430e59fb2e443db0b5af428c9a5aca9e742ac4d74efd771dc55fa6caac"
     ],
     [
         [
@@ -1313,7 +1313,7 @@
             "file",
             "sdk/wasp/src/client/components/ObjectifsPanel.tsx"
         ],
-        "748f94ef1d0dfa399cdfa2a103534150a8824e51e78b26e19fbe00696b205664"
+        "33b147a6fe7dbfb73c0991a069c807b5e354853a693932c773410395ecb2b91f"
     ],
     [
         [
@@ -1339,9 +1339,16 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/components/PageShell.tsx"
+        ],
+        "339827e5c45056e7e71e7b1bea4178dc04aed4bda53f935f14c770c52a738bb5"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/components/QuestionsParOperation.tsx"
         ],
-        "c993a9598159d401bb7e61b779445026aa93620508e81bbb687c7acf5bc810aa"
+        "3e0371a1bca1ac1180e377921380196fb3338c130eb3dfa49d3f87cbcf7904d7"
     ],
     [
         [
@@ -1376,7 +1383,7 @@
             "file",
             "sdk/wasp/src/client/components/Sidebar.tsx"
         ],
-        "bbdbf7c05f3ce16bb5cb15a93808988ec60e85e7dfc281454212486cd6e4adf1"
+        "9634adadad12bf6cbe03f58d5f254cb446bd864fcbeb677ddf3aa3c0683f3256"
     ],
     [
         [
@@ -1516,7 +1523,7 @@
             "file",
             "sdk/wasp/src/client/components/ui/dialog.tsx"
         ],
-        "329c20803d3e5d52b05e97832d7a17f66cd9db592d8e9bd6177ee0d25da2c763"
+        "1b6c058b4251fa781dc2a612779d3490399f033d8d7eca62761458f457e1f555"
     ],
     [
         [
@@ -1684,28 +1691,28 @@
             "file",
             "sdk/wasp/src/client/pages/AdminPersonnelPage.tsx"
         ],
-        "f1b5822c42b549ca332e23e9eca7619e88e9ab86e2706d59590d1d4e2b673d3f"
+        "b3a3894b3dfb747e00e47d9e09263b4e82c6d7a5318fb9073f6b82c8fb572c09"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/AlertesTachesPage.tsx"
         ],
-        "6bf0f39aeb86c2e6e408476b6884d9c4ba0b063ed984f396dd74eaf8ca07dac6"
+        "649206443972be9a3701e55fb748a5c04b00e0fbcd9bcd98c974a8379004136a"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/ArchivesPage.tsx"
         ],
-        "6407c5cb0927de61299607db1adfabd63fb1e8cdc9b4e3b6a201fc802aec89b4"
+        "3e0f5eee131f5f2b6006de26c1a1733bafdfef38cae121ccbe4da0495119c3b6"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/AvisPage.tsx"
         ],
-        "7a9b93959de369707a6a9d9ca1c33606dfa0bb3c5ccd4d582d6966e8053b2016"
+        "1ccfd3d7eaed39cdfe946b643918852a1ca6393ae10720eb68124c279aac2258"
     ],
     [
         [
@@ -1719,28 +1726,28 @@
             "file",
             "sdk/wasp/src/client/pages/ConfigurationCriteresPage.tsx"
         ],
-        "80a3d3ff4f5a1881c9801d8a61baab8d4ce94eb31bdc8fd918d445adf95b09a8"
+        "0f22f0e22747a129083584d930d5bd14309111a73ba99854ff1ae140f18045cc"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "01f187231573c0f252563c6adfb3abc0a91c4fb00b3aaf50dd1d04bbe66e1b0e"
+        "6b86295417fd18af13f38222d8954ec5f3a0d64ac8cf36be20e46b8ea7f6222d"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/GestionAgencesPage.tsx"
         ],
-        "c401b2b7d4257288da947e32581bfe5683ce69f03074b007a59d00ad2cd4496c"
+        "079c9c2df44d7e08dad9e6b79bef06cc00e1100719532d61834a8bfe96d92bc6"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/GuichetsPage.tsx"
         ],
-        "1cbd828a1ca59f612505b5a595e493f52cf27c71d361d14593f6f77f8719af4b"
+        "5709dc78f985a73586ee5348d3e8da802bc1b91e3d4cafeeba4fceba1107351b"
     ],
     [
         [
@@ -1754,7 +1761,7 @@
             "file",
             "sdk/wasp/src/client/pages/PlanningPage.tsx"
         ],
-        "b811c88487f72e50079c52de594446cb85bae3f325c43734b850e1572a73e401"
+        "766a9e159c93e7cee5d6cdf9389a0cec8ac10801b035d9a8b5d747a4c9ef0225"
     ],
     [
         [
@@ -1768,14 +1775,14 @@
             "file",
             "sdk/wasp/src/client/pages/SettingsPage.tsx"
         ],
-        "266ce95ad6eb5c9ce428c4e15d2a77e39662f7737096e36195d92b2324921f62"
+        "0fa1c9e1a865682f6fc2198d1ba397d38551487308f3745997a0c0547dd40873"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/PlatformShell.tsx"
         ],
-        "8c9ed84844a65770ef00d419794a2297c35f19dc87d010d234e3c6a713f04462"
+        "7f3c8cbf609fbb45271fe93aa08426e31b7cf30bd27a1a8a8875d6392710fbbd"
     ],
     [
         [
@@ -1789,35 +1796,35 @@
             "file",
             "sdk/wasp/src/client/platform/pages/AuditLogsPage.tsx"
         ],
-        "8fbad02f6d4efe0bbccb58604e2df269de4593d87a7e5fe68c0eb3cbb8b470ab"
+        "7bac047afe6e4018883a77505ef893b2a406564fb935957ae815316435a2bf26"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/CompaniesPage.tsx"
         ],
-        "7b701912a2fb20d21b07b413884f933ac9f43e166441cf8a10aaab63b32a0352"
+        "3679d9ac4cf2ffcaba98feb64351000a11f82bb04457f331bae26ad360da1639"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/CompanyDetailsPage.tsx"
         ],
-        "68c75c10176f080c11d43fce604e6b49e63ce4e3dbf5589df93527d29c9998f4"
+        "7b4388920e7e8ec5d83fe463c3487dcb5e15205c5df340b9da9631ce472f9f9c"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/CreateCompanyPage.tsx"
         ],
-        "d495aa05e1f5c6347d7541c8cd86890b1e3d208aef33b6d54e06e8a6f6cdbb3b"
+        "b2c466bb9518188bfe9d00a9f30c8f803fc9b38b9d4c59bf0d70d7932a865a8d"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/PlatformOverviewPage.tsx"
         ],
-        "e8b6ced9b2263d28768b033db416722d212247fc4951f4b8abd24cb6acb1973a"
+        "a68929b3c8d70781c20e9ace460b10733a013a842c3e726fbd69cab176f250ad"
     ],
     [
         [
@@ -2118,7 +2125,7 @@
             "file",
             "sdk/wasp/src/server/emailSender.wasp.ts"
         ],
-        "9780be3c0bca73ab17ae0e75f0ae5f170dfaa5d18e8b5a8f58eea4c99b5c7509"
+        "ffcb5911400353773105ff4eb5f60785722a2466d62366d33536673728ee2575"
     ],
     [
         [
@@ -2272,7 +2279,7 @@
             "file",
             "sdk/wasp/src/server/staticServing.ts"
         ],
-        "96badfb4aa44e86a00d77a5f7ed31dccae3b692f735c45bf4d79c12369466515"
+        "39466696d7aa81172c8a1c98e4af16c939e9664250357661b1d92fd853e6c57f"
     ],
     [
         [

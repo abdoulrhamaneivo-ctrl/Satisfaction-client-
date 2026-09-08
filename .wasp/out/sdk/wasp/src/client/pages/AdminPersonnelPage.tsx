@@ -26,9 +26,11 @@ import {
   Search,
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
+import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Card, Eyebrow, Reveal } from '../components/ds';
 import {
   Select,
@@ -39,6 +41,7 @@ import {
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell, PageTopNav } from '../components/PageShell';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -263,24 +266,17 @@ export const AdminPersonnelPage = () => {
     <RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
-        <div className="min-h-screen p-6 lg:p-10 space-y-8">
-          <div className="mx-auto max-w-[1440px] space-y-8">
-            {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                <span>Administration</span>
-                <span>/</span>
-                <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
-                <span>/</span>
-                <span className="text-primary font-bold">Agents & Personnel</span>
-              </div>
-              
-              <div className="flex items-center gap-6 text-xs font-bold">
-                <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
-                <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/guichets'}>Guichets</span>
-                <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Agents & Personnel</span>
-              </div>
-            </div>
+        <PageShell>
+          <PageTopNav
+            racine="Administration"
+            agence={(user as any)?.agence?.nom_agence || "Agence Principale"}
+            actuel="Agents & Personnel"
+            onglets={[
+              { label: 'Tableau synthétique', to: '/dashboard' },
+              { label: 'Guichets', to: '/guichets' },
+              { label: 'Agents & Personnel', to: '/admin/personnel' },
+            ]}
+          />
 
             <Reveal direction="down">
               <PageHeader
@@ -336,39 +332,52 @@ export const AdminPersonnelPage = () => {
                   </AnimatePresence>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input
-                      name="prenom"
-                      placeholder="Prénom"
-                      value={formData.prenom}
-                      onChange={handleInputChange}
-                      required
-                      className="h-11 rounded-2xl border-border/80"
-                    />
-                    <Input
-                      name="nom"
-                      placeholder="Nom"
-                      value={formData.nom}
-                      onChange={handleInputChange}
-                      required
-                      className="h-11 rounded-2xl border-border/80"
-                    />
-
-                    <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
-                      <SelectTrigger className="h-11 rounded-2xl border-border/80">
-                        <SelectValue placeholder="Rôle" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-border/80">
-                        {roleOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="agent-prenom">Prénom</Label>
+                      <Input
+                        id="agent-prenom"
+                        name="prenom"
+                        placeholder="Ex : Awa"
+                        value={formData.prenom}
+                        onChange={handleInputChange}
+                        required
+                        className="h-11 rounded-2xl border-border/80"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="agent-nom">Nom</Label>
+                      <Input
+                        id="agent-nom"
+                        name="nom"
+                        placeholder="Ex : Koné"
+                        value={formData.nom}
+                        onChange={handleInputChange}
+                        required
+                        className="h-11 rounded-2xl border-border/80"
+                      />
+                    </div>
 
                     <div className="space-y-1.5">
+                      <Label htmlFor="agent-role">Rôle</Label>
+                      <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
+                        <SelectTrigger id="agent-role" className="h-11 rounded-2xl border-border/80">
+                          <SelectValue placeholder="Rôle" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-border/80">
+                          {roleOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="agent-email">Email {formData.role === 'CHEF_AGENCE' ? '' : <span className="font-normal text-muted-foreground">(optionnel)</span>}</Label>
                       <Input
+                        id="agent-email"
                         name="email"
                         type="email"
-                        placeholder={formData.role === 'CHEF_AGENCE' ? 'Email professionnel *' : 'Email (optionnel)'}
+                        placeholder={formData.role === 'CHEF_AGENCE' ? 'Email professionnel' : 'Email (optionnel)'}
                         value={formData.email}
                         onChange={handleInputChange}
                         required={formData.role === 'CHEF_AGENCE'}
@@ -386,13 +395,17 @@ export const AdminPersonnelPage = () => {
                       )}
                     </div>
 
-                    <Input
-                      name="telephone"
-                      placeholder="Téléphone (optionnel)"
-                      value={formData.telephone}
-                      onChange={handleInputChange}
-                      className="h-11 rounded-2xl border-border/80"
-                    />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="agent-telephone">Téléphone <span className="font-normal text-muted-foreground">(optionnel)</span></Label>
+                      <Input
+                        id="agent-telephone"
+                        name="telephone"
+                        placeholder="Ex : +225 0700000000"
+                        value={formData.telephone}
+                        onChange={handleInputChange}
+                        className="h-11 rounded-2xl border-border/80"
+                      />
+                    </div>
 
                     <div className="flex gap-3 pt-2">
                       {editingId && (
@@ -416,7 +429,7 @@ export const AdminPersonnelPage = () => {
 
               {/* Grille agents */}
               <div className="lg:col-span-2 space-y-4">
-                <div className="sticky top-16 lg:top-4 z-20 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-2 shadow-sm sm:flex-row sm:items-center">
+                <div className="sticky top-[72px] lg:top-4 z-20 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/95 backdrop-blur p-2 shadow-sm sm:flex-row sm:items-center">
                   <div className="relative flex-1">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -462,7 +475,7 @@ export const AdminPersonnelPage = () => {
                         initial={{ opacity: 0, scale: 0.96 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.96 }}
-                        transition={{ duration: 0.25, delay: i * 0.03 }}
+                        transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.2) }}
                       >
                         <Card variant="feature" className="p-5 rounded-3xl">
                           <div className="flex items-start justify-between">
@@ -490,8 +503,8 @@ export const AdminPersonnelPage = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleEdit(agent)}
-                                aria-label="Modifier"
-                                className="size-8 rounded-xl text-warning hover:bg-warning/15 hover:text-warning"
+                                aria-label={`Modifier ${agent.prenom} ${agent.nom}`}
+                                className="size-11 shrink-0 rounded-xl text-warning hover:bg-warning/15 hover:text-warning"
                               >
                                 <ShieldUser className="size-4" />
                               </Button>
@@ -501,9 +514,9 @@ export const AdminPersonnelPage = () => {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleReactivate(agent.id)}
-                                  aria-label="Réactiver"
+                                  aria-label={`Réactiver ${agent.prenom} ${agent.nom}`}
                                   title="Réactiver ce compte"
-                                  className="size-8 rounded-xl text-muted-foreground hover:bg-success/15 hover:text-success"
+                                  className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-success/15 hover:text-success"
                                 >
                                   <RotateCcw className="size-4" />
                                 </Button>
@@ -513,9 +526,9 @@ export const AdminPersonnelPage = () => {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => setAgentAConfirmerSuppression({ id: agent.id, nom: agent.nom, prenom: agent.prenom })}
-                                  aria-label="Suspendre"
+                                  aria-label={`Suspendre ${agent.prenom} ${agent.nom}`}
                                   title="Suspendre ce compte"
-                                  className="size-8 rounded-xl text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                                  className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
                                 >
                                   <Trash2 className="size-4" />
                                 </Button>
@@ -526,9 +539,9 @@ export const AdminPersonnelPage = () => {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleRenvoyerInvitation(agent.id, agent.email)}
-                                  aria-label="Renvoyer l'invitation"
+                                  aria-label={`Renvoyer l'invitation à ${agent.prenom} ${agent.nom}`}
                                   title="Renvoyer le lien « Définir mon mot de passe » (révoque les anciens liens)"
-                                  className="size-8 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                                  className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary"
                                 >
                                   <Mail className="size-4" />
                                 </Button>
@@ -550,29 +563,20 @@ export const AdminPersonnelPage = () => {
                   </AnimatePresence>
 
                   {!loadingAgents && agentCount === 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="md:col-span-2"
-                    >
-                      <Card className="flex flex-col items-center justify-center p-10 text-center rounded-3xl">
-                        <UsersRound className="mb-3 size-10 text-muted-foreground" />
-                        <p className="font-bold text-foreground font-satoshi">
-                          {agentCountTotal === 0 ? 'Aucun agent enregistré' : 'Aucun agent ne correspond à votre recherche'}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground font-medium max-w-sm">
-                          {agentCountTotal === 0
-                            ? 'Ajoutez votre premier agent via le formulaire pour commencer à suivre votre équipe.'
-                            : 'Essayez un autre nom, un autre email, ou réinitialisez le filtre de statut.'}
-                        </p>
-                      </Card>
-                    </motion.div>
+                    <div className="md:col-span-2">
+                      <EmptyState
+                        icon={UsersRound}
+                        title={agentCountTotal === 0 ? 'Aucun agent enregistré' : 'Aucun agent ne correspond à votre recherche'}
+                        description={agentCountTotal === 0
+                          ? 'Ajoutez votre premier agent via le formulaire pour commencer à suivre votre équipe.'
+                          : 'Essayez un autre nom, un autre email, ou réinitialisez le filtre de statut.'}
+                      />
+                    </div>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+        </PageShell>
 
         <AlertDialog
           open={agentAConfirmerSuppression !== null}

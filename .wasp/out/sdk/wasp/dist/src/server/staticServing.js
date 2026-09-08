@@ -85,7 +85,13 @@ export async function serveStaticClient({ app }) {
             // pas qu'il s'agit d'une page fallback et tente une hydratation qui
             // échoue (React #418). Whitelist par hash, PAS de 'unsafe-inline'.
             "script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; " +
-            "style-src 'self' 'unsafe-inline'; " +
+            // ZAP « style-src unsafe-inline » : on verrouille style-src sur
+            // 'self' (CSS compilés) et on n'autorise l'inline QUE pour les
+            // attributs style="" via style-src-attr (React/framer-motion).
+            // Les <style> injectés à l'exécution restent bloqués — si un
+            // composant perd son style, c'est ici qu'il faut assouplir.
+            "style-src 'self'; " +
+            "style-src-attr 'unsafe-inline'; " +
             "img-src 'self' data: blob: https:; " +
             "font-src 'self'; " +
             "connect-src 'self'; " +

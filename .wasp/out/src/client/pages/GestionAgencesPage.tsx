@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useNavigate } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, getAgences, createAgence, archiverAgence } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, MapPin, PlusCircle, ShieldAlert, Archive, Search } from 'lucide-react';
+import { Building2, MapPin, PlusCircle, ShieldAlert, Archive, Search, SearchX } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
+import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell } from '../components/PageShell';
 import { useToast } from '../hooks/use-toast';
 import {
   AlertDialog,
@@ -24,7 +27,8 @@ import {
 
 export const GestionAgencesPage = () => {
   const { data: user } = useAuth();
-  const { data: agences, isLoading } = useQuery(getAgences);
+  const navigate = useNavigate();
+  const { data: agences, isLoading, error: erreurChargement, refetch: rechargerAgences } = useQuery(getAgences);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -111,8 +115,7 @@ export const GestionAgencesPage = () => {
     <RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
-        <div className="min-h-screen p-8">
-          <div className="mx-auto max-w-6xl">
+        <PageShell>
             <PageHeader
               icon={Building2}
               eyebrow="Réseau"
@@ -132,29 +135,41 @@ export const GestionAgencesPage = () => {
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <Input
-                    name="nom_agence"
-                    placeholder="Nom de l'agence (ex : Agence Plateau)"
-                    value={formData.nom_agence}
-                    onChange={handleInputChange}
-                    required
-                    className="h-11"
-                  />
-                  <Input
-                    name="commune"
-                    placeholder="Commune (ex : Abidjan - Plateau)"
-                    value={formData.commune}
-                    onChange={handleInputChange}
-                    required
-                    className="h-11"
-                  />
-                  <Input
-                    name="adresse"
-                    placeholder="Adresse précise (optionnel)"
-                    value={formData.adresse}
-                    onChange={handleInputChange}
-                    className="h-11"
-                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agence-nom">Nom de l'agence</Label>
+                    <Input
+                      id="agence-nom"
+                      name="nom_agence"
+                      placeholder="Ex : Agence Plateau"
+                      value={formData.nom_agence}
+                      onChange={handleInputChange}
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agence-commune">Commune</Label>
+                    <Input
+                      id="agence-commune"
+                      name="commune"
+                      placeholder="Ex : Abidjan - Plateau"
+                      value={formData.commune}
+                      onChange={handleInputChange}
+                      required
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agence-adresse">Adresse précise <span className="font-normal text-muted-foreground">(optionnel)</span></Label>
+                    <Input
+                      id="agence-adresse"
+                      name="adresse"
+                      placeholder="Ex : Rue des Jardins, immeuble…"
+                      value={formData.adresse}
+                      onChange={handleInputChange}
+                      className="h-11"
+                    />
+                  </div>
 
                   <Button type="submit" disabled={submitting} className="w-full rounded-xl font-bold">
                     {submitting ? 'Création…' : "Créer l'agence"}
@@ -170,6 +185,20 @@ export const GestionAgencesPage = () => {
 
               {/* LISTE DES AGENCES */}
               <div className="lg:col-span-2 space-y-4">
+                {erreurChargement && (
+                  <div className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm font-bold text-destructive">
+                    <span>Impossible de charger vos agences. Vérifiez votre connexion.</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => rechargerAgences()}
+                      className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl"
+                    >
+                      Réessayer
+                    </Button>
+                  </div>
+                )}
                 {agenceCount > 0 && (
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -183,9 +212,13 @@ export const GestionAgencesPage = () => {
                   </div>
                 )}
                 {!isLoading && agenceCount > 0 && agencesFiltrees.length === 0 && (
-                  <div className="rounded-3xl border-2 border-dashed border-border/50 bg-card/50 p-8 text-center text-sm text-muted-foreground">
-                    Aucune agence ne correspond à votre recherche.
-                  </div>
+                  <EmptyState
+                    icon={SearchX}
+                    title="Aucune agence ne correspond à votre recherche"
+                    description="Essayez un autre nom d'agence ou de commune."
+                    action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>}
+                    className="py-10"
+                  />
                 )}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {/* FIX 05/09 : CTA post-création — l'agence naît sans chef,
@@ -198,7 +231,7 @@ export const GestionAgencesPage = () => {
                     <div className="flex gap-2">
                       <Button
                         type="button"
-                        onClick={() => (window.location.href = `/admin/personnel?agence=${agenceCree.id}`)}
+                        onClick={() => navigate(`/admin/personnel?agence=${agenceCree.id}`)}
                         className="rounded-xl font-bold"
                       >
                         <PlusCircle className="size-4" /> Désigner son chef
@@ -258,7 +291,7 @@ export const GestionAgencesPage = () => {
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => (window.location.href = `/admin/personnel?agence=${agence.id}`)}
+                                onClick={() => navigate(`/admin/personnel?agence=${agence.id}`)}
                                 className="mt-1 inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-1 text-[11px] font-bold text-warning hover:bg-warning/20 transition-colors"
                               >
                                 <PlusCircle className="size-3" /> Aucun chef — désigner
@@ -282,27 +315,18 @@ export const GestionAgencesPage = () => {
                 </AnimatePresence>
 
                 {!isLoading && agenceCount === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="md:col-span-2"
-                  >
-                    <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border/50 bg-card/50 p-10 text-center">
-                      <Building2 className="mb-3 size-10 text-muted-foreground" />
-                      <p className="font-semibold text-foreground">
-                        Aucune agence pour l'instant
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Créez votre première agence via le formulaire pour commencer à structurer votre réseau.
-                      </p>
-                    </div>
-                  </motion.div>
+                  <div className="md:col-span-2">
+                    <EmptyState
+                      icon={Building2}
+                      title="Aucune agence pour l'instant"
+                      description="Créez votre première agence via le formulaire pour commencer à structurer votre réseau."
+                    />
+                  </div>
                 )}
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </PageShell>
       </AmbientBackground>
 
       <AlertDialog open={agenceAArchiver !== null} onOpenChange={(open) => !open && setAgenceAArchiver(null)}>

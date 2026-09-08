@@ -38,7 +38,7 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }) {
       {/* En-tête compact visible uniquement sur mobile */}
       <motion.div initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: prefersReducedMotion ? 0 : 0.4 }} className="mb-5 w-full max-w-4xl rounded-2xl bg-card px-4 py-3 shadow-sm ring-1 ring-border/60 lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <img src="/yeba-logo.svg" alt="Yéba" className="h-9 w-auto"/>
+          <img src="/yeba-logo.svg" alt="Yéba" width={120} height={33} className="h-9 w-auto"/>
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
             {eyebrow}
           </span>
@@ -66,7 +66,7 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }) {
               {eyebrow}
             </span>
             <div className="mt-6 inline-flex w-fit items-center rounded-2xl bg-white px-4 py-3 shadow-lg">
-              <img src="/yeba-logo.svg" alt="Yeba Abidjan" className="h-10 w-auto"/>
+              <img src="/yeba-logo.svg" alt="Yeba Abidjan" width={160} height={43} className="h-10 w-auto"/>
             </div>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">{subtitle}</p>
           </div>

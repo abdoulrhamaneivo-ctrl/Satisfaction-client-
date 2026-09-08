@@ -145,7 +145,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
               key={critere.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
+              transition={{ delay: Math.min(i * 0.05, 0.2) }}
               className="rounded-xl border border-border/70 bg-background p-4 space-y-3"
             >
               <div className="flex items-center justify-between">

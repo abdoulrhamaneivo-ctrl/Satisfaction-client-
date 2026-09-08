@@ -118,7 +118,7 @@ export const ObjectifsPanel = ({ selectedAgenceId }) => {
             const edit = getEdit(critere.id);
             const objectifActuel = getObjectifForCritere(critere.id);
             const valeurNum = parseFloat(edit.valeur) || 0;
-            return (<motion.div key={critere.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-xl border border-border/70 bg-background p-4 space-y-3">
+            return (<motion.div key={critere.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.05, 0.2) }} className="rounded-xl border border-border/70 bg-background p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-foreground">{critere.libelle_critere}</span>
                 {objectifActuel && (() => {

@@ -58,7 +58,7 @@ export function LoginPage() {
             <span>{error}</span>
           </motion.div>)}
 
-        <FormField label="Adresse e-mail" htmlFor="email" required>
+        <FormField label="Adresse e-mail" htmlFor="email" required hint="Format attendu : nom@domaine.ci">
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
             <Input id="email" name="email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" enterKeyHint="next" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@entreprise.ci" className="h-11 pl-10 rounded-xl focus-visible:ring-2 focus-visible:ring-ring/40" disabled={loading}/>

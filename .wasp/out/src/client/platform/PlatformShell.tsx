@@ -48,9 +48,9 @@ export function PlatformShell() {
   }
 
   const LINKS = [
-    { to: '/platform', label: 'Overview', icon: Building2, end: true },
+    { to: '/platform', label: "Vue d'ensemble", icon: Building2, end: true },
     { to: '/platform/entreprises', label: 'Entreprises', icon: Building2 },
-    { to: '/platform/audit', label: 'Audit', icon: ScrollText },
+    { to: '/platform/audit', label: "Journal d'audit", icon: ScrollText },
     { to: '/platform/securite', label: 'Sécurité', icon: ShieldCheck },
   ]
 

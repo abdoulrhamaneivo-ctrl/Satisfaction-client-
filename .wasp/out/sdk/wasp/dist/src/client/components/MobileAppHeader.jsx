@@ -25,7 +25,7 @@ export function MobileAppHeader({ onMenuOpen, menuOpen = false }) {
 
         {total > 0 && (<Link to="/alertes-taches" title={`${total} action${total > 1 ? 's' : ''} en attente`} aria-label={`${total} incident${total > 1 ? 's' : ''} en attente`} className="relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/30 hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
             <Bell className={cn('size-4', hasCritical ? 'text-destructive motion-safe:animate-pulse' : 'text-warning')} aria-hidden/>
-            <span className={cn('absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white leading-none shadow-sm', hasCritical ? 'bg-destructive' : 'bg-warning')}>
+            <span className={cn('absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none shadow-sm', hasCritical ? 'bg-destructive text-white' : 'bg-warning text-warning-foreground')}>
               {total > 99 ? '99+' : total}
             </span>
           </Link>)}

@@ -57,13 +57,14 @@ function CompaniesInner() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher une entreprise…"
-            className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+            aria-label="Rechercher une entreprise"
+            className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         </div>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+          className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           aria-label="Filtrer par statut"
         >
           <option value="">Tous statuts</option>
@@ -75,19 +76,23 @@ function CompaniesInner() {
         <select
           value={plan}
           onChange={(e) => setPlan(e.target.value)}
-          className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+          className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           aria-label="Filtrer par plan"
         >
           <option value="">Tous plans</option>
-          <option value="STARTER">Starter</option>
+          <option value="STARTER">Démarrage</option>
           <option value="BUSINESS">Business</option>
-          <option value="ENTERPRISE">Enterprise</option>
+          <option value="ENTERPRISE">Entreprise</option>
         </select>
       </div>
 
       {/* Liste */}
       {isLoading ? (
-        <div className="grid min-h-[40vh] place-items-center text-sm text-muted-foreground">Chargement…</div>
+        <div className="grid gap-3" aria-busy="true" aria-label="Chargement des entreprises">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
+          ))}
+        </div>
       ) : !data || data.entreprises.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center">
           <Building2 className="mx-auto size-10 text-muted-foreground/40" />

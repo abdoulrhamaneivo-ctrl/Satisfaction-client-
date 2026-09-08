@@ -17,7 +17,7 @@ export const SettingsPage = () => {
     return (<RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-[1400px] mx-auto p-6 lg:p-10 space-y-8">
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
           <PageHeader icon={Cpu} eyebrow="Paramètres & Intégrations" title="Paramètres" description="Configurez le moteur d'analyse IA (DeepSeek) et sa clé API." actions={<Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 border-border/80 bg-card/60 ">
                 <RefreshCw className="size-4"/>
                 Actualiser les statistiques
@@ -232,16 +232,18 @@ function SectionPersonnalisation() {
           <div className="space-y-1.5">
             <Label htmlFor="brand-qr_color">Couleur du QR (#RRGGBB)</Label>
             <div className="flex gap-2">
-              <input id="brand-qr_color" type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.qr_color || '') ? form.qr_color : '#000000'} onChange={(e) => set('qr_color', e.target.value)} className="h-10 w-12 rounded-xl border border-border/80 bg-background p-1"/>
-              <Input value={form.qr_color ?? ''} onChange={(e) => set('qr_color', e.target.value)} placeholder="#000000" className="h-10 rounded-xl border-border/80"/>
+              <input id="brand-qr_color" type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.qr_color || '') ? form.qr_color : '#000000'} onChange={(e) => set('qr_color', e.target.value)} className="h-10 w-12 rounded-xl border border-border/80 bg-background p-1" aria-label="Couleur du QR (sélecteur)"/>
+              <Input value={form.qr_color ?? ''} onChange={(e) => set('qr_color', e.target.value)} placeholder="#000000" className="h-10 rounded-xl border-border/80" aria-invalid={!!form.qr_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_color)} aria-describedby="brand-qr_color-erreur"/>
             </div>
+            {form.qr_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_color) && (<p id="brand-qr_color-erreur" className="text-xs font-medium text-destructive">Format attendu : #RRGGBB (ex. #111111). Le QR garde le noir en attendant.</p>)}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="brand-qr_bg_color">Fond du QR (#RRGGBB)</Label>
             <div className="flex gap-2">
-              <input id="brand-qr_bg_color" type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.qr_bg_color || '') ? form.qr_bg_color : '#ffffff'} onChange={(e) => set('qr_bg_color', e.target.value)} className="h-10 w-12 rounded-xl border border-border/80 bg-background p-1"/>
-              <Input value={form.qr_bg_color ?? ''} onChange={(e) => set('qr_bg_color', e.target.value)} placeholder="#ffffff" className="h-10 rounded-xl border-border/80"/>
+              <input id="brand-qr_bg_color" type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.qr_bg_color || '') ? form.qr_bg_color : '#ffffff'} onChange={(e) => set('qr_bg_color', e.target.value)} className="h-10 w-12 rounded-xl border border-border/80 bg-background p-1" aria-label="Fond du QR (sélecteur)"/>
+              <Input value={form.qr_bg_color ?? ''} onChange={(e) => set('qr_bg_color', e.target.value)} placeholder="#ffffff" className="h-10 rounded-xl border-border/80" aria-invalid={!!form.qr_bg_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_bg_color)} aria-describedby="brand-qr_bg_color-erreur"/>
             </div>
+            {form.qr_bg_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_bg_color) && (<p id="brand-qr_bg_color-erreur" className="text-xs font-medium text-destructive">Format attendu : #RRGGBB (ex. #ffffff). Le QR garde le fond blanc en attendant.</p>)}
           </div>
           <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer md:col-span-2">
             <input type="checkbox" checked={form.hide === '1'} onChange={(e) => set('hide', e.target.checked ? '1' : '')} className="size-4 accent-primary"/>

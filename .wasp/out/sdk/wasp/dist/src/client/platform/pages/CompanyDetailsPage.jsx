@@ -47,7 +47,13 @@ function CompanyDetailsInner({ id }) {
     const [erreurAction, setErreurAction] = useState(null);
     const totpCodeValide = /^\d{6}$/.test(totpCode);
     if (isLoading)
-        return <div className="grid min-h-[50vh] place-items-center text-sm text-muted-foreground">Chargement…</div>;
+        return (<div className="mx-auto max-w-5xl space-y-6" aria-busy="true" aria-label="Chargement de l'entreprise">
+      <div className="h-8 w-48 animate-pulse rounded-xl bg-muted"/>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (<div key={i} className="h-32 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50"/>))}
+      </div>
+      <div className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50"/>
+    </div>);
     if (error || !e) {
         return (<div className="mx-auto max-w-2xl rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
         <p className="font-bold text-destructive">Entreprise introuvable.</p>
@@ -237,10 +243,10 @@ function CompanyDetailsInner({ id }) {
             <h3 className="text-lg font-black text-foreground">Limites & plan</h3>
             <div className="mt-4 space-y-3">
               <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Plan</label>
-              <select value={e.plan} onChange={(ev) => { /* plan modifiable via changerLimites plan */ window.__newPlan = ev.target.value; }} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm" id="select-plan" defaultValue={e.plan}>
-                <option value="STARTER">Starter</option>
+              <select value={e.plan} onChange={(ev) => { /* plan modifiable via changerLimites plan */ window.__newPlan = ev.target.value; }} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40" id="select-plan" defaultValue={e.plan}>
+                <option value="STARTER">Démarrage</option>
                 <option value="BUSINESS">Business</option>
-                <option value="ENTERPRISE">Enterprise</option>
+                <option value="ENTERPRISE">Entreprise</option>
               </select>
               {[['agences', 'Agences'], ['utilisateurs', 'Utilisateurs'], ['guichets', 'Guichets']].map(([key, label]) => (<div key={key}>
                   <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">{label}</label>

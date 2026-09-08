@@ -417,7 +417,7 @@ function ColumnView({ column, columns, onMoveTo, addingToColumn, setAddingToColu
             setNouvelleQuestion('');
             setNouveauType('SMILEY');
             setAddingToColumn(isAdding ? null : column.key);
-        }} className="size-7 shrink-0 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary" aria-label={`Ajouter une question à ${column.title}`} title="Ajouter une question">
+        }} className="size-11 shrink-0 rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary" aria-label={`Ajouter une question à ${column.title}`} title="Ajouter une question">
           <Plus className="size-4"/>
         </Button>
       </div>
@@ -430,7 +430,7 @@ function ColumnView({ column, columns, onMoveTo, addingToColumn, setAddingToColu
                 if (e.key === 'Escape')
                     setAddingToColumn(null);
             }} placeholder="Nouvelle question..." maxLength={300} className="h-8 min-w-0 flex-1 text-xs"/>
-            <Button type="button" variant="ghost" size="icon" onClick={() => setAddingToColumn(null)} className="size-8 shrink-0" aria-label="Annuler">
+            <Button type="button" variant="ghost" size="icon" onClick={() => setAddingToColumn(null)} className="size-11 shrink-0" aria-label="Annuler l'ajout de question">
               <X className="size-3.5"/>
             </Button>
           </div>
@@ -446,8 +446,8 @@ function ColumnView({ column, columns, onMoveTo, addingToColumn, setAddingToColu
                 {typeReponseOptions.map((opt) => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
               </SelectContent>
             </Select>
-            <Button type="button" size="sm" disabled={creatingInline || !nouvelleQuestion.trim()} onClick={() => onAddQuestion(column)} className="h-8 shrink-0 text-xs">
-              OK
+            <Button type="button" size="sm" disabled={creatingInline || !nouvelleQuestion.trim()} onClick={() => onAddQuestion(column)} className="min-h-11 shrink-0 px-3 text-xs" aria-label={`Ajouter à ${column.title}`}>
+              Ajouter
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
@@ -519,21 +519,21 @@ function QuestionCard({ critere, dragHandleProps, dragging, columns, currentKey,
             {onEdit && (<Button type="button" variant="ghost" size="sm" onClick={(e) => {
                     e.stopPropagation();
                     onEdit(critere);
-                }} className="h-6 px-1.5 text-[11px] font-medium" aria-label={`Modifier « ${critere.libelle_critere} »`} title="Modifier cette question">
+                }} className="min-h-11 px-1.5 text-[11px] font-medium" aria-label={`Modifier « ${critere.libelle_critere} »`} title="Modifier cette question">
                 <Pencil className="size-3"/>
                 Modifier
               </Button>)}
             {onDuplicate && (<Button type="button" variant="ghost" size="sm" onClick={(e) => {
                     e.stopPropagation();
                     onDuplicate(critere);
-                }} disabled={isDuplicating} className="h-6 px-1.5 text-[11px] font-medium" aria-label={`Dupliquer « ${critere.libelle_critere} »`} title="Dupliquer cette question">
+                }} disabled={isDuplicating} className="min-h-11 px-1.5 text-[11px] font-medium" aria-label={`Dupliquer « ${critere.libelle_critere} »`} title="Dupliquer cette question">
                 <Copy className="size-3"/>
                 {isDuplicating ? '...' : 'Dupliquer'}
               </Button>)}
             {onDelete && (<Button type="button" variant="ghost" size="sm" onClick={(e) => {
                     e.stopPropagation();
                     onDelete(critere);
-                }} disabled={isDeleting} className="h-6 px-1.5 text-[11px] font-medium hover:bg-destructive/10 hover:text-destructive" aria-label={`Supprimer « ${critere.libelle_critere} »`} title="Supprimer cette question">
+                }} disabled={isDeleting} className="min-h-11 px-1.5 text-[11px] font-medium hover:bg-destructive/10 hover:text-destructive" aria-label={`Supprimer « ${critere.libelle_critere} »`} title="Supprimer cette question">
                 <Trash2 className="size-3"/>
                 {isDeleting ? '...' : 'Supprimer'}
               </Button>)}
