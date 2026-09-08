@@ -6,6 +6,7 @@ import {
   type _AffectationGuichet,
   type _Agence,
   type _Entreprise,
+  type _ModeleHoraire,
   type _Reponse,
   type _Critere,
   type _AgenceCritere,
@@ -136,6 +137,75 @@ export type DeleteAffectationGuichet<Input extends Payload = never, Output exten
     [
       _AffectationGuichet,
       _Guichet,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type UpsertModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _ModeleHoraire,
+      _Guichet,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type DeleteModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _ModeleHoraire,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type GenererPlanning<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _ModeleHoraire,
+      _AffectationGuichet,
+      _Guichet,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type ReconduirePlanning<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _AffectationGuichet,
+      _Guichet,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type AppliquerSuggestion<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _AffectationGuichet,
+      _Guichet,
+      _User,
       _Agence,
       _Entreprise,
     ],

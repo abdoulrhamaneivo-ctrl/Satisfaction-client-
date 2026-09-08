@@ -28,6 +28,8 @@ import { getTachesCorrectives as getTachesCorrectives_ext } from 'wasp/src/serve
 import { getTacheHistorique as getTacheHistorique_ext } from 'wasp/src/server/queries'
 import { exportAvisGroupes as exportAvisGroupes_ext } from 'wasp/src/server/queries'
 import { getAffectationsDuJour as getAffectationsDuJour_ext } from 'wasp/src/server/queries'
+import { getModelesHoraires as getModelesHoraires_ext } from 'wasp/src/server/planning'
+import { suggererPlanning as suggererPlanning_ext } from 'wasp/src/server/planning'
 import { getTendanceMensuelle as getTendanceMensuelle_ext } from 'wasp/src/server/queries'
 import { getStatsByAgent as getStatsByAgent_ext } from 'wasp/src/server/queries'
 import { getStatsByGuichet as getStatsByGuichet_ext } from 'wasp/src/server/queries'
@@ -412,6 +414,41 @@ export const getAffectationsDuJour: AuthenticatedOperationFor<GetAffectationsDuJ
     getAffectationsDuJour_ext,
     {
       AffectationGuichet: prisma.affectationGuichet,
+      Guichet: prisma.guichet,
+      User: prisma.user,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+
+// PRIVATE API
+export type GetModelesHoraires_ext = typeof getModelesHoraires_ext
+
+// PUBLIC API
+export const getModelesHoraires: AuthenticatedOperationFor<GetModelesHoraires_ext> =
+  createAuthenticatedOperation(
+    getModelesHoraires_ext,
+    {
+      ModeleHoraire: prisma.modeleHoraire,
+      Guichet: prisma.guichet,
+      User: prisma.user,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+
+// PRIVATE API
+export type SuggererPlanning_ext = typeof suggererPlanning_ext
+
+// PUBLIC API
+export const suggererPlanning: AuthenticatedOperationFor<SuggererPlanning_ext> =
+  createAuthenticatedOperation(
+    suggererPlanning_ext,
+    {
+      AffectationGuichet: prisma.affectationGuichet,
+      ModeleHoraire: prisma.modeleHoraire,
       Guichet: prisma.guichet,
       User: prisma.user,
       Agence: prisma.agence,

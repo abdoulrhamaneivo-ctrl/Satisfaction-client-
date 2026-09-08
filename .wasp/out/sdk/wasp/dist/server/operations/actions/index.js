@@ -10,6 +10,11 @@ import { createGuichet as createGuichet_ext } from 'wasp/src/server/actions';
 import { assignAgent as assignAgent_ext } from 'wasp/src/server/actions';
 import { updateAffectationGuichet as updateAffectationGuichet_ext } from 'wasp/src/server/actions';
 import { deleteAffectationGuichet as deleteAffectationGuichet_ext } from 'wasp/src/server/actions';
+import { upsertModeleHoraire as upsertModeleHoraire_ext } from 'wasp/src/server/planning';
+import { deleteModeleHoraire as deleteModeleHoraire_ext } from 'wasp/src/server/planning';
+import { genererPlanning as genererPlanning_ext } from 'wasp/src/server/planning';
+import { reconduirePlanning as reconduirePlanning_ext } from 'wasp/src/server/planning';
+import { appliquerSuggestion as appliquerSuggestion_ext } from 'wasp/src/server/planning';
 import { soumettreAvis as soumettreAvis_ext } from 'wasp/src/server/actions';
 import { createAgence as createAgence_ext } from 'wasp/src/server/actions';
 import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions';
@@ -112,6 +117,45 @@ export const updateAffectationGuichet = createAuthenticatedOperation(updateAffec
 export const deleteAffectationGuichet = createAuthenticatedOperation(deleteAffectationGuichet_ext, {
     AffectationGuichet: prisma.affectationGuichet,
     Guichet: prisma.guichet,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const upsertModeleHoraire = createAuthenticatedOperation(upsertModeleHoraire_ext, {
+    ModeleHoraire: prisma.modeleHoraire,
+    Guichet: prisma.guichet,
+    User: prisma.user,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const deleteModeleHoraire = createAuthenticatedOperation(deleteModeleHoraire_ext, {
+    ModeleHoraire: prisma.modeleHoraire,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const genererPlanning = createAuthenticatedOperation(genererPlanning_ext, {
+    ModeleHoraire: prisma.modeleHoraire,
+    AffectationGuichet: prisma.affectationGuichet,
+    Guichet: prisma.guichet,
+    User: prisma.user,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const reconduirePlanning = createAuthenticatedOperation(reconduirePlanning_ext, {
+    AffectationGuichet: prisma.affectationGuichet,
+    Guichet: prisma.guichet,
+    User: prisma.user,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const appliquerSuggestion = createAuthenticatedOperation(appliquerSuggestion_ext, {
+    AffectationGuichet: prisma.affectationGuichet,
+    Guichet: prisma.guichet,
+    User: prisma.user,
     Agence: prisma.agence,
     Entreprise: prisma.entreprise,
 });

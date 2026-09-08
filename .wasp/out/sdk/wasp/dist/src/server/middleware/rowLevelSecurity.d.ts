@@ -27,6 +27,11 @@ export declare function assertEntrepriseActive(context: WaspContext, entities: a
 /**
  * Vérifie que l'utilisateur possède l'un des rôles autorisés.
  * Lève une HttpError 403 sinon.
+ *
+ * GARDE LEGACY : le rôle QUALITE a été supprimé du schéma (fusionné dans
+ * CHEF_AGENCE) et ne peut plus être créé via inviteAgent. Si un vieux compte
+ * QUALITE subsiste en base, il reçoit ici un 403 avec un message actionnable
+ * au lieu d'un refus générique incompréhensible.
  */
 export declare function requireRole(context: WaspContext, roles: YebaRole[]): void;
 /**
@@ -36,7 +41,7 @@ export declare function requireRole(context: WaspContext, roles: YebaRole[]): vo
  */
 export declare function requireAdmin(context: WaspContext): void;
 /**
- * Vérifie auth + rôle de gestion (DIRECTION, QUALITE, CHEF_AGENCE).
+ * Vérifie auth + rôle de gestion (DIRECTION, CHEF_AGENCE).
  */
 export declare function requireManagementRole(context: WaspContext): void;
 /**
@@ -47,13 +52,13 @@ export declare function getEntrepriseAgenceIds(context: WaspContext, entities: a
 /**
  * Vérifie que l'utilisateur est rattaché à une agence.
  * - CHEF_AGENCE / AGENT : retourne leur unique id_agence.
- * - DIRECTION / QUALITE : n'ont pas de notion d'agence unique → lève une erreur ;
- *   utiliser buildAgenceFilter/getEntrepriseAgenceIds pour leur portée entreprise.
+ * - DIRECTION : pas de notion d'agence unique → lève une erreur ;
+ *   utiliser buildAgenceFilter/getEntrepriseAgenceIds pour la portée entreprise.
  */
 export declare function requireAgence(context: WaspContext): number;
 /**
  * Construit le filtre Prisma pour isoler les données au niveau `id_agence` :
- * - DIRECTION / QUALITE : `{ id_agence: { in: [...toutes les agences de l'entreprise] } }`
+ * - DIRECTION : `{ id_agence: { in: [...toutes les agences de l'entreprise] } }`
  *   (jamais `{}` — sinon fuite de données entre entreprises clientes du SaaS).
  * - Autres rôles : `{ id_agence: <idAgenceUtilisateur> }`
  *
@@ -67,7 +72,7 @@ export declare function buildAgenceFilter(context: WaspContext, entities: any): 
 /**
  * Vérifie qu'un enregistrement cible appartient bien au périmètre de
  * l'utilisateur (son agence, ou une agence de son entreprise pour
- * DIRECTION/QUALITE). À utiliser AVANT toute lecture/modification d'un
+ * DIRECTION). À utiliser AVANT toute lecture/modification d'un
  * enregistrement identifié par son `id_agence`.
  *
  * `recordIdAgence` doit toujours être une valeur explicitement fournie et
@@ -85,9 +90,9 @@ export declare function assertCanManageAgence(context: WaspContext, entities: an
  * VÉRIFIANT systématiquement (jamais un simple `??` non contrôlé) :
  * - Si `overrideIdAgence` est fourni : vérifie qu'il est dans le périmètre de
  *   l'utilisateur (sa propre agence, ou une agence de son entreprise pour
- *   DIRECTION/QUALITE) via assertAgenceAccess, puis le retourne.
- * - Sinon : retourne l'agence de l'utilisateur (erreur si DIRECTION/QUALITE
- *   sans agence de rattachement et sans override — elles doivent alors
+ *   DIRECTION) via assertAgenceAccess, puis le retourne.
+ * - Sinon : retourne l'agence de l'utilisateur (erreur si DIRECTION
+ *   sans agence de rattachement et sans override — elle doit alors
  *   préciser explicitement l'agence visée).
  */
 export declare function resolveAgenceId(context: WaspContext, entities: any, overrideIdAgence?: number): Promise<number>;
@@ -98,10 +103,10 @@ export declare function resolveAgenceId(context: WaspContext, entities: any, ove
  *   après vérification d'accès.
  * - Sinon → `buildAgenceFilter` : agence unique pour CHEF_AGENCE/AGENT, ou
  *   `{ id_agence: { in: [...] } }` pour TOUTES les agences de l'entreprise
- *   si DIRECTION/QUALITE.
+ *   si DIRECTION.
  *
  * À utiliser à la place de `resolveAgenceId` dans toute query dont le
- * résultat doit être consultable par DIRECTION/QUALITE au niveau entreprise
+ * résultat doit être consultable par DIRECTION au niveau entreprise
  * (dashboards, statistiques agrégées). `resolveAgenceId` reste adapté aux
  * écrans nécessairement rattachés à une agence précise (planning du jour,
  * gestion des agents d'une agence, etc.).

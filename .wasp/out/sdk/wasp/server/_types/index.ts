@@ -87,6 +87,7 @@ export type PrismaDelegate = {
   "Agence": typeof prisma.agence,
   "Guichet": typeof prisma.guichet,
   "AffectationGuichet": typeof prisma.affectationGuichet,
+  "ModeleHoraire": typeof prisma.modeleHoraire,
   "Service": typeof prisma.service,
   "Critere": typeof prisma.critere,
   "CritereService": typeof prisma.critereService,

@@ -20,6 +20,16 @@ export const updateAffectationGuichet = createAction('operations/update-affectat
 // PUBLIC API
 export const deleteAffectationGuichet = createAction('operations/delete-affectation-guichet', ['AffectationGuichet', 'Guichet', 'Agence', 'Entreprise']);
 // PUBLIC API
+export const upsertModeleHoraire = createAction('operations/upsert-modele-horaire', ['ModeleHoraire', 'Guichet', 'User', 'Agence', 'Entreprise']);
+// PUBLIC API
+export const deleteModeleHoraire = createAction('operations/delete-modele-horaire', ['ModeleHoraire', 'Agence', 'Entreprise']);
+// PUBLIC API
+export const genererPlanning = createAction('operations/generer-planning', ['ModeleHoraire', 'AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise']);
+// PUBLIC API
+export const reconduirePlanning = createAction('operations/reconduire-planning', ['AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise']);
+// PUBLIC API
+export const appliquerSuggestion = createAction('operations/appliquer-suggestion', ['AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise']);
+// PUBLIC API
 export const soumettreAvis = createAction('operations/soumettre-avis', ['Reponse', 'Critere', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal']);
 // PUBLIC API
 export const createAgence = createAction('operations/create-agence', ['Agence', 'User', 'Entreprise']);

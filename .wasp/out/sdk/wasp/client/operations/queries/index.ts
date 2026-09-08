@@ -21,6 +21,8 @@ import { GetTachesCorrectives_ext } from 'wasp/server/operations/queries'
 import { GetTacheHistorique_ext } from 'wasp/server/operations/queries'
 import { ExportAvisGroupes_ext } from 'wasp/server/operations/queries'
 import { GetAffectationsDuJour_ext } from 'wasp/server/operations/queries'
+import { GetModelesHoraires_ext } from 'wasp/server/operations/queries'
+import { SuggererPlanning_ext } from 'wasp/server/operations/queries'
 import { GetTendanceMensuelle_ext } from 'wasp/server/operations/queries'
 import { GetStatsByAgent_ext } from 'wasp/server/operations/queries'
 import { GetStatsByGuichet_ext } from 'wasp/server/operations/queries'
@@ -170,6 +172,18 @@ export const exportAvisGroupes: QueryFor<ExportAvisGroupes_ext> = createQuery<Ex
 export const getAffectationsDuJour: QueryFor<GetAffectationsDuJour_ext> = createQuery<GetAffectationsDuJour_ext>(
   'operations/get-affectations-du-jour',
   ['AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const getModelesHoraires: QueryFor<GetModelesHoraires_ext> = createQuery<GetModelesHoraires_ext>(
+  'operations/get-modeles-horaires',
+  ['ModeleHoraire', 'Guichet', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const suggererPlanning: QueryFor<SuggererPlanning_ext> = createQuery<SuggererPlanning_ext>(
+  'operations/suggerer-planning',
+  ['AffectationGuichet', 'ModeleHoraire', 'Guichet', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API

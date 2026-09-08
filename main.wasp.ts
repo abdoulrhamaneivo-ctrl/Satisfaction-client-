@@ -77,6 +77,18 @@ import { relancerTachesEnRetard } from "./src/server/jobs/relanceTache" with { t
 import { envoyerRapportsMensuels } from "./src/server/jobs/rapportMensuel" with { type: "ref" };
 import { archiverElementsResolusAnciens } from "./src/server/jobs/archivageAutomatique" with { type: "ref" };
 import { analyserAvisIAJob } from "./src/server/jobs/analyserAvisIA" with { type: "ref" };
+import { genererPlanningAutoJob } from "./src/server/jobs/genererPlanning" with { type: "ref" };
+
+// === PLANNING : semaine type, reconduction, suggestion ===
+import {
+  getModelesHoraires,
+  upsertModeleHoraire,
+  deleteModeleHoraire,
+  genererPlanning,
+  reconduirePlanning,
+  suggererPlanning,
+  appliquerSuggestion,
+} from "./src/server/planning" with { type: "ref" };
 
 // === QUERIES ===
 import {
@@ -151,6 +163,13 @@ const createGuichetAction = action(createGuichet, {
 const assignAgentAction = action(assignAgent, { entities: ["User", "AffectationGuichet", "Guichet", "Agence", "Entreprise"] });
 const updateAffectationGuichetAction = action(updateAffectationGuichet, { entities: ["User", "AffectationGuichet", "Guichet", "Agence", "Entreprise"] });
 const deleteAffectationGuichetAction = action(deleteAffectationGuichet, { entities: ["AffectationGuichet", "Guichet", "Agence", "Entreprise"] });
+// Semaine type + reconduction + suggestion (le planning auto ne crée que des
+// lignes revalidées : guichet actif, agent AGENT actif, sans chevauchement).
+const upsertModeleHoraireAction = action(upsertModeleHoraire, { entities: ["ModeleHoraire", "Guichet", "User", "Agence", "Entreprise"] });
+const deleteModeleHoraireAction = action(deleteModeleHoraire, { entities: ["ModeleHoraire", "Agence", "Entreprise"] });
+const genererPlanningAction = action(genererPlanning, { entities: ["ModeleHoraire", "AffectationGuichet", "Guichet", "User", "Agence", "Entreprise"] });
+const reconduirePlanningAction = action(reconduirePlanning, { entities: ["AffectationGuichet", "Guichet", "User", "Agence", "Entreprise"] });
+const appliquerSuggestionAction = action(appliquerSuggestion, { entities: ["AffectationGuichet", "Guichet", "User", "Agence", "Entreprise"] });
 const soumettreAvisAction = action(soumettreAvis, {
   entities: ["Reponse", "Critere", "AgenceCritere", "CritereService", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "AnalyseAvisIA", "Canal"],
 });
@@ -215,6 +234,8 @@ const getTachesCorrectivesQuery = query(getTachesCorrectives, { entities: ["Tach
 const getTacheHistoriqueQuery = query(getTacheHistorique, { entities: ["TacheCorrective", "TacheCorrectiveHistorique", "Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
 const exportAvisGroupesQuery = query(exportAvisGroupes, { entities: ["Reponse", "Critere", "Guichet", "Service", "Agence", "User", "Entreprise"] });
 const getAffectationsDuJourQuery = query(getAffectationsDuJour, { entities: ["AffectationGuichet", "Guichet", "User", "Agence", "Entreprise"] });
+const getModelesHorairesQuery = query(getModelesHoraires, { entities: ["ModeleHoraire", "Guichet", "User", "Agence", "Entreprise"] });
+const suggererPlanningQuery = query(suggererPlanning, { entities: ["AffectationGuichet", "ModeleHoraire", "Guichet", "User", "Agence", "Entreprise"] });
 const getTendanceMensuelleQuery = query(getTendanceMensuelle, { entities: ["Reponse", "User", "Agence", "Entreprise"] });
 const getStatsByAgentQuery = query(getStatsByAgent, { entities: ["User", "Reponse", "Agence", "Entreprise"] });
 const getStatsByGuichetQuery = query(getStatsByGuichet, { entities: ["Guichet", "Reponse", "User", "Agence", "Entreprise"] });
@@ -329,6 +350,11 @@ export default app({
     assignAgentAction,
     updateAffectationGuichetAction,
     deleteAffectationGuichetAction,
+    upsertModeleHoraireAction,
+    deleteModeleHoraireAction,
+    genererPlanningAction,
+    reconduirePlanningAction,
+    appliquerSuggestionAction,
     soumettreAvisAction,
     createAgenceAction,
     updateAgentAction,
@@ -397,6 +423,8 @@ export default app({
     getTacheHistoriqueQuery,
     exportAvisGroupesQuery,
     getAffectationsDuJourQuery,
+    getModelesHorairesQuery,
+    suggererPlanningQuery,
     getTendanceMensuelleQuery,
     getStatsByAgentQuery,
     getStatsByGuichetQuery,
@@ -441,6 +469,11 @@ export default app({
       executor: "PgBoss",
       entities: ["AnalyseAvisIA", "Reponse", "Agence", "Guichet", "Service", "Critere", "User", "Alerte"],
       schedule: { cron: "* * * * *" },
+    }),
+    job(genererPlanningAutoJob, {
+      executor: "PgBoss",
+      entities: ["Agence", "AffectationGuichet", "ModeleHoraire", "Guichet", "User", "Entreprise"],
+      schedule: { cron: "0 5 * * *" },
     }),
   ],
 });

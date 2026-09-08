@@ -11,14 +11,16 @@
 // Hiérarchie des données : Entreprise (tenant) → Agence → Guichet / User.
 //
 // Portée des rôles :
-//   - DIRECTION / QUALITE : toute l'ENTREPRISE (toutes ses agences), jamais
+//   - DIRECTION : toute l'ENTREPRISE (toutes ses agences), jamais
 //     la plateforme entière.
 //   - CHEF_AGENCE / AGENT : une seule AGENCE.
+//   (QUALITE a été supprimé du schéma et fusionné dans CHEF_AGENCE —
+//   ne plus le référencer comme rôle actif.)
 //
 // Architecture :
 //   - requireAuth(context)                    → vérifie que l'user est connecté
 //   - requireRole(context, roles)              → vérifie le rôle
-//   - requireManagementRole(context)           → rôle de gestion (DIRECTION/QUALITE/CHEF_AGENCE)
+//   - requireManagementRole(context)           → rôle de gestion (DIRECTION/CHEF_AGENCE)
 //   - getEntrepriseAgenceIds(context, entities)→ ids de toutes les agences de l'entreprise de l'user
 //   - buildAgenceFilter(context, entities)     → filtre Prisma { id_agence } ou { id_agence: { in: [...] } }
 //   - assertAgenceAccess(context, entities, id)→ vérifie qu'un id_agence cible est dans le périmètre
@@ -130,10 +132,21 @@ export async function assertEntrepriseActive(
 /**
  * Vérifie que l'utilisateur possède l'un des rôles autorisés.
  * Lève une HttpError 403 sinon.
+ *
+ * GARDE LEGACY : le rôle QUALITE a été supprimé du schéma (fusionné dans
+ * CHEF_AGENCE) et ne peut plus être créé via inviteAgent. Si un vieux compte
+ * QUALITE subsiste en base, il reçoit ici un 403 avec un message actionnable
+ * au lieu d'un refus générique incompréhensible.
  */
 export function requireRole(context: WaspContext, roles: YebaRole[]): void {
   requireAuth(context);
   const userRole = context.user!.role as YebaRole | null | undefined;
+  if (userRole === ('QUALITE' as YebaRole)) {
+    throw new HttpError(
+      403,
+      "Votre rôle 'QUALITE' n'existe plus (fusionné dans Chef d'agence). Demandez à la Direction de recréer votre compte."
+    );
+  }
   if (!userRole || !roles.includes(userRole)) {
     throw new HttpError(403, `Accès réservé aux profils : ${roles.join(', ')}.`);
   }
@@ -152,7 +165,7 @@ export function requireAdmin(context: WaspContext): void {
 }
 
 /**
- * Vérifie auth + rôle de gestion (DIRECTION, QUALITE, CHEF_AGENCE).
+ * Vérifie auth + rôle de gestion (DIRECTION, CHEF_AGENCE).
  */
 export function requireManagementRole(context: WaspContext): void {
   requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
@@ -182,8 +195,8 @@ export async function getEntrepriseAgenceIds(context: WaspContext, entities: any
 /**
  * Vérifie que l'utilisateur est rattaché à une agence.
  * - CHEF_AGENCE / AGENT : retourne leur unique id_agence.
- * - DIRECTION / QUALITE : n'ont pas de notion d'agence unique → lève une erreur ;
- *   utiliser buildAgenceFilter/getEntrepriseAgenceIds pour leur portée entreprise.
+ * - DIRECTION : pas de notion d'agence unique → lève une erreur ;
+ *   utiliser buildAgenceFilter/getEntrepriseAgenceIds pour la portée entreprise.
  */
 export function requireAgence(context: WaspContext): number {
   requireAuth(context);
@@ -196,7 +209,7 @@ export function requireAgence(context: WaspContext): number {
 
 /**
  * Construit le filtre Prisma pour isoler les données au niveau `id_agence` :
- * - DIRECTION / QUALITE : `{ id_agence: { in: [...toutes les agences de l'entreprise] } }`
+ * - DIRECTION : `{ id_agence: { in: [...toutes les agences de l'entreprise] } }`
  *   (jamais `{}` — sinon fuite de données entre entreprises clientes du SaaS).
  * - Autres rôles : `{ id_agence: <idAgenceUtilisateur> }`
  *
@@ -220,7 +233,7 @@ export async function buildAgenceFilter(
 /**
  * Vérifie qu'un enregistrement cible appartient bien au périmètre de
  * l'utilisateur (son agence, ou une agence de son entreprise pour
- * DIRECTION/QUALITE). À utiliser AVANT toute lecture/modification d'un
+ * DIRECTION). À utiliser AVANT toute lecture/modification d'un
  * enregistrement identifié par son `id_agence`.
  *
  * `recordIdAgence` doit toujours être une valeur explicitement fournie et
@@ -271,9 +284,9 @@ export async function assertCanManageAgence(
  * VÉRIFIANT systématiquement (jamais un simple `??` non contrôlé) :
  * - Si `overrideIdAgence` est fourni : vérifie qu'il est dans le périmètre de
  *   l'utilisateur (sa propre agence, ou une agence de son entreprise pour
- *   DIRECTION/QUALITE) via assertAgenceAccess, puis le retourne.
- * - Sinon : retourne l'agence de l'utilisateur (erreur si DIRECTION/QUALITE
- *   sans agence de rattachement et sans override — elles doivent alors
+ *   DIRECTION) via assertAgenceAccess, puis le retourne.
+ * - Sinon : retourne l'agence de l'utilisateur (erreur si DIRECTION
+ *   sans agence de rattachement et sans override — elle doit alors
  *   préciser explicitement l'agence visée).
  */
 export async function resolveAgenceId(
@@ -298,10 +311,10 @@ export async function resolveAgenceId(
  *   après vérification d'accès.
  * - Sinon → `buildAgenceFilter` : agence unique pour CHEF_AGENCE/AGENT, ou
  *   `{ id_agence: { in: [...] } }` pour TOUTES les agences de l'entreprise
- *   si DIRECTION/QUALITE.
+ *   si DIRECTION.
  *
  * À utiliser à la place de `resolveAgenceId` dans toute query dont le
- * résultat doit être consultable par DIRECTION/QUALITE au niveau entreprise
+ * résultat doit être consultable par DIRECTION au niveau entreprise
  * (dashboards, statistiques agrégées). `resolveAgenceId` reste adapté aux
  * écrans nécessairement rattachés à une agence précise (planning du jour,
  * gestion des agents d'une agence, etc.).

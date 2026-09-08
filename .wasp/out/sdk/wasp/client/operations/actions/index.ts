@@ -9,6 +9,11 @@ import { CreateGuichet_ext } from 'wasp/server/operations/actions'
 import { AssignAgent_ext } from 'wasp/server/operations/actions'
 import { UpdateAffectationGuichet_ext } from 'wasp/server/operations/actions'
 import { DeleteAffectationGuichet_ext } from 'wasp/server/operations/actions'
+import { UpsertModeleHoraire_ext } from 'wasp/server/operations/actions'
+import { DeleteModeleHoraire_ext } from 'wasp/server/operations/actions'
+import { GenererPlanning_ext } from 'wasp/server/operations/actions'
+import { ReconduirePlanning_ext } from 'wasp/server/operations/actions'
+import { AppliquerSuggestion_ext } from 'wasp/server/operations/actions'
 import { SoumettreAvis_ext } from 'wasp/server/operations/actions'
 import { CreateAgence_ext } from 'wasp/server/operations/actions'
 import { UpdateAgent_ext } from 'wasp/server/operations/actions'
@@ -114,6 +119,36 @@ export const updateAffectationGuichet: ActionFor<UpdateAffectationGuichet_ext> =
 export const deleteAffectationGuichet: ActionFor<DeleteAffectationGuichet_ext> = createAction<DeleteAffectationGuichet_ext>(
   'operations/delete-affectation-guichet',
   ['AffectationGuichet', 'Guichet', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const upsertModeleHoraire: ActionFor<UpsertModeleHoraire_ext> = createAction<UpsertModeleHoraire_ext>(
+  'operations/upsert-modele-horaire',
+  ['ModeleHoraire', 'Guichet', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const deleteModeleHoraire: ActionFor<DeleteModeleHoraire_ext> = createAction<DeleteModeleHoraire_ext>(
+  'operations/delete-modele-horaire',
+  ['ModeleHoraire', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const genererPlanning: ActionFor<GenererPlanning_ext> = createAction<GenererPlanning_ext>(
+  'operations/generer-planning',
+  ['ModeleHoraire', 'AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const reconduirePlanning: ActionFor<ReconduirePlanning_ext> = createAction<ReconduirePlanning_ext>(
+  'operations/reconduire-planning',
+  ['AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const appliquerSuggestion: ActionFor<AppliquerSuggestion_ext> = createAction<AppliquerSuggestion_ext>(
+  'operations/appliquer-suggestion',
+  ['AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API

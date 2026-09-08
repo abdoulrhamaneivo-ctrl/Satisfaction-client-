@@ -11,6 +11,7 @@ import {
   type Agence,
   type Guichet,
   type AffectationGuichet,
+  type ModeleHoraire,
   type Service,
   type Critere,
   type CritereService,
@@ -36,6 +37,7 @@ export type _Entreprise = WithName<Entreprise, "Entreprise">
 export type _Agence = WithName<Agence, "Agence">
 export type _Guichet = WithName<Guichet, "Guichet">
 export type _AffectationGuichet = WithName<AffectationGuichet, "AffectationGuichet">
+export type _ModeleHoraire = WithName<ModeleHoraire, "ModeleHoraire">
 export type _Service = WithName<Service, "Service">
 export type _Critere = WithName<Critere, "Critere">
 export type _CritereService = WithName<CritereService, "CritereService">
@@ -61,6 +63,7 @@ export type _Entity =
   | _Agence
   | _Guichet
   | _AffectationGuichet
+  | _ModeleHoraire
   | _Service
   | _Critere
   | _CritereService

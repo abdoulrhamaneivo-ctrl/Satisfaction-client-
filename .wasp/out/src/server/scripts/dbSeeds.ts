@@ -22,9 +22,9 @@ const EMAIL_CHEF = "abdoulivo5@gmail.com";
  *
  * Pour créer manuellement un second compte réservé à la maintenance
  * technique (accès `isAdmin`, indépendant des rôles métier CHEF_AGENCE /
- * QUALITE / AGENT) :
+ * AGENT) :
  * 1. Invitez normalement ce compte via l'action `inviteAgent` (rôle
- *    QUALITE ou CHEF_AGENCE selon le besoin métier réel de la personne) —
+ *    CHEF_AGENCE selon le besoin métier réel de la personne) —
  *    il n'y a pas d'inscription publique, seule l'invitation existe.
  * 2. Élevez ensuite ce compte au statut d'admin technique en base :
  *    UPDATE "User" SET "isAdmin" = true WHERE "email" = '...';

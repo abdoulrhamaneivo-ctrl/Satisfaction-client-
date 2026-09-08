@@ -1136,12 +1136,10 @@ export const inviteAgent = async (args, context) => {
     requireAuth(context);
     await assertEntrepriseActive(context, context.entities);
     requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
-    // Règle métier (Doc 02 §matrice rôles — référence absolue) : le chef
-    // d'entreprise structure le réseau (chefs d'agence, auditeurs qualité) ;
-    // le chef d'agence ne gère que SON équipe de terrain (agents), jamais des
-    // auditeurs qualité qui relèvent de la Direction. L'auditeur qualité
-    // analyse de manière indépendante — il ne peut pas être nommé par la
-    // personne dont il audite le travail.
+    // Règle métier (Doc 02 §matrice rôles — référence absolue) : la Direction
+    // structure le réseau (chefs d'agence) ; le chef d'agence ne gère que SON
+    // équipe de terrain (agents). (Le rôle auditeur QUALITE a été supprimé et
+    // fusionné dans CHEF_AGENCE : il ne peut plus être attribué.)
     const ROLES_PAR_INVITEUR = {
         DIRECTION: ['CHEF_AGENCE'],
         CHEF_AGENCE: ['AGENT'],

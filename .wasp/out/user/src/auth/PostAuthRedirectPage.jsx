@@ -6,7 +6,7 @@ import { AmbientBackground } from "../client/components/AmbientBackground";
  * Page technique (invisible pour l'utilisateur) qui arbitre la destination
  * après connexion. En déploiement mono-agence, tout compte est déjà
  * rattaché à une agence dès sa création (compte CHEF_AGENCE créé par le
- * seed initial, ou compte AGENT/QUALITE créé par inviteAgent) : il n'y a
+ * seed initial, ou compte AGENT créé par inviteAgent) : il n'y a
  * plus d'écran d'onboarding à traverser, on va directement au tableau de
  * bord.
  *
@@ -27,7 +27,7 @@ export function PostAuthRedirectPage() {
         // Routage par périmètre (Doc 12) : les comptes PLATEFORME (SUPER_ADMIN /
         // SUPPORT) atterrissent dans la console /platform — leur espace de
         // gestion des entreprises et abonnements. Les comptes entreprise
-        // (DIRECTION/CHEF_AGENCE/QUALITE/AGENT) vont au tableau de bord métier.
+        // (DIRECTION/CHEF_AGENCE/AGENT) vont au tableau de bord métier.
         const platformRole = user?.platformRole;
         if (platformRole === 'SUPER_ADMIN' || platformRole === 'SUPPORT') {
             navigate("/platform", { replace: true });

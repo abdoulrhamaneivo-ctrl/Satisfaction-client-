@@ -44,6 +44,10 @@ export const exportAvisGroupes = createQuery('operations/export-avis-groupes', [
 // PUBLIC API
 export const getAffectationsDuJour = createQuery('operations/get-affectations-du-jour', ['AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
+export const getModelesHoraires = createQuery('operations/get-modeles-horaires', ['ModeleHoraire', 'Guichet', 'User', 'Agence', 'Entreprise']);
+// PUBLIC API
+export const suggererPlanning = createQuery('operations/suggerer-planning', ['AffectationGuichet', 'ModeleHoraire', 'Guichet', 'User', 'Agence', 'Entreprise']);
+// PUBLIC API
 export const getTendanceMensuelle = createQuery('operations/get-tendance-mensuelle', ['Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
 export const getStatsByAgent = createQuery('operations/get-stats-by-agent', ['User', 'Reponse', 'Agence', 'Entreprise']);

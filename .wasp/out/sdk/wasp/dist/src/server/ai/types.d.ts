@@ -14,6 +14,7 @@ export declare const AnalyseResultSchema: z.ZodObject<{
     }>;
     sentiment_score: z.ZodNumber;
     themes: z.ZodArray<z.ZodEnum<{
+        QUALITE: "QUALITE";
         TEMPS_ATTENTE: "TEMPS_ATTENTE";
         ACCUEIL: "ACCUEIL";
         PERSONNEL: "PERSONNEL";
@@ -32,7 +33,6 @@ export declare const AnalyseResultSchema: z.ZodObject<{
         INFORMATION: "INFORMATION";
         DISPONIBILITE: "DISPONIBILITE";
         AUTRE: "AUTRE";
-        QUALITE: "QUALITE";
     }>>;
     probleme_principal: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     urgence: z.ZodEnum<{

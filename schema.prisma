@@ -57,6 +57,7 @@ model User {
   auditLogs                     AuditLog[]               @relation("AuditActeur")
   
   affectations                  AffectationGuichet[]
+  modelesHoraires              ModeleHoraire[]          @relation("ModeleHoraireAgent")
   alertes                       Alerte[]
   taches                        TacheCorrective[]
   reponses                      Reponse[]                @relation("AgentResponses")
@@ -128,6 +129,7 @@ model Agence {
   reponses            Reponse[]
   statistiques        StatistiquesMensuelles[]
   agencesCriteres     AgenceCritere[]
+  modelesHoraires    ModeleHoraire[]
 }
 
 model Guichet {
@@ -151,6 +153,7 @@ model Guichet {
   agence              Agence            @relation(fields: [id_agence], references: [id], onDelete: Cascade)
   
   affectations        AffectationGuichet[]
+  modelesHoraires    ModeleHoraire[]
   reponses            Reponse[]
   alertes             Alerte[]
   statistiques        StatistiquesMensuelles[]
@@ -173,6 +176,33 @@ model AffectationGuichet {
   // (guichet, date, plage horaire) à CHAQUE scan QR ; le planning et les
   // jobs (alerteSilence) filtrent par (guichet, date).
   @@index([id_guichet, date_affectation])
+}
+
+// ============================================================================
+// SEMAINE TYPE (grille horaire hebdomadaire récurrente)
+// ============================================================================
+// Évite de ressaisir le même planning chaque matin : le chef définit UNE
+// fois qui travaille où et quand pour chaque jour de semaine, puis le
+// système génère les AffectationGuichet (job quotidien + bouton manuel).
+// jour_semaine suit la convention JS getUTCDay déjà utilisée par
+// alerteSilence et jours_ouvres : 0 = dimanche, 1 = lundi … 6 = samedi.
+model ModeleHoraire {
+  id                  Int               @id @default(autoincrement())
+
+  id_agence           Int
+  agence              Agence            @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+
+  jour_semaine        Int               // 0 (dimanche) … 6 (samedi)
+  heure_debut         String            // "HH:MM"
+  heure_fin           String            // "HH:MM"
+
+  id_guichet          Int
+  guichet             Guichet           @relation(fields: [id_guichet], references: [id], onDelete: Cascade)
+
+  id_agent            String
+  agent               User              @relation("ModeleHoraireAgent", fields: [id_agent], references: [id], onDelete: Cascade)
+
+  @@index([id_agence, jour_semaine])
 }
 
 // ============================================================================

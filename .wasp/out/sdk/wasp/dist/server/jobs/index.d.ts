@@ -3,4 +3,5 @@ export { type RelancerTachesEnRetard, relancerTachesEnRetard } from './relancerT
 export { type EnvoyerRapportsMensuels, envoyerRapportsMensuels } from './envoyerRapportsMensuels.js';
 export { type ArchiverElementsResolusAnciens, archiverElementsResolusAnciens } from './archiverElementsResolusAnciens.js';
 export { type AnalyserAvisIAJob, analyserAvisIAJob } from './analyserAvisIAJob.js';
+export { type GenererPlanningAutoJob, genererPlanningAutoJob } from './genererPlanningAutoJob.js';
 //# sourceMappingURL=index.d.ts.map

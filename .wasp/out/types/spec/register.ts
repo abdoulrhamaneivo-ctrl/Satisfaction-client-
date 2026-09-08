@@ -10,6 +10,7 @@ declare module "@wasp.sh/spec" {
       Agence: "Agence";
       Guichet: "Guichet";
       AffectationGuichet: "AffectationGuichet";
+      ModeleHoraire: "ModeleHoraire";
       Service: "Service";
       Critere: "Critere";
       CritereService: "CritereService";

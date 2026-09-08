@@ -47,6 +47,10 @@ export { exportAvisGroupes } from './queries/index.js'
 
 export { getAffectationsDuJour } from './queries/index.js'
 
+export { getModelesHoraires } from './queries/index.js'
+
+export { suggererPlanning } from './queries/index.js'
+
 export { getTendanceMensuelle } from './queries/index.js'
 
 export { getStatsByAgent } from './queries/index.js'
@@ -102,6 +106,16 @@ export { assignAgent } from './actions/index.js'
 export { updateAffectationGuichet } from './actions/index.js'
 
 export { deleteAffectationGuichet } from './actions/index.js'
+
+export { upsertModeleHoraire } from './actions/index.js'
+
+export { deleteModeleHoraire } from './actions/index.js'
+
+export { genererPlanning } from './actions/index.js'
+
+export { reconduirePlanning } from './actions/index.js'
+
+export { appliquerSuggestion } from './actions/index.js'
 
 export { soumettreAvis } from './actions/index.js'
 

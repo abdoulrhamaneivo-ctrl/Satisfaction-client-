@@ -731,6 +731,12 @@ async function assertEntrepriseActive(context, entities) {
 function requireRole(context, roles) {
   requireAuth(context);
   const userRole = context.user.role;
+  if (userRole === "QUALITE") {
+    throw new HttpError(
+      403,
+      "Votre r\xF4le 'QUALITE' n'existe plus (fusionn\xE9 dans Chef d'agence). Demandez \xE0 la Direction de recr\xE9er votre compte."
+    );
+  }
   if (!userRole || !roles.includes(userRole)) {
     throw new HttpError(403, `Acc\xE8s r\xE9serv\xE9 aux profils : ${roles.join(", ")}.`);
   }
@@ -3179,6 +3185,451 @@ async function deleteAffectationGuichet$1(args, context) {
 }
 
 var deleteAffectationGuichet = createAction(deleteAffectationGuichet$1);
+
+function chevauche(d1, f1, d2, f2) {
+  return d1 < f2 && f1 > d2;
+}
+function jourSemaineUTC(dateStr) {
+  return (/* @__PURE__ */ new Date(`${dateStr}T00:00:00.000Z`)).getUTCDay();
+}
+function ajouterJours(dateStr, n) {
+  const d = /* @__PURE__ */ new Date(`${dateStr}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+async function validerLigne(entities, idAgence, idGuichet, idAgent, dateStr, heureDebut, heureFin, exclureAffectationId) {
+  if (!heureDebut || !heureFin || heureFin <= heureDebut) {
+    throw new HttpError(400, "L'heure de fin doit \xEAtre post\xE9rieure \xE0 l'heure de d\xE9but.");
+  }
+  const guichet = await entities.Guichet.findUnique({ where: { id: idGuichet } });
+  if (!guichet || guichet.id_agence !== idAgence) {
+    throw new HttpError(400, "Guichet introuvable dans cette agence.");
+  }
+  if (!guichet.actif || guichet.archive) {
+    throw new HttpError(400, `Le guichet \xAB ${guichet.nom_guichet} \xBB est ferm\xE9 ou archiv\xE9.`);
+  }
+  const agent = await entities.User.findUnique({ where: { id: idAgent } });
+  if (!agent || agent.role !== "AGENT" || agent.actif !== true || agent.id_agence !== idAgence) {
+    throw new HttpError(
+      400,
+      "L'agent n'est plus disponible (d\xE9sactiv\xE9, d\xE9plac\xE9 ou r\xF4le modifi\xE9)."
+    );
+  }
+  const conflit = await entities.AffectationGuichet.findFirst({
+    where: {
+      id_agent: idAgent,
+      date_affectation: new Date(dateStr),
+      ...{},
+      heure_debut: { lt: heureFin },
+      heure_fin: { gt: heureDebut }
+    },
+    include: { guichet: { select: { nom_guichet: true } } }
+  });
+  if (conflit) {
+    throw new HttpError(
+      409,
+      `D\xE9j\xE0 planifi\xE9 sur \xAB ${conflit.guichet?.nom_guichet || "un autre guichet"} \xBB (${conflit.heure_debut}\u2013${conflit.heure_fin}).`
+    );
+  }
+  return {
+    nomGuichet: guichet.nom_guichet,
+    nomAgent: `${agent.prenom || ""} ${agent.nom || ""}`.trim() || "Agent"
+  };
+}
+async function creerLignes(entities, idAgence, dateStr, lignes) {
+  const resultat = { crees: 0, ignores: [] };
+  for (const l of lignes) {
+    try {
+      await validerLigne(entities, idAgence, l.id_guichet, l.id_agent, dateStr, l.heure_debut, l.heure_fin);
+      await entities.AffectationGuichet.create({
+        data: {
+          date_affectation: new Date(dateStr),
+          heure_debut: l.heure_debut,
+          heure_fin: l.heure_fin,
+          id_guichet: l.id_guichet,
+          id_agent: l.id_agent
+        }
+      });
+      resultat.crees++;
+    } catch (err) {
+      resultat.ignores.push({
+        guichet: `guichet #${l.id_guichet}`,
+        agent: `agent ${String(l.id_agent).slice(0, 8)}\u2026`,
+        raison: err?.message || "Ligne invalide."
+      });
+    }
+  }
+  return resultat;
+}
+async function genererDepuisModeles(entities, idAgence, dateDebut, dateFin) {
+  const total = { crees: 0, ignores: [], jours: 0 };
+  let curseur = dateDebut;
+  let garde = 0;
+  while (curseur <= dateFin && garde < 45) {
+    garde++;
+    const jour = jourSemaineUTC(curseur);
+    const modeles = await entities.ModeleHoraire.findMany({
+      where: { id_agence: idAgence, jour_semaine: jour }
+    });
+    if (modeles.length > 0) {
+      total.jours++;
+      const res = await creerLignes(
+        entities,
+        idAgence,
+        curseur,
+        modeles.map((m) => ({
+          id_guichet: m.id_guichet,
+          id_agent: m.id_agent,
+          heure_debut: m.heure_debut,
+          heure_fin: m.heure_fin
+        }))
+      );
+      total.crees += res.crees;
+      total.ignores.push(...res.ignores);
+    }
+    curseur = ajouterJours(curseur, 1);
+  }
+  return total;
+}
+async function reconduireJournee(entities, idAgence, dateSource, dateCible) {
+  if (dateSource === dateCible) {
+    throw new HttpError(400, "La date source et la date cible doivent \xEAtre diff\xE9rentes.");
+  }
+  const existantes = await entities.AffectationGuichet.findMany({
+    where: {
+      date_affectation: new Date(dateSource),
+      guichet: { id_agence: idAgence }
+    }
+  });
+  if (existantes.length === 0) {
+    throw new HttpError(404, "Aucune affectation \xE0 reconduire \xE0 la date source.");
+  }
+  return creerLignes(
+    entities,
+    idAgence,
+    dateCible,
+    existantes.map((a) => ({
+      id_guichet: a.id_guichet,
+      id_agent: a.id_agent,
+      heure_debut: a.heure_debut,
+      heure_fin: a.heure_fin
+    }))
+  );
+}
+async function suggererJournee(entities, idAgence, dateCible) {
+  const memeJourSemaineDerniere = ajouterJours(dateCible, -7);
+  const veille = ajouterJours(dateCible, -1);
+  const charger = (dateStr) => entities.AffectationGuichet.findMany({
+    where: { date_affectation: new Date(dateStr), guichet: { id_agence: idAgence } },
+    include: {
+      guichet: { select: { id: true, nom_guichet: true, actif: true, archive: true } },
+      agent: { select: { id: true, nom: true, prenom: true, role: true, actif: true, id_agence: true } }
+    }
+  });
+  let source = memeJourSemaineDerniere;
+  let lignes = await charger(source);
+  if (lignes.length === 0) {
+    source = veille;
+    lignes = await charger(source);
+  }
+  if (lignes.length === 0) {
+    const jour = jourSemaineUTC(dateCible);
+    const modeles = await entities.ModeleHoraire.findMany({
+      where: { id_agence: idAgence, jour_semaine: jour },
+      include: {
+        guichet: { select: { id: true, nom_guichet: true, actif: true, archive: true } },
+        agent: { select: { id: true, nom: true, prenom: true, role: true, actif: true, id_agence: true } }
+      }
+    });
+    if (modeles.length === 0) return { source: null, propositions: [] };
+    source = `semaine type (jour ${jour})`;
+    lignes = modeles.map((m) => ({
+      id_guichet: m.id_guichet,
+      id_agent: m.id_agent,
+      heure_debut: m.heure_debut,
+      heure_fin: m.heure_fin,
+      guichet: m.guichet,
+      agent: m.agent
+    }));
+  }
+  const dejaPrevus = await entities.AffectationGuichet.findMany({
+    where: { date_affectation: new Date(dateCible), guichet: { id_agence: idAgence } },
+    select: { id_agent: true, heure_debut: true, heure_fin: true }
+  });
+  const chargeParAgent = /* @__PURE__ */ new Map();
+  for (const d of dejaPrevus) chargeParAgent.set(d.id_agent, (chargeParAgent.get(d.id_agent) || 0) + 1);
+  const agentsActifs = await entities.User.findMany({
+    where: { id_agence: idAgence, role: "AGENT", actif: true },
+    select: { id: true, nom: true, prenom: true }
+  });
+  const propositions = [];
+  for (const l of lignes) {
+    const agentOk = l.agent && l.agent.role === "AGENT" && l.agent.actif === true && l.agent.id_agence === idAgence;
+    const guichetOk = l.guichet && l.guichet.actif === true && l.guichet.archive !== true;
+    if (!guichetOk) continue;
+    if (agentOk) {
+      const conflit = dejaPrevus.some(
+        (d) => d.id_agent === l.id_agent && chevauche(d.heure_debut, d.heure_fin, l.heure_debut, l.heure_fin)
+      );
+      propositions.push({
+        id_guichet: l.id_guichet,
+        nom_guichet: l.guichet.nom_guichet,
+        id_agent: l.id_agent,
+        nom_agent: `${l.agent.prenom || ""} ${l.agent.nom || ""}`.trim(),
+        heure_debut: l.heure_debut,
+        heure_fin: l.heure_fin,
+        raison: conflit ? "Reprise \u2014 attention : chevauchement possible avec le pr\xE9vu." : "Reprise \xE0 l\u2019identique."
+      });
+      continue;
+    }
+    const candidats = agentsActifs.map((a) => ({
+      id: a.id,
+      nom: a.nom,
+      prenom: a.prenom,
+      charge: chargeParAgent.get(a.id) || 0
+    })).sort((x, y) => x.charge - y.charge).filter(
+      (a) => !dejaPrevus.some(
+        (d) => d.id_agent === a.id && chevauche(d.heure_debut, d.heure_fin, l.heure_debut, l.heure_fin)
+      )
+    );
+    if (candidats.length === 0) continue;
+    const remplacant = candidats[0];
+    chargeParAgent.set(remplacant.id, (chargeParAgent.get(remplacant.id) || 0) + 1);
+    propositions.push({
+      id_guichet: l.id_guichet,
+      nom_guichet: l.guichet.nom_guichet,
+      id_agent: remplacant.id,
+      nom_agent: `${remplacant.prenom || ""} ${remplacant.nom || ""}`.trim(),
+      heure_debut: l.heure_debut,
+      heure_fin: l.heure_fin,
+      raison: "Rempla\xE7ant propos\xE9 (agent habituel indisponible)."
+    });
+  }
+  return { source, propositions };
+}
+async function appliquerPropositions(entities, idAgence, dateCible, lignes) {
+  return creerLignes(entities, idAgence, dateCible, lignes);
+}
+
+const HEURE_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+function exigerRoleGestion(context) {
+  requireRole(context, ["DIRECTION", "CHEF_AGENCE"]);
+}
+function exigerJour(val) {
+  const n = Number(val);
+  if (!Number.isInteger(n) || n < 0 || n > 6) {
+    throw new HttpError(400, "Jour de semaine invalide (0 = dimanche \u2026 6 = samedi).");
+  }
+  return n;
+}
+function exigerHeures(debut, fin) {
+  if (typeof debut !== "string" || typeof fin !== "string" || !HEURE_RE.test(debut) || !HEURE_RE.test(fin)) {
+    throw new HttpError(400, "Heures invalides (format HH:MM attendu).");
+  }
+  if (fin <= debut) throw new HttpError(400, "L'heure de fin doit \xEAtre post\xE9rieure \xE0 l'heure de d\xE9but.");
+}
+const getModelesHoraires$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  if (!args?.id_agence) throw new HttpError(400, "Agence requise.");
+  await assertAgenceAccess(context, context.entities, Number(args.id_agence), "agence");
+  return context.entities.ModeleHoraire.findMany({
+    where: { id_agence: Number(args.id_agence) },
+    include: {
+      guichet: { select: { id: true, nom_guichet: true, actif: true, archive: true } },
+      agent: { select: { id: true, nom: true, prenom: true, actif: true } }
+    },
+    orderBy: [{ jour_semaine: "asc" }, { heure_debut: "asc" }]
+  });
+};
+const upsertModeleHoraire$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  exigerRoleGestion(context);
+  if (!args?.id_agence || !args?.id_guichet || !args?.id_agent) {
+    throw new HttpError(400, "Agence, guichet et agent sont requis.");
+  }
+  const idAgence = Number(args.id_agence);
+  await assertAgenceAccess(context, context.entities, idAgence, "agence");
+  const jour = exigerJour(args.jour_semaine);
+  exigerHeures(args.heure_debut, args.heure_fin);
+  const guichet = await context.entities.Guichet.findUnique({ where: { id: Number(args.id_guichet) } });
+  if (!guichet || guichet.id_agence !== idAgence) {
+    throw new HttpError(400, "Guichet introuvable dans cette agence.");
+  }
+  const agent = await context.entities.User.findUnique({ where: { id: String(args.id_agent) } });
+  if (!agent || agent.role !== "AGENT" || agent.id_agence !== idAgence) {
+    throw new HttpError(400, "L'agent doit appartenir \xE0 cette agence (r\xF4le AGENT).");
+  }
+  const conflit = await context.entities.ModeleHoraire.findFirst({
+    where: {
+      id_agence: idAgence,
+      jour_semaine: jour,
+      id_agent: String(args.id_agent),
+      ...args.id ? { id: { not: Number(args.id) } } : {},
+      heure_debut: { lt: args.heure_fin },
+      heure_fin: { gt: args.heure_debut }
+    }
+  });
+  if (conflit) {
+    throw new HttpError(409, `Cet agent est d\xE9j\xE0 pr\xE9vu ce jour-l\xE0 (${conflit.heure_debut}\u2013${conflit.heure_fin}).`);
+  }
+  if (args.id) {
+    const existant = await context.entities.ModeleHoraire.findUnique({ where: { id: Number(args.id) } });
+    if (!existant || existant.id_agence !== idAgence) {
+      throw new HttpError(404, "Ligne de semaine type introuvable.");
+    }
+    return context.entities.ModeleHoraire.update({
+      where: { id: Number(args.id) },
+      data: {
+        jour_semaine: jour,
+        heure_debut: args.heure_debut,
+        heure_fin: args.heure_fin,
+        id_guichet: Number(args.id_guichet),
+        id_agent: String(args.id_agent)
+      }
+    });
+  }
+  return context.entities.ModeleHoraire.create({
+    data: {
+      id_agence: idAgence,
+      jour_semaine: jour,
+      heure_debut: args.heure_debut,
+      heure_fin: args.heure_fin,
+      id_guichet: Number(args.id_guichet),
+      id_agent: String(args.id_agent)
+    }
+  });
+};
+const deleteModeleHoraire$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  exigerRoleGestion(context);
+  if (!args?.id) throw new HttpError(400, "Identifiant requis.");
+  const existant = await context.entities.ModeleHoraire.findUnique({ where: { id: Number(args.id) } });
+  if (!existant) throw new HttpError(404, "Ligne de semaine type introuvable.");
+  await assertAgenceAccess(context, context.entities, existant.id_agence, "agence");
+  await context.entities.ModeleHoraire.delete({ where: { id: Number(args.id) } });
+  return { ok: true };
+};
+const genererPlanning$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  exigerRoleGestion(context);
+  if (!args?.id_agence || !args?.date_debut || !args?.date_fin) {
+    throw new HttpError(400, "Agence et p\xE9riode requises.");
+  }
+  if (args.date_fin < args.date_debut) {
+    throw new HttpError(400, "La date de fin doit suivre la date de d\xE9but.");
+  }
+  const idAgence = Number(args.id_agence);
+  await assertAgenceAccess(context, context.entities, idAgence, "agence");
+  return genererDepuisModeles(context.entities, idAgence, args.date_debut, args.date_fin);
+};
+const reconduirePlanning$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  exigerRoleGestion(context);
+  if (!args?.id_agence || !args?.date_source || !args?.date_cible) {
+    throw new HttpError(400, "Agence, date source et date cible requises.");
+  }
+  const idAgence = Number(args.id_agence);
+  await assertAgenceAccess(context, context.entities, idAgence, "agence");
+  return reconduireJournee(context.entities, idAgence, args.date_source, args.date_cible);
+};
+const suggererPlanning$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  if (!args?.id_agence || !args?.date) throw new HttpError(400, "Agence et date requises.");
+  const idAgence = Number(args.id_agence);
+  await assertAgenceAccess(context, context.entities, idAgence, "agence");
+  return suggererJournee(context.entities, idAgence, args.date);
+};
+const appliquerSuggestion$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  exigerRoleGestion(context);
+  if (!args?.id_agence || !args?.date || !Array.isArray(args?.lignes) || args.lignes.length === 0) {
+    throw new HttpError(400, "Agence, date et lignes \xE0 appliquer requises.");
+  }
+  const idAgence = Number(args.id_agence);
+  await assertAgenceAccess(context, context.entities, idAgence, "agence");
+  return appliquerPropositions(context.entities, idAgence, args.date, args.lignes);
+};
+
+async function upsertModeleHoraire$1(args, context) {
+  return upsertModeleHoraire$2(args, {
+    ...context,
+    entities: {
+      ModeleHoraire: dbClient.modeleHoraire,
+      Guichet: dbClient.guichet,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var upsertModeleHoraire = createAction(upsertModeleHoraire$1);
+
+async function deleteModeleHoraire$1(args, context) {
+  return deleteModeleHoraire$2(args, {
+    ...context,
+    entities: {
+      ModeleHoraire: dbClient.modeleHoraire,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var deleteModeleHoraire = createAction(deleteModeleHoraire$1);
+
+async function genererPlanning$1(args, context) {
+  return genererPlanning$2(args, {
+    ...context,
+    entities: {
+      ModeleHoraire: dbClient.modeleHoraire,
+      AffectationGuichet: dbClient.affectationGuichet,
+      Guichet: dbClient.guichet,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var genererPlanning = createAction(genererPlanning$1);
+
+async function reconduirePlanning$1(args, context) {
+  return reconduirePlanning$2(args, {
+    ...context,
+    entities: {
+      AffectationGuichet: dbClient.affectationGuichet,
+      Guichet: dbClient.guichet,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var reconduirePlanning = createAction(reconduirePlanning$1);
+
+async function appliquerSuggestion$1(args, context) {
+  return appliquerSuggestion$2(args, {
+    ...context,
+    entities: {
+      AffectationGuichet: dbClient.affectationGuichet,
+      Guichet: dbClient.guichet,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var appliquerSuggestion = createAction(appliquerSuggestion$1);
 
 async function soumettreAvis$1(args, context) {
   return soumettreAvis$2(args, {
@@ -6590,6 +7041,37 @@ async function getAffectationsDuJour$1(args, context) {
 
 var getAffectationsDuJour = createQuery(getAffectationsDuJour$1);
 
+async function getModelesHoraires$1(args, context) {
+  return getModelesHoraires$2(args, {
+    ...context,
+    entities: {
+      ModeleHoraire: dbClient.modeleHoraire,
+      Guichet: dbClient.guichet,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var getModelesHoraires = createQuery(getModelesHoraires$1);
+
+async function suggererPlanning$1(args, context) {
+  return suggererPlanning$2(args, {
+    ...context,
+    entities: {
+      AffectationGuichet: dbClient.affectationGuichet,
+      ModeleHoraire: dbClient.modeleHoraire,
+      Guichet: dbClient.guichet,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var suggererPlanning = createQuery(suggererPlanning$1);
+
 async function getTendanceMensuelle$1(args, context) {
   return getTendanceMensuelle$2(args, {
     ...context,
@@ -7063,6 +7545,11 @@ router$3.post("/create-guichet", auth, createGuichet);
 router$3.post("/assign-agent", auth, assignAgent);
 router$3.post("/update-affectation-guichet", auth, updateAffectationGuichet);
 router$3.post("/delete-affectation-guichet", auth, deleteAffectationGuichet);
+router$3.post("/upsert-modele-horaire", auth, upsertModeleHoraire);
+router$3.post("/delete-modele-horaire", auth, deleteModeleHoraire);
+router$3.post("/generer-planning", auth, genererPlanning);
+router$3.post("/reconduire-planning", auth, reconduirePlanning);
+router$3.post("/appliquer-suggestion", auth, appliquerSuggestion);
 router$3.post("/soumettre-avis", auth, soumettreAvis);
 router$3.post("/create-agence", auth, createAgence);
 router$3.post("/update-agent", auth, updateAgent);
@@ -7131,6 +7618,8 @@ router$3.post("/get-taches-correctives", auth, getTachesCorrectives);
 router$3.post("/get-tache-historique", auth, getTacheHistorique);
 router$3.post("/export-avis-groupes", auth, exportAvisGroupes);
 router$3.post("/get-affectations-du-jour", auth, getAffectationsDuJour);
+router$3.post("/get-modeles-horaires", auth, getModelesHoraires);
+router$3.post("/suggerer-planning", auth, suggererPlanning);
 router$3.post("/get-tendance-mensuelle", auth, getTendanceMensuelle);
 router$3.post("/get-stats-by-agent", auth, getStatsByAgent);
 router$3.post("/get-stats-by-guichet", auth, getStatsByGuichet);
@@ -7919,75 +8408,75 @@ V\xE9rifiez : ${FRONTEND_URL$2}/alertes-taches`;
   return { alertesCreees, messagesEnvoyes };
 };
 
-const entities$4 = {
+const entities$5 = {
   Alerte: dbClient.alerte,
   Guichet: dbClient.guichet,
   AffectationGuichet: dbClient.affectationGuichet,
   Reponse: dbClient.reponse,
   User: dbClient.user
 };
-const jobSchedule$4 = {
+const jobSchedule$5 = {
   cron: "*/30 * * * *",
   options: {}
 };
 const detecterAlertesSilence = createJobDefinition({
   jobName: "detecterAlertesSilence",
   defaultJobOptions: {},
-  jobSchedule: jobSchedule$4,
-  entities: entities$4
+  jobSchedule: jobSchedule$5,
+  entities: entities$5
 });
 
-const entities$3 = {
+const entities$4 = {
   TacheCorrective: dbClient.tacheCorrective,
   Alerte: dbClient.alerte,
   Guichet: dbClient.guichet,
   User: dbClient.user
 };
-const jobSchedule$3 = {
+const jobSchedule$4 = {
   cron: "0 8 * * *",
   options: {}
 };
 const relancerTachesEnRetard$1 = createJobDefinition({
   jobName: "relancerTachesEnRetard",
   defaultJobOptions: {},
-  jobSchedule: jobSchedule$3,
-  entities: entities$3
+  jobSchedule: jobSchedule$4,
+  entities: entities$4
 });
 
-const entities$2 = {
+const entities$3 = {
   Agence: dbClient.agence,
   Reponse: dbClient.reponse,
   Alerte: dbClient.alerte,
   TacheCorrective: dbClient.tacheCorrective,
   User: dbClient.user
 };
-const jobSchedule$2 = {
+const jobSchedule$3 = {
   cron: "0 7 1 * *",
   options: {}
 };
 const envoyerRapportsMensuels$1 = createJobDefinition({
   jobName: "envoyerRapportsMensuels",
   defaultJobOptions: {},
-  jobSchedule: jobSchedule$2,
-  entities: entities$2
+  jobSchedule: jobSchedule$3,
+  entities: entities$3
 });
 
-const entities$1 = {
+const entities$2 = {
   Alerte: dbClient.alerte,
   TacheCorrective: dbClient.tacheCorrective
 };
-const jobSchedule$1 = {
+const jobSchedule$2 = {
   cron: "0 3 * * *",
   options: {}
 };
 const archiverElementsResolusAnciens$1 = createJobDefinition({
   jobName: "archiverElementsResolusAnciens",
   defaultJobOptions: {},
-  jobSchedule: jobSchedule$1,
-  entities: entities$1
+  jobSchedule: jobSchedule$2,
+  entities: entities$2
 });
 
-const entities = {
+const entities$1 = {
   AnalyseAvisIA: dbClient.analyseAvisIA,
   Reponse: dbClient.reponse,
   Agence: dbClient.agence,
@@ -7997,12 +8486,31 @@ const entities = {
   User: dbClient.user,
   Alerte: dbClient.alerte
 };
-const jobSchedule = {
+const jobSchedule$1 = {
   cron: "* * * * *",
   options: {}
 };
 const analyserAvisIAJob$1 = createJobDefinition({
   jobName: "analyserAvisIAJob",
+  defaultJobOptions: {},
+  jobSchedule: jobSchedule$1,
+  entities: entities$1
+});
+
+const entities = {
+  Agence: dbClient.agence,
+  AffectationGuichet: dbClient.affectationGuichet,
+  ModeleHoraire: dbClient.modeleHoraire,
+  Guichet: dbClient.guichet,
+  User: dbClient.user,
+  Entreprise: dbClient.entreprise
+};
+const jobSchedule = {
+  cron: "0 5 * * *",
+  options: {}
+};
+const genererPlanningAutoJob$1 = createJobDefinition({
+  jobName: "genererPlanningAutoJob",
   defaultJobOptions: {},
   jobSchedule,
   entities
@@ -9134,6 +9642,44 @@ const analyserAvisIAJob = async (_args, _context) => {
 registerJob({
   job: analyserAvisIAJob$1,
   jobFn: analyserAvisIAJob
+});
+
+const genererPlanningAutoJob = async (_args, _context) => {
+  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const agences = await dbClient.agence.findMany({
+    where: {
+      archive: false,
+      entreprise: { status: { in: ["ACTIVE", "TRIAL"] } },
+      modelesHoraires: { some: {} }
+    },
+    select: { id: true, nom_agence: true }
+  });
+  let agencesTraitees = 0;
+  let totalCrees = 0;
+  const details = [];
+  for (const agence of agences) {
+    const dejaPlanifie = await dbClient.affectationGuichet.count({
+      where: {
+        date_affectation: new Date(today),
+        guichet: { id_agence: agence.id }
+      }
+    });
+    if (dejaPlanifie > 0) continue;
+    try {
+      const res = await genererDepuisModeles(dbClient, agence.id, today, today);
+      agencesTraitees++;
+      totalCrees += res.crees;
+      details.push({ agence: agence.nom_agence, crees: res.crees, ignores: res.ignores.length });
+    } catch (err) {
+      console.error(`[PLANNING-AUTO] Agence #${agence.id} (${agence.nom_agence}) :`, err?.message);
+    }
+  }
+  return { status: "completed", date: today, agencesTraitees, totalCrees, details };
+};
+
+registerJob({
+  job: genererPlanningAutoJob$1,
+  jobFn: genererPlanningAutoJob
 });
 
 const startServer = async () => {

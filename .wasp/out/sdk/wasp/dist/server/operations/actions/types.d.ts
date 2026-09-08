@@ -1,4 +1,4 @@
-import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _Reponse, type _Critere, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _BrandingConfig, type _AuditLog, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _ModeleHoraire, type _Reponse, type _Critere, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _BrandingConfig, type _AuditLog, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
 export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User
 ], Input, Output>;
@@ -45,6 +45,40 @@ export type UpdateAffectationGuichet<Input extends Payload = never, Output exten
 export type DeleteAffectationGuichet<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _AffectationGuichet,
     _Guichet,
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type UpsertModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _ModeleHoraire,
+    _Guichet,
+    _User,
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type DeleteModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _ModeleHoraire,
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type GenererPlanning<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _ModeleHoraire,
+    _AffectationGuichet,
+    _Guichet,
+    _User,
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type ReconduirePlanning<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _AffectationGuichet,
+    _Guichet,
+    _User,
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type AppliquerSuggestion<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _AffectationGuichet,
+    _Guichet,
+    _User,
     _Agence,
     _Entreprise
 ], Input, Output>;

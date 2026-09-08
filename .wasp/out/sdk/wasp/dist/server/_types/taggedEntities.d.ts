@@ -1,9 +1,10 @@
-import { type Entity, type EntityName, type User, type Entreprise, type Agence, type Guichet, type AffectationGuichet, type Service, type Critere, type CritereService, type AgenceCritere, type Objectif, type Canal, type Reponse, type AnalyseAvisIA, type Alerte, type TacheCorrective, type TacheCorrectiveHistorique, type VoteAntiRejeu, type StatistiquesMensuelles, type File, type Logs, type Invitation, type AuditLog, type BrandingConfig } from 'wasp/entities';
+import { type Entity, type EntityName, type User, type Entreprise, type Agence, type Guichet, type AffectationGuichet, type ModeleHoraire, type Service, type Critere, type CritereService, type AgenceCritere, type Objectif, type Canal, type Reponse, type AnalyseAvisIA, type Alerte, type TacheCorrective, type TacheCorrectiveHistorique, type VoteAntiRejeu, type StatistiquesMensuelles, type File, type Logs, type Invitation, type AuditLog, type BrandingConfig } from 'wasp/entities';
 export type _User = WithName<User, "User">;
 export type _Entreprise = WithName<Entreprise, "Entreprise">;
 export type _Agence = WithName<Agence, "Agence">;
 export type _Guichet = WithName<Guichet, "Guichet">;
 export type _AffectationGuichet = WithName<AffectationGuichet, "AffectationGuichet">;
+export type _ModeleHoraire = WithName<ModeleHoraire, "ModeleHoraire">;
 export type _Service = WithName<Service, "Service">;
 export type _Critere = WithName<Critere, "Critere">;
 export type _CritereService = WithName<CritereService, "CritereService">;
@@ -22,7 +23,7 @@ export type _Logs = WithName<Logs, "Logs">;
 export type _Invitation = WithName<Invitation, "Invitation">;
 export type _AuditLog = WithName<AuditLog, "AuditLog">;
 export type _BrandingConfig = WithName<BrandingConfig, "BrandingConfig">;
-export type _Entity = _User | _Entreprise | _Agence | _Guichet | _AffectationGuichet | _Service | _Critere | _CritereService | _AgenceCritere | _Objectif | _Canal | _Reponse | _AnalyseAvisIA | _Alerte | _TacheCorrective | _TacheCorrectiveHistorique | _VoteAntiRejeu | _StatistiquesMensuelles | _File | _Logs | _Invitation | _AuditLog | _BrandingConfig | never;
+export type _Entity = _User | _Entreprise | _Agence | _Guichet | _AffectationGuichet | _ModeleHoraire | _Service | _Critere | _CritereService | _AgenceCritere | _Objectif | _Canal | _Reponse | _AnalyseAvisIA | _Alerte | _TacheCorrective | _TacheCorrectiveHistorique | _VoteAntiRejeu | _StatistiquesMensuelles | _File | _Logs | _Invitation | _AuditLog | _BrandingConfig | never;
 type WithName<E extends Entity, Name extends EntityName> = E & {
     _entityName: Name;
 };

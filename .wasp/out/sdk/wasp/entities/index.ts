@@ -4,6 +4,7 @@ import {
   type Agence,
   type Guichet,
   type AffectationGuichet,
+  type ModeleHoraire,
   type Service,
   type Critere,
   type CritereService,
@@ -30,6 +31,7 @@ export {
   type Agence,
   type Guichet,
   type AffectationGuichet,
+  type ModeleHoraire,
   type Service,
   type Critere,
   type CritereService,
@@ -58,6 +60,7 @@ export type Entity =
   | Agence
   | Guichet
   | AffectationGuichet
+  | ModeleHoraire
   | Service
   | Critere
   | CritereService
@@ -84,6 +87,7 @@ export type EntityName =
   | "Agence"
   | "Guichet"
   | "AffectationGuichet"
+  | "ModeleHoraire"
   | "Service"
   | "Critere"
   | "CritereService"

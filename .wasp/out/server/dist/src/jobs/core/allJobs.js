@@ -5,4 +5,5 @@ import '../relancerTachesEnRetard.js';
 import '../envoyerRapportsMensuels.js';
 import '../archiverElementsResolusAnciens.js';
 import '../analyserAvisIAJob.js';
+import '../genererPlanningAutoJob.js';
 //# sourceMappingURL=allJobs.js.map

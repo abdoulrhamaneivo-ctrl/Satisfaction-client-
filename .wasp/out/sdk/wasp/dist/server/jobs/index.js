@@ -3,4 +3,5 @@ export { relancerTachesEnRetard } from './relancerTachesEnRetard.js';
 export { envoyerRapportsMensuels } from './envoyerRapportsMensuels.js';
 export { archiverElementsResolusAnciens } from './archiverElementsResolusAnciens.js';
 export { analyserAvisIAJob } from './analyserAvisIAJob.js';
+export { genererPlanningAutoJob } from './genererPlanningAutoJob.js';
 //# sourceMappingURL=index.js.map

@@ -16,6 +16,11 @@ import { createGuichet as createGuichet_ext } from 'wasp/src/server/actions'
 import { assignAgent as assignAgent_ext } from 'wasp/src/server/actions'
 import { updateAffectationGuichet as updateAffectationGuichet_ext } from 'wasp/src/server/actions'
 import { deleteAffectationGuichet as deleteAffectationGuichet_ext } from 'wasp/src/server/actions'
+import { upsertModeleHoraire as upsertModeleHoraire_ext } from 'wasp/src/server/planning'
+import { deleteModeleHoraire as deleteModeleHoraire_ext } from 'wasp/src/server/planning'
+import { genererPlanning as genererPlanning_ext } from 'wasp/src/server/planning'
+import { reconduirePlanning as reconduirePlanning_ext } from 'wasp/src/server/planning'
+import { appliquerSuggestion as appliquerSuggestion_ext } from 'wasp/src/server/planning'
 import { soumettreAvis as soumettreAvis_ext } from 'wasp/src/server/actions'
 import { createAgence as createAgence_ext } from 'wasp/src/server/actions'
 import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions'
@@ -197,6 +202,85 @@ export const deleteAffectationGuichet: AuthenticatedOperationFor<DeleteAffectati
     {
       AffectationGuichet: prisma.affectationGuichet,
       Guichet: prisma.guichet,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type UpsertModeleHoraire_ext = typeof upsertModeleHoraire_ext
+
+// PUBLIC API
+export const upsertModeleHoraire: AuthenticatedOperationFor<UpsertModeleHoraire_ext> =
+  createAuthenticatedOperation(
+    upsertModeleHoraire_ext,
+    {
+      ModeleHoraire: prisma.modeleHoraire,
+      Guichet: prisma.guichet,
+      User: prisma.user,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type DeleteModeleHoraire_ext = typeof deleteModeleHoraire_ext
+
+// PUBLIC API
+export const deleteModeleHoraire: AuthenticatedOperationFor<DeleteModeleHoraire_ext> =
+  createAuthenticatedOperation(
+    deleteModeleHoraire_ext,
+    {
+      ModeleHoraire: prisma.modeleHoraire,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type GenererPlanning_ext = typeof genererPlanning_ext
+
+// PUBLIC API
+export const genererPlanning: AuthenticatedOperationFor<GenererPlanning_ext> =
+  createAuthenticatedOperation(
+    genererPlanning_ext,
+    {
+      ModeleHoraire: prisma.modeleHoraire,
+      AffectationGuichet: prisma.affectationGuichet,
+      Guichet: prisma.guichet,
+      User: prisma.user,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type ReconduirePlanning_ext = typeof reconduirePlanning_ext
+
+// PUBLIC API
+export const reconduirePlanning: AuthenticatedOperationFor<ReconduirePlanning_ext> =
+  createAuthenticatedOperation(
+    reconduirePlanning_ext,
+    {
+      AffectationGuichet: prisma.affectationGuichet,
+      Guichet: prisma.guichet,
+      User: prisma.user,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type AppliquerSuggestion_ext = typeof appliquerSuggestion_ext
+
+// PUBLIC API
+export const appliquerSuggestion: AuthenticatedOperationFor<AppliquerSuggestion_ext> =
+  createAuthenticatedOperation(
+    appliquerSuggestion_ext,
+    {
+      AffectationGuichet: prisma.affectationGuichet,
+      Guichet: prisma.guichet,
+      User: prisma.user,
       Agence: prisma.agence,
       Entreprise: prisma.entreprise,
     },

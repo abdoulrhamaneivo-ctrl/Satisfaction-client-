@@ -16,6 +16,7 @@ import {
   type _TacheCorrective,
   type _Objectif,
   type _TacheCorrectiveHistorique,
+  type _ModeleHoraire,
   type _AnalyseAvisIA,
   type _Invitation,
   type _AuditLog,
@@ -321,6 +322,35 @@ export type GetAffectationsDuJour<Input extends Payload = never, Output extends 
   AuthenticatedQueryDefinition<
     [
       _AffectationGuichet,
+      _Guichet,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type GetModelesHoraires<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _ModeleHoraire,
+      _Guichet,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type SuggererPlanning<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _AffectationGuichet,
+      _ModeleHoraire,
       _Guichet,
       _User,
       _Agence,
