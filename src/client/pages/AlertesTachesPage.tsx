@@ -10,7 +10,6 @@ import {
   Clock,
   PlayCircle,
   PlusCircle,
-  X,
   Bell,
   Inbox,
   ChevronRight,
@@ -24,7 +23,16 @@ import { MotionCard } from '../components/MotionCard';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -35,6 +43,7 @@ import {
 import { useToast } from '../hooks/use-toast';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell, PageTopNav } from '../components/PageShell';
 
 type Statut = 'A_FAIRE' | 'EN_COURS' | 'TERMINEE';
 type FiltreTaches = 'TOUTES' | 'RETARD' | 'MES_TACHES';
@@ -94,6 +103,9 @@ export const AlertesTachesPage = () => {
   const [historiqueOpenId, setHistoriqueOpenId] = useState<number | null>(null);
   const [recherche, setRecherche] = useState('');
   const [filtreTaches, setFiltreTaches] = useState<FiltreTaches>('TOUTES');
+  // Kanban mobile : une seule colonne visible à la fois (onglets avec
+  // compteurs), les 3 colonnes restent affichées dès lg.
+  const [colonneMobile, setColonneMobile] = useState<Statut>('A_FAIRE');
 
   // Liste des responsables potentiels, scopée à l'agence de l'alerte
   // sélectionnée : corrige un vrai bug de logique — le formulaire exigeait
@@ -227,23 +239,17 @@ export const AlertesTachesPage = () => {
     <RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
-        <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
-          {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-              <span>Agences</span>
-              <span>/</span>
-              <span className="text-foreground">{(currentUser as any)?.agence?.nom_agence || "Agence Principale"}</span>
-              <span>/</span>
-              <span className="text-primary font-bold">Incidents & Kanban</span>
-            </div>
-            
-            <div className="flex items-center gap-6 text-xs font-bold">
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
-              <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Kanban Incidents</span>
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/guichets'}>Guichets & Kits</span>
-            </div>
-          </div>
+        <PageShell>
+          <PageTopNav
+            racine="Exploitation"
+            agence={(currentUser as any)?.agence?.nom_agence || "Agence Principale"}
+            actuel="Incidents & Kanban"
+            onglets={[
+              { label: 'Tableau synthétique', to: '/dashboard' },
+              { label: 'Kanban Incidents', to: '/alertes-taches' },
+              { label: 'Guichets & Kits', to: '/guichets' },
+            ]}
+          />
 
           <PageHeader
             icon={AlertTriangle}
@@ -307,15 +313,19 @@ export const AlertesTachesPage = () => {
           ) : (
             <div className="space-y-3">
               {alertesNouvellesFiltrees.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
-                  Aucune alerte ne correspond à votre recherche.
-                </p>
+                <EmptyState
+                  icon={Search}
+                  title="Aucune alerte ne correspond à votre recherche"
+                  description="Essayez un autre mot-clé ou réinitialisez la recherche."
+                  action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>}
+                  className="py-10"
+                />
               ) : alertesNouvellesFiltrees.map((alerte: any, i: number) => (
                 <motion.div
                   key={alerte.id.toString()}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
+                  transition={{ delay: Math.min(i * 0.04, 0.2) }}
                 >
                   <MotionCard className="flex items-start justify-between gap-4 p-4 border-destructive/20">
                     <div className="flex items-start gap-3">
@@ -356,17 +366,43 @@ export const AlertesTachesPage = () => {
           </h2>
 
           {afficherSquelette ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="h-64 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <>
+              {/* Onglets mobile : évite une colonne interminable sous 375px */}
+              <div className="mb-4 flex gap-2 lg:hidden" role="tablist" aria-label="Colonnes du kanban">
+                {COLONNES.map((col) => {
+                  const nombre = tachesFiltrees.filter((t) => t.statut_tache === col.statut).length;
+                  const actif = colonneMobile === col.statut;
+                  return (
+                    <button
+                      key={col.statut}
+                      type="button"
+                      role="tab"
+                      aria-selected={actif}
+                      onClick={() => setColonneMobile(col.statut)}
+                      className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${
+                        actif ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/70 bg-card text-muted-foreground'
+                      }`}
+                    >
+                      {col.label}
+                      <span className="rounded-full bg-current/20 px-1.5 py-0.5 text-[10px]">{nombre}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {COLONNES.map((col) => {
                 const tachesColonne = tachesFiltrees.filter((t) => t.statut_tache === col.statut);
                 return (
-                  <div key={col.statut} className="rounded-2xl border border-border/70 bg-card/50 p-4">
+                  <div
+                    key={col.statut}
+                    className={`rounded-2xl border border-border/70 bg-card/50 p-4 ${colonneMobile === col.statut ? '' : 'hidden'} lg:block`}
+                  >
                     <div className={`mb-4 flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold ${col.color}`}>
                       {col.icon}
                       {col.label}
@@ -430,7 +466,7 @@ export const AlertesTachesPage = () => {
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      className="h-7 px-2.5 text-[11px]"
+                                      className="min-h-11 px-2.5 text-[11px]"
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'EN_COURS' ? 'A_FAIRE' : 'EN_COURS')}
                                       disabled={movingId === tacheIdNum}
                                     >
@@ -441,7 +477,7 @@ export const AlertesTachesPage = () => {
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2.5 text-[11px]"
+                                    className="min-h-11 px-2.5 text-[11px]"
                                     onClick={() => setHistoriqueOpenId(historiqueOpenId === tacheIdNum ? null : tacheIdNum)}
                                     title="Voir l'historique d'audit"
                                   >
@@ -452,7 +488,7 @@ export const AlertesTachesPage = () => {
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      className="ml-auto h-7 px-2.5 text-[11px] text-primary hover:bg-primary/10 hover:text-primary"
+                                      className="ml-auto min-h-11 px-2.5 text-[11px] text-primary hover:bg-primary/10 hover:text-primary"
                                       onClick={() => handleMoveStatut(tacheIdNum, col.statut === 'A_FAIRE' ? 'EN_COURS' : 'TERMINEE')}
                                       disabled={movingId === tacheIdNum}
                                     >
@@ -479,107 +515,93 @@ export const AlertesTachesPage = () => {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </section>
-      </div>
+        </PageShell>
 
-      {/* Modal création de tâche */}
-      <AnimatePresence>
-        {modal.alerteId !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={(e) => e.target === e.currentTarget && setModal({ alerteId: null, idAgence: null })}
-          >
-            <motion.div
-              initial={{ scale: 0.93, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.93, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-premium"
-            >
-              <div className="mb-5 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-foreground">Nouvelle tâche corrective</h3>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setModal({ alerteId: null, idAgence: null })}
-                  aria-label="Fermer"
-                >
-                  <X className="size-5" />
-                </Button>
-              </div>
+      {/* Création de tâche — Dialog accessible (focus trap + Échap natifs) */}
+      <Dialog
+        open={modal.alerteId !== null}
+        onOpenChange={(ouvert) => !ouvert && setModal({ alerteId: null, idAgence: null })}
+      >
+        <DialogContent className="rounded-3xl border-border/80 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-satoshi text-lg font-bold">Nouvelle tâche corrective</DialogTitle>
+            <DialogDescription>
+              Décrivez l'action corrective, fixez une échéance et assignez un responsable de l'agence.
+            </DialogDescription>
+          </DialogHeader>
 
-              <form onSubmit={handleSoumettreCreation} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Titre *</label>
-                  <Input
-                    required
-                    value={formTache.titre}
-                    onChange={(e) => setFormTache((p) => ({ ...p, titre: e.target.value }))}
-                    placeholder="Décrire l'action corrective"
-                    className="h-11"
+          <form onSubmit={handleSoumettreCreation} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="tache-titre">Titre *</Label>
+              <Input
+                id="tache-titre"
+                required
+                value={formTache.titre}
+                onChange={(e) => setFormTache((p) => ({ ...p, titre: e.target.value }))}
+                placeholder="Décrire l'action corrective"
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tache-description">Description</Label>
+              <Textarea
+                id="tache-description"
+                value={formTache.description}
+                onChange={(e) => setFormTache((p) => ({ ...p, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tache-echeance">Date d'échéance *</Label>
+              <Input
+                id="tache-echeance"
+                type="date"
+                required
+                value={formTache.date_echeance}
+                onChange={(e) => setFormTache((p) => ({ ...p, date_echeance: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tache-responsable">Responsable *</Label>
+              <Select
+                value={formTache.id_responsable || undefined}
+                onValueChange={(value) => setFormTache((p) => ({ ...p, id_responsable: value }))}
+                disabled={responsablesPossibles.length === 0}
+              >
+                <SelectTrigger id="tache-responsable" className="h-11 w-full">
+                  <SelectValue
+                    placeholder={
+                      responsablesPossibles.length > 0
+                        ? 'Sélectionner un responsable...'
+                        : 'Aucun agent disponible dans cette agence'
+                    }
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Description</label>
-                  <Textarea
-                    value={formTache.description}
-                    onChange={(e) => setFormTache((p) => ({ ...p, description: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Date d'échéance *</label>
-                  <Input
-                    type="date"
-                    required
-                    value={formTache.date_echeance}
-                    onChange={(e) => setFormTache((p) => ({ ...p, date_echeance: e.target.value }))}
-                    className="h-11"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-muted-foreground mb-1">Responsable *</label>
-                  <Select
-                    value={formTache.id_responsable || undefined}
-                    onValueChange={(value) => setFormTache((p) => ({ ...p, id_responsable: value }))}
-                    disabled={responsablesPossibles.length === 0}
-                  >
-                    <SelectTrigger className="h-11 w-full">
-                      <SelectValue
-                        placeholder={
-                          responsablesPossibles.length > 0
-                            ? 'Sélectionner un responsable...'
-                            : 'Aucun agent disponible dans cette agence'
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {responsablesPossibles.map((agent: any) => (
-                        <SelectItem key={agent.id} value={String(agent.id)}>
-                          {agent.prenom} {agent.nom} — {agent.role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="outline" className="flex-1" onClick={() => setModal({ alerteId: null, idAgence: null })}>
-                    Annuler
-                  </Button>
-                  <Button type="submit" className="flex-1" disabled={saving || !formTache.id_responsable}>
-                    {saving ? 'Création...' : 'Créer la tâche'}
-                  </Button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </SelectTrigger>
+                <SelectContent>
+                  {responsablesPossibles.map((agent: any) => (
+                    <SelectItem key={agent.id} value={String(agent.id)}>
+                      {agent.prenom} {agent.nom} — {agent.role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter className="gap-3 pt-2 sm:justify-stretch">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setModal({ alerteId: null, idAgence: null })}>
+                Annuler
+              </Button>
+              <Button type="submit" className="flex-1" disabled={saving || !formTache.id_responsable}>
+                {saving ? 'Création...' : 'Créer la tâche'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AmbientBackground>
     </RequireAuth>
       </RequireEnterpriseRole>

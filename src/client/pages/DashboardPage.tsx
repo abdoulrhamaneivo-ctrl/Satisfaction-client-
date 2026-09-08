@@ -40,6 +40,7 @@ import {
 } from '../components/ui/select';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell, PageTopNav } from '../components/PageShell';
 import { DataTable, DataTableRow } from '../components/ui/DataTable';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
@@ -200,37 +201,17 @@ export const DashboardPage = () => {
     <RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
-        <div className="mx-auto max-w-[1440px] p-6 lg:p-10 space-y-8">
-          {/* Fil d'Ariane & navigation secondaire */}
-          <nav aria-label="Fil d'Ariane" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
-            <ol className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground list-none p-0 m-0">
-              <li>Agences</li>
-              <li aria-hidden className="text-border">/</li>
-              <li className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</li>
-              <li aria-hidden className="text-border">/</li>
-              <li className="text-primary font-bold" aria-current="page">Tableau de bord</li>
-            </ol>
-            
-            <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/30 p-1 text-xs font-bold">
-              <span className="rounded-lg bg-card px-3 py-1.5 text-primary shadow-sm font-bold cursor-default">
-                Tableau synthétique
-              </span>
-              <button
-                type="button"
-                onClick={() => navigate('/alertes-taches')}
-                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-card/80 hover:text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-              >
-                Kanban Incidents
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/guichets')}
-                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-card/80 hover:text-foreground cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-              >
-                Guichets & Kits
-              </button>
-            </div>
-          </nav>
+        <PageShell>
+          <PageTopNav
+            racine="Agences"
+            agence={(user as any)?.agence?.nom_agence || "Agence Principale"}
+            actuel="Tableau de bord"
+            onglets={[
+              { label: 'Tableau synthétique', to: '/dashboard' },
+              { label: 'Kanban Incidents', to: '/alertes-taches' },
+              { label: 'Guichets & Kits', to: '/guichets' },
+            ]}
+          />
 
           <Reveal direction="down">
             <PageHeader
@@ -696,7 +677,6 @@ export const DashboardPage = () => {
               </div>
             </section>
           )}
-        </div>
 
         <div className="hidden">
           <RapportMensuelPrint
@@ -720,6 +700,7 @@ export const DashboardPage = () => {
             tempsTraitement={tempsTraitement?.prise_en_charge || null}
           />
         </div>
+        </PageShell>
       </AmbientBackground>
     </RequireAuth>
       </RequireEnterpriseRole>

@@ -55,6 +55,7 @@ import {
 import { useToast } from '../hooks/use-toast';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell, PageTopNav } from '../components/PageShell';
 
 const JOURS_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 // Ordre d'affichage : Lun … Dim
@@ -368,23 +369,17 @@ export const PlanningPage = () => {
     <RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
-        <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">
-          {/* Fil d'Ariane & Onglets — Style Linear / Notion */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-              <span>Exploitation</span>
-              <span>/</span>
-              <span className="text-foreground">{(user as any)?.agence?.nom_agence || "Agence Principale"}</span>
-              <span>/</span>
-              <span className="text-primary font-bold">Planning Guichets</span>
-            </div>
-
-            <div className="flex items-center gap-6 text-xs font-bold">
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/dashboard'}>Tableau synthétique</span>
-              <span className="text-muted-foreground hover:text-foreground pb-1 transition-colors cursor-pointer" onClick={() => window.location.href='/guichets'}>Guichets</span>
-              <span className="text-primary border-b-2 border-primary pb-1 font-bold cursor-pointer">Planning du jour</span>
-            </div>
-          </div>
+        <PageShell>
+          <PageTopNav
+            racine="Exploitation"
+            agence={(user as any)?.agence?.nom_agence || "Agence Principale"}
+            actuel="Planning Guichets"
+            onglets={[
+              { label: 'Tableau synthétique', to: '/dashboard' },
+              { label: 'Guichets', to: '/guichets' },
+              { label: 'Planning du jour', to: '/planning' },
+            ]}
+          />
 
           <PageHeader
             icon={CalendarClock}
@@ -778,7 +773,7 @@ export const PlanningPage = () => {
           )}
           </>
           )}
-        </div>
+        </PageShell>
       </AmbientBackground>
 
       {/* Reconduction d'une journée */}

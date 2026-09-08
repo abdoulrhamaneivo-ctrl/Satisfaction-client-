@@ -31,6 +31,7 @@ import {
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { MotionCard } from '../components/MotionCard';
+import { EmptyState } from '../components/EmptyState';
 import { QuestionsParOperation } from '../components/QuestionsParOperation';
 import { ObjectifsPanel } from '../components/ObjectifsPanel';
 import { RequireAuth } from '../components/RequireAuth';
@@ -250,7 +251,7 @@ export const ConfigurationCriteresPage = () => {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="max-w-[1680px] mx-auto p-6 lg:p-10 space-y-8"
+        className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8"
       >
         <PageHeader
           icon={Settings2}
@@ -336,17 +337,21 @@ export const ConfigurationCriteresPage = () => {
             )}
 
             {!loadingCriteres && criteres && criteres.length > 0 && criteresFiltres.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-card-subtle/40 px-5 py-8 text-center text-sm text-muted-foreground">
-                Aucun critère ne correspond à votre recherche.
-              </div>
+              <EmptyState
+                icon={Search}
+                title="Aucun critère ne correspond à votre recherche"
+                description="Essayez un autre mot-clé ou réinitialisez la recherche."
+                action={<Button variant="outline" onClick={() => setRechercheCritere('')} className="rounded-xl">Effacer la recherche</Button>}
+                className="py-10"
+              />
             )}
 
             <div className="grid gap-4">
               {criteresFiltres.map((critere: any) => {
                 const isActive = activeIds.includes(critere.id);
                 return (
-                  <MotionCard key={critere.id} className={`p-5 flex items-center justify-between gap-4 border ${critere.archive ? 'opacity-60 bg-muted/20 border-warning/30' : ''}`}>
-                    <div className="space-y-1">
+                  <MotionCard key={critere.id} className={`p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border ${critere.archive ? 'opacity-60 bg-muted/20 border-warning/30' : ''}`}>
+                    <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-foreground text-base">{critere.libelle_critere}</span>
                         <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${isActive ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
@@ -371,7 +376,7 @@ export const ConfigurationCriteresPage = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                       <Button
                         type="button"
                         variant="ghost"
@@ -391,7 +396,7 @@ export const ConfigurationCriteresPage = () => {
                         }}
                         aria-label={critere.archive ? `Désarchiver « ${critere.libelle_critere} »` : `Archiver « ${critere.libelle_critere} »`}
                         title={critere.archive ? "Désarchiver cette question" : "Archiver cette question (ne s'affichera plus dans les formulaires)"}
-                        className={critere.archive ? "text-warning hover:bg-warning/10" : "hover:bg-accent/50"}
+                        className={`min-h-11 min-w-11 ${critere.archive ? "text-warning hover:bg-warning/10" : "hover:bg-accent/50"}`}
                       >
                         {critere.archive ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
                       </Button>
@@ -403,6 +408,7 @@ export const ConfigurationCriteresPage = () => {
                         disabled={duplicatingCritereId === critere.id}
                         aria-label={`Dupliquer « ${critere.libelle_critere} »`}
                         title="Dupliquer ce critère"
+                        className="min-h-11 min-w-11"
                       >
                         <Copy className="size-4" />
                       </Button>
@@ -413,7 +419,7 @@ export const ConfigurationCriteresPage = () => {
                           size="icon"
                           onClick={() => handleDeleteCritere(critere)}
                           disabled={deletingCritereId === critere.id}
-                          className="hover:bg-destructive/10 hover:text-destructive"
+                          className="min-h-11 min-w-11 hover:bg-destructive/10 hover:text-destructive"
                           aria-label={`Supprimer « ${critere.libelle_critere} »`}
                           title="Supprimer ce critère"
                         >
@@ -423,6 +429,7 @@ export const ConfigurationCriteresPage = () => {
                       <Switch
                         checked={isActive}
                         onCheckedChange={(checked) => handleToggle(critere.id, checked)}
+                        aria-label={`Activer « ${critere.libelle_critere} »`}
                       />
                     </div>
                   </MotionCard>

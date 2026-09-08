@@ -559,44 +559,11 @@
 }
 
 /* ----------------------------------------------------------------------
-   Carrousel du hero (landing) : crossfade automatique entre les images.
-   Chaque image est visible ~25 % du cycle puis s'estompe vers la suivante.
-   Les images sont en object-cover derrière un dégradé vert -> fond de page,
-   le contenu (titre + CTA) reste par-dessus, lisible.
+   Carrousel du hero (landing) : SUPPRIMÉ — LandingPage.tsx est vide et la
+   route "/" rend RacinePage, donc ce CSS de 5 images en crossfade 25s
+   n'était que du poids mort chargé sur toutes les pages. À réintroduire
+   proprement (loading="lazy", 1 image sous 768px) si une landing revient.
    ---------------------------------------------------------------------- */
-.hero-carousel img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  animation: hero-carousel-fade 25s infinite;
-}
-.hero-carousel img:nth-child(1) { animation-delay: 0s; }
-.hero-carousel img:nth-child(2) { animation-delay: 5s; }
-.hero-carousel img:nth-child(3) { animation-delay: 10s; }
-.hero-carousel img:nth-child(4) { animation-delay: 15s; }
-.hero-carousel img:nth-child(5) { animation-delay: 20s; }
-
-@keyframes hero-carousel-fade {
-  0% { opacity: 0; }
-  4% { opacity: 1; }
-  20% { opacity: 1; }
-  24% { opacity: 0; }
-  100% { opacity: 0; }
-}
-
-/* Respect des préférences d'accessibilité : pas de défilement animé. */
-@media (prefers-reduced-motion: reduce) {
-  .hero-carousel img {
-    animation: none;
-    opacity: 0;
-  }
-  .hero-carousel img:first-child {
-    opacity: 1;
-  }
-}
 
 /* ============================================================
    Design System Mint × Poste CI (docs/frontend/03-design-system-mint.md)

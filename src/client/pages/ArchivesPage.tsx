@@ -24,6 +24,7 @@ import { MotionCard } from '../components/MotionCard';
 import { EmptyState } from '../components/EmptyState';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell } from '../components/PageShell';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/use-toast';
@@ -52,7 +53,7 @@ export const ArchivesPage = () => (
   <RequireEnterpriseRole>
       <RequireAuth>
     <AmbientBackground className="px-4 py-10 sm:px-8 lg:px-12">
-      <div className="mx-auto max-w-5xl">
+      <PageShell>
         <PageHeader
           eyebrow="Historique & conformité"
           title="Archives"
@@ -60,7 +61,7 @@ export const ArchivesPage = () => (
           icon={Archive}
         />
         <ArchivesContent />
-      </div>
+      </PageShell>
     </AmbientBackground>
   </RequireAuth>
       </RequireEnterpriseRole>
@@ -106,7 +107,7 @@ function ArchivesContent() {
   return (
     <div>
       {/* Onglets + recherche : flottants pendant le scroll de la liste */}
-      <div className="sticky top-16 lg:top-4 z-20 mb-6 rounded-2xl border border-border/70 bg-card/95 p-4 shadow-sm ">
+      <div className="sticky top-[72px] lg:top-4 z-20 mb-6 rounded-2xl border border-border/70 bg-card/95 backdrop-blur p-4 shadow-sm">
         <div className="flex flex-wrap gap-2 border-b border-border/70 pb-3">
           {ONGLETS.map((o) => (
             <Button

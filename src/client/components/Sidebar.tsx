@@ -201,6 +201,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
               onNavigate?.();
               window.dispatchEvent(new Event('yeba:open-command-palette'));
             }}
+            aria-keyshortcuts="Control+k Meta+k"
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border border-border/80 bg-card-subtle/80 text-muted-foreground hover:text-foreground hover:bg-muted/70 hover:border-primary/20 transition-all group shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <span className="flex items-center gap-2.5">
@@ -208,7 +209,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
               <span>Rechercher…</span>
             </span>
             <kbd className="rounded border border-border/70 bg-card px-1.5 py-0.5 text-[9px] font-mono font-semibold text-muted-foreground">
-              ⌘K
+              Ctrl+K
             </kbd>
           </button>
         </div>

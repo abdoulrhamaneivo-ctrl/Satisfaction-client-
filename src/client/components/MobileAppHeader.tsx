@@ -59,8 +59,8 @@ export function MobileAppHeader({ onMenuOpen, menuOpen = false }: MobileAppHeade
             />
             <span
               className={cn(
-                'absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white leading-none shadow-sm',
-                hasCritical ? 'bg-destructive' : 'bg-warning',
+                'absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none shadow-sm',
+                hasCritical ? 'bg-destructive text-white' : 'bg-warning text-warning-foreground',
               )}
             >
               {total > 99 ? '99+' : total}
