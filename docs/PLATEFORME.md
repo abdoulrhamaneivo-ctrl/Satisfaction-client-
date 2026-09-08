@@ -230,7 +230,7 @@ Ces points ne cassent rien aujourd'hui mais valent la peine d'être suivis :
    Prisma ne s'y oppose.
 3. **Emails d'invitation** (`inviteAgent`) : le mot de passe temporaire est généré
    côté serveur et envoyé par email en clair au destinataire — assurez-vous que
-   `SENDGRID_API_KEY` (ou le provider email configuré) est bien une clé **valide et
+   les variables `SMTP_*` (Brevo) sont bien renseignées avec une clé **valide et
    non compromise** avant la mise en production (voir note de sécurité plus bas).
 4. **`createAgence`** (nouveau) n'a pas de limite sur le nombre d'agences par
    entreprise — cohérent avec le reste du modèle SaaS actuel (pas de logique de plan
@@ -239,6 +239,6 @@ Ces points ne cassent rien aujourd'hui mais valent la peine d'être suivis :
 
 ## 12. Rappel sécurité
 
-La clé SendGrid partagée en clair dans les échanges de debug précédents doit être
-**révoquée et régénérée** sur https://app.sendgrid.com/settings/api_keys avant toute
-mise en production, si ce n'est pas déjà fait.
+L'ancienne clé SendGrid partagée en clair dans les échanges de debug précédents
+ne doit plus être utilisée (provider remplacé par Brevo SMTP) ; si ce n'est pas
+déjà fait, **révoquez-la** sur https://app.sendgrid.com/settings/api_keys.

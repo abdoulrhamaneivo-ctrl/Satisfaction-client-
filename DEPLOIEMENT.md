@@ -31,15 +31,19 @@
 | Neon | console.neon.tech | Gratuit (0.5 GB) |
 | Vercel | vercel.com | Gratuit |
 | Render | render.com | Gratuit (sleep 15min) ou $7/mois |
-| SendGrid | sendgrid.com | Gratuit (100 emails/jour) |
+| Brevo | brevo.com | Gratuit (300 emails/jour) |
 
 ---
 
 ## Étape 1 — Préparer les secrets
 
-> **CRITIQUE** : ta clé SendGrid a été exposée dans l'historique Git.
+> **CRITIQUE** : une ancienne clé SendGrid a été exposée dans l'historique Git.
+> SendGrid n'est plus utilisé (offre gratuite supprimée) : le projet envoie
+> désormais via **Brevo SMTP** (gratuit, 300/jour).
 
-1. **SendGrid** → dashboard.sendgrid.com → API Keys → Révoquer l'ancienne clé → Créer une nouvelle
+1. **Brevo** → brevo.com → créer un compte → **Expéditeurs** : ajouter et
+   valider `abdoulrhamane.ivo@gmail.com` → **SMTP & API** : générer une
+   **clé SMTP** (commence par `xsmtpsib-`, ce n'est pas le mot de passe)
 2. **JWT_SECRET** → générer localement :
    ```bash
    openssl rand -hex 32
@@ -162,8 +166,11 @@ gh repo create yeba-deploy --private --push
    | `WASP_WEB_CLIENT_URL` | `https://yeba-client.vercel.app` |
    | `PORT` | `10000` |
    | `JWT_SECRET` | *(ta valeur générée à l'étape 1)* |
-   | `TELEPHONE_HASH_SALT` | *(ta valeur générée à l'étape 1)* |
-   | `SENDGRID_API_KEY` | *(ta nouvelle clé SendGrid)* |
+    | `TELEPHONE_HASH_SALT` | *(ta valeur générée à l'étape 1)* |
+    | `SMTP_HOST` | `smtp-relay.brevo.com` |
+    | `SMTP_PORT` | `587` |
+    | `SMTP_USERNAME` | *(ton email de connexion Brevo)* |
+    | `SMTP_PASSWORD` | *(ta clé SMTP Brevo `xsmtpsib-...`)* |
    | `AWS_S3_REGION` | `eu-west-3` |
    | `AWS_S3_IAM_ACCESS_KEY` | `mock` *(ou ta vraie clé AWS si tu utilises S3)* |
    | `AWS_S3_IAM_SECRET_KEY` | `mock` |
@@ -228,7 +235,7 @@ Dans les logs Render, tu devrais voir les jobs PgBoss s'exécuter :
 
 ## Checklist finale
 
-- [ ] Clé SendGrid révoquée et remplacée
+- [ ] Expéditeur Brevo validé + clé SMTP `xsmtpsib-...` en place (Render + `.env.server`)
 - [ ] JWT_SECRET généré (32 octets hex)
 - [ ] TELEPHONE_HASH_SALT généré (32 octets hex)
 - [ ] Projet Neon créé, DATABASE_URL récupérée

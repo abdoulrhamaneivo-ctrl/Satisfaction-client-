@@ -171,7 +171,7 @@ Un compte admin (`isAdmin`) est distinct des rôles métier. Pour en créer un :
 
 ### Mot de passe oublié
 Utiliser le lien **« Mot de passe oublié »** de la page de connexion.
-> Nécessite `SENDGRID_API_KEY` configuré dans `.env.server` (envoi d'e-mail).
+> Nécessite le SMTP Brevo configuré dans `.env.server` (`SMTP_*`, envoi d'e-mail).
 
 ### Forcer un changement de mot de passe
 Le champ `mustChangePassword` force l'utilisateur à changer son mot de passe à la prochaine connexion :
@@ -227,7 +227,7 @@ Le mode sombre a son propre bloc (`.dark { ... }`) — pense à l'ajuster aussi 
 | `DEEPSEEK_BASE_URL` | Endpoint (défaut `https://api.deepseek.com/v1`) | non |
 | `AI_PROVIDER` | Fournisseur IA (défaut `deepseek`) | non |
 | `FRONTEND_URL` | URL publique (liens dans les SMS/alertes) | en prod |
-| `SENDGRID_API_KEY` | Envoi d'e-mails (invitations, mdp oublié) | ⚠️ pour l'e-mail |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Envoi d'e-mails Brevo (invitations, mdp oublié) | ⚠️ pour l'e-mail |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | SMS/WhatsApp | non (stub sinon) |
 | `TWILIO_FROM_NUMBER` / `TWILIO_WHATSAPP_FROM` | Numéros émetteurs | non |
 | `TELEPHONE_HASH_SALT` | Sel de hachage anti-rejeu des votes | ✅ conseillé |
@@ -273,7 +273,7 @@ Wasp automatise serveur + client + base.
    - `WASP_WEB_CLIENT_URL` → `https://<domaine-client>.up.railway.app`
    - `JWT_SECRET` → chaîne aléatoire de 32+ caractères
    - `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `FRONTEND_URL`, `TELEPHONE_HASH_SALT`
-   - (`TWILIO_*` / `SENDGRID_*` si tu actives SMS/e-mail)
+    - (`TWILIO_*` / `SMTP_*` si tu actives SMS/e-mail)
    - Port : **8080**
 
 5. **Déployer le client** :

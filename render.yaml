@@ -19,7 +19,8 @@ services:
         sync: false
       # Variables sensibles (définies dans le dashboard Render) :
       # - DATABASE_URL (Neon)
-      # - JWT_SECRET, OPENROUTER_API_KEY, SENDGRID_API_KEY, TWILIO_*
+      # - JWT_SECRET, OPENROUTER_API_KEY, TWILIO_*
+      # - Email Brevo SMTP : SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD
 
   # ── CLIENT (Static Site : build Vite servi par le CDN Render) ──
   # En Wasp 0.24 le client se construit depuis la RACINE du projet :
