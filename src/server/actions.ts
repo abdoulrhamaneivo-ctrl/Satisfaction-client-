@@ -1153,10 +1153,10 @@ export const updateBranding = async (args: Record<string, any>, context: any) =>
 // GESTION DES AGENCES
 // ============================================================================
 // Le seed unique (src/server/scripts/dbSeeds.ts) crée l'Entreprise et
-// l'Agence unique au démarrage. createAgence reste disponible dans le code
-// pour un agrandissement futur (ajout d'une 2ᵉ agence par le chef
-// d'entreprise, rôle DIRECTION) mais n'est pas exposé dans l'UI tant que le
-// déploiement reste mono-agence (voir décision produit associée).
+// sa première Agence au démarrage. createAgence (rôle DIRECTION, page
+// Gestion des agences) permet d'ajouter d'autres agences au réseau : le
+// multi-agences est pleinement supporté (sélecteurs d'agence, RLS par
+// agence, consolidation côté Direction).
 
 export const createAgence = async (
   args: {

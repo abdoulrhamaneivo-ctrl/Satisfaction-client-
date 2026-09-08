@@ -2,8 +2,10 @@
 
 Yeba est un outil interne de collecte et de pilotage de la satisfaction
 client (formulaires accessibles via QR code sur des guichets physiques).
-C'est un déploiement **mono-agence** : une seule entreprise, une seule
-agence pour l'instant, sans facturation ni inscription publique.
+Déploiement **mono-entreprise et multi-agences** : une seule entreprise
+cliente pour l'instant, avec une à N agences — créées par le rôle DIRECTION
+via la page Gestion des agences (le seed initialise la première) — sans
+facturation ni inscription publique.
 
 Construit avec [Wasp](https://wasp.sh) (React + Node.js + Prisma), à partir
 du template Open SaaS — dont toute la partie produit commercial (paiement,
@@ -15,8 +17,8 @@ personnalisation multi-tenant) a été retirée. Ne pas réintroduire ces
 
 - `main.wasp.ts` : point d'entrée Wasp (routes, actions, queries, jobs).
 - `schema.prisma` : modèle de données. Hiérarchie `Entreprise → Agence →
-  Guichet/User`. Le modèle `Entreprise → Agence` est volontairement gardé
-  en base (même en mono-agence) pour permettre un agrandissement futur.
+  Guichet/User` (le multi-agences est supporté : sélecteurs d'agence,
+  RLS par agence, consolidation Direction).
 - `src/server/permissions.ts` a été supprimé : le seul module de
   permissions/RLS canonique est `src/server/middleware/rowLevelSecurity.ts`.
 - `src/server/scripts/dbSeeds.ts` : seed unique (Entreprise, Agence, compte
