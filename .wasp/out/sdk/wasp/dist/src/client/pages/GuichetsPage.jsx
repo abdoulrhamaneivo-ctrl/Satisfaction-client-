@@ -246,8 +246,9 @@ export const GuichetsPage = () => {
           </Reveal>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* Formulaire d'ajout rapide */}
-            {user?.role === 'CHEF_AGENCE' ? (<Reveal delay={0.05}>
+            {/* Formulaire d'ajout rapide — chefs ET direction (qui gère
+            tout le réseau via le sélecteur d'agence ci-dessus). */}
+            {user?.role === 'CHEF_AGENCE' || isDirection ? (<Reveal delay={0.05}>
                 <Card variant="feature" className="h-fit p-6 lg:sticky lg:top-8 rounded-3xl">
                   <div className="mb-5 flex items-center gap-2.5">
                     <span className="flex size-9 items-center justify-center rounded-xl bg-secondary/15 text-secondary border border-secondary/30">
@@ -381,7 +382,7 @@ export const GuichetsPage = () => {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <GuichetQrPreview guichet={g}/>
-                          {user?.role === 'CHEF_AGENCE' && (<Button type="button" variant="outline" onClick={() => setGuichetAArchiver({ id: g.id, nom: g.nom_guichet })} className="h-auto border-dashed border-border/80 rounded-2xl px-3.5 py-3 text-xs font-bold hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive transition-colors" title="Fermer définitivement ce guichet" aria-label={`Archiver le guichet ${g.nom_guichet}`}>
+                          {(user?.role === 'CHEF_AGENCE' || isDirection) && (<Button type="button" variant="outline" onClick={() => setGuichetAArchiver({ id: g.id, nom: g.nom_guichet })} className="h-auto border-dashed border-border/80 rounded-2xl px-3.5 py-3 text-xs font-bold hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive transition-colors" title="Fermer définitivement ce guichet" aria-label={`Archiver le guichet ${g.nom_guichet}`}>
                               <Archive className="size-4"/>
                             </Button>)}
                         </div>
@@ -428,7 +429,7 @@ export const GuichetsPage = () => {
                                   </span>)}
                               </div>
                             </div>
-                            {user?.role === 'CHEF_AGENCE' && (<Button size="sm" variant="outline" onClick={() => startEditingServices(g)} className="h-8 text-xs font-bold shrink-0 gap-1 rounded-xl border-border/80 hover:border-primary/50 hover:text-primary transition-all">
+                            {(user?.role === 'CHEF_AGENCE' || isDirection) && (<Button size="sm" variant="outline" onClick={() => startEditingServices(g)} className="h-8 text-xs font-bold shrink-0 gap-1 rounded-xl border-border/80 hover:border-primary/50 hover:text-primary transition-all">
                                 <Settings2 size={12}/> Modifier
                               </Button>)}
                           </div>)}

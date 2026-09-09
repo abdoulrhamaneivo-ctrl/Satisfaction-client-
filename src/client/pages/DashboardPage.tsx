@@ -45,8 +45,9 @@ import { DataTable, DataTableRow } from '../components/ui/DataTable';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
 import { ObjectifsProgress } from '../components/ObjectifsProgress';
-import { regrouperAvisParSoumission } from '../utils';
+import { regrouperAvisParSoumission, scoreNormaliseSur5Client, decrireReponseCourte } from '../utils';
 import { exportToXLSX } from '../utils/exportData';
+import { useBrand } from '../context/BrandContext';
 import { Eyebrow, Reveal, Card } from '../components/ds';
 import { THEMES_LABELS } from '../components/AIAnalysisBadge';
 
@@ -64,6 +65,9 @@ const formatDuree = (heures: number | null) => {
 export const DashboardPage = () => {
   const { data: user } = useAuth();
   const navigate = useNavigate();
+  // Nom de l'entreprise pour les documents (exports, rapport imprimé).
+  const { brandConfig } = useBrand();
+  const nomEntrepriseDocs = brandConfig?.platform_name || 'Yeba';
 
   const [periodeJours, setPeriodeJours] = useState(30);
 
@@ -153,17 +157,38 @@ export const DashboardPage = () => {
     try {
       await exportToXLSX(
         [
-          {
-            name: 'Avis clients',
-            data: avisGroupes.map((a) => ({
+          // Confidentialité : la Direction ne reçoit jamais les verbatims —
+          // sa feuille « Avis » est remplacée par la comparaison des agences.
+          ...(estDirection
+            ? [
+                {
+                  name: 'Comparaison agences',
+                  data: (comparaisonAgences?.agences || []).map((a: any) => ({
+                    'Agence': a.nom_agence,
+                    'Commune': a.commune || '',
+                    'Nb avis': a.nb_avis ?? 0,
+                    'Note moyenne (/5)': a.score_moyen ?? '—',
+                    'Taux satisfaction (%)': a.taux_satisfaction ?? '—',
+                  })),
+                },
+              ]
+            : [
+                {
+                  name: 'Avis clients',
+                  data: avisGroupes.map((a) => ({
               'Date & Heure': a.reponses[0]?.date_reponse ? new Date(a.reponses[0].date_reponse).toLocaleString('fr-FR') : 'Non renseigné',
               'Guichet': a.reponses[0]?.guichet?.nom_guichet || 'Guichet principal',
               'Service': a.reponses[0]?.service?.libelle_service || 'Général',
-              'Note moyenne (/5)': typeof a.score_moyen === 'number' ? Number(a.score_moyen.toFixed(2)) : 'N/A',
-              'Détail critères': a.reponses.map((r: any) => `${r.critere?.libelle_critere || 'Critère'}: ${r.score_brut}/5`).join(' | '),
+              'Note moyenne (/5)': (() => {
+                const notes = a.reponses.map((r: any) => scoreNormaliseSur5Client(r)).filter((s): s is number => s !== null);
+                return notes.length > 0 ? Number((notes.reduce((s: number, v: number) => s + v, 0) / notes.length).toFixed(2)) : 'N/A';
+              })(),
+              'Détail critères': a.reponses.map((r: any) => decrireReponseCourte(r)).join(' | '),
               'Commentaire': a.reponses[0]?.commentaire_texte && a.reponses[0].commentaire_texte.trim() !== '' ? a.reponses[0].commentaire_texte.trim() : 'Aucun commentaire écrit',
             })),
-          },
+              },
+            ]
+          ),
           {
             name: 'Alertes',
             data: alertesList.map((a: any) => ({
@@ -196,14 +221,15 @@ export const DashboardPage = () => {
             }] : [],
           },
         ],
-        `Yeba_Rapport_Complet_${new Date().toISOString().split('T')[0]}`
+        `Yeba_Rapport_Complet_${new Date().toISOString().split('T')[0]}`,
+        { entreprise: nomEntrepriseDocs, periode: labelPeriode }
       );
     } catch (err: any) {
       console.error('Erreur export XLSX', err);
     } finally {
       setExportingXLSX(false);
     }
-  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode]);
+  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode, nomEntrepriseDocs, estDirection, comparaisonAgences]);
 
   return (
     <RequireEnterpriseRole>
@@ -697,6 +723,7 @@ export const DashboardPage = () => {
             guichets={guichetsList}
             agenceName={(user as any)?.agence?.nom_agence || (user?.id_agence ? `Agence #${user.id_agence}` : 'Mon Agence')}
             commune={(user as any)?.agence?.commune || ''}
+            entrepriseName={nomEntrepriseDocs}
             periodeLabel={periodeJours === 30 ? '30 derniers jours' : periodeJours === 1 ? '24 heures' : `${periodeJours} derniers jours`}
             dateDebut={(() => { const d = new Date(); d.setDate(d.getDate() - periodeJours); return d; })()}
             dateFin={new Date()}

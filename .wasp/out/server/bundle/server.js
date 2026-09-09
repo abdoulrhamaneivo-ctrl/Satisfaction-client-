@@ -1467,7 +1467,7 @@ const genererCodePublic = () => {
 const createGuichet$2 = async (args, context) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ["CHEF_AGENCE"]);
+  requireRole(context, ["DIRECTION", "CHEF_AGENCE"]);
   const { nomGuichet, typeGuichet, id_agence, serviceIds } = args;
   if (!nomGuichet?.trim() || !id_agence) {
     throw new HttpError(400, "Le nom du guichet et l'agence parente sont requis.");
@@ -1533,7 +1533,7 @@ const createGuichet$2 = async (args, context) => {
 const updateGuichetServices$2 = async (args, context) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ["CHEF_AGENCE"]);
+  requireRole(context, ["DIRECTION", "CHEF_AGENCE"]);
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: args.id_guichet }
   });
@@ -2668,15 +2668,20 @@ const toggleCritereAgence$2 = async (args, context) => {
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
   await assertCritereAccessible(context, args.id_critere);
   if (args.active) {
-    const existing = await context.entities.AgenceCritere.findFirst({
-      where: { id_agence: idAgence, id_critere: args.id_critere }
-    });
-    if (!existing) {
-      return context.entities.AgenceCritere.create({
-        data: { id_agence: idAgence, id_critere: args.id_critere }
+    try {
+      return await context.entities.AgenceCritere.upsert({
+        where: { id_agence_id_critere: { id_agence: idAgence, id_critere: args.id_critere } },
+        update: {},
+        create: { id_agence: idAgence, id_critere: args.id_critere }
       });
+    } catch (e) {
+      if (e?.code === "P2002") {
+        return context.entities.AgenceCritere.findFirst({
+          where: { id_agence: idAgence, id_critere: args.id_critere }
+        });
+      }
+      throw e;
     }
-    return existing;
   } else {
     return context.entities.AgenceCritere.deleteMany({
       where: { id_agence: idAgence, id_critere: args.id_critere }
@@ -5661,8 +5666,27 @@ const exportAvisGroupes$2 = async (args, context) => {
   });
   return regrouperParSoumission(brutes).map((g) => {
     const premiere = g.reponses[0];
-    const scores = g.reponses.map((r) => r.score_brut);
-    const scoreMoyen = parseFloat((scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2));
+    const scores = g.reponses.map((r) => scoreNormaliseSur5(r)).filter((s) => s !== null);
+    const scoreMoyen = scores.length > 0 ? parseFloat((scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2)) : null;
+    const texteGroupe = commentairesDeGroupe(g.reponses);
+    const decrire = (r) => {
+      const lib = r.critere?.libelle_critere || "Crit\xE8re";
+      const type = r.critere?.type_reponse;
+      const texte = String(r.commentaire_texte || "").trim();
+      const specifique = texte && texte !== texteGroupe ? texte : null;
+      if (type === "TEXTE") return `${lib}: ${specifique || texte || "\u2014"}`;
+      if (type === "CASES") return `${lib}: ${specifique || texte || "\u2014"}`;
+      if (type === "QCM") {
+        const options = String(r.critere?.options_reponse || "").split(",").map((o) => o.trim()).filter(Boolean);
+        return `${lib}: ${specifique || options[r.score_brut - 1] || `Option n\xB0${r.score_brut}`}`;
+      }
+      if (type === "OUI_NON") return `${lib}: ${r.score_brut >= 4 ? "Oui" : "Non"}`;
+      if (type === "ECHELLE") {
+        const max = Number(String(r.critere?.options_reponse || "1,5").split(",")[1]) || 5;
+        return `${lib}: ${r.score_brut}/${max}`;
+      }
+      return `${lib}:${r.score_brut}`;
+    };
     return {
       id_soumission: g.id_soumission ?? g.cle,
       date_reponse: premiere.date_reponse,
@@ -5671,8 +5695,8 @@ const exportAvisGroupes$2 = async (args, context) => {
       service: premiere.service?.libelle_service || "",
       agent: premiere.agent ? `${premiere.agent.prenom || ""} ${premiere.agent.nom || ""}`.trim() : "",
       score_moyen: scoreMoyen,
-      commentaire: commentairesDeGroupe(g.reponses),
-      criteres: g.reponses.map((r) => `${r.critere?.libelle_critere || "Crit\xE8re"}:${r.score_brut}`).join(" | ")
+      commentaire: texteGroupe,
+      criteres: g.reponses.map(decrire).join(" | ")
     };
   }).sort((a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime());
 };

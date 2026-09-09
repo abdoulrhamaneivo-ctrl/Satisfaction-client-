@@ -14,6 +14,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '../components/ui/select';
 import { exportToCSV, exportToXLSX, formaterAvisPourCSV } from '../utils/exportData';
+import { useBrand } from '../context/BrandContext';
 import { useToast } from '../hooks/use-toast';
 import { AIAnalysisBadge } from '../components/AIAnalysisBadge';
 import { GrandVisuelNote } from '../components/NoteVisuel';
@@ -37,6 +38,12 @@ export const AvisPage = () => {
     const [selectedTheme, setSelectedTheme] = useState(undefined);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    // Nom de l'entreprise + période pour l'en-tête des documents exportés.
+    const { brandConfig } = useBrand();
+    const metaDocs = {
+        entreprise: brandConfig?.platform_name || 'Yeba',
+        periode: startDate || endDate ? `Du ${startDate || '…'} au ${endDate || '…'}` : 'Toute période',
+    };
     // Pagination state
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 20;
@@ -122,7 +129,7 @@ export const AvisPage = () => {
             const raw = await exportAvisGroupes(exportArgs);
             const formatted = formaterAvisPourCSV(raw);
             const date = new Date().toISOString().split('T')[0];
-            exportToCSV(formatted, `Yeba_Avis_${date}`);
+            exportToCSV(formatted, `Yeba_Avis_${date}`, metaDocs);
             toast({ variant: 'success', title: 'Export CSV réussi', description: `${formatted.length} avis exportés.` });
         }
         catch (err) {
@@ -145,7 +152,7 @@ export const AvisPage = () => {
             const raw = await exportAvisGroupes(exportArgs);
             const formatted = formaterAvisPourCSV(raw);
             const date = new Date().toISOString().split('T')[0];
-            await exportToXLSX([{ name: 'Avis Clients Yéba', data: formatted }], `Yeba_Avis_Complet_${date}`);
+            await exportToXLSX([{ name: 'Avis Clients Yéba', data: formatted }], `Yeba_Avis_Complet_${date}`, metaDocs);
             toast({ variant: 'success', title: 'Export Excel réussi', description: `${formatted.length} avis exportés sous format XLSX.` });
         }
         catch (err) {

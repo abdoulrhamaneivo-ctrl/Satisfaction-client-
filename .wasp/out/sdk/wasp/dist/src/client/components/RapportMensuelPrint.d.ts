@@ -31,6 +31,7 @@ export interface RapportProps {
     guichets: GuichetStat[];
     agenceName: string;
     commune: string;
+    entrepriseName?: string;
     periodeLabel: string;
     dateDebut: Date;
     dateFin: Date;

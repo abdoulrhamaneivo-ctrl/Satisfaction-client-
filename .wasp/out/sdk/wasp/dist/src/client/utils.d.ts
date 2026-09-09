@@ -1,6 +1,14 @@
 import { type ClassValue } from "clsx";
 export declare function cn(...inputs: ClassValue[]): string;
 export declare function messageErreurAction(err: any, defaut: string): string;
+export declare function scoreNormaliseSur5Client(r: {
+    score_brut: number;
+    critere?: {
+        type_reponse?: string | null;
+        options_reponse?: string | null;
+    } | null;
+}): number | null;
+export declare function decrireReponseCourte(r: any): string;
 export declare function regrouperAvisParSoumission<T extends {
     id: any;
     id_soumission?: string | null;

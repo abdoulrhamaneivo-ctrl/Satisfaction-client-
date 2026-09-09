@@ -330,8 +330,36 @@ export const exportAvisGroupes = async (args, context) => {
     return regrouperParSoumission(brutes)
         .map((g) => {
         const premiere = g.reponses[0];
-        const scores = g.reponses.map((r) => r.score_brut);
-        const scoreMoyen = parseFloat((scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2));
+        // Notes NORMALISÉES (TEXTE/QCM/CASES exclus) + vraies réponses en
+        // clair : l'export ne doit contenir ni 3/5 fantômes ni index QCM.
+        const scores = g.reponses
+            .map((r) => scoreNormaliseSur5(r))
+            .filter((s) => s !== null);
+        const scoreMoyen = scores.length > 0
+            ? parseFloat((scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2))
+            : null;
+        const texteGroupe = commentairesDeGroupe(g.reponses);
+        const decrire = (r) => {
+            const lib = r.critere?.libelle_critere || 'Critère';
+            const type = r.critere?.type_reponse;
+            const texte = String(r.commentaire_texte || '').trim();
+            const specifique = texte && texte !== texteGroupe ? texte : null;
+            if (type === 'TEXTE')
+                return `${lib}: ${specifique || texte || '—'}`;
+            if (type === 'CASES')
+                return `${lib}: ${specifique || texte || '—'}`;
+            if (type === 'QCM') {
+                const options = String(r.critere?.options_reponse || '').split(',').map((o) => o.trim()).filter(Boolean);
+                return `${lib}: ${specifique || options[r.score_brut - 1] || `Option n°${r.score_brut}`}`;
+            }
+            if (type === 'OUI_NON')
+                return `${lib}: ${r.score_brut >= 4 ? 'Oui' : 'Non'}`;
+            if (type === 'ECHELLE') {
+                const max = Number(String(r.critere?.options_reponse || '1,5').split(',')[1]) || 5;
+                return `${lib}: ${r.score_brut}/${max}`;
+            }
+            return `${lib}:${r.score_brut}`;
+        };
         return {
             id_soumission: g.id_soumission ?? g.cle,
             date_reponse: premiere.date_reponse,
@@ -340,8 +368,8 @@ export const exportAvisGroupes = async (args, context) => {
             service: premiere.service?.libelle_service || '',
             agent: premiere.agent ? `${premiere.agent.prenom || ''} ${premiere.agent.nom || ''}`.trim() : '',
             score_moyen: scoreMoyen,
-            commentaire: commentairesDeGroupe(g.reponses),
-            criteres: g.reponses.map((r) => `${r.critere?.libelle_critere || 'Critère'}:${r.score_brut}`).join(' | '),
+            commentaire: texteGroupe,
+            criteres: g.reponses.map(decrire).join(' | '),
         };
     })
         .sort((a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime());

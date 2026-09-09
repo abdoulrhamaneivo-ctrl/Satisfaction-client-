@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { exportToCSV, exportToXLSX, formaterAvisPourCSV } from '../utils/exportData';
+import { useBrand } from '../context/BrandContext';
 import { useToast } from '../hooks/use-toast';
 import { AIAnalysisBadge } from '../components/AIAnalysisBadge';
 import { GrandVisuelNote } from '../components/NoteVisuel';
@@ -50,6 +51,13 @@ export const AvisPage = () => {
   const [selectedTheme, setSelectedTheme] = useState<string | undefined>(undefined);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // Nom de l'entreprise + période pour l'en-tête des documents exportés.
+  const { brandConfig } = useBrand();
+  const metaDocs = {
+    entreprise: brandConfig?.platform_name || 'Yeba',
+    periode: startDate || endDate ? `Du ${startDate || '…'} au ${endDate || '…'}` : 'Toute période',
+  };
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -157,7 +165,7 @@ export const AvisPage = () => {
       const raw = await exportAvisGroupes(exportArgs);
       const formatted = formaterAvisPourCSV(raw as any[]);
       const date = new Date().toISOString().split('T')[0];
-      exportToCSV(formatted, `Yeba_Avis_${date}`);
+      exportToCSV(formatted, `Yeba_Avis_${date}`, metaDocs);
       toast({ variant: 'success', title: 'Export CSV réussi', description: `${formatted.length} avis exportés.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur export', description: err.message });
@@ -179,7 +187,7 @@ export const AvisPage = () => {
       const raw = await exportAvisGroupes(exportArgs);
       const formatted = formaterAvisPourCSV(raw as any[]);
       const date = new Date().toISOString().split('T')[0];
-      await exportToXLSX([{ name: 'Avis Clients Yéba', data: formatted }], `Yeba_Avis_Complet_${date}`);
+      await exportToXLSX([{ name: 'Avis Clients Yéba', data: formatted }], `Yeba_Avis_Complet_${date}`, metaDocs);
       toast({ variant: 'success', title: 'Export Excel réussi', description: `${formatted.length} avis exportés sous format XLSX.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur export Excel', description: err.message });

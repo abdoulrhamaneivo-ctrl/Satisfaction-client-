@@ -73,7 +73,9 @@ export const genererCodePublic = (): string => {
 export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['CHEF_AGENCE']);
+  // La Direction gère tout le réseau (guichets compris), comme les chefs —
+  // elle était en lecture seule sans raison métier (rôle incohérent).
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const { nomGuichet, typeGuichet, id_agence, serviceIds } = args;
 
@@ -167,7 +169,7 @@ export const updateGuichetServices = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: args.id_guichet }
@@ -1802,15 +1804,24 @@ export const toggleCritereAgence = async (
   await assertCritereAccessible(context, args.id_critere);
 
   if (args.active) {
-    const existing = await context.entities.AgenceCritere.findFirst({
-      where: { id_agence: idAgence, id_critere: args.id_critere },
-    });
-    if (!existing) {
-      return context.entities.AgenceCritere.create({
-        data: { id_agence: idAgence, id_critere: args.id_critere },
+    // Upsert ATOMIQUE (pas de findFirst + create) : le Switch n'a pas de
+    // verrou côté front historique et Neon répond en ~500 ms — un double-clic
+    // créait deux lignes et explosait en P2002 → 500 « impossible d'activer ».
+    // Le repli P2002 ci-dessous rend l'activation idempotente dans tous les cas.
+    try {
+      return await context.entities.AgenceCritere.upsert({
+        where: { id_agence_id_critere: { id_agence: idAgence, id_critere: args.id_critere } },
+        update: {},
+        create: { id_agence: idAgence, id_critere: args.id_critere },
       });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        return context.entities.AgenceCritere.findFirst({
+          where: { id_agence: idAgence, id_critere: args.id_critere },
+        });
+      }
+      throw e;
     }
-    return existing;
   } else {
     return context.entities.AgenceCritere.deleteMany({
       where: { id_agence: idAgence, id_critere: args.id_critere },

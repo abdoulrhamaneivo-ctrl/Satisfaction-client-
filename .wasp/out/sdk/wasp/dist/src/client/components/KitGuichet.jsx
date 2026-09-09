@@ -88,10 +88,55 @@ export const KitGuichet = ({ guichet }) => {
         },
     };
     const currentConfig = formatConfigs[selectedFormat];
+    const telechargerFichier = (nom, dataUrl) => {
+        const link = document.createElement('a');
+        link.download = nom;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    // Export QR seul (repli + usage ciblé) : sérialise le SVG du QR et le
+    // dessine sur canvas — aucun CSS embarqué, donc insensible aux couleurs
+    // exotiques (oklch Tailwind) qui font échouer html-to-image.
+    const telechargerQrSeul = async () => {
+        const svg = kitRef.current?.querySelector('svg');
+        if (!svg)
+            throw new Error('QR introuvable.');
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('width', String(qrPx * 4));
+        clone.setAttribute('height', String(qrPx * 4));
+        const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        try {
+            const img = new Image();
+            img.decoding = 'sync';
+            await new Promise((resolve, reject) => {
+                img.onload = () => resolve();
+                img.onerror = () => reject(new Error('Rendu du QR impossible.'));
+                img.src = url;
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = qrPx * 4;
+            canvas.height = qrPx * 4;
+            const ctx = canvas.getContext('2d');
+            if (!ctx)
+                throw new Error('Canvas indisponible.');
+            ctx.fillStyle = qrBg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/png');
+        }
+        finally {
+            URL.revokeObjectURL(url);
+        }
+    };
     const downloadKit = async () => {
         if (!kitRef.current)
             return;
         await new Promise((resolve) => requestAnimationFrame(resolve));
+        const nomBase = `affiche-${(brandConfig?.platform_name || "yeba").toLowerCase()}-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}`;
         try {
             const targetWidth = parseInt(currentConfig.containerStyle.width, 10) || 420;
             const dataUrl = await toPng(kitRef.current, {
@@ -105,20 +150,28 @@ export const KitGuichet = ({ guichet }) => {
                     margin: '0 auto',
                 },
             });
-            const link = document.createElement('a');
-            link.download = `affiche-${(brandConfig?.platform_name || "yeba").toLowerCase()}-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
-            link.href = dataUrl;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            telechargerFichier(`${nomBase}.png`, dataUrl);
+            toast({ title: 'Affiche téléchargée', description: "L'affiche complète a été enregistrée en PNG." });
         }
         catch (err) {
+            // Repli : l'affiche complète échoue le plus souvent à cause de
+            // couleurs/canvas (oklch Tailwind, logo externe) — le QR seul,
+            // lui, s'exporte toujours. Mieux vaut un QR que pas d'export.
             console.error("Erreur lors de la génération de l'affiche PNG:", err);
-            toast({
-                variant: 'destructive',
-                title: "Échec de l'export de l'affiche",
-                description: err?.message || 'Réessayez, ou utilisez "Copier le lien" en alternative.',
-            });
+            try {
+                telechargerFichier(`${nomBase}-qr-seul.png`, await telechargerQrSeul());
+                toast({
+                    title: 'QR téléchargé (affiche simplifiée)',
+                    description: "L'affiche complète a échoué ; le QR seul a été enregistré à la place.",
+                });
+            }
+            catch (err2) {
+                toast({
+                    variant: 'destructive',
+                    title: "Échec de l'export",
+                    description: err2?.message || 'Réessayez, ou utilisez "Copier le lien" en alternative.',
+                });
+            }
         }
     };
     const primaryColorStyle = brandConfig ? { borderColor: `hsl(${brandConfig.color_primary})` } : {};

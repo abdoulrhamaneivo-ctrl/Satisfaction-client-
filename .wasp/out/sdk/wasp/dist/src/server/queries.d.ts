@@ -56,7 +56,7 @@ export declare const exportAvisGroupes: (args: GetReponsesArgs, context: any) =>
     agence: any;
     service: any;
     agent: string;
-    score_moyen: number;
+    score_moyen: number | null;
     commentaire: string;
     criteres: string;
 }[]>;

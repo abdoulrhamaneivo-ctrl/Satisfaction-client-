@@ -11,12 +11,24 @@ function escapeCSVCell(value) {
     }
     return str;
 }
-export function exportToCSV(data, filename) {
+function lignesMetaCSV(meta) {
+    if (!meta || (!meta.entreprise && !meta.periode))
+        return [];
+    const maintenant = new Date().toLocaleString('fr-FR');
+    return [
+        ['Document', 'Yeba — Satisfaction client'].map(escapeCSVCell).join(';'),
+        ...(meta.entreprise ? [[`Entreprise`, meta.entreprise].map(escapeCSVCell).join(';')] : []),
+        ...(meta.periode ? [[`Période`, meta.periode].map(escapeCSVCell).join(';')] : []),
+        [`Généré le`, maintenant].map(escapeCSVCell).join(';'),
+        '',
+    ];
+}
+export function exportToCSV(data, filename, meta) {
     if (!data || data.length === 0)
         return;
     const headers = Object.keys(data[0]);
     const rows = data.map((row) => headers.map((h) => escapeCSVCell(row[h])).join(';'));
-    const csvContent = [headers.join(';'), ...rows].join('\n');
+    const csvContent = [...lignesMetaCSV(meta), headers.join(';'), ...rows].join('\n');
     // BOM UTF-8 pour que Excel s'ouvre correctement sans problème d'encodage
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -26,10 +38,23 @@ export function exportToCSV(data, filename) {
     a.click();
     URL.revokeObjectURL(url);
 }
-export async function exportToXLSX(sheets, filename) {
+export async function exportToXLSX(sheets, filename, meta) {
     // Import dynamique pour ne pas alourdir le bundle principal
     const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
+    // Feuille d'identité en premier : chaque document porte le nom de
+    // l'entreprise, la période couverte et la date de génération.
+    if (meta && (meta.entreprise || meta.periode)) {
+        const infoRows = [
+            { Champ: 'Document', Valeur: 'Yeba — Satisfaction client' },
+            ...(meta.entreprise ? [{ Champ: 'Entreprise', Valeur: meta.entreprise }] : []),
+            ...(meta.periode ? [{ Champ: 'Période', Valeur: meta.periode }] : []),
+            { Champ: 'Généré le', Valeur: new Date().toLocaleString('fr-FR') },
+        ];
+        const wsInfo = XLSX.utils.json_to_sheet(infoRows);
+        wsInfo['!cols'] = [{ wch: 14 }, { wch: 48 }];
+        XLSX.utils.book_append_sheet(wb, wsInfo, 'Info');
+    }
     for (const sheet of sheets) {
         if (!sheet.data || sheet.data.length === 0) {
             // Feuille vide : on en crée une avec juste l'en-tête "Aucune donnée"

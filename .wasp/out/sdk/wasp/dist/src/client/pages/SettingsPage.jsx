@@ -153,6 +153,38 @@ function SectionPersonnalisation() {
     const [form, setForm] = useState({});
     const [envoi, setEnvoi] = useState(false);
     const [initialise, setInitialise] = useState(false);
+    // Vérification de l'URL du logo : une page de partage (Drive, Facebook…)
+    // à la place d'une image directe est l'erreur la plus courante — le logo
+    // ne s'afficherait nulle part. null = non testée, true/false = résultat.
+    const [logoValide, setLogoValide] = useState(null);
+    const testerLogoUrl = (url) => new Promise((resolve) => {
+        const v = url.trim();
+        if (!v) {
+            setLogoValide(null);
+            resolve(true);
+            return;
+        }
+        if (!/^https?:\/\/.+\..+/.test(v)) {
+            setLogoValide(false);
+            resolve(false);
+            return;
+        }
+        const img = new Image();
+        let termine = false;
+        const fini = (ok) => {
+            if (termine)
+                return;
+            termine = true;
+            setLogoValide(ok);
+            resolve(ok);
+        };
+        img.onload = () => fini(true);
+        img.onerror = () => fini(false);
+        img.src = v;
+        // Sécurité : une URL qui pend ne doit pas bloquer le formulaire —
+        // on laisse passer (le rendu a son propre repli, voir BrandLogo).
+        setTimeout(() => fini(true), 8000);
+    });
     useEffect(() => {
         if (branding && !initialise) {
             const f = {};
@@ -173,6 +205,18 @@ function SectionPersonnalisation() {
             return;
         setEnvoi(true);
         try {
+            // Le logo cassé est l'erreur la plus courante (page de partage au
+            // lieu d'image directe) : on bloque l'enregistrement avec un message
+            // clair plutôt qu'un logo invisible partout.
+            const logoOk = await testerLogoUrl(form.logo_url || '');
+            if (!logoOk) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Logo invalide',
+                    description: "Cette URL ne charge aucune image. Collez le lien DIRECT d'une image (.png, .jpg, .svg), pas une page de partage (Drive, Facebook…).",
+                });
+                return;
+            }
             await sauvegarder({
                 nom_affiche: form.nom_affiche || undefined,
                 logo_url: form.logo_url || undefined,
@@ -212,7 +256,21 @@ function SectionPersonnalisation() {
       </div>
       {isLoading ? (<div className="h-32 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50"/>) : (<form onSubmit={soumettre} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {champ('nom_affiche', "Nom affiché", 'Ex. La Poste CI', 80)}
-          {champ('logo_url', 'Logo (URL)', 'https://…', 500)}
+          <div className="space-y-1.5">
+            <Label htmlFor="brand-logo_url">Logo (URL directe d'image)</Label>
+            <div className="flex items-center gap-2">
+              {form.logo_url?.trim() ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={form.logo_url.trim()} alt="Aperçu du logo" className="size-10 shrink-0 rounded-xl border border-border/80 bg-white object-contain p-1" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} onLoad={(e) => { e.currentTarget.style.visibility = 'visible'; }}/>) : null}
+              <Input id="brand-logo_url" value={form.logo_url ?? ''} maxLength={500} onChange={(e) => { set('logo_url', e.target.value); setLogoValide(null); }} onBlur={(e) => { if (e.target.value.trim())
+            testerLogoUrl(e.target.value); }} placeholder="https://…/logo.png" className="h-10 rounded-xl border-border/80" aria-invalid={logoValide === false} aria-describedby="brand-logo_url-aide"/>
+            </div>
+            <p id="brand-logo_url-aide" className="text-[11px] text-muted-foreground">
+              Collez le lien <strong>direct</strong> de l'image (se terminant par .png, .jpg ou .svg),
+              pas une page de partage. Vide = logo Yeba par défaut.
+            </p>
+            {logoValide === false && (<p className="text-xs font-medium text-destructive">Cette URL ne charge aucune image vérifiable.</p>)}
+          </div>
           {champ('form_title', 'Titre du formulaire', 'Ex. Votre avis compte', 120)}
           {champ('form_subtitle', 'Sous-titre', 'Ex. 1 minute pour nous aider', 200)}
           {champ('form_thank_you', 'Message de remerciement', 'Ex. Merci !', 120)}

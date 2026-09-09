@@ -320,8 +320,9 @@ export const GuichetsPage = () => {
           </Reveal>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* Formulaire d'ajout rapide */}
-            {user?.role === 'CHEF_AGENCE' ? (
+            {/* Formulaire d'ajout rapide — chefs ET direction (qui gère
+                tout le réseau via le sélecteur d'agence ci-dessus). */}
+            {user?.role === 'CHEF_AGENCE' || isDirection ? (
               <Reveal delay={0.05}>
                 <Card variant="feature" className="h-fit p-6 lg:sticky lg:top-8 rounded-3xl">
                   <div className="mb-5 flex items-center gap-2.5">
@@ -530,7 +531,7 @@ export const GuichetsPage = () => {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <GuichetQrPreview guichet={g} />
-                          {user?.role === 'CHEF_AGENCE' && (
+                          {(user?.role === 'CHEF_AGENCE' || isDirection) && (
                             <Button
                               type="button"
                               variant="outline"
@@ -613,7 +614,7 @@ export const GuichetsPage = () => {
                                 )}
                               </div>
                             </div>
-                            {user?.role === 'CHEF_AGENCE' && (
+                            {(user?.role === 'CHEF_AGENCE' || isDirection) && (
                               <Button
                                 size="sm"
                                 variant="outline"
