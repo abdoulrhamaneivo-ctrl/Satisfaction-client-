@@ -8070,6 +8070,15 @@ async function serveStaticClient({ app }) {
   const anyApp = app;
   const stackAvantInstallation = anyApp.router?.stack ?? anyApp._router?.stack;
   const longueurAvantInstallation = stackAvantInstallation?.length ?? null;
+  const HASH_R_HISTORIQUE = "sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA=";
+  let hashR = HASH_R_HISTORIQUE;
+  try {
+    const html = fs.readFileSync(SPA_ENTRY, "utf8");
+    const m = html.match(/<script id="_R_">([\s\S]*?)<\/script>/);
+    if (m) hashR = "sha256-" + crypto.createHash("sha256").update(m[1], "utf8").digest("base64");
+  } catch {
+  }
+  console.log("[static] CSP script _R_ :", hashR);
   app.disable("x-powered-by");
   app.use((req, res, next) => {
     if (req.method === "POST") {
@@ -8090,7 +8099,7 @@ async function serveStaticClient({ app }) {
     }
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      `default-src 'self'; script-src 'self' '${hashR}'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`
     );
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Strict-Transport-Security", "max-age=31536000");

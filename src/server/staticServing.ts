@@ -14,6 +14,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import express, { type Express } from 'express';
 import type { Server } from 'node:http';
 import { checkRateLimit } from './rateLimit';
@@ -70,6 +71,23 @@ export async function serveStaticClient({ app }: ServerSetupContext): Promise<vo
   //  - Referrer-Policy stricte ;
   //  - Les réponses API sont no-store (données sensibles non cachées) ;
   //  - X-Powered-By supprimé (divulgation de technologie inutile).
+  //
+  // FIX page noire (09/09/2026) : Wasp injecte dans 200.html un
+  // <script id="_R_">window.__WASP_SSR_DATA__=…</script> dont le contenu
+  // CHANGE À CHAQUE BUILD. Un hash codé en dur pourrissait donc à chaque
+  // déploiement → script bloqué par la CSP → hydratation React morte →
+  // page noire. L'empreinte est désormais calculée AU DÉMARRAGE depuis le
+  // fichier réellement servi (repli : hash historique si absent, ex. en dev).
+  const HASH_R_HISTORIQUE = 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA=';
+  let hashR = HASH_R_HISTORIQUE;
+  try {
+    const html = fs.readFileSync(SPA_ENTRY, 'utf8');
+    const m = html.match(/<script id="_R_">([\s\S]*?)<\/script>/);
+    if (m) hashR = 'sha256-' + crypto.createHash('sha256').update(m[1], 'utf8').digest('base64');
+  } catch {
+    // Pas de build client (dev local) : on garde le repli.
+  }
+  console.log('[static] CSP script _R_ :', hashR);
   app.disable('x-powered-by');
   app.use((req, res, next) => {
     // ANTI BRUTE-FORCE (audit) : les routes d'auth Wasp sont limitées par IP
@@ -94,11 +112,10 @@ export async function serveStaticClient({ app }: ServerSetupContext): Promise<vo
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; " +
-        // FIX 05/09 : Wasp injecte <script id="_R_">window.__WASP_SSR_DATA__=…
-        // (contenu statique, hash ci-dessous) — sans lui, le client ne sait
-        // pas qu'il s'agit d'une page fallback et tente une hydratation qui
-        // échoue (React #418). Whitelist par hash, PAS de 'unsafe-inline'.
-        "script-src 'self' 'sha256-uhzCUaMp8bUwJiRrI4Fcjk8nDeEiRTQkGrD6hmSwBlA='; " +
+        // Whitelist par hash CALCULÉE AU DÉMARRAGE (voir ci-dessus) : le
+        // contenu du script _R_ variant à chaque build, un hash en dur
+        // casserait l'app à chaque déploiement. PAS de 'unsafe-inline'.
+        `script-src 'self' '${hashR}'; ` +
         // ZAP « style-src unsafe-inline » : on verrouille style-src sur
         // 'self' (CSS compilés) et on n'autorise l'inline QUE pour les
         // attributs style="" via style-src-attr (React/framer-motion).

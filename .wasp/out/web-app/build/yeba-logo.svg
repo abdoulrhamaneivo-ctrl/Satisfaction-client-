@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="960"
+     height="260"
+     viewBox="0 0 960 260">
+
+<defs>
+    <!-- Importation propre et simplifiée de la police d'écriture -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;700');
+        .text-title {
+            font-family: 'Poppins', 'Montserrat', Arial, sans-serif;
+            font-weight: 700;
+            font-size: 92px;
+        }
+        .text-subtitle {
+            font-family: 'Poppins', Arial, sans-serif;
+            font-weight: 500;
+            font-size: 20px;
+            letter-spacing: 3px;
+        }
+    </style>
+
+    <!-- Dégradés de couleur -->
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#00B050"/>
+        <stop offset="100%" stop-color="#00843D"/>
+    </linearGradient>
+
+    <linearGradient id="o" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FFA000"/>
+        <stop offset="100%" stop-color="#F57C00"/>
+    </linearGradient>
+</defs>
+
+<!-- ================= ICON ================= -->
+<g transform="translate(32 28)">
+
+    <!-- Chat Bubble -->
+    <path fill="url(#g)"
+        d="
+        M96 0
+        C43 0 0 43 0 96
+        C0 149 43 192 96 192
+        C117 192 136 186 153 176
+        L190 192
+        L180 157
+        C194 141 202 120 202 96
+        C202 43 159 0 96 0Z"/>
+
+    <!-- Fusion Y -->
+    <path fill="#fff"
+        d="
+        M56 54
+        L96 96
+        L136 54
+        C140 50 146 50 150 54
+        C154 58 154 64 150 68
+        L108 112
+        L108 152
+        C108 158 103 162 96 162
+        C89 162 84 158 84 152
+        L84 112
+        L42 68
+        C38 64 38 58 42 54
+        C46 50 52 50 56 54Z"/>
+
+    <!-- Check intégrée -->
+    <path
+        d="M58 103 L83 128 L145 67"
+        fill="none"
+        stroke="url(#o)"
+        stroke-width="12"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+</g>
+
+<!-- ================= WORDMARK ================= -->
+<g transform="translate(285 72)">
+
+    <text x="0" y="72" class="text-title">
+        <tspan fill="#00A651">Yé</tspan><tspan fill="#F57C00">ba</tspan>
+    </text>
+
+    <text x="0" y="126" class="text-subtitle" fill="#6A6A6A">
+        VOTRE AVIS • NOTRE PRIORITÉ
+    </text>
+
+</g>
+
+</svg>
