@@ -1802,7 +1802,7 @@ const soumettreAvisImpl = async (args, context) => {
   const critereIds = [...new Set(itemsToInsert.map((i) => i.critereId))];
   const criteresExistants = await context.entities.Critere.findMany({
     where: { id: { in: critereIds } },
-    select: { id: true, type_reponse: true, options_reponse: true }
+    select: { id: true, type_reponse: true, options_reponse: true, libelle_critere: true }
   });
   const critereById = new Map(criteresExistants.map((c) => [c.id, c]));
   const idsExistants = new Set(criteresExistants.map((c) => c.id));
@@ -1955,16 +1955,47 @@ const soumettreAvisImpl = async (args, context) => {
       worstScore = scoreNormalise;
     }
   }
-  const commentaireFinal = (commentaire || "").trim().slice(0, 1e3);
-  if (commentaireFinal.length > 0 && createdReponses.length > 0) {
+  const optionQCMParIndex = (critere, score2) => {
+    const options = String(critere?.options_reponse || "").split(",").map((o) => o.trim()).filter(Boolean);
+    return options[score2 - 1] || `Option n\xB0${score2}`;
+  };
+  const morceauxIA = [];
+  const reponsesVues = /* @__PURE__ */ new Set();
+  const commentaireFinal = (commentaire || "").trim();
+  const pousserMorceau = (question, reponse) => {
+    const r = reponse.trim();
+    if (!r || reponsesVues.has(r)) return;
+    reponsesVues.add(r);
+    morceauxIA.push(`Q : ${question}
+R : ${r}`);
+  };
+  for (const item of itemsToInsert) {
+    const critere = critereById.get(item.critereId);
+    const libelle = critere?.libelle_critere || "Question";
+    const type = critere?.type_reponse;
+    const texte = (item.texte || "").trim();
+    if (type === "TEXTE" || type === "CASES") {
+      if (texte) pousserMorceau(libelle, texte);
+    } else if (type === "QCM") {
+      pousserMorceau(libelle, texte || optionQCMParIndex(critere, item.score));
+    } else if (type === "OUI_NON") {
+      pousserMorceau(libelle, item.score >= 4 ? "Oui" : "Non");
+    } else {
+      const note = normaliserScoreSur5(critere, item.score);
+      morceauxIA.push(`Q : ${libelle}
+Note : ${note !== null ? `${note}/5` : `${item.score}`}`);
+    }
+  }
+  if (commentaireFinal.length > 0) morceauxIA.push(`Commentaire final : ${commentaireFinal}`);
+  const texteCompletAvis = morceauxIA.join("\n\n").slice(0, 4e3);
+  if (texteCompletAvis.length > 0 && createdReponses.length > 0) {
     try {
       if (context.entities.AnalyseAvisIA) {
-        const reponseNotee = createdReponses.find((r) => typeof r.score_brut === "number");
         await context.entities.AnalyseAvisIA.create({
           data: {
             reponseId: createdReponses[0].id,
-            commentaireTexte: commentaireFinal,
-            noteBrut: reponseNotee?.score_brut ?? null,
+            commentaireTexte: texteCompletAvis,
+            noteBrut: worstScore,
             status: "PENDING"
           }
         });
@@ -5535,9 +5566,9 @@ const getAvisGroupes$2 = async (args, context) => {
   ]);
   const groupes = regrouperParSoumission(brutes).map((g) => {
     const premiere = g.reponses[0];
-    const scores = g.reponses.map((r) => r.score_brut);
-    const scoreMin = Math.min(...scores);
-    const scoreMoyen = parseFloat((scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2));
+    const scores = g.reponses.map((r) => scoreNormaliseSur5(r)).filter((s) => s !== null);
+    const scoreMin = scores.length > 0 ? Math.min(...scores) : null;
+    const scoreMoyen = scores.length > 0 ? parseFloat((scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2)) : null;
     const analyseEffective = g.reponses.find((r) => r.analyseIA)?.analyseIA || premiere.analyseIA || null;
     return {
       id_soumission: g.id_soumission ?? g.cle,
@@ -5554,12 +5585,33 @@ const getAvisGroupes$2 = async (args, context) => {
       reponses: g.reponses.map((r) => ({
         id: r.id,
         score_brut: r.score_brut,
+        // Le texte PAR QUESTION (réponse TEXTE, choix QCM/CASES) : sans lui,
+        // le front ne peut afficher que des barres X/5 mensongères.
+        commentaire_texte: r.commentaire_texte ?? null,
         critere: r.critere,
         analyseIA: r.analyseIA
       }))
     };
   });
-  const filtered = args.score ? groupes.filter((g) => g.reponses.some((r) => r.score_brut === Number(args.score))) : groupes;
+  const lireThemes = (analyse) => {
+    try {
+      const t = analyse?.themes ? JSON.parse(analyse.themes) : [];
+      return Array.isArray(t) ? t : [];
+    } catch {
+      return [];
+    }
+  };
+  const filtered = groupes.filter((g) => {
+    if (args.score !== void 0 && args.score !== null) {
+      const visee = Number(args.score);
+      const ok = g.reponses.some((r) => scoreNormaliseSur5(r) === visee);
+      if (!ok) return false;
+    }
+    if (args.theme) {
+      if (!lireThemes(g.analyseIA).includes(args.theme)) return false;
+    }
+    return true;
+  });
   const sorted = filtered.sort(
     (a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime()
   );

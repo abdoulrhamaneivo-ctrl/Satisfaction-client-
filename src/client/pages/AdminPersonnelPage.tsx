@@ -63,12 +63,15 @@ export const AdminPersonnelPage = () => {
   );
   // FIX 05/09 : arrivée depuis « Désigner son chef » (Réseau Agences) avec
   // ?agence=ID — l'agence cible est présélectionnée dans le formulaire.
+  // Écoute AUSSI les changements (même route réutilisée en SPA : naviguer
+  // deux fois vers ?agence=A puis ?agence=B ne remonte pas le composant —
+  // sans cette dépendance, le 2ᵉ chef partait dans l'ANCIENNE agence).
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const cible = Number(searchParams.get('agence'));
     if (Number.isSafeInteger(cible) && cible > 0) setSelectedAgenceId(cible);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
   const { data: agences } = useQuery(getAgences, undefined, { enabled: user?.role === 'DIRECTION' });
 
   useEffect(() => {
@@ -125,10 +128,23 @@ export const AdminPersonnelPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role]);
 
+  // Nom affiché de l'agence cible du formulaire (contexte anti-erreur :
+  // on voit toujours OÙ le nouvel agent sera affecté).
+  const nomAgenceCible = agences?.find((a: any) => a.id === selectedAgenceId)?.nom_agence
+    ?? (user as any)?.agence?.nom_agence
+    ?? (selectedAgenceId ? `Agence #${selectedAgenceId}` : null);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  // Chef actif de l'agence sélectionnée (s'il existe) : créer un second
+  // chef est interdit côté serveur — on propose le remplacement explicite.
+  const chefActuelDeLagence = (agents as any[] | undefined)?.find(
+    (a: any) => a.role === 'CHEF_AGENCE' && a.actif !== false
+  ) ?? null;
+  const [chefARemplacer, setChefARemplacer] = useState<{ id: string; nom: string; prenom: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +153,32 @@ export const AdminPersonnelPage = () => {
       toast({ variant: 'destructive', title: 'Agence requise', description: "Sélectionnez d'abord une agence." });
       return;
     }
+    // Un seul chef actif par agence : en création (pas en modification),
+    // on demande confirmation de remplacement au lieu de laisser le
+    // serveur rejeter — ou pire, d'affecter ailleurs par inattention.
+    if (!editingId && formData.role === 'CHEF_AGENCE' && chefActuelDeLagence) {
+      setChefARemplacer({
+        id: chefActuelDeLagence.id,
+        nom: chefActuelDeLagence.nom,
+        prenom: chefActuelDeLagence.prenom,
+      });
+      return;
+    }
+    await executerEnregistrement();
+  };
+
+  const confirmerRemplacementChef = async () => {
+    if (!chefARemplacer) return;
+    const ancienId = chefARemplacer.id;
+    setChefARemplacer(null);
+    // 1. Suspendre l'ancien chef, 2. créer le nouveau (même formulaire).
+    // Si la suspension échoue, on s'arrête : jamais deux chefs actifs.
+    await handleDelete(ancienId);
+    await executerEnregistrement();
+  };
+
+  const executerEnregistrement = async () => {
+    if (!selectedAgenceId) return;
     creationEnCoursRef.current = true;
     setCreationEnCours(true);
     try {
@@ -326,6 +368,18 @@ export const AdminPersonnelPage = () => {
                   <h2 className="mb-6 flex items-center gap-2 text-lg font-bold font-satoshi text-foreground">
                     <UserPlus className="text-primary size-5" /> {editingId ? 'Modifier un agent' : 'Nouvel Agent'}
                   </h2>
+
+                  {nomAgenceCible && (
+                    <p className="mb-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs font-semibold text-muted-foreground">
+                      <UsersRound className="size-3.5 text-primary" />
+                      Affectation : <span className="font-bold text-foreground">{nomAgenceCible}</span>
+                      {formData.role === 'CHEF_AGENCE' && !editingId && chefActuelDeLagence && (
+                        <span className="font-bold text-warning">
+                          — {chefActuelDeLagence.prenom} {chefActuelDeLagence.nom} est déjà chef (remplacement avec confirmation)
+                        </span>
+                      )}
+                    </p>
+                  )}
 
                   <AnimatePresence>
                     {submitted && (
@@ -613,6 +667,36 @@ export const AdminPersonnelPage = () => {
                 onClick={() => agentAConfirmerSuppression && handleDelete(agentAConfirmerSuppression.id)}
               >
                 Suspendre le compte
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          open={chefARemplacer !== null}
+          onOpenChange={(open) => !open && setChefARemplacer(null)}
+        >
+          <AlertDialogContent className="rounded-3xl border-border/80">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-satoshi font-bold">Remplacer le chef d'agence ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {chefARemplacer && (
+                  <>
+                    <strong className="text-foreground">{chefARemplacer.prenom} {chefARemplacer.nom}</strong>{" "}
+                    est actuellement chef de <strong className="text-foreground">{nomAgenceCible}</strong> et
+                    sera suspendu(e). Le nouveau chef recevra une invitation et prendra sa place.
+                    Cette action est réversible (réactivation possible).
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                className="rounded-xl font-bold bg-warning text-warning-foreground hover:bg-warning/90"
+                onClick={confirmerRemplacementChef}
+              >
+                Suspendre et remplacer
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

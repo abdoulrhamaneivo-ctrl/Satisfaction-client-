@@ -21,6 +21,7 @@ export declare const getReponses: (args: GetReponsesArgs, context: any) => Promi
 type GetAvisGroupesArgs = GetReponsesArgs & {
     page?: number;
     pageSize?: number;
+    theme?: string;
 };
 export declare const getAvisGroupes: (args: GetAvisGroupesArgs, context: any) => Promise<{
     avis: {
@@ -32,12 +33,13 @@ export declare const getAvisGroupes: (args: GetAvisGroupesArgs, context: any) =>
         service: any;
         agence: any;
         agent: any;
-        score_min: number;
-        score_moyen: number;
+        score_min: number | null;
+        score_moyen: number | null;
         analyseIA: any;
         reponses: {
             id: any;
             score_brut: any;
+            commentaire_texte: any;
             critere: any;
             analyseIA: any;
         }[];

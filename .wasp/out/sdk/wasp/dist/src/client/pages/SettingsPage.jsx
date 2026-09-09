@@ -216,7 +216,8 @@ function SectionPersonnalisation() {
           {champ('form_title', 'Titre du formulaire', 'Ex. Votre avis compte', 120)}
           {champ('form_subtitle', 'Sous-titre', 'Ex. 1 minute pour nous aider', 200)}
           {champ('form_thank_you', 'Message de remerciement', 'Ex. Merci !', 120)}
-          {champ('qr_slogan', 'Slogan sous le QR', 'Ex. Scannez et donnez votre avis', 80)}
+          {/* Slogan masqué (09/2026) : l'affiche QR est épurée (titre + QR
+                uniquement), ce réglage n'est plus rendu — conservé en base. */}
           <div className="space-y-1.5">
             <Label htmlFor="brand-qr_style">Style du QR</Label>
             <select id="brand-qr_style" value={form.qr_style || 'CLASSIQUE'} onChange={(e) => set('qr_style', e.target.value)} className="h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm">

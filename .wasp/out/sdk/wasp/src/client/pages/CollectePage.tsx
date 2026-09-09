@@ -494,7 +494,7 @@ export const CollectePage = () => {
                         <button
                           key={index}
                           type="button"
-                          onClick={() => repondreAvecAccuse(index + 1)}
+                          onClick={() => repondreAvecAccuse(index + 1, option.trim())}
                           aria-pressed={noteChoisie === index + 1}
                           className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${
                             noteChoisie === index + 1

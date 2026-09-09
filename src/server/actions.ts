@@ -568,7 +568,7 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   const critereIds = [...new Set(itemsToInsert.map((i) => i.critereId))];
   const criteresExistants = await context.entities.Critere.findMany({
     where: { id: { in: critereIds } },
-    select: { id: true, type_reponse: true, options_reponse: true },
+    select: { id: true, type_reponse: true, options_reponse: true, libelle_critere: true },
   });
   const critereById = new Map(criteresExistants.map((c: any) => [c.id, c]));
   const idsExistants = new Set(criteresExistants.map((c: any) => c.id));
@@ -788,22 +788,61 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     }
   }
 
-  // --- ANALYSE IA ASYNCHRONE (DeepSeek) — UNE SEULE par avis ---
-  // On n'analyse que le commentaire final (s'il existe), une seule fois par
-  // soumission, au lieu d'une entrée par réponse (qui dupliquait l'analyse
-  // du même commentaire sur chaque critère noté).
-  const commentaireFinal = (commentaire || '').trim().slice(0, 1000);
-  if (commentaireFinal.length > 0 && createdReponses.length > 0) {
+  // --- ANALYSE IA ASYNCHRONE — TOUT L'AVIS, UNE SEULE FOIS ---
+  // Avant : seul le commentaire final alimentait l'IA. Les réponses aux
+  // questions TEXTE (souvent le vrai contenu : « Riz sauce graine… »), les
+  // Oui/Non et les choix QCM n'étaient jamais analysés — et quand le
+  // commentaire final était vide, l'avis n'était pas analysé du tout.
+  // Maintenant le texte envoyé combine le commentaire final ET chaque
+  // réponse parlante, avec le libellé de sa question (et la note chiffrée
+  // quand elle existe) : l'IA voit tout l'avis et l'étiquetage (thèmes)
+  // devient précis. Une seule analyse par soumission, comme avant.
+  const optionQCMParIndex = (critere: any, score: number): string => {
+    const options = String(critere?.options_reponse || '')
+      .split(',')
+      .map((o: string) => o.trim())
+      .filter(Boolean);
+    return options[score - 1] || `Option n°${score}`;
+  };
+  const morceauxIA: string[] = [];
+  const reponsesVues = new Set<string>();
+  const commentaireFinal = (commentaire || '').trim();
+  const pousserMorceau = (question: string, reponse: string) => {
+    const r = reponse.trim();
+    if (!r || reponsesVues.has(r)) return;
+    reponsesVues.add(r);
+    morceauxIA.push(`Q : ${question}\nR : ${r}`);
+  };
+  for (const item of itemsToInsert) {
+    const critere: any = critereById.get(item.critereId);
+    const libelle = critere?.libelle_critere || 'Question';
+    const type = critere?.type_reponse;
+    const texte = (item.texte || '').trim();
+    if (type === 'TEXTE' || type === 'CASES') {
+      if (texte) pousserMorceau(libelle, texte);
+    } else if (type === 'QCM') {
+      pousserMorceau(libelle, texte || optionQCMParIndex(critere, item.score));
+    } else if (type === 'OUI_NON') {
+      pousserMorceau(libelle, item.score >= 4 ? 'Oui' : 'Non');
+    } else {
+      // SMILEY / ECHELLE : réponse chiffrée — on transmet la note normalisée
+      // pour calibrer sentiment et urgence, sans inventer de texte.
+      const note = normaliserScoreSur5(critere, item.score);
+      morceauxIA.push(`Q : ${libelle}\nNote : ${note !== null ? `${note}/5` : `${item.score}`}`);
+    }
+  }
+  if (commentaireFinal.length > 0) morceauxIA.push(`Commentaire final : ${commentaireFinal}`);
+  const texteCompletAvis = morceauxIA.join('\n\n').slice(0, 4000);
+  if (texteCompletAvis.length > 0 && createdReponses.length > 0) {
     try {
       if (context.entities.AnalyseAvisIA) {
-        // On conserve la note (score du critère noté, sinon la première
-        // réponse chiffrée) pour le croisement note ↔ texte côté job IA.
-        const reponseNotee = createdReponses.find((r) => typeof r.score_brut === 'number');
+        // La note transmise est la PLUS BASSE (worstScore) : c'est elle qui
+        // calibre l'urgence — une seule question à 1/5 suffit à alerter.
         await context.entities.AnalyseAvisIA.create({
           data: {
             reponseId: createdReponses[0].id,
-            commentaireTexte: commentaireFinal,
-            noteBrut: reponseNotee?.score_brut ?? null,
+            commentaireTexte: texteCompletAvis,
+            noteBrut: worstScore,
             status: 'PENDING',
           },
         });

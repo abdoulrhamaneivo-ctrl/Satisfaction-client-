@@ -356,7 +356,7 @@ export const CollectePage = () => {
 
                   {/* QCM Input */}
                   {currentCritere.type_reponse === 'QCM' && (<div className="flex flex-col gap-2.5 pt-2">
-                      {currentCritere.options_reponse?.split(',').map((option, index) => (<button key={index} type="button" onClick={() => repondreAvecAccuse(index + 1)} aria-pressed={noteChoisie === index + 1} className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${noteChoisie === index + 1
+                      {currentCritere.options_reponse?.split(',').map((option, index) => (<button key={index} type="button" onClick={() => repondreAvecAccuse(index + 1, option.trim())} aria-pressed={noteChoisie === index + 1} className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${noteChoisie === index + 1
                         ? 'border-primary bg-primary/15 text-primary'
                         : 'border-border/80 hover:bg-muted text-foreground'}`}>
                           <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0"/>

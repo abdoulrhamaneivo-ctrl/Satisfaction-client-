@@ -198,6 +198,7 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
 type GetAvisGroupesArgs = GetReponsesArgs & {
   page?: number;      // 1-indexed, défaut 1
   pageSize?: number;  // défaut 20, max 100
+  theme?: string;     // code thème IA (ex. TEMPS_ATTENTE) — filtre les avis étiquetés
 };
 
 export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => {
@@ -274,9 +275,16 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
 
   const groupes = regrouperParSoumission(brutes).map((g) => {
     const premiere = g.reponses[0];
-    const scores = g.reponses.map((r: any) => r.score_brut);
-    const scoreMin = Math.min(...scores);
-    const scoreMoyen = parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2));
+    // Notes NORMALISÉES uniquement : les lignes TEXTE (score neutre 3),
+    // QCM (index d'option) et CASES ne sont PAS des notes — les moyenner
+    // avec les vraies notes fabriquait des 3/5 et 2/5 fantômes.
+    const scores = g.reponses
+      .map((r: any) => scoreNormaliseSur5(r))
+      .filter((s): s is number => s !== null);
+    const scoreMin = scores.length > 0 ? Math.min(...scores) : null;
+    const scoreMoyen = scores.length > 0
+      ? parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2))
+      : null;
     const analyseEffective = g.reponses.find((r: any) => r.analyseIA)?.analyseIA || premiere.analyseIA || null;
 
     return {
@@ -294,15 +302,38 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
       reponses: g.reponses.map((r: any) => ({
         id: r.id,
         score_brut: r.score_brut,
+        // Le texte PAR QUESTION (réponse TEXTE, choix QCM/CASES) : sans lui,
+        // le front ne peut afficher que des barres X/5 mensongères.
+        commentaire_texte: r.commentaire_texte ?? null,
         critere: r.critere,
         analyseIA: r.analyseIA,
       })),
     };
   });
 
-  const filtered = args.score
-    ? groupes.filter((g) => g.reponses.some((r) => r.score_brut === Number(args.score)))
-    : groupes;
+  const lireThemes = (analyse: any): string[] => {
+    try {
+      const t = analyse?.themes ? JSON.parse(analyse.themes) : [];
+      return Array.isArray(t) ? t : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Filtre note sur scores NORMALISÉS (un filtre « 3 » ne doit pas remonter
+  // des réponses TEXTE au score neutre 3).
+  const filtered = groupes.filter((g) => {
+    if (args.score !== undefined && args.score !== null) {
+      const visee = Number(args.score);
+      const ok = g.reponses.some((r: any) => scoreNormaliseSur5(r) === visee);
+      if (!ok) return false;
+    }
+    // Filtre étiquette IA : l'avis est gardé si son analyse effective porte le thème.
+    if (args.theme) {
+      if (!lireThemes(g.analyseIA).includes(args.theme)) return false;
+    }
+    return true;
+  });
 
   const sorted = filtered.sort(
     (a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime()

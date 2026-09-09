@@ -18,7 +18,6 @@ export const KitGuichet = ({ guichet }) => {
     const evalUrl = typeof window !== 'undefined'
         ? `${window.location.origin}/q/${codeQr}`
         : `https://yeba.ci/q/${codeQr}`;
-    const ussdCode = `*789*42*${guichet.id}#`;
     const [selectedFormat, setSelectedFormat] = useState('A5');
     // QR 100% LOCAL (FIX 05/09) : l'ancien code récupérait le PNG depuis
     // api.qrserver.com via fetch — bloqué par connect-src 'self' de notre CSP
@@ -161,21 +160,10 @@ export const KitGuichet = ({ guichet }) => {
         } : undefined}/>
             </div>
 
-            <p className={`${currentConfig.scanTextClass} font-bold uppercase tracking-wide text-neutral-900`}>
-              {brandConfig?.qr_slogan || "Scannez ce QR Code"}
-            </p>
-            <p className={`${currentConfig.scanDescClass} font-medium text-neutral-600`}>
-              Notez-nous en 10 secondes, après votre passage à ce guichet
-            </p>
-
-            <div className={`rounded-xl bg-neutral-100 px-4 ${currentConfig.ussdPaddingClass} print:border print:border-neutral-400 print:bg-white`}>
-              <p className="text-xs font-semibold text-neutral-700">
-                {brandConfig?.ussd_help_text || "Pas de connexion internet ?"}
-              </p>
-              <p className="text-sm font-bold tracking-wide text-neutral-900 mt-1">
-                Composez <span className="font-bold text-primary">{ussdCode}</span>
-              </p>
-            </div>
+            {/* Affiche épurée (09/2026) : titre + guichet + QR uniquement.
+            Le bloc USSD et les slogans de bas d'affiche ont été retirés
+            à la demande (lisibilité + focus scan). Les réglages restants
+            (style, cadre, couleurs, logo incrusté) continuent de s'appliquer. */}
           </div>
         </div>
       </div>

@@ -16,7 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { exportToCSV, exportToXLSX, formaterAvisPourCSV } from '../utils/exportData';
 import { useToast } from '../hooks/use-toast';
 import { AIAnalysisBadge } from '../components/AIAnalysisBadge';
-import { visuelPourNote, GrandVisuelNote, BarreNote } from '../components/NoteVisuel';
+import { GrandVisuelNote } from '../components/NoteVisuel';
+import { LigneReponse } from '../components/LigneReponse';
+import { THEMES_LABELS } from '../components/AIAnalysisBadge';
 import { PageShell, PageTopNav } from '../components/PageShell';
 export const AvisPage = () => {
     const { data: user } = useAuth();
@@ -32,6 +34,7 @@ export const AvisPage = () => {
     const [selectedGuichetId, setSelectedGuichetId] = useState(undefined);
     const [selectedServiceId, setSelectedServiceId] = useState(undefined);
     const [selectedScore, setSelectedScore] = useState(undefined);
+    const [selectedTheme, setSelectedTheme] = useState(undefined);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     // Pagination state
@@ -51,6 +54,7 @@ export const AvisPage = () => {
         id_guichet: selectedGuichetId,
         id_service: selectedServiceId,
         score: selectedScore,
+        theme: selectedTheme,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         page,
@@ -66,7 +70,7 @@ export const AvisPage = () => {
     const [lastQueryKey, setLastQueryKey] = useState('');
     // Clé de filtre pour détecter un changement de filtres → réinitialiser la liste
     const filterKey = JSON.stringify({
-        effectiveAgenceId, selectedGuichetId, selectedServiceId, selectedScore, startDate, endDate,
+        effectiveAgenceId, selectedGuichetId, selectedServiceId, selectedScore, selectedTheme, startDate, endDate,
     });
     React.useEffect(() => {
         if (filterKey !== lastQueryKey) {
@@ -96,6 +100,7 @@ export const AvisPage = () => {
         setSelectedGuichetId(undefined);
         setSelectedServiceId(undefined);
         setSelectedScore(undefined);
+        setSelectedTheme(undefined);
         setStartDate('');
         setEndDate('');
         setPage(1);
@@ -151,8 +156,8 @@ export const AvisPage = () => {
         }
     }, [effectiveAgenceId, selectedGuichetId, selectedServiceId, startDate, endDate, toast]);
     // (Note visuelle unique importée de NoteVisuel.tsx : même emoji/libellé/
-    // couleur que la collecte publique — voir GrandVisuelNote et BarreNote
-    // utilisés dans les cartes ci-dessous.)
+    // couleur que la collecte publique — voir GrandVisuelNote utilisé dans
+    // les cartes ci-dessous et LigneReponse pour le détail par question.)
     return (<RequireEnterpriseRole>
       <RequireAuth>
       <AmbientBackground>
@@ -261,12 +266,27 @@ export const AvisPage = () => {
                 </Select>
               </div>
 
+              {/* Theme Filter (étiquetage IA) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Layers size={12}/> Étiquette IA
+                </label>
+                <Select value={selectedTheme ?? 'ALL'} onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}>
+                  <SelectTrigger className="h-11 w-full font-semibold">
+                    <SelectValue placeholder="Toutes les étiquettes"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Toutes les étiquettes</SelectItem>
+                    {Object.entries(THEMES_LABELS).map(([code, label]) => (<SelectItem key={code} value={code}>{label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Start Date Filter */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Calendar size={12}/> Date Début
-                </label>
-                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 font-semibold"/>
+                </label>                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 font-semibold"/>
               </div>
 
               {/* End Date Filter */}
@@ -288,30 +308,24 @@ export const AvisPage = () => {
                   {allAvis.map((rep, i) => (<motion.div key={rep.id_soumission?.toString() ?? i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: Math.min(i * 0.02, 0.2) }}>
                       <MotionCard interactive={false} className="p-5 flex flex-col md:flex-row gap-5 shadow-sm border-border/70">
                         <div className="space-y-3 flex-1">
-                          {/* Note globale — grand visuel lisible d'un coup d'œil */}
+                          {/* Note globale — ou mention « avis textuel » quand
+                    l'avis ne contient aucune question notée
+                    (texte libre uniquement : pas de fausse note). */}
                           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/40 p-4">
-                            <GrandVisuelNote score={Math.round(rep.score_moyen)}/>
+                            {rep.score_moyen !== null && rep.score_moyen !== undefined ? (<GrandVisuelNote score={Math.round(rep.score_moyen)}/>) : (<span className="flex items-center gap-2 text-sm font-bold text-primary">
+                                <MessageSquareQuote className="size-5"/>
+                                Avis textuel — sans note chiffrée
+                              </span>)}
                             {rep.service && (<span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-md">
                                 {rep.service.libelle_service}
                               </span>)}
                           </div>
 
-                          {/* Détail par critère : emoji + libellé + barre X/5 */}
+                          {/* Détail par question — chaque réponse affichée selon
+                    SON type (note, Oui/Non, choix, texte verbatim),
+                    jamais en fausse note sur 5. */}
                           {rep.reponses?.length > 0 && (<ul className="space-y-2">
-                              {rep.reponses.map((r) => (<li key={r.id.toString()} className="flex items-center gap-3 rounded-xl border border-border/40 bg-background px-3 py-2" title={r.critere?.libelle_critere}>
-                                  <span className="text-2xl leading-none" aria-hidden>
-                                    {visuelPourNote(r.score_brut).icon}
-                                  </span>
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-xs font-bold text-foreground">
-                                      {r.critere?.libelle_critere || 'Critère'}
-                                    </span>
-                                    <BarreNote score={r.score_brut}/>
-                                  </span>
-                                  <span className="shrink-0 text-sm font-bold text-foreground font-satoshi">
-                                    {r.score_brut}<span className="text-[11px] font-semibold text-muted-foreground">/5</span>
-                                  </span>
-                                </li>))}
+                              {rep.reponses.map((r) => (<LigneReponse key={r.id.toString()} r={r} texteGroupe={rep.commentaire_texte}/>))}
                             </ul>)}
 
                           {/* Comment text */}
