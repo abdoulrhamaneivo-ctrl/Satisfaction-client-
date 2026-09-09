@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import { routes } from 'wasp/client/router';
 /**
@@ -7,11 +7,15 @@ import { routes } from 'wasp/client/router';
  * réservées aux comptes plateforme (SUPER_ADMIN, SUPPORT).
  * - Non connecté → redirige vers /login (aucun contenu affiché avant).
  * - Connecté sans rôle plateforme → redirige vers /dashboard.
+ * - Mot de passe temporaire non changé (mustChangePassword) → redirige vers
+ *   /account, comme RequireAuth (FIX 09/2026 : sans ça, un super admin
+ *   utilisait toute la console sans jamais changer son mot de passe initial).
  * Miroir de RequireEnterpriseRole : chaque espace a son garde, le serveur
  * restant la seule vraie frontière (requirePlatformRole renvoie 403).
  */
 export function RequirePlatformRole({ children }) {
     const { data: user, isLoading } = useAuth();
+    const location = useLocation();
     if (isLoading && !user) {
         return (<div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -26,6 +30,9 @@ export function RequirePlatformRole({ children }) {
     const platformRole = user?.platformRole;
     if (platformRole !== 'SUPER_ADMIN' && platformRole !== 'SUPPORT') {
         return <Navigate to={routes.DashboardRoute.to} replace/>;
+    }
+    if (user?.mustChangePassword === true && location.pathname !== routes.AccountRoute.to) {
+        return <Navigate to={routes.AccountRoute.to} replace/>;
     }
     return <>{children}</>;
 }

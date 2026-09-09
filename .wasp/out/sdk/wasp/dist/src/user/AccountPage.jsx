@@ -20,9 +20,13 @@ export function AccountPage({ user }) {
     return (<AmbientBackground>
       <div className="mx-auto max-w-3xl space-y-8 p-6 lg:p-10">
         <PageHeader icon={UserRound} eyebrow="Mon compte" title="Paramètres du compte" description="Gérez vos informations personnelles et la sécurité de votre compte."/>
-        {mustChangePassword && (<div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground dark:text-warning">
-            <strong>Action requise :</strong> pour des raisons de sécurité, vous devez définir un nouveau
-            mot de passe avant de pouvoir accéder au reste de l'application.
+        {mustChangePassword && (<div role="alert" className="rounded-2xl border border-warning/40 bg-warning/10 px-5 py-4 text-sm text-warning-foreground dark:text-warning">
+            <p className="text-base font-bold">👋 Première connexion : définissez votre mot de passe définitif</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Retapez votre <strong>mot de passe actuel</strong> (celui reçu à la création du compte).</li>
+              <li>Choisissez un <strong>nouveau mot de passe</strong> (8 caractères minimum) et confirmez-le.</li>
+              <li>Cliquez « Changer le mot de passe » : le reste de l'application se débloque aussitôt.</li>
+            </ol>
           </div>)}
         <ProfilSection user={user}/>
         <SecuriteSection user={user}/>

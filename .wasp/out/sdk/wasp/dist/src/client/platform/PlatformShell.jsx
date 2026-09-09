@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { NavLink, Link, Outlet, useNavigate } from 'react-router';
 import { useQuery } from 'wasp/client/operations';
 import { getPlatformMe } from 'wasp/client/operations';
-import { Building2, ShieldCheck, ScrollText, Menu, X, ArrowLeft } from 'lucide-react';
+import { Building2, ShieldCheck, ScrollText, Menu, X, ArrowLeft, UserRound } from 'lucide-react';
 /**
  * PlatformShell — console Yeba Platform (Doc 12 §2).
  * Sidebar SOMBRE (noir institutionnel) pour distinguer immédiatement de
@@ -89,12 +89,17 @@ export function PlatformShell() {
             Console propriétaire — accès restreint
           </span>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm font-semibold text-white sm:block">
-              {me.prenom} {me.nom}
-            </span>
-            <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${support ? 'bg-info/20 text-info' : 'bg-warning/20 text-warning'}`}>
-              {me.platformRole}
-            </span>
+            {/* Mon compte : seul endroit où le super admin change son mot de
+            passe, son nom et son e-mail (page /account, sans rôle requis). */}
+            <Link to="/account" title="Mon compte — mot de passe, nom, e-mail" aria-label="Mon compte — mot de passe, nom, e-mail" className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/50">
+              <span className="hidden text-sm font-semibold text-white sm:block">
+                {me.prenom} {me.nom}
+              </span>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${support ? 'bg-info/20 text-info' : 'bg-warning/20 text-warning'}`}>
+                {me.platformRole}
+              </span>
+              <UserRound className="size-4 shrink-0 text-white/60" aria-hidden/>
+            </Link>
           </div>
         </header>
         <main className="flex-1 bg-[hsl(216_30%_96%)] p-4 md:p-8">
