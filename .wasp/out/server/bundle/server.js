@@ -6657,6 +6657,45 @@ const getComparaisonAgences$2 = async (args, context) => {
   });
   resultats.sort((a, b) => (b.score_moyen ?? -1) - (a.score_moyen ?? -1));
   const avecScores = resultats.filter((r) => r.score_moyen !== null);
+  const debutPrec = new Date(debut);
+  debutPrec.setDate(debutPrec.getDate() - nbJours);
+  let deltasParAgence = /* @__PURE__ */ new Map();
+  try {
+    const repsPrec = await context.entities.Reponse.findMany({
+      where: {
+        agence: { id_entreprise: context.user.id_entreprise, archive: false },
+        date_reponse: { gte: debutPrec, lt: debut }
+      },
+      select: {
+        id: true,
+        id_soumission: true,
+        score_brut: true,
+        id_agence: true,
+        critere: { select: { type_reponse: true, options_reponse: true } }
+      }
+    });
+    const parSoumPrec = /* @__PURE__ */ new Map();
+    for (const rep of repsPrec) {
+      const cle = rep.id_soumission ?? `_${rep.id}`;
+      if (!parSoumPrec.has(cle)) parSoumPrec.set(cle, { id_agence: rep.id_agence, scores: [] });
+      const score = scoreNormaliseSur5(rep);
+      if (score !== null) parSoumPrec.get(cle).scores.push(score);
+    }
+    const parAgencePrec = /* @__PURE__ */ new Map();
+    for (const { id_agence, scores } of parSoumPrec.values()) {
+      if (scores.length === 0) continue;
+      if (!parAgencePrec.has(id_agence)) parAgencePrec.set(id_agence, []);
+      parAgencePrec.get(id_agence).push(scores.reduce((s, v) => s + v, 0) / scores.length);
+    }
+    for (const [id, notes] of parAgencePrec) {
+      deltasParAgence.set(id, notes.reduce((s, v) => s + v, 0) / notes.length);
+    }
+  } catch {
+  }
+  for (const r of resultats) {
+    const prec = deltasParAgence.get(r.id_agence);
+    r.delta_note = r.score_moyen !== null && prec !== void 0 && prec !== null ? parseFloat((r.score_moyen - prec).toFixed(2)) : null;
+  }
   return {
     nb_jours: nbJours,
     agences: resultats,
