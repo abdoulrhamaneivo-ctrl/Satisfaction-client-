@@ -235,6 +235,10 @@ Dans les logs Render, tu devrais voir les jobs PgBoss s'exécuter :
 
 ## Checklist finale
 
+- [ ] `wasp build` vert **puis** bundle serveur reconstruit + commité :
+  `cd .wasp/out/server && npm run bundle && cd ../.. && git add .wasp/out/server/bundle`
+  (sans ça, `bundle/server.js` manque dans l'image → crash `MODULE_NOT_FOUND` au `start` ;
+  `wasp build` efface `.wasp/out` sans reconstruire le bundle)
 - [ ] Expéditeur Brevo validé + clé SMTP `xsmtpsib-...` en place (Render + `.env.server`)
 - [ ] JWT_SECRET généré (32 octets hex)
 - [ ] TELEPHONE_HASH_SALT généré (32 octets hex)
