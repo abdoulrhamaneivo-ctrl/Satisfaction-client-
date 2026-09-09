@@ -14,7 +14,7 @@ import {
   type PlatformRole,
 } from './middleware/rowLevelSecurity';
 import { journaliser } from './audit';
-import { emailSender } from 'wasp/server/email';
+import { envoyerEmailBrevo } from './lib/emailBrevo';
 import { createUser, createProviderId, sanitizeAndSerializeProviderData, findAuthIdentity, updateAuthIdentityProviderData, getProviderDataWithPassword } from 'wasp/server/auth';
 import { canActivateTotpSetup, canStartTotpSetup, hasEnrolledTotp } from './security/platformMfa';
 
@@ -47,9 +47,13 @@ export async function envoyerEmailActivation(params: {
   lien: string;
 }): Promise<void> {
   const { to, prenom, nomEntreprise, lien } = params;
-  await emailSender.send({
-    to,
-    subject: `🎉 Bienvenue sur Yeba — Votre espace est prêt`,
+  // L'invitation est déjà commitée par l'appelant : si l'e-mail échoue, on
+  // l'explique au lieu de laisser un timeout muet (l'utilisateur saurait
+  // sinon s'il doit recliquer — un renvoi révoque le lien précédent).
+  try {
+    await envoyerEmailBrevo({
+      to,
+      subject: `🎉 Bienvenue sur Yeba — Votre espace est prêt`,
     text: `Bienvenue ${prenom} ! Votre espace Yeba pour ${nomEntreprise} est prêt. Activez votre compte : ${lien} (lien personnel, usage unique, expire dans 24 h).`,
     html: `<!DOCTYPE html>
 <html lang="fr">
@@ -108,7 +112,13 @@ export async function envoyerEmailActivation(params: {
   </div>
 </body>
 </html>`,
-  });
+    });
+  } catch (err: any) {
+    throw new HttpError(
+      err?.statusCode ?? 502,
+      `Lien créé, mais l'e-mail n'est pas parti (${err?.message ?? 'envoi impossible'}). Vérifiez la configuration e-mail puis cliquez « Renvoyer » une seule fois.`
+    );
+  }
 }
 
 // ─────────────────────────────────────────────

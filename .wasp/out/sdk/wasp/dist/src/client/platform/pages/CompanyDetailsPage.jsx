@@ -5,6 +5,7 @@ import { useQuery, useAction } from 'wasp/client/operations';
 import { getPlatformEntreprise, suspendreEntreprise, reactiverEntreprise, renvoyerInvitation, changerLimitesEntreprise, } from 'wasp/client/operations';
 import { ArrowLeft, Building2, Users, MapPin, MessageSquare, AlertTriangle, MailCheck, Clock, PauseCircle, PlayCircle, Pencil, Mail, Activity, X, Check, } from 'lucide-react';
 import { StatusChip, PlanChip } from './PlatformOverviewPage';
+import { messageErreurAction } from '../../utils';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 const ACTION_LABELS = {
@@ -45,6 +46,8 @@ function CompanyDetailsInner({ id }) {
     const [totpCode, setTotpCode] = useState('');
     const [message, setMessage] = useState(null);
     const [erreurAction, setErreurAction] = useState(null);
+    // Anti-double-clic : un renvoi révoque le lien précédent.
+    const [envoiInvitationEnCours, setEnvoiInvitationEnCours] = useState(false);
     const totpCodeValide = /^\d{6}$/.test(totpCode);
     if (isLoading)
         return (<div className="mx-auto max-w-5xl space-y-6" aria-busy="true" aria-label="Chargement de l'entreprise">
@@ -111,15 +114,21 @@ function CompanyDetailsInner({ id }) {
             <Pencil className="size-4"/> Limites & plan
           </button>
           {e.invitation_active && (<button onClick={async () => {
+                if (envoiInvitationEnCours)
+                    return;
+                setEnvoiInvitationEnCours(true);
                 try {
                     const r = await renvoyerInvitationFn({ id_entreprise: e.id, totpCode });
                     setMessage(r.message);
                 }
                 catch (err) {
-                    setErreurAction(err?.message);
+                    setErreurAction(messageErreurAction(err, "Impossible de renvoyer l'invitation."));
                 }
-            }} disabled={!totpCodeValide} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted">
-              <Mail className="size-4"/> Renvoyer l'invitation
+                finally {
+                    setEnvoiInvitationEnCours(false);
+                }
+            }} disabled={!totpCodeValide || envoiInvitationEnCours} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50">
+              <Mail className="size-4"/> {envoiInvitationEnCours ? 'Envoi…' : "Renvoyer l'invitation"}
             </button>)}
         </div>
       </header>

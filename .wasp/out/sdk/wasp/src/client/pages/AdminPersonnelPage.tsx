@@ -42,6 +42,7 @@ import {
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { PageShell, PageTopNav } from '../components/PageShell';
+import { messageErreurAction } from '../utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,6 +100,10 @@ export const AdminPersonnelPage = () => {
   const [submitted, setSubmitted] = useState(false);
   const creationEnCoursRef = useRef(false);
   const [creationEnCours, setCreationEnCours] = useState(false);
+  // Anti-double-clic sur « Renvoyer l'invitation » : l'envoi pouvant
+  // dépasser le timeout client, on verrouille le bouton pendant l'appel
+  // (un renvoi révoque le lien précédent).
+  const [renvoiEnCoursId, setRenvoiEnCoursId] = useState<string | null>(null);
   const [agentAConfirmerSuppression, setAgentAConfirmerSuppression] = useState<
     { id: string; nom: string; prenom: string } | null
   >(null);
@@ -219,13 +224,17 @@ export const AdminPersonnelPage = () => {
       toast({ variant: 'destructive', title: 'Sans email', description: "Ce compte n'a pas d'email : aucune invitation à renvoyer." });
       return;
     }
+    if (renvoiEnCoursId) return;
+    setRenvoiEnCoursId(id);
     try {
       const r = await renvoyerInvitationAgent({ id_user: id });
       toast({ variant: 'success', title: 'Invitation renvoyée', description: r.message });
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de renvoyer l'invitation." });
+      toast({ variant: 'destructive', title: 'Erreur', description: messageErreurAction(error, "Impossible de renvoyer l'invitation.") });
+    } finally {
+      setRenvoiEnCoursId(null);
     }
   };
 
@@ -539,9 +548,10 @@ export const AdminPersonnelPage = () => {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleRenvoyerInvitation(agent.id, agent.email)}
+                                  disabled={renvoiEnCoursId === agent.id}
                                   aria-label={`Renvoyer l'invitation à ${agent.prenom} ${agent.nom}`}
                                   title="Renvoyer le lien « Définir mon mot de passe » (révoque les anciens liens)"
-                                  className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary"
+                                  className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary disabled:opacity-50"
                                 >
                                   <Mail className="size-4" />
                                 </Button>

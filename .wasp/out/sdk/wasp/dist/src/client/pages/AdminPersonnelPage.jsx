@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { PageShell, PageTopNav } from '../components/PageShell';
+import { messageErreurAction } from '../utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from '../components/ui/alert-dialog';
 import { useToast } from '../hooks/use-toast';
 export const AdminPersonnelPage = () => {
@@ -56,6 +57,10 @@ export const AdminPersonnelPage = () => {
     const [submitted, setSubmitted] = useState(false);
     const creationEnCoursRef = useRef(false);
     const [creationEnCours, setCreationEnCours] = useState(false);
+    // Anti-double-clic sur « Renvoyer l'invitation » : l'envoi pouvant
+    // dépasser le timeout client, on verrouille le bouton pendant l'appel
+    // (un renvoi révoque le lien précédent).
+    const [renvoiEnCoursId, setRenvoiEnCoursId] = useState(null);
     const [agentAConfirmerSuppression, setAgentAConfirmerSuppression] = useState(null);
     const roleOptions = user?.role === 'DIRECTION'
         ? [
@@ -172,6 +177,9 @@ export const AdminPersonnelPage = () => {
             toast({ variant: 'destructive', title: 'Sans email', description: "Ce compte n'a pas d'email : aucune invitation à renvoyer." });
             return;
         }
+        if (renvoiEnCoursId)
+            return;
+        setRenvoiEnCoursId(id);
         try {
             const r = await renvoyerInvitationAgent({ id_user: id });
             toast({ variant: 'success', title: 'Invitation renvoyée', description: r.message });
@@ -179,7 +187,10 @@ export const AdminPersonnelPage = () => {
             setTimeout(() => setSubmitted(false), 3000);
         }
         catch (error) {
-            toast({ variant: 'destructive', title: 'Erreur', description: error?.message || "Impossible de renvoyer l'invitation." });
+            toast({ variant: 'destructive', title: 'Erreur', description: messageErreurAction(error, "Impossible de renvoyer l'invitation.") });
+        }
+        finally {
+            setRenvoiEnCoursId(null);
         }
     };
     const agentsFiltres = (agents ?? []).filter((agent) => {
@@ -365,7 +376,7 @@ export const AdminPersonnelPage = () => {
                                 </Button>) : (<Button type="button" variant="ghost" size="icon" onClick={() => setAgentAConfirmerSuppression({ id: agent.id, nom: agent.nom, prenom: agent.prenom })} aria-label={`Suspendre ${agent.prenom} ${agent.nom}`} title="Suspendre ce compte" className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-destructive/15 hover:text-destructive">
                                   <Trash2 className="size-4"/>
                                 </Button>)}
-                              {agent.email && (<Button type="button" variant="ghost" size="icon" onClick={() => handleRenvoyerInvitation(agent.id, agent.email)} aria-label={`Renvoyer l'invitation à ${agent.prenom} ${agent.nom}`} title="Renvoyer le lien « Définir mon mot de passe » (révoque les anciens liens)" className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary">
+                              {agent.email && (<Button type="button" variant="ghost" size="icon" onClick={() => handleRenvoyerInvitation(agent.id, agent.email)} disabled={renvoiEnCoursId === agent.id} aria-label={`Renvoyer l'invitation à ${agent.prenom} ${agent.nom}`} title="Renvoyer le lien « Définir mon mot de passe » (révoque les anciens liens)" className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-primary/15 hover:text-primary disabled:opacity-50">
                                   <Mail className="size-4"/>
                                 </Button>)}
                             </div>

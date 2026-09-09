@@ -140,6 +140,10 @@ export type RenvoyerInvitationAgent<Input extends Payload = never, Output extend
     _AuditLog,
     _Entreprise
 ], Input, Output>;
+export type DemanderReinitialisation<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _User,
+    _Invitation
+], Input, Output>;
 export type ToggleCritereAgence<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _AgenceCritere,
     _User,

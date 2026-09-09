@@ -23,6 +23,7 @@ import { PromouvoirAgent_ext } from 'wasp/server/operations/actions'
 import { UpdateBranding_ext } from 'wasp/server/operations/actions'
 import { InviteAgent_ext } from 'wasp/server/operations/actions'
 import { RenvoyerInvitationAgent_ext } from 'wasp/server/operations/actions'
+import { DemanderReinitialisation_ext } from 'wasp/server/operations/actions'
 import { ToggleCritereAgence_ext } from 'wasp/server/operations/actions'
 import { CreateCritere_ext } from 'wasp/server/operations/actions'
 import { CreateService_ext } from 'wasp/server/operations/actions'
@@ -203,6 +204,12 @@ export const inviteAgent: ActionFor<InviteAgent_ext> = createAction<InviteAgent_
 export const renvoyerInvitationAgent: ActionFor<RenvoyerInvitationAgent_ext> = createAction<RenvoyerInvitationAgent_ext>(
   'operations/renvoyer-invitation-agent',
   ['User', 'Agence', 'Invitation', 'AuditLog', 'Entreprise'],
+)
+
+// PUBLIC API
+export const demanderReinitialisation: ActionFor<DemanderReinitialisation_ext> = createAction<DemanderReinitialisation_ext>(
+  'operations/demander-reinitialisation',
+  ['User', 'Invitation'],
 )
 
 // PUBLIC API

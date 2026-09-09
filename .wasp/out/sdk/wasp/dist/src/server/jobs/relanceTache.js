@@ -12,7 +12,7 @@
 // urgence) et, s'il y a au moins une tâche réellement en retard, un seul
 // SMS résumant le nombre de tâches et la plus urgente d'entre elles.
 // ============================================================================
-import { emailSender } from 'wasp/server/email';
+import { envoyerEmailBrevo } from '../lib/emailBrevo';
 import { prisma } from 'wasp/server';
 import { envoyerAlerteSMS } from '../notifications/gateway';
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
@@ -127,7 +127,7 @@ export const relancerTachesEnRetard = async (_args, _context) => {
             .map((t) => `- ${t.tache.titre} (${t.guichetNom}) — ${t.isEnRetard ? `en retard depuis le ${t.echeance}` : `échéance ${t.echeance}`}`)
             .join('\n');
         try {
-            await emailSender.send({
+            await envoyerEmailBrevo({
                 to: responsable.email,
                 subject: sujet,
                 html,

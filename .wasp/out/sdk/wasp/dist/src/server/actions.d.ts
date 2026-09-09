@@ -98,6 +98,11 @@ export declare const renvoyerInvitationAgent: (args: {
     ok: boolean;
     message: string;
 }>;
+export declare const demanderReinitialisation: (args: {
+    email: string;
+}, context: any) => Promise<{
+    ok: true;
+}>;
 export declare const toggleCritereAgence: (args: {
     id_critere: number;
     id_agence?: number;

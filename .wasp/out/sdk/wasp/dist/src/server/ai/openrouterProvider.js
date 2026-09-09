@@ -54,6 +54,8 @@ export class OpenRouterProvider {
             this.client = new OpenAI({
                 baseURL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
                 apiKey: apiKey,
+                // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+                timeout: 25000,
             });
         }
     }

@@ -47,10 +47,12 @@ La NOTE (1-5) et le TEXTE du commentaire sont deux signaux indépendants. Tu re�
 3. Si le texte décrit un problème grave, ajuste "urgence" en conséquence MÊME SI la note est haute — une note 5/5 n'annule pas un problème réel.
 
 N'ajoute aucun texte en dehors du JSON.`;
-// Modèle Mistral par défaut sur NIM. Le slug exact peut évoluer dans le
-// catalogue build.nvidia.com — surchargeable via NVIDIA_MODEL.
-// Choix : Mistral Large = meilleur en français pour l'analyse d'avis.
-const DEFAULT_MODEL = 'mistralai/mistral-large-2-instruct';
+// Modèle Mistral par défaut sur NIM. Testé le 08/09/2026 :
+// 'mistralai/mistral-large-2-instruct' a été RETIRÉ du catalogue (404) —
+// remplacé par 'mistralai/mistral-nemotron' (vérifié : analyse FR correcte,
+// JSON conforme au schéma). Le slug reste surchargeable via NVIDIA_MODEL
+// car le catalogue build.nvidia.com évolue souvent.
+const DEFAULT_MODEL = 'mistralai/mistral-nemotron';
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -72,6 +74,8 @@ export class NvidiaProvider {
             this.client = new OpenAI({
                 baseURL: process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1',
                 apiKey: apiKey.trim(),
+                // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+                timeout: 25000,
             });
         }
     }

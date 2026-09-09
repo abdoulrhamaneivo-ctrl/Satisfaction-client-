@@ -9,7 +9,7 @@ import { HttpError, prisma } from 'wasp/server';
 import crypto from 'node:crypto';
 import { requireSuperAdmin, } from './middleware/rowLevelSecurity';
 import { journaliser } from './audit';
-import { emailSender } from 'wasp/server/email';
+import { envoyerEmailBrevo } from './lib/emailBrevo';
 import { createUser, createProviderId, sanitizeAndSerializeProviderData, findAuthIdentity, updateAuthIdentityProviderData, getProviderDataWithPassword } from 'wasp/server/auth';
 import { canActivateTotpSetup, canStartTotpSetup, hasEnrolledTotp } from './security/platformMfa';
 // ── Plans de référence (Doc 11 §4 — constant code, pas une table) ──
@@ -32,11 +32,15 @@ export function lienActivation(tokenClair) {
 // ─────────────────────────────────────────────
 export async function envoyerEmailActivation(params) {
     const { to, prenom, nomEntreprise, lien } = params;
-    await emailSender.send({
-        to,
-        subject: `🎉 Bienvenue sur Yeba — Votre espace est prêt`,
-        text: `Bienvenue ${prenom} ! Votre espace Yeba pour ${nomEntreprise} est prêt. Activez votre compte : ${lien} (lien personnel, usage unique, expire dans 24 h).`,
-        html: `<!DOCTYPE html>
+    // L'invitation est déjà commitée par l'appelant : si l'e-mail échoue, on
+    // l'explique au lieu de laisser un timeout muet (l'utilisateur saurait
+    // sinon s'il doit recliquer — un renvoi révoque le lien précédent).
+    try {
+        await envoyerEmailBrevo({
+            to,
+            subject: `🎉 Bienvenue sur Yeba — Votre espace est prêt`,
+            text: `Bienvenue ${prenom} ! Votre espace Yeba pour ${nomEntreprise} est prêt. Activez votre compte : ${lien} (lien personnel, usage unique, expire dans 24 h).`,
+            html: `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"></head>
 <body style="font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; margin: 0; padding: 20px;">
@@ -93,7 +97,11 @@ export async function envoyerEmailActivation(params) {
   </div>
 </body>
 </html>`,
-    });
+        });
+    }
+    catch (err) {
+        throw new HttpError(err?.statusCode ?? 502, `Lien créé, mais l'e-mail n'est pas parti (${err?.message ?? 'envoi impossible'}). Vérifiez la configuration e-mail puis cliquez « Renvoyer » une seule fois.`);
+    }
 }
 // ─────────────────────────────────────────────
 // créerEntreprise — le cœur du SaaS (Doc 12 §6)

@@ -23,6 +23,7 @@ import { promouvoirAgent as promouvoirAgent_ext } from 'wasp/src/server/actions'
 import { updateBranding as updateBranding_ext } from 'wasp/src/server/actions';
 import { inviteAgent as inviteAgent_ext } from 'wasp/src/server/actions';
 import { renvoyerInvitationAgent as renvoyerInvitationAgent_ext } from 'wasp/src/server/actions';
+import { demanderReinitialisation as demanderReinitialisation_ext } from 'wasp/src/server/actions';
 import { toggleCritereAgence as toggleCritereAgence_ext } from 'wasp/src/server/actions';
 import { createCritere as createCritere_ext } from 'wasp/src/server/actions';
 import { createService as createService_ext } from 'wasp/src/server/actions';
@@ -108,6 +109,8 @@ export type InviteAgent_ext = typeof inviteAgent_ext;
 export declare const inviteAgent: AuthenticatedOperationFor<InviteAgent_ext>;
 export type RenvoyerInvitationAgent_ext = typeof renvoyerInvitationAgent_ext;
 export declare const renvoyerInvitationAgent: AuthenticatedOperationFor<RenvoyerInvitationAgent_ext>;
+export type DemanderReinitialisation_ext = typeof demanderReinitialisation_ext;
+export declare const demanderReinitialisation: AuthenticatedOperationFor<DemanderReinitialisation_ext>;
 export type ToggleCritereAgence_ext = typeof toggleCritereAgence_ext;
 export declare const toggleCritereAgence: AuthenticatedOperationFor<ToggleCritereAgence_ext>;
 export type CreateCritere_ext = typeof createCritere_ext;

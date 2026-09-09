@@ -47,6 +47,8 @@ export class DeepseekProvider implements AIProvider {
       this.client = new OpenAI({
         baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
         apiKey: apiKey.trim(),
+        // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+        timeout: 25000,
       });
     }
   }

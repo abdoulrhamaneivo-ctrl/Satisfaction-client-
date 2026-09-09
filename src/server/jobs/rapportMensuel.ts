@@ -7,7 +7,7 @@
 //   - La direction (données consolidées de toutes les agences)
 // ============================================================================
 
-import { emailSender } from 'wasp/server/email';
+import { envoyerEmailBrevo } from '../lib/emailBrevo';
 import { prisma } from 'wasp/server';
 import { scoreMoyenParAvis } from '../soumissions';
 
@@ -257,7 +257,7 @@ export const envoyerRapportsMensuels = async (_args: unknown, _context: any) => 
       const html = genererHtmlRapport(stats, moisLabel, estDirection);
 
       try {
-        await emailSender.send({
+        await envoyerEmailBrevo({
           to: destinataire.email,
           subject: `📊 Yeba — Rapport ${moisLabel} · ${agence.nom_agence}`,
           html,

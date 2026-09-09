@@ -24,6 +24,7 @@ import { promouvoirAgent as promouvoirAgent_ext } from 'wasp/src/server/actions'
 import { updateBranding as updateBranding_ext } from 'wasp/src/server/actions';
 import { inviteAgent as inviteAgent_ext } from 'wasp/src/server/actions';
 import { renvoyerInvitationAgent as renvoyerInvitationAgent_ext } from 'wasp/src/server/actions';
+import { demanderReinitialisation as demanderReinitialisation_ext } from 'wasp/src/server/actions';
 import { toggleCritereAgence as toggleCritereAgence_ext } from 'wasp/src/server/actions';
 import { createCritere as createCritere_ext } from 'wasp/src/server/actions';
 import { createService as createService_ext } from 'wasp/src/server/actions';
@@ -225,6 +226,11 @@ export const renvoyerInvitationAgent = createAuthenticatedOperation(renvoyerInvi
     Invitation: prisma.invitation,
     AuditLog: prisma.auditLog,
     Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const demanderReinitialisation = createAuthenticatedOperation(demanderReinitialisation_ext, {
+    User: prisma.user,
+    Invitation: prisma.invitation,
 });
 // PUBLIC API
 export const toggleCritereAgence = createAuthenticatedOperation(toggleCritereAgence_ext, {

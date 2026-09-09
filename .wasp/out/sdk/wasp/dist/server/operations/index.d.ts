@@ -66,6 +66,7 @@ export { promouvoirAgent } from './actions/index.js';
 export { updateBranding } from './actions/index.js';
 export { inviteAgent } from './actions/index.js';
 export { renvoyerInvitationAgent } from './actions/index.js';
+export { demanderReinitialisation } from './actions/index.js';
 export { toggleCritereAgence } from './actions/index.js';
 export { createCritere } from './actions/index.js';
 export { createService } from './actions/index.js';

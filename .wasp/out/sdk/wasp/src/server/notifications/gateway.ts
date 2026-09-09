@@ -92,6 +92,9 @@ export async function envoyerAlerteSMS(destinataire: string, message: string): P
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: body.toString(),
+    // Sans borne, un SMS pendu dépassait le timeout client (10 s) côté UI
+    // et bloquait le worker PgBoss côté jobs.
+    signal: AbortSignal.timeout(8000),
   });
 
   if (!res.ok) {
@@ -127,6 +130,8 @@ export async function envoyerAlerteWhatsApp(destinataire: string, message: strin
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: body.toString(),
+    // Même borne que le SMS (voir ci-dessus).
+    signal: AbortSignal.timeout(8000),
   });
 
   if (!res.ok) {

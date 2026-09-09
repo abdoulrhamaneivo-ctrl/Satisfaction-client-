@@ -1,0 +1,239 @@
+import React, { useState } from 'react';
+import { Navigate, useNavigate } from 'react-router';
+import { useAuth } from 'wasp/client/auth';
+import { useQuery, getAgences, createAgence, archiverAgence } from 'wasp/client/operations';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Building2, MapPin, PlusCircle, Archive, Search, SearchX } from 'lucide-react';
+import { AmbientBackground } from '../components/AmbientBackground';
+import { EmptyState } from '../components/EmptyState';
+import { PageHeader } from '../components/PageHeader';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { RequireAuth } from '../components/RequireAuth';
+import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { PageShell } from '../components/PageShell';
+import { useToast } from '../hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from '../components/ui/alert-dialog';
+export const GestionAgencesPage = () => {
+    const { data: user } = useAuth();
+    const navigate = useNavigate();
+    const { data: agences, isLoading, error: erreurChargement, refetch: rechargerAgences } = useQuery(getAgences);
+    const { toast } = useToast();
+    const [formData, setFormData] = useState({
+        nom_agence: '',
+        commune: '',
+        adresse: '',
+    });
+    const [submitting, setSubmitting] = useState(false);
+    const [agenceAArchiver, setAgenceAArchiver] = useState(null);
+    const [agenceCree, setAgenceCree] = useState(null);
+    const [archivingId, setArchivingId] = useState(null);
+    const [recherche, setRecherche] = useState('');
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (submitting)
+            return;
+        setSubmitting(true);
+        try {
+            const cree = await createAgence({
+                nom_agence: formData.nom_agence,
+                commune: formData.commune,
+                adresse: formData.adresse || undefined,
+            });
+            toast({
+                variant: 'success',
+                title: 'Agence créée',
+                description: `"${formData.nom_agence}" a été ajoutée à votre réseau.`,
+            });
+            // FIX 05/09 : après création, proposer aussitôt la désignation du
+            // chef — avant, l'agence naissait sans chef et sans aucun rappel.
+            setAgenceCree({ id: cree?.id, nom: formData.nom_agence });
+            setFormData({ nom_agence: '', commune: '', adresse: '' });
+        }
+        catch (error) {
+            toast({
+                variant: 'destructive',
+                title: "Erreur lors de la création de l'agence",
+                description: error?.message || 'Erreur inconnue',
+            });
+        }
+        finally {
+            setSubmitting(false);
+        }
+    };
+    const handleArchiverAgence = async () => {
+        if (!agenceAArchiver)
+            return;
+        setArchivingId(agenceAArchiver.id);
+        try {
+            await archiverAgence({ id_agence: agenceAArchiver.id });
+            toast({
+                variant: 'success',
+                title: 'Agence archivée',
+                description: `« ${agenceAArchiver.nom} » et ses guichets sont fermés et déplacés dans les Archives. Tout l'historique reste intact.`,
+            });
+            setAgenceAArchiver(null);
+        }
+        catch (error) {
+            toast({ variant: 'destructive', title: 'Erreur', description: error?.message || 'Erreur inconnue' });
+        }
+        finally {
+            setArchivingId(null);
+        }
+    };
+    // Cette page ne concerne que le chef d'entreprise : c'est lui qui
+    // structure son réseau d'agences avant d'y rattacher des chefs d'agence
+    // (via la page Personnel) et des guichets. Pas de message d'erreur :
+    // l'entrée menu est déjà réservée Direction, on redirige ailleurs.
+    if (user && user.role !== 'DIRECTION') {
+        return <Navigate to="/dashboard" replace/>;
+    }
+    const agenceCount = agences?.length ?? 0;
+    const agencesFiltrees = (agences ?? []).filter((agence) => {
+        const requete = recherche.trim().toLocaleLowerCase('fr-FR');
+        return !requete || `${agence.nom_agence ?? ''} ${agence.commune ?? ''} ${agence.adresse ?? ''}`
+            .toLocaleLowerCase('fr-FR')
+            .includes(requete);
+    });
+    return (<RequireEnterpriseRole>
+      <RequireAuth>
+      <AmbientBackground>
+        <PageShell>
+            <PageHeader icon={Building2} eyebrow="Réseau" title="Gestion des agences" description="Créez les agences de votre réseau. Vous pourrez ensuite y rattacher un Chef d'Agence et des guichets."/>
+
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              {/* CARTE FORMULAIRE */}
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-1 rounded-3xl border border-border/70 bg-card p-6 shadow-premium ring-premium">
+                <h2 className="mb-6 flex items-center gap-2 text-lg font-bold">
+                  <PlusCircle className="text-primary"/> Nouvelle agence
+                </h2>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agence-nom">Nom de l'agence</Label>
+                    <Input id="agence-nom" name="nom_agence" placeholder="Ex : Agence Plateau" value={formData.nom_agence} onChange={handleInputChange} required className="h-11"/>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agence-commune">Commune</Label>
+                    <Input id="agence-commune" name="commune" placeholder="Ex : Abidjan - Plateau" value={formData.commune} onChange={handleInputChange} required className="h-11"/>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agence-adresse">Adresse précise <span className="font-normal text-muted-foreground">(optionnel)</span></Label>
+                    <Input id="agence-adresse" name="adresse" placeholder="Ex : Rue des Jardins, immeuble…" value={formData.adresse} onChange={handleInputChange} className="h-11"/>
+                  </div>
+
+                  <Button type="submit" disabled={submitting} className="w-full rounded-xl font-bold">
+                    {submitting ? 'Création…' : "Créer l'agence"}
+                  </Button>
+                </form>
+
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Une fois l'agence créée, allez sur la page{' '}
+                  <span className="font-medium text-foreground">Personnel</span> pour lui
+                  rattacher un Chef d'Agence.
+                </p>
+              </motion.div>
+
+              {/* LISTE DES AGENCES */}
+              <div className="lg:col-span-2 space-y-4">
+                {erreurChargement && (<div className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm font-bold text-destructive">
+                    <span>Impossible de charger vos agences. Vérifiez votre connexion.</span>
+                    <Button type="button" size="sm" variant="outline" onClick={() => rechargerAgences()} className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl">
+                      Réessayer
+                    </Button>
+                  </div>)}
+                {agenceCount > 0 && (<div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                    <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher une agence ou une commune…" className="h-10 pl-9" aria-label="Rechercher une agence"/>
+                  </div>)}
+                {!isLoading && agenceCount > 0 && agencesFiltrees.length === 0 && (<EmptyState icon={SearchX} title="Aucune agence ne correspond à votre recherche" description="Essayez un autre nom d'agence ou de commune." action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>} className="py-10"/>)}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {/* FIX 05/09 : CTA post-création — l'agence naît sans chef,
+            on propose aussitôt sa désignation au lieu de l'oublier. */}
+                {agenceCree?.id && (<div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-success/30 bg-success/10 p-5">
+                    <p className="text-sm font-bold text-success">
+                      « {agenceCree.nom} » créée. Désignez maintenant son Chef d'Agence :
+                    </p>
+                    <div className="flex gap-2">
+                      <Button type="button" onClick={() => navigate(`/admin/personnel?agence=${agenceCree.id}`)} className="rounded-xl font-bold">
+                        <PlusCircle className="size-4"/> Désigner son chef
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setAgenceCree(null)} className="rounded-xl font-bold">
+                        Plus tard
+                      </Button>
+                    </div>
+                  </div>)}
+                {isLoading && (<>
+                    {[0, 1].map((i) => (<div key={i} className="h-[88px] animate-pulse rounded-3xl border border-border/70 bg-card-subtle/50"/>))}
+                  </>)}
+
+                <AnimatePresence>
+                  {agencesFiltrees.map((agence) => (<motion.div key={agence.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="rounded-3xl border border-border/70 bg-card p-5 shadow-sm transition-all hover:shadow-premium hover:border-primary/20">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <Building2 className="size-5"/>
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="truncate font-bold text-foreground">
+                              {agence.nom_agence}
+                            </h3>
+                            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <MapPin className="size-3"/> {agence.commune}
+                            </p>
+                            {/* FIX 05/09 : le chef en place (ou son absence) est
+                visible et actionnable depuis la carte — avant,
+                aucun moyen de désigner un chef après création,
+                et le clic sur la carte ne donnait rien. */}
+                            {agence.utilisateurs?.[0] ? (<p className="mt-1 truncate text-xs font-semibold text-success">
+                                Chef : {agence.utilisateurs[0].prenom} {agence.utilisateurs[0].nom}
+                              </p>) : (<button type="button" onClick={() => navigate(`/admin/personnel?agence=${agence.id}`)} className="mt-1 inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-1 text-[11px] font-bold text-warning hover:bg-warning/20 transition-colors">
+                                <PlusCircle className="size-3"/> Aucun chef — désigner
+                              </button>)}
+                          </div>
+                        </div>
+                        <Button type="button" variant="outline" size="icon" onClick={() => setAgenceAArchiver({ id: agence.id, nom: agence.nom_agence })} className="shrink-0 border-dashed hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive" title="Fermer définitivement cette agence (archivage, aucune perte de données)">
+                          <Archive className="size-4"/>
+                        </Button>
+                      </div>
+                    </motion.div>))}
+                </AnimatePresence>
+
+                {!isLoading && agenceCount === 0 && (<div className="md:col-span-2">
+                    <EmptyState icon={Building2} title="Aucune agence pour l'instant" description="Créez votre première agence via le formulaire pour commencer à structurer votre réseau."/>
+                  </div>)}
+                </div>
+              </div>
+            </div>
+          </PageShell>
+      </AmbientBackground>
+
+      <AlertDialog open={agenceAArchiver !== null} onOpenChange={(open) => !open && setAgenceAArchiver(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fermer définitivement cette agence ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {agenceAArchiver && (<>
+                  <strong className="text-foreground">{agenceAArchiver.nom}</strong> et tous ses
+                  guichets seront archivés : ils disparaîtront des listes actives. Tout l'historique
+                  (avis, alertes, statistiques) reste intact et consultable depuis la page Archives —
+                  vous pourrez la réactiver à tout moment.
+                </>)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchiverAgence} disabled={archivingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {archivingId !== null ? 'Archivage...' : "Archiver l'agence"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </RequireAuth>
+      </RequireEnterpriseRole>);
+};

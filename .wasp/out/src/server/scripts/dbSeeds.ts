@@ -16,9 +16,11 @@ const COMMUNE_AGENCE = "Plateau";
 const EMAIL_CHEF = "abdoulivo5@gmail.com";
 
 /**
- * Seeding unique pour l'outil interne mono-agence de Yeba.
- * Crée l'Entreprise, l'Agence et le compte CHEF_AGENCE par défaut.
+ * Seeding unique pour l'outil interne Yeba (mono-entreprise).
+ * Crée l'Entreprise, sa première Agence et le compte CHEF_AGENCE par défaut.
  * Idempotent : peut être relancé sans effet de bord (aucune donnée dupliquée).
+ * D'autres agences se créent ensuite via la page Gestion des agences
+ * (rôle DIRECTION).
  *
  * Pour créer manuellement un second compte réservé à la maintenance
  * technique (accès `isAdmin`, indépendant des rôles métier CHEF_AGENCE /
@@ -60,7 +62,7 @@ export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
     }
   }
 
-  // 2. Création de l'Agence unique
+  // 2. Création de la première Agence
   let agence = await prismaClient.agence.findFirst({
     where: { nom_agence: NOM_AGENCE, id_entreprise: entreprise.id }
   });
@@ -117,7 +119,7 @@ export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
     }
   }
 
-  // Activer aussi tous les critères pour cette agence unique
+  // Activer aussi tous les critères pour cette première agence
   console.log("Activation des critères pour l'agence unique...");
   for (const cId of [1, 2, 3]) {
     await prismaClient.agenceCritere.upsert({

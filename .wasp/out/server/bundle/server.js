@@ -1215,6 +1215,69 @@ async function deleteFile$1(args, context) {
 
 var deleteFile = createAction(deleteFile$1);
 
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+const TIMEOUT_MS = 8e3;
+const empreinte = (valeur) => crypto.createHash("sha256").update(valeur).digest("hex").slice(0, 8);
+function expediteurBrevo() {
+  return { name: "Yeba", email: "abdoulrhamane.ivo@gmail.com" };
+}
+async function envoyerEmailBrevo({ to, subject, text, html }) {
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  if (!apiKey) {
+    throw new HttpError(
+      503,
+      "Envoi d'e-mail indisponible : cl\xE9 API Brevo (BREVO_API_KEY) non configur\xE9e. Pr\xE9venez votre administrateur."
+    );
+  }
+  const destinataire = to.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinataire)) {
+    throw new HttpError(400, "Adresse e-mail destinataire invalide.");
+  }
+  let res;
+  try {
+    res = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey
+      },
+      body: JSON.stringify({
+        sender: expediteurBrevo(),
+        to: [{ email: destinataire }],
+        subject,
+        textContent: text,
+        htmlContent: html
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+  } catch (err) {
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+      console.error(`event=email_brevo_timeout to=${empreinte(destinataire)}`);
+      throw new HttpError(504, "Le service d'e-mail met trop longtemps \xE0 r\xE9pondre. R\xE9essayez dans un instant.");
+    }
+    console.error(`event=email_brevo_reseau to=${empreinte(destinataire)} erreur=${String(err?.message ?? err).slice(0, 120)}`);
+    throw new HttpError(502, "Envoi d'e-mail impossible pour le moment (r\xE9seau). R\xE9essayez dans un instant.");
+  }
+  if (!res.ok) {
+    const corps = await res.text().catch(() => "");
+    console.error(`event=email_brevo_rejet status=${res.status} to=${empreinte(destinataire)} corps=${corps.slice(0, 200)}`);
+    if (res.status === 401 || res.status === 403) {
+      throw new HttpError(
+        503,
+        "Envoi d'e-mail indisponible : cl\xE9 API Brevo invalide ou exp\xE9diteur non v\xE9rifi\xE9. Pr\xE9venez votre administrateur."
+      );
+    }
+    if (res.status === 400) {
+      throw new HttpError(502, "L'e-mail a \xE9t\xE9 refus\xE9 par le service d'envoi. V\xE9rifiez l'adresse du destinataire.");
+    }
+    if (res.status === 429) {
+      throw new HttpError(429, "Trop d'e-mails envoy\xE9s d'un coup (quota Brevo). R\xE9essayez dans quelques minutes.");
+    }
+    throw new HttpError(502, "L'e-mail n'a pas pu \xEAtre envoy\xE9. R\xE9essayez dans un instant.");
+  }
+  console.log(`event=email_brevo_envoye to=${empreinte(destinataire)} sujet=${subject.slice(0, 60)}`);
+}
+
 const PLACEHOLDERS = /* @__PURE__ */ new Set(["mock", "test", "changeme", "todo", "xxx"]);
 const estConfigure = (valeur) => !!valeur && valeur.trim() !== "" && !PLACEHOLDERS.has(valeur.trim().toLowerCase());
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
@@ -1251,7 +1314,10 @@ async function envoyerAlerteSMS(destinataire, message) {
       Authorization: "Basic " + Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString("base64"),
       "Content-Type": "application/x-www-form-urlencoded"
     },
-    body: body.toString()
+    body: body.toString(),
+    // Sans borne, un SMS pendu dépassait le timeout client (10 s) côté UI
+    // et bloquait le worker PgBoss côté jobs.
+    signal: AbortSignal.timeout(8e3)
   });
   if (!res.ok) {
     await res.text();
@@ -1278,7 +1344,9 @@ async function envoyerAlerteWhatsApp(destinataire, message) {
       Authorization: "Basic " + Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString("base64"),
       "Content-Type": "application/x-www-form-urlencoded"
     },
-    body: body.toString()
+    body: body.toString(),
+    // Même borne que le SMS (voir ci-dessus).
+    signal: AbortSignal.timeout(8e3)
   });
   if (!res.ok) {
     console.warn(`event=notification_fallback channel=whatsapp->sms dest=${empreinteNumero(numero)}`);
@@ -2325,7 +2393,7 @@ const inviteAgent$2 = async (args, context) => {
     const roleLabel = args.role === "CHEF_AGENCE" ? "Chef d'Agence" : "Agent de guichet";
     const roleMission = args.role === "CHEF_AGENCE" ? "g\xE9rer les guichets, planifier les agents et suivre les alertes de satisfaction" : "auditer la qualit\xE9 de service, consulter les avis clients et suivre les indicateurs de conformit\xE9";
     const stepTroisDesc = args.role === "CHEF_AGENCE" ? "Planning, avis clients, alertes critiques \u2014 tout est centralis\xE9." : "Tableaux de bord qualit\xE9, avis clients et indicateurs \u2014 tout est centralis\xE9.";
-    await emailSender.send({
+    await envoyerEmailBrevo({
       to: normalizedEmail,
       subject: `\u{1F389} Bienvenue sur Yeba \u2014 Acc\xE8s ${roleLabel}`,
       html: `<!DOCTYPE html>
@@ -2497,17 +2565,24 @@ const renvoyerInvitationAgent$2 = async (args, context) => {
   });
   const agence = cible.id_agence ? await context.entities.Agence.findUnique({ where: { id: cible.id_agence }, select: { nom_agence: true, commune: true } }) : null;
   const nomAgence = agence ? `${agence.nom_agence} \u2014 ${agence.commune}` : "votre agence";
-  await emailSender.send({
-    to: cible.email,
-    subject: "\u{1F511} Yeba \u2014 Nouveau lien pour d\xE9finir votre mot de passe",
-    html: `<div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+  try {
+    await envoyerEmailBrevo({
+      to: cible.email,
+      subject: "\u{1F511} Yeba \u2014 Nouveau lien pour d\xE9finir votre mot de passe",
+      html: `<div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
       <h2 style="color: #111827;">Bonjour ${cible.prenom || ""},</h2>
       <p style="color: #374151;">Voici votre nouveau lien d'activation pour <strong>${nomAgence}</strong> (valable 24 h) :</p>
       <p style="text-align: center; margin: 24px 0;"><a href="${lienActivation(tokenClair)}" style="display: inline-block; background: #1a3a5c; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 800;">D\xE9finir mon mot de passe \u2192</a></p>
       <p style="color: #9ca3af; font-size: 12px;">Si vous avez d\xE9j\xE0 activ\xE9 votre compte, ignorez cet email et connectez-vous avec votre mot de passe.</p>
     </div>`,
-    text: `Bonjour ${cible.prenom || ""}, d\xE9finissez votre mot de passe ici (24 h) : ${lienActivation(tokenClair)}`
-  });
+      text: `Bonjour ${cible.prenom || ""}, d\xE9finissez votre mot de passe ici (24 h) : ${lienActivation(tokenClair)}`
+    });
+  } catch (err) {
+    throw new HttpError(
+      err?.statusCode ?? 502,
+      `Nouveau lien cr\xE9\xE9, mais l'e-mail n'est pas parti (${err?.message ?? "envoi impossible"}). V\xE9rifiez la configuration e-mail puis cliquez \xAB Renvoyer \xBB une seule fois.`
+    );
+  }
   await journaliser({
     context,
     action: "invitation.create",
@@ -2517,6 +2592,43 @@ const renvoyerInvitationAgent$2 = async (args, context) => {
     details: { type: "renvoi-agent" }
   });
   return { ok: true, message: `Nouveau lien d'activation envoy\xE9 \xE0 ${cible.email}.` };
+};
+const RESET_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const demanderReinitialisation$2 = async (args, context) => {
+  const email = args.email?.trim().toLowerCase() ?? "";
+  const generique = { ok: true };
+  const rl = checkRateLimit(`reset-mdp:${extraireIp(context)}`, { capacity: 5, refillPerMinute: 0.5 });
+  if (!rl.allowed) {
+    throw new HttpError(429, `Trop de demandes. R\xE9essayez dans ${rl.retryAfterSeconds} secondes.`);
+  }
+  if (!RESET_EMAIL_RE.test(email)) return generique;
+  const cible = await context.entities.User.findUnique({ where: { email } });
+  if (!cible || cible.actif === false || !cible.email) return generique;
+  const { lienActivation } = await Promise.resolve().then(function () { return actionsPlatform; });
+  const tokenClair = crypto.randomBytes(32).toString("base64url");
+  const tokenHash = crypto.createHash("sha256").update(tokenClair).digest("hex");
+  await context.entities.Invitation.create({
+    data: {
+      id_user: cible.id,
+      // Auto-émis : demande du titulaire lui-même (pas d'émetteur humain).
+      id_emetteur: cible.id,
+      id_entreprise: cible.id_entreprise ?? null,
+      token_hash: tokenHash,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1e3)
+    }
+  });
+  await envoyerEmailBrevo({
+    to: cible.email,
+    subject: "\u{1F511} Yeba \u2014 R\xE9initialisez votre mot de passe",
+    html: `<div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #111827;">Bonjour ${cible.prenom || ""},</h2>
+      <p style="color: #374151;">Voici votre lien pour d\xE9finir un nouveau mot de passe (valable 24 h) :</p>
+      <p style="text-align: center; margin: 24px 0;"><a href="${lienActivation(tokenClair)}" style="display: inline-block; background: #1a3a5c; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 800;">D\xE9finir mon mot de passe \u2192</a></p>
+      <p style="color: #9ca3af; font-size: 12px;">Si vous n'\xEAtes pas \xE0 l'origine de cette demande, ignorez cet email et connectez-vous avec votre mot de passe actuel.</p>
+    </div>`,
+    text: `Bonjour ${cible.prenom || ""}, d\xE9finissez votre nouveau mot de passe ici (24 h) : ${lienActivation(tokenClair)}`
+  });
+  return generique;
 };
 const toggleCritereAgence$2 = async (args, context) => {
   requireAuth(context);
@@ -3775,6 +3887,18 @@ async function renvoyerInvitationAgent$1(args, context) {
 
 var renvoyerInvitationAgent = createAction(renvoyerInvitationAgent$1);
 
+async function demanderReinitialisation$1(args, context) {
+  return demanderReinitialisation$2(args, {
+    ...context,
+    entities: {
+      User: dbClient.user,
+      Invitation: dbClient.invitation
+    }
+  });
+}
+
+var demanderReinitialisation = createAction(demanderReinitialisation$1);
+
 async function toggleCritereAgence$1(args, context) {
   return toggleCritereAgence$2(args, {
     ...context,
@@ -4262,11 +4386,12 @@ function lienActivation(tokenClair) {
 }
 async function envoyerEmailActivation(params) {
   const { to, prenom, nomEntreprise, lien } = params;
-  await emailSender.send({
-    to,
-    subject: `\u{1F389} Bienvenue sur Yeba \u2014 Votre espace est pr\xEAt`,
-    text: `Bienvenue ${prenom} ! Votre espace Yeba pour ${nomEntreprise} est pr\xEAt. Activez votre compte : ${lien} (lien personnel, usage unique, expire dans 24 h).`,
-    html: `<!DOCTYPE html>
+  try {
+    await envoyerEmailBrevo({
+      to,
+      subject: `\u{1F389} Bienvenue sur Yeba \u2014 Votre espace est pr\xEAt`,
+      text: `Bienvenue ${prenom} ! Votre espace Yeba pour ${nomEntreprise} est pr\xEAt. Activez votre compte : ${lien} (lien personnel, usage unique, expire dans 24 h).`,
+      html: `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"></head>
 <body style="font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; margin: 0; padding: 20px;">
@@ -4323,7 +4448,13 @@ async function envoyerEmailActivation(params) {
   </div>
 </body>
 </html>`
-  });
+    });
+  } catch (err) {
+    throw new HttpError(
+      err?.statusCode ?? 502,
+      `Lien cr\xE9\xE9, mais l'e-mail n'est pas parti (${err?.message ?? "envoi impossible"}). V\xE9rifiez la configuration e-mail puis cliquez \xAB Renvoyer \xBB une seule fois.`
+    );
+  }
 }
 const creerEntreprise$2 = async (args, context) => {
   requireSuperAdmin(context);
@@ -7573,6 +7704,7 @@ router$3.post("/promouvoir-agent", auth, promouvoirAgent);
 router$3.post("/update-branding", auth, updateBranding);
 router$3.post("/invite-agent", auth, inviteAgent);
 router$3.post("/renvoyer-invitation-agent", auth, renvoyerInvitationAgent);
+router$3.post("/demander-reinitialisation", auth, demanderReinitialisation);
 router$3.post("/toggle-critere-agence", auth, toggleCritereAgence);
 router$3.post("/create-critere", auth, createCritere);
 router$3.post("/create-service", auth, createService);
@@ -8638,7 +8770,7 @@ const relancerTachesEnRetard = async (_args, _context) => {
 </html>`;
     const texteListe = tachesAvecMeta.map((t) => `- ${t.tache.titre} (${t.guichetNom}) \u2014 ${t.isEnRetard ? `en retard depuis le ${t.echeance}` : `\xE9ch\xE9ance ${t.echeance}`}`).join("\n");
     try {
-      await emailSender.send({
+      await envoyerEmailBrevo({
         to: responsable.email,
         subject: sujet,
         html,
@@ -8861,7 +8993,7 @@ const envoyerRapportsMensuels = async (_args, _context) => {
       const estDirection = destinataire.role === "DIRECTION";
       const html = genererHtmlRapport(stats, moisLabel, estDirection);
       try {
-        await emailSender.send({
+        await envoyerEmailBrevo({
           to: destinataire.email,
           subject: `\u{1F4CA} Yeba \u2014 Rapport ${moisLabel} \xB7 ${agence.nom_agence}`,
           html,
@@ -9047,7 +9179,9 @@ class DeepseekProvider {
     if (apiKey && apiKey.trim().length > 0) {
       this.client = new OpenAI({
         baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-        apiKey: apiKey.trim()
+        apiKey: apiKey.trim(),
+        // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+        timeout: 25e3
       });
     }
   }
@@ -9181,7 +9315,9 @@ class NvidiaProvider {
     if (apiKey && apiKey.trim().length > 0) {
       this.client = new OpenAI({
         baseURL: process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1",
-        apiKey: apiKey.trim()
+        apiKey: apiKey.trim(),
+        // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+        timeout: 25e3
       });
     }
   }
@@ -9325,7 +9461,9 @@ class OpenRouterProvider {
     if (apiKey && apiKey.trim().length > 0) {
       this.client = new OpenAI({
         baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
-        apiKey
+        apiKey,
+        // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+        timeout: 25e3
       });
     }
   }

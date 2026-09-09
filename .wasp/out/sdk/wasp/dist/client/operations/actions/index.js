@@ -48,6 +48,8 @@ export const inviteAgent = createAction('operations/invite-agent', ['User', 'Age
 // PUBLIC API
 export const renvoyerInvitationAgent = createAction('operations/renvoyer-invitation-agent', ['User', 'Agence', 'Invitation', 'AuditLog', 'Entreprise']);
 // PUBLIC API
+export const demanderReinitialisation = createAction('operations/demander-reinitialisation', ['User', 'Invitation']);
+// PUBLIC API
 export const toggleCritereAgence = createAction('operations/toggle-critere-agence', ['AgenceCritere', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
 export const createCritere = createAction('operations/create-critere', ['Critere', 'AgenceCritere', 'User', 'Agence', 'Service', 'Entreprise']);

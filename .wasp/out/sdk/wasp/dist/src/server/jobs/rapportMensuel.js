@@ -6,7 +6,7 @@
 //   - Chaque chef d'agence (données de son agence uniquement)
 //   - La direction (données consolidées de toutes les agences)
 // ============================================================================
-import { emailSender } from 'wasp/server/email';
+import { envoyerEmailBrevo } from '../lib/emailBrevo';
 import { prisma } from 'wasp/server';
 import { scoreMoyenParAvis } from '../soumissions';
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
@@ -206,7 +206,7 @@ export const envoyerRapportsMensuels = async (_args, _context) => {
             const estDirection = destinataire.role === 'DIRECTION';
             const html = genererHtmlRapport(stats, moisLabel, estDirection);
             try {
-                await emailSender.send({
+                await envoyerEmailBrevo({
                     to: destinataire.email,
                     subject: `📊 Yeba — Rapport ${moisLabel} · ${agence.nom_agence}`,
                     html,

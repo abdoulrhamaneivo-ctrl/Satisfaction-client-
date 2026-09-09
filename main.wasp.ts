@@ -40,6 +40,7 @@ import {
   promouvoirAgent,
   inviteAgent,
   renvoyerInvitationAgent,
+  demanderReinitialisation,
   updateBranding,
   createAgence,
   toggleCritereAgence,
@@ -181,6 +182,8 @@ const promouvoirAgentAction = action(promouvoirAgent, { entities: ["User", "Agen
 const updateBrandingAction = action(updateBranding, { entities: ["BrandingConfig", "User", "Entreprise", "AuditLog"] });
 const inviteAgentAction = action(inviteAgent, { entities: ["User", "Agence", "Entreprise", "Invitation"] });
 const renvoyerInvitationAgentAction = action(renvoyerInvitationAgent, { entities: ["User", "Agence", "Invitation", "AuditLog", "Entreprise"] });
+// Reset maison (Brevo HTTP) : le reset interne Wasp part par SMTP (bloqué Render).
+const demanderReinitialisationAction = action(demanderReinitialisation, { entities: ["User", "Invitation"] });
 const toggleCritereAgenceAction = action(toggleCritereAgence, { entities: ["AgenceCritere", "User", "Agence", "Entreprise"] });
 const createCritereAction = action(createCritere, { entities: ["Critere", "AgenceCritere", "User", "Agence", "Service", "Entreprise"] });
 const createServiceAction = action(createService, { entities: ["Service", "User", "Entreprise"] });
@@ -364,6 +367,7 @@ export default app({
     updateBrandingAction,
     inviteAgentAction,
     renvoyerInvitationAgentAction,
+    demanderReinitialisationAction,
     toggleCritereAgenceAction,
     createCritereAction,
     createServiceAction,

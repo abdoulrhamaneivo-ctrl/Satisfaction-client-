@@ -1,8 +1,10 @@
 import type { PrismaClient } from "@prisma/client";
 /**
- * Seeding unique pour l'outil interne mono-agence de Yeba.
- * Crée l'Entreprise, l'Agence et le compte CHEF_AGENCE par défaut.
+ * Seeding unique pour l'outil interne Yeba (mono-entreprise).
+ * Crée l'Entreprise, sa première Agence et le compte CHEF_AGENCE par défaut.
  * Idempotent : peut être relancé sans effet de bord (aucune donnée dupliquée).
+ * D'autres agences se créent ensuite via la page Gestion des agences
+ * (rôle DIRECTION).
  *
  * Pour créer manuellement un second compte réservé à la maintenance
  * technique (accès `isAdmin`, indépendant des rôles métier CHEF_AGENCE /

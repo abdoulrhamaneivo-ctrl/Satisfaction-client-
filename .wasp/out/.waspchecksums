@@ -480,7 +480,7 @@
             "file",
             "sdk/wasp/client/operations/actions/index.ts"
         ],
-        "e0eed50128fc65ab22fbbe858ab4d5788e1bd9955af9a76a8548fed0f7007cff"
+        "bc0501242601617cc4f46cd068f6fbc625e4d31efb3757b892303a57ea6a656c"
     ],
     [
         [
@@ -991,21 +991,21 @@
             "file",
             "sdk/wasp/server/operations/actions/index.ts"
         ],
-        "42b5c32fdc9e3412a79a45f22deb30a510e2ed75e75224bae1689fe6b23c2be3"
+        "c9a5a9d48c74b6e6e31f8fb1a57596e5953dad64c6f4acf75b413ef2c96d8a08"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/actions/types.ts"
         ],
-        "391463aab53fffbc997779fca9a8d1c07dd51dc0d7490e411113a7a3213e5e09"
+        "3300f5a44c82231d8232c8846b9a9ad3e5e2d5e5127a97c837fcde24a624680c"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/index.ts"
         ],
-        "c1a806f69f3b375700b9d89de7c02f201a664fb14413152df2bbcc4e0ed035c5"
+        "8176cb488ba2ab4ea5b0cc7a9c807247b3a237352892533abe126ef35843d253"
     ],
     [
         [
@@ -1089,14 +1089,14 @@
             "file",
             "sdk/wasp/src/auth/email-and-pass/PasswordResetPage.tsx"
         ],
-        "35be0a8565682bb5ecee5f6221f942a8fcfcac1e00d1272cc3d8af8e390954fe"
+        "e057dd9ce12051c0fed9345efb5e122e998905004157962ed5f1ee57dc83c6bd"
     ],
     [
         [
             "file",
             "sdk/wasp/src/auth/email-and-pass/RequestPasswordResetPage.tsx"
         ],
-        "8312dfbda94d7a23733421c91f9cb045be0e310600452cfcd6912abcaf5cdb12"
+        "029a1c8ac614b75ad40445cc67b4fc3036c6a500eac1fab9b1e1317efe9c9296"
     ],
     [
         [
@@ -1677,7 +1677,7 @@
             "file",
             "sdk/wasp/src/client/hooks/useNotificationBadge.ts"
         ],
-        "8fc2d6f9bc7d60b5c76d974c58b066be912e84707f708d25bb02520364d0979c"
+        "a92dc181b590824f59743232404db1f622310d98d2e4742afbe3e1288b09238d"
     ],
     [
         [
@@ -1691,7 +1691,7 @@
             "file",
             "sdk/wasp/src/client/pages/AdminPersonnelPage.tsx"
         ],
-        "b3a3894b3dfb747e00e47d9e09263b4e82c6d7a5318fb9073f6b82c8fb572c09"
+        "0dee6b3f814095dd3f918a41ba1c12290f1c3ad5875adadf7a90953989e19f0f"
     ],
     [
         [
@@ -1733,7 +1733,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "6b86295417fd18af13f38222d8954ec5f3a0d64ac8cf36be20e46b8ea7f6222d"
+        "6b4679a85c80d8b1117612ca443f171e5a9e3d48220b604fe62b0f0c20866d47"
     ],
     [
         [
@@ -1810,7 +1810,7 @@
             "file",
             "sdk/wasp/src/client/platform/pages/CompanyDetailsPage.tsx"
         ],
-        "7b4388920e7e8ec5d83fe463c3487dcb5e15205c5df340b9da9631ce472f9f9c"
+        "2ddbe025b42e8a83fd379c8559e51a3a2d0febe671c27717d65bc3cd7e754037"
     ],
     [
         [
@@ -1999,7 +1999,7 @@
             "file",
             "sdk/wasp/src/client/utils.ts"
         ],
-        "829532dd4c8e09ccbf2db1c1b5ff89278c46957fe574c86888ed07492736bdcb"
+        "f213a958d38aa62d2a18da4f6f98b59dba7bf44acce503160f262ac4a947d329"
     ],
     [
         [
@@ -2069,35 +2069,35 @@
             "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "904cbc575fd6f2381d797862a4f1e209574652c4bb97ebb288efc09b6dc3429c"
+        "ebaa5dc359d6266574a5e20945df54d99bd04662edcf1ffd0ca6f4be84c95b4d"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/actionsPlatform.ts"
         ],
-        "0363f646d4d8a3a81a507136e41b7c08c64eed11fc2fad9baa07e3cf8c55a635"
+        "6cc9141bd31546f2f36d607f712f54d149afca7e4501d377521c410db72e4042"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/ai/deepseekProvider.ts"
         ],
-        "f62850159d9b4e594a68e66dda886d9c566da826f716bd927bc1f9f8b35af411"
+        "4476cbcd004bfd5f6c3a35c2db34788f84d385a42a270234f27626f24b38eb75"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/ai/nvidiaProvider.ts"
         ],
-        "caa7bba5986d8e3308f24d566a71debf7fa024f005b8be856a3bb565fffc0e1b"
+        "c603ad43c130892700c27b63b447457c7c1d0a07ffb8252f4ecad707407dfc46"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/ai/openrouterProvider.ts"
         ],
-        "62b6bc54f5816bfe2d9746c37e8c258b28c87f560a413a13c9f1c787bb4ef68e"
+        "d1893c2061cc256c557edce44858a0c36c2df716d3aac48f630126c458729b2c"
     ],
     [
         [
@@ -2167,14 +2167,21 @@
             "file",
             "sdk/wasp/src/server/jobs/rapportMensuel.ts"
         ],
-        "03d4b3a7dc6b3b8a324c57e9fab36ba74fe07a1ceba5e0f47904367604f735d4"
+        "0984236acefcb40aab8c01115b05e7bfaadbe6d7e019d060afaac169c94c9d6b"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/jobs/relanceTache.ts"
         ],
-        "1be3f9ae15ba36683f6a0a1bef2bc1213549aecabda74ef68deeb2badfe47e8e"
+        "5026a24703fa8f20757f0fa4f9292a5dd65534aadf7983340dcbee64e9f92dab"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/lib/emailBrevo.ts"
+        ],
+        "64d15de64d02dd0658c5b43c50c8b7545dc2bdf408a8c1fbb8b97e26a751c551"
     ],
     [
         [
@@ -2188,7 +2195,7 @@
             "file",
             "sdk/wasp/src/server/notifications/gateway.ts"
         ],
-        "726fef6561d2405953dfc241b98bbeaf507e8bf31191b9659434c80782356b9d"
+        "87a9f1c1f3afa2204f7416ae29e93019d6bf27d1b707af5abd6562767d0baa8c"
     ],
     [
         [
@@ -2230,7 +2237,7 @@
             "file",
             "sdk/wasp/src/server/scripts/dbSeeds.ts"
         ],
-        "d1328fd0b9fcccee9f5dcc80bc87acf094aa7f957741bf56636369a5447ac9bb"
+        "564884d7f2a0576c52ec738182f195eabb0fc51d9856b9613e9bb2056520f6d3"
     ],
     [
         [
@@ -2279,7 +2286,7 @@
             "file",
             "sdk/wasp/src/server/staticServing.ts"
         ],
-        "39466696d7aa81172c8a1c98e4af16c939e9664250357661b1d92fd853e6c57f"
+        "d015dd4eb2fefe0dd42b8c9ba1bad3da243103a950092779838f167a5766b79c"
     ],
     [
         [
@@ -2644,6 +2651,13 @@
             "server/src/actions/deleteObjectif.ts"
         ],
         "c7fd4553d8c2dbcb5016f8fc92e9115a36f1bde50a840783cbb23c4e8fbb508f"
+    ],
+    [
+        [
+            "file",
+            "server/src/actions/demanderReinitialisation.ts"
+        ],
+        "b4d9cc417d648c63cd2a51de1947334c1b81578714967c53e24984d19b73ba88"
     ],
     [
         [
@@ -3537,6 +3551,13 @@
     [
         [
             "file",
+            "server/src/routes/operations/demanderReinitialisation.js"
+        ],
+        "8abe0aa964abaa018b718b90dc5e04444c686d4ee5ae49601de0c39281715e45"
+    ],
+    [
+        [
+            "file",
             "server/src/routes/operations/desactiverComptePlatform.js"
         ],
         "50d251d8cb920c5919953227d5bded71087533f92afd51417dff6b0044d7586c"
@@ -3882,7 +3903,7 @@
             "file",
             "server/src/routes/operations/index.js"
         ],
-        "2cd33e1bbd0b584172ef20ccaed6675416a359b67c0a24a05d78aeeca64ee522"
+        "68446f760d5c351485bc99d7d35d732b12ac026c9c8fce5e4c9e77836d95dc75"
     ],
     [
         [

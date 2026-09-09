@@ -1,7 +1,7 @@
 // src/server/actions.ts
 import { HttpError } from 'wasp/server';
 import { prisma } from 'wasp/server';
-import { emailSender } from 'wasp/server/email';
+import { envoyerEmailBrevo } from './lib/emailBrevo';
 import {
   createProviderId,
   createUser,
@@ -1153,10 +1153,10 @@ export const updateBranding = async (args: Record<string, any>, context: any) =>
 // GESTION DES AGENCES
 // ============================================================================
 // Le seed unique (src/server/scripts/dbSeeds.ts) crée l'Entreprise et
-// l'Agence unique au démarrage. createAgence reste disponible dans le code
-// pour un agrandissement futur (ajout d'une 2ᵉ agence par le chef
-// d'entreprise, rôle DIRECTION) mais n'est pas exposé dans l'UI tant que le
-// déploiement reste mono-agence (voir décision produit associée).
+// sa première Agence au démarrage. createAgence (rôle DIRECTION, page
+// Gestion des agences) permet d'ajouter d'autres agences au réseau : le
+// multi-agences est pleinement supporté (sélecteurs d'agence, RLS par
+// agence, consolidation côté Direction).
 
 export const createAgence = async (
   args: {
@@ -1448,7 +1448,7 @@ export const inviteAgent = async (
       ? 'Planning, avis clients, alertes critiques — tout est centralisé.'
       : 'Tableaux de bord qualité, avis clients et indicateurs — tout est centralisé.';
 
-    await emailSender.send({
+    await envoyerEmailBrevo({
       to: normalizedEmail!,
       subject: `🎉 Bienvenue sur Yeba — Accès ${roleLabel}`,
       html: `<!DOCTYPE html>
@@ -1644,9 +1644,12 @@ export const renvoyerInvitationAgent = async (
     ? await context.entities.Agence.findUnique({ where: { id: cible.id_agence }, select: { nom_agence: true, commune: true } })
     : null;
   const nomAgence = agence ? `${agence.nom_agence} — ${agence.commune}` : 'votre agence';
-  await emailSender.send({
-    to: cible.email,
-    subject: '🔑 Yeba — Nouveau lien pour définir votre mot de passe',
+  // L'invitation est déjà commitée ci-dessus : si l'e-mail échoue, on
+  // l'explique plutôt que de laisser un timeout muet.
+  try {
+    await envoyerEmailBrevo({
+      to: cible.email,
+      subject: '🔑 Yeba — Nouveau lien pour définir votre mot de passe',
     html: `<div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
       <h2 style="color: #111827;">Bonjour ${cible.prenom || ''},</h2>
       <p style="color: #374151;">Voici votre nouveau lien d'activation pour <strong>${nomAgence}</strong> (valable 24 h) :</p>
@@ -1654,7 +1657,13 @@ export const renvoyerInvitationAgent = async (
       <p style="color: #9ca3af; font-size: 12px;">Si vous avez déjà activé votre compte, ignorez cet email et connectez-vous avec votre mot de passe.</p>
     </div>`,
     text: `Bonjour ${cible.prenom || ''}, définissez votre mot de passe ici (24 h) : ${lienActivation(tokenClair)}`,
-  });
+    });
+  } catch (err: any) {
+    throw new HttpError(
+      err?.statusCode ?? 502,
+      `Nouveau lien créé, mais l'e-mail n'est pas parti (${err?.message ?? 'envoi impossible'}). Vérifiez la configuration e-mail puis cliquez « Renvoyer » une seule fois.`
+    );
+  }
 
   await journaliser({
     context,
@@ -1666,6 +1675,67 @@ export const renvoyerInvitationAgent = async (
   });
 
   return { ok: true, message: `Nouveau lien d'activation envoyé à ${cible.email}.` };
+};
+
+
+// ============================================================================
+// MOT DE PASSE OUBLIÉ (flux maison via Brevo HTTP — 09/2026)
+// ─────────────────────────────────────────────
+// Le reset interne Wasp envoie par le provider SMTP, dont le TCP est bloqué
+// depuis Render (timeout systématique prouvé en logs). Ce flux réutilise le
+// circuit d'invitation déjà testé (token 24 h + page /account/activate qui
+// définit le mot de passe via activerCompte) :
+//  1. demanderReinitialisation({ email }) — PUBLIQUE, anti-énumération
+//     (réponse identique que le compte existe ou non) et rate-limitée.
+//  2. Clic sur le lien reçu → ActivateAccountPage → activerCompte.
+// ============================================================================
+const RESET_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const demanderReinitialisation = async (args: { email: string }, context: any) => {
+  const email = args.email?.trim().toLowerCase() ?? '';
+  const generique = { ok: true as const };
+
+  // Anti-abus : 5 demandes/2 h par IP (un robot ne doit pas spammer la boîte
+  // d'un agent ni épuiser le quota Brevo).
+  const rl = checkRateLimit(`reset-mdp:${extraireIp(context)}`, { capacity: 5, refillPerMinute: 0.5 });
+  if (!rl.allowed) {
+    throw new HttpError(429, `Trop de demandes. Réessayez dans ${rl.retryAfterSeconds} secondes.`);
+  }
+
+  // Anti-énumération : même réponse si l'email est invalide ou inconnu.
+  if (!RESET_EMAIL_RE.test(email)) return generique;
+  const cible = await context.entities.User.findUnique({ where: { email } });
+  if (!cible || cible.actif === false || !cible.email) return generique;
+
+  const { lienActivation } = await import('./actionsPlatform');
+  const tokenClair = crypto.randomBytes(32).toString('base64url');
+  const tokenHash = crypto.createHash('sha256').update(tokenClair).digest('hex');
+  await context.entities.Invitation.create({
+    data: {
+      id_user: cible.id,
+      // Auto-émis : demande du titulaire lui-même (pas d'émetteur humain).
+      id_emetteur: cible.id,
+      id_entreprise: cible.id_entreprise ?? null,
+      token_hash: tokenHash,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    },
+  });
+
+  // Si l'e-mail échoue, l'erreur remonte (explicite via Brevo) : le lien
+  // reste utilisable via un renvoi, rien n'est à moitié persisté d'autre.
+  await envoyerEmailBrevo({
+    to: cible.email,
+    subject: '🔑 Yeba — Réinitialisez votre mot de passe',
+    html: `<div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #111827;">Bonjour ${cible.prenom || ''},</h2>
+      <p style="color: #374151;">Voici votre lien pour définir un nouveau mot de passe (valable 24 h) :</p>
+      <p style="text-align: center; margin: 24px 0;"><a href="${lienActivation(tokenClair)}" style="display: inline-block; background: #1a3a5c; color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 800;">Définir mon mot de passe →</a></p>
+      <p style="color: #9ca3af; font-size: 12px;">Si vous n'êtes pas à l'origine de cette demande, ignorez cet email et connectez-vous avec votre mot de passe actuel.</p>
+    </div>`,
+    text: `Bonjour ${cible.prenom || ''}, définissez votre nouveau mot de passe ici (24 h) : ${lienActivation(tokenClair)}`,
+  });
+
+  return generique;
 };
 
 

@@ -55,7 +55,11 @@ export const DashboardPage = () => {
     const { data: tendance, isLoading: loadingTendance } = useQuery(getTendanceMensuelle);
     const { data: statsByAgent, isLoading: loadingAgents } = useQuery(getStatsByAgent, { nbJours: periodeJours });
     const { data: statsByGuichet, isLoading: loadingGuichets } = useQuery(getStatsByGuichet, { nbJours: periodeJours });
-    const { data: actionsPrioritaires, isLoading: loadingActions } = useQuery(getActionsPrioritaires);
+    // Anti-400 : les comptes plateforme purs (sans tenant) font rejeter les
+    // queries scopées entreprise en boucle — on ne les lance que si
+    // l'utilisateur est rattaché à une entreprise ou une agence.
+    const aUnTenant = Boolean(user?.id_entreprise ?? user?.id_agence);
+    const { data: actionsPrioritaires, isLoading: loadingActions } = useQuery(getActionsPrioritaires, undefined, { enabled: aUnTenant });
     const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode, { nbJours: periodeJours });
     const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
     // PERFORMANCE (FIX 05/09) : la heatmap 90 jours est lourde côté Neon et

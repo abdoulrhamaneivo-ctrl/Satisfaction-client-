@@ -335,6 +335,17 @@ export type RenvoyerInvitationAgent<Input extends Payload = never, Output extend
   >
 
 // PUBLIC API
+export type DemanderReinitialisation<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _User,
+      _Invitation,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
 export type ToggleCritereAgence<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedActionDefinition<
     [

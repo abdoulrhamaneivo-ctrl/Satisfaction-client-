@@ -26,6 +26,7 @@ import promouvoirAgent from './promouvoirAgent.js'
 import updateBranding from './updateBranding.js'
 import inviteAgent from './inviteAgent.js'
 import renvoyerInvitationAgent from './renvoyerInvitationAgent.js'
+import demanderReinitialisation from './demanderReinitialisation.js'
 import toggleCritereAgence from './toggleCritereAgence.js'
 import createCritere from './createCritere.js'
 import createService from './createService.js'
@@ -132,6 +133,7 @@ router.post('/promouvoir-agent', auth, promouvoirAgent)
 router.post('/update-branding', auth, updateBranding)
 router.post('/invite-agent', auth, inviteAgent)
 router.post('/renvoyer-invitation-agent', auth, renvoyerInvitationAgent)
+router.post('/demander-reinitialisation', auth, demanderReinitialisation)
 router.post('/toggle-critere-agence', auth, toggleCritereAgence)
 router.post('/create-critere', auth, createCritere)
 router.post('/create-service', auth, createService)

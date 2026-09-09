@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { requestPasswordReset } from "wasp/client/auth";
+import { useAction, demanderReinitialisation } from "wasp/client/operations";
 import { Link as WaspRouterLink, routes } from "wasp/client/router";
 import { AlertCircle, MailCheck, Mail } from "lucide-react";
 import { motion } from "framer-motion";
@@ -13,6 +13,9 @@ export function RequestPasswordResetPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  // Reset maison (Brevo HTTP) : le reset interne Wasp part par SMTP, bloqué
+  // depuis Render. Le lien reçu mène à /account/activate (définition directe).
+  const demanderReset = useAction(demanderReinitialisation);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +26,7 @@ export function RequestPasswordResetPage() {
     }
     setLoading(true);
     try {
-      await requestPasswordReset({ email });
+      await demanderReset({ email: email.trim() });
       setSent(true);
     } catch (err: any) {
       setError(err?.message || "Une erreur est survenue. Veuillez réessayer.");

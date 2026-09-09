@@ -1,5 +1,6 @@
 import { type ClassValue } from "clsx";
 export declare function cn(...inputs: ClassValue[]): string;
+export declare function messageErreurAction(err: any, defaut: string): string;
 export declare function regrouperAvisParSoumission<T extends {
     id: any;
     id_soumission?: string | null;

@@ -9,8 +9,11 @@ export function useNotificationBadge() {
     // On n'active le polling que si l'utilisateur est connecté ET a un rôle
     // qui peut recevoir des alertes (pas un simple AGENT).
     const isEligible = !!user && user.role !== 'AGENT';
+    // Anti-400 : les comptes plateforme purs (SUPER_ADMIN/SUPPORT sans tenant)
+    // font rejeter la query toutes les 30 s (l'API exige une entreprise).
+    const aUnTenant = !!(user?.id_entreprise ?? user?.id_agence);
     const { data: actionsPrioritaires } = useQuery(getActionsPrioritaires, undefined, {
-        enabled: isEligible,
+        enabled: isEligible && aUnTenant,
         refetchInterval: 30_000, // toutes les 30 secondes
         staleTime: 20_000, // considéré "frais" pendant 20s (évite le double-fetch)
     });

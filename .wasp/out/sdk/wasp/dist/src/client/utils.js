@@ -3,6 +3,19 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs) {
     return twMerge(clsx(inputs));
 }
+// Message d'erreur actionnable pour les opérations serveur (09/2026).
+// Le client HTTP abandonne à 10 s (« Request timed out ») alors que le
+// serveur continue : en cas de timeout, on demande UN SEUL réessai car
+// l'action a pu aboutir entre-temps (ex. invitation créée, e-mail parti).
+export function messageErreurAction(err, defaut) {
+    const brut = String(err?.message ?? err ?? '');
+    if (/timed out|timeout|abort|aborted/i.test(brut)) {
+        return ('Le serveur met trop longtemps à répondre (connexion lente). ' +
+            'Patientez quelques secondes et réessayez UNE seule fois : ' +
+            "l'action a pu aboutir entre-temps.");
+    }
+    return brut || defaut;
+}
 // Regroupe des lignes Reponse (une par critère répondu) en avis distincts :
 // toutes les lignes qui partagent le même id_soumission forment UN SEUL
 // avis. Miroir client de src/server/soumissions.ts — voir

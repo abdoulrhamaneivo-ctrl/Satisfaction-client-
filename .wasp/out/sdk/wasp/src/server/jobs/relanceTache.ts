@@ -13,7 +13,7 @@
 // SMS résumant le nombre de tâches et la plus urgente d'entre elles.
 // ============================================================================
 
-import { emailSender } from 'wasp/server/email';
+import { envoyerEmailBrevo } from '../lib/emailBrevo';
 import { prisma } from 'wasp/server';
 import { envoyerAlerteSMS } from '../notifications/gateway';
 
@@ -142,7 +142,7 @@ export const relancerTachesEnRetard = async (_args: unknown, _context: any) => {
       .join('\n');
 
     try {
-      await emailSender.send({
+      await envoyerEmailBrevo({
         to: responsable.email,
         subject: sujet,
         html,

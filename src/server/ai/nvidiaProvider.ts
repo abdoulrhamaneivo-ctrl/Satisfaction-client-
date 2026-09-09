@@ -80,6 +80,8 @@ export class NvidiaProvider implements AIProvider {
       this.client = new OpenAI({
         baseURL: process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1',
         apiKey: apiKey.trim(),
+        // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+        timeout: 25000,
       });
     }
   }
