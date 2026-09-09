@@ -551,12 +551,13 @@ export const activerCompte = async (args, context) => {
     }
     const tokenHash = sha256(token);
     const invitation = await context.entities.Invitation.findUnique({ where: { token_hash: tokenHash } });
-    if (!invitation)
-        throw new HttpError(404, "Ce lien d'activation est invalide ou a déjà été utilisé.");
-    if (invitation.used_at)
-        throw new HttpError(409, "Ce lien a déjà été utilisé. Utilisez « Mot de passe oublié » pour vous connecter.");
-    if (invitation.expires_at < new Date())
-        throw new HttpError(410, "Ce lien a expiré. Demandez un nouveau lien d'activation.");
+    // Anti-énumération (audit 09/2026) : invalide, déjà utilisé ou expiré
+    // donnent la MÊME réponse — distinguer ces états offrait un oracle pour
+    // tester des tokens au hasard. L'utilisateur légitime reçoit de toute
+    // façon un nouveau lien via « Mot de passe oublié » / renvoi.
+    if (!invitation || invitation.used_at || invitation.expires_at < new Date()) {
+        throw new HttpError(404, "Ce lien est invalide ou a expiré. Demandez un nouveau lien d'activation.");
+    }
     // Transaction : poser le mot de passe + marquer l'invitation utilisée
     await prisma.$transaction(async (tx) => {
         const claimedAt = new Date();

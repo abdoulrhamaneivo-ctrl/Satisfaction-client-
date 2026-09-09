@@ -2064,6 +2064,16 @@ const updateAgent$2 = async (args, context) => {
   if (!existing) {
     throw new HttpError(404, "Agent introuvable.");
   }
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient \xE0 une autre entreprise.");
+  }
+  const ciblePlateforme = existing.platformRole === "SUPER_ADMIN" || existing.platformRole === "SUPPORT";
+  if (ciblePlateforme) {
+    throw new HttpError(403, "Les comptes plateforme se g\xE8rent depuis la console Yeba Platform.");
+  }
+  if (existing.role === "DIRECTION" && context.user.role !== "DIRECTION") {
+    throw new HttpError(403, "Seule la Direction peut modifier un compte de direction.");
+  }
   if (existing.id_agence) {
     await assertAgenceAccess(context, context.entities, existing.id_agence, "agent");
   }
@@ -2119,6 +2129,16 @@ const deleteAgent$2 = async (args, context) => {
   if (!existing) {
     throw new HttpError(404, "Agent introuvable.");
   }
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient \xE0 une autre entreprise.");
+  }
+  const ciblePlateforme = existing.platformRole === "SUPER_ADMIN" || existing.platformRole === "SUPPORT";
+  if (ciblePlateforme) {
+    throw new HttpError(403, "Les comptes plateforme se g\xE8rent depuis la console Yeba Platform.");
+  }
+  if (existing.role === "DIRECTION" && context.user.role !== "DIRECTION") {
+    throw new HttpError(403, "Seule la Direction peut suspendre un compte de direction.");
+  }
   if (!existing.id_agence) {
     throw new HttpError(400, "Cet utilisateur n'est rattach\xE9 \xE0 aucune agence.");
   }
@@ -2135,6 +2155,16 @@ const reactivateAgent$2 = async (args, context) => {
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
   if (!existing) {
     throw new HttpError(404, "Agent introuvable.");
+  }
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient \xE0 une autre entreprise.");
+  }
+  const ciblePlateformeReact = existing.platformRole === "SUPER_ADMIN" || existing.platformRole === "SUPPORT";
+  if (ciblePlateformeReact) {
+    throw new HttpError(403, "Les comptes plateforme se g\xE8rent depuis la console Yeba Platform.");
+  }
+  if (existing.role === "DIRECTION" && context.user.role !== "DIRECTION") {
+    throw new HttpError(403, "Seule la Direction peut r\xE9activer un compte de direction.");
   }
   if (!existing.id_agence) {
     throw new HttpError(400, "Cet utilisateur n'est rattach\xE9 \xE0 aucune agence.");
@@ -4875,9 +4905,9 @@ const activerCompte$2 = async (args, context) => {
   }
   const tokenHash = sha256(token);
   const invitation = await context.entities.Invitation.findUnique({ where: { token_hash: tokenHash } });
-  if (!invitation) throw new HttpError(404, "Ce lien d'activation est invalide ou a d\xE9j\xE0 \xE9t\xE9 utilis\xE9.");
-  if (invitation.used_at) throw new HttpError(409, "Ce lien a d\xE9j\xE0 \xE9t\xE9 utilis\xE9. Utilisez \xAB Mot de passe oubli\xE9 \xBB pour vous connecter.");
-  if (invitation.expires_at < /* @__PURE__ */ new Date()) throw new HttpError(410, "Ce lien a expir\xE9. Demandez un nouveau lien d'activation.");
+  if (!invitation || invitation.used_at || invitation.expires_at < /* @__PURE__ */ new Date()) {
+    throw new HttpError(404, "Ce lien est invalide ou a expir\xE9. Demandez un nouveau lien d'activation.");
+  }
   await dbClient.$transaction(async (tx) => {
     const claimedAt = /* @__PURE__ */ new Date();
     const claimed = await tx.invitation.updateMany({
@@ -5652,10 +5682,12 @@ const exportAvisGroupes$2 = async (args, context) => {
     if (args.startDate) whereClause.date_reponse.gte = new Date(args.startDate);
     if (args.endDate) whereClause.date_reponse.lte = new Date(args.endDate);
   }
+  const LOT_EXPORT = 2e3;
   const brutes = await context.entities.Reponse.findMany({
     where: whereClause,
-    orderBy: { date_reponse: "desc" },
-    take: 2e4,
+    orderBy: [{ id: "desc" }],
+    ...args.curseurId ? { cursor: { id: BigInt(args.curseurId) }, skip: 1 } : {},
+    take: LOT_EXPORT,
     include: {
       guichet: true,
       critere: true,
@@ -5664,7 +5696,7 @@ const exportAvisGroupes$2 = async (args, context) => {
       agent: { select: { id: true, nom: true, prenom: true } }
     }
   });
-  return regrouperParSoumission(brutes).map((g) => {
+  const lignes = regrouperParSoumission(brutes).map((g) => {
     const premiere = g.reponses[0];
     const scores = g.reponses.map((r) => scoreNormaliseSur5(r)).filter((s) => s !== null);
     const scoreMoyen = scores.length > 0 ? parseFloat((scores.reduce((s, v) => s + v, 0) / scores.length).toFixed(2)) : null;
@@ -5699,6 +5731,18 @@ const exportAvisGroupes$2 = async (args, context) => {
       criteres: g.reponses.map(decrire).join(" | ")
     };
   }).sort((a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime());
+  let curseurSuivant = null;
+  if (brutes.length === LOT_EXPORT && lignes.length > 0) {
+    const dernier = lignes[lignes.length - 1];
+    if (lignes.length === 1) {
+      curseurSuivant = Number(brutes[brutes.length - 1].id);
+    } else {
+      const cleDerniere = dernier?.id_soumission;
+      const reprise = brutes.find((r) => (r.id_soumission ?? `r:${String(r.id)}`) === cleDerniere);
+      curseurSuivant = reprise ? Number(reprise.id) : Number(brutes[brutes.length - 1].id);
+    }
+  }
+  return { lignes, curseurSuivant };
 };
 const getAgentsByAgence$2 = async (args, context) => {
   requireAuth(context);
@@ -6935,6 +6979,7 @@ const getRechercheGlobale$2 = async (args, context) => {
 const getAIStatus$2 = async (_args, context) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ["DIRECTION"]);
   const providerRaw = (process.env.AI_PROVIDER || "openrouter").toLowerCase();
   const usingDeepseek = providerRaw === "deepseek";
   const usingNvidia = providerRaw === "nvidia";
@@ -6943,12 +6988,13 @@ const getAIStatus$2 = async (_args, context) => {
   const deepseekKey = (process.env.DEEPSEEK_API_KEY ?? "").trim();
   const hasApiKey = Boolean(nvidiaKey || openrouterKey || deepseekKey);
   const baseUrl = usingNvidia ? process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1" : usingDeepseek ? process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1" : process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
-  const model = usingNvidia ? process.env.NVIDIA_MODEL || "mistralai/mistral-large-2-instruct" : usingDeepseek ? process.env.DEEPSEEK_MODEL || "deepseek-chat" : process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-lightning:free";
+  const model = usingNvidia ? process.env.NVIDIA_MODEL || "mistralai/mistral-nemotron" : usingDeepseek ? process.env.DEEPSEEK_MODEL || "deepseek-chat" : process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-lightning:free";
+  const scopeAnalyse = context.user.id_entreprise ? { reponse: { agence: { id_entreprise: context.user.id_entreprise } } } : { reponse: { id: -1 } };
   const [totalAnalyses, doneAnalyses, pendingAnalyses, failedAnalyses] = await Promise.all([
-    context.entities.AnalyseAvisIA.count(),
-    context.entities.AnalyseAvisIA.count({ where: { status: "DONE" } }),
-    context.entities.AnalyseAvisIA.count({ where: { status: "PENDING" } }),
-    context.entities.AnalyseAvisIA.count({ where: { status: "FAILED" } })
+    context.entities.AnalyseAvisIA.count({ where: scopeAnalyse }),
+    context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: "DONE" } }),
+    context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: "PENDING" } }),
+    context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: "FAILED" } })
   ]);
   return {
     configured: hasApiKey,

@@ -315,10 +315,16 @@ export const exportAvisGroupes = async (args, context) => {
         if (args.endDate)
             whereClause.date_reponse.lte = new Date(args.endDate);
     }
+    // Pagination curseur (audit 09/2026) : l'ancien `take: 20000` chargeait
+    // toute l'histoire en une requête (risque timeout/OOM sur base mature).
+    // On pagine par id décroissant (≈ chronologique, autoincrement) par lots
+    // de 2000 ; le client boucle jusqu'à curseurSuivant null.
+    const LOT_EXPORT = 2000;
     const brutes = await context.entities.Reponse.findMany({
         where: whereClause,
-        orderBy: { date_reponse: 'desc' },
-        take: 20000,
+        orderBy: [{ id: 'desc' }],
+        ...(args.curseurId ? { cursor: { id: BigInt(args.curseurId) }, skip: 1 } : {}),
+        take: LOT_EXPORT,
         include: {
             guichet: true,
             critere: true,
@@ -327,7 +333,7 @@ export const exportAvisGroupes = async (args, context) => {
             agent: { select: { id: true, nom: true, prenom: true } },
         },
     });
-    return regrouperParSoumission(brutes)
+    const lignes = regrouperParSoumission(brutes)
         .map((g) => {
         const premiere = g.reponses[0];
         // Notes NORMALISÉES (TEXTE/QCM/CASES exclus) + vraies réponses en
@@ -373,6 +379,23 @@ export const exportAvisGroupes = async (args, context) => {
         };
     })
         .sort((a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime());
+    // Groupes à cheval sur deux lots : le dernier groupe du lot peut être
+    // incomplet. Le curseur repart de sa PREMIÈRE ligne et le client déduplique
+    // par id_soumission (la dernière occurrence, complète, écrase les partielles).
+    let curseurSuivant = null;
+    if (brutes.length === LOT_EXPORT && lignes.length > 0) {
+        const dernier = lignes[lignes.length - 1];
+        if (lignes.length === 1) {
+            // Cas absurde (un seul avis de 2000+ lignes) : on avance quand même.
+            curseurSuivant = Number(brutes[brutes.length - 1].id);
+        }
+        else {
+            const cleDerniere = dernier?.id_soumission;
+            const reprise = brutes.find((r) => (r.id_soumission ?? `r:${String(r.id)}`) === cleDerniere);
+            curseurSuivant = reprise ? Number(reprise.id) : Number(brutes[brutes.length - 1].id);
+        }
+    }
+    return { lignes, curseurSuivant };
 };
 export const getAgentsByAgence = async (args, context) => {
     requireAuth(context);
@@ -1880,6 +1903,10 @@ export const getRechercheGlobale = async (args, context) => {
 export const getAIStatus = async (_args, context) => {
     requireAuth(context);
     await assertEntrepriseActive(context, context.entities);
+    // FIX isolation (audit 09/2026) : la page Paramètres qui consomme cette
+    // query est réservée Direction — un AGENT n'a rien à faire des compteurs
+    // IA ni du modèle configuré.
+    requireRole(context, ['DIRECTION']);
     const providerRaw = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
     const usingDeepseek = providerRaw === 'deepseek';
     const usingNvidia = providerRaw === 'nvidia';
@@ -1893,15 +1920,20 @@ export const getAIStatus = async (_args, context) => {
             ? process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
             : process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
     const model = usingNvidia
-        ? process.env.NVIDIA_MODEL || 'mistralai/mistral-large-2-instruct'
+        ? process.env.NVIDIA_MODEL || 'mistralai/mistral-nemotron'
         : usingDeepseek
             ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
             : process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free';
+    // FIX isolation (audit 09/2026) : les compteurs étaient GLOBAUX (toutes
+    // entreprises confondues). Scope via reponse → agence → entreprise.
+    const scopeAnalyse = context.user.id_entreprise
+        ? { reponse: { agence: { id_entreprise: context.user.id_entreprise } } }
+        : { reponse: { id: -1 } }; // sans entreprise : aucun chiffre
     const [totalAnalyses, doneAnalyses, pendingAnalyses, failedAnalyses] = await Promise.all([
-        context.entities.AnalyseAvisIA.count(),
-        context.entities.AnalyseAvisIA.count({ where: { status: 'DONE' } }),
-        context.entities.AnalyseAvisIA.count({ where: { status: 'PENDING' } }),
-        context.entities.AnalyseAvisIA.count({ where: { status: 'FAILED' } }),
+        context.entities.AnalyseAvisIA.count({ where: scopeAnalyse }),
+        context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: 'DONE' } }),
+        context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: 'PENDING' } }),
+        context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: 'FAILED' } }),
     ]);
     return {
         configured: hasApiKey,

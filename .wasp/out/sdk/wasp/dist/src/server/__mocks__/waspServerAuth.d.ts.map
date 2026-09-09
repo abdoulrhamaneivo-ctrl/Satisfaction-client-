@@ -1,0 +1,1 @@
+{"version":3,"file":"waspServerAuth.d.ts","sourceRoot":"","sources":["../../../../src/server/__mocks__/waspServerAuth.ts"],"names":[],"mappings":"AAKA,eAAO,MAAM,gBAAgB,kCAAmB,GAAG,EAAE,YAAoB,CAAC;AAC1E,eAAO,MAAM,UAAU,wDAAU,CAAC;AAClC,eAAO,MAAM,gCAAgC,wDAAU,CAAC;AACxD,eAAO,MAAM,gBAAgB,wDAAU,CAAC;AACxC,eAAO,MAAM,8BAA8B,wDAAU,CAAC;AACtD,eAAO,MAAM,2BAA2B,wDAAU,CAAC"}

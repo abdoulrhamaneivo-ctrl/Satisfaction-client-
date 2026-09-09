@@ -969,6 +969,26 @@ export const updateAgent = async (
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
   }
+
+  // FIX isolation (audit 09/2026) : sans ces contrôles, n'importe quel compte
+  // de gestion pouvait modifier un utilisateur HORS tenant (autre entreprise)
+  // dès que celui-ci n'avait pas d'agence (ex. un DIRECTION : l'assert
+  // d'agence ci-dessous était sauté), voire détourner son compte en changeant
+  // son e-mail — ce qui migre aussi son identité de connexion. Règles :
+  // - même entreprise des deux côtés (cible sans entreprise = interdit) ;
+  // - un non-DIRECTION ne touche jamais un compte DIRECTION ;
+  // - jamais de compte plateforme (SUPER_ADMIN/SUPPORT) par cette action
+  //   (console Yeba Platform uniquement).
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient à une autre entreprise.");
+  }
+  const ciblePlateforme = (existing as any).platformRole === 'SUPER_ADMIN' || (existing as any).platformRole === 'SUPPORT';
+  if (ciblePlateforme) {
+    throw new HttpError(403, 'Les comptes plateforme se gèrent depuis la console Yeba Platform.');
+  }
+  if (existing.role === 'DIRECTION' && context.user.role !== 'DIRECTION') {
+    throw new HttpError(403, 'Seule la Direction peut modifier un compte de direction.');
+  }
   if (existing.id_agence) {
     await assertAgenceAccess(context, context.entities, existing.id_agence, 'agent');
   }
@@ -1039,6 +1059,19 @@ export const deleteAgent = async (args: { id: string }, context: any) => {
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
   }
+  // FIX isolation (audit 09/2026, même faille que updateAgent) : périmètre
+  // entreprise explicite + comptes DIRECTION/plateforme intouchables pour
+  // un non-DIRECTION.
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient à une autre entreprise.");
+  }
+  const ciblePlateforme = (existing as any).platformRole === 'SUPER_ADMIN' || (existing as any).platformRole === 'SUPPORT';
+  if (ciblePlateforme) {
+    throw new HttpError(403, 'Les comptes plateforme se gèrent depuis la console Yeba Platform.');
+  }
+  if (existing.role === 'DIRECTION' && context.user.role !== 'DIRECTION') {
+    throw new HttpError(403, 'Seule la Direction peut suspendre un compte de direction.');
+  }
   if (!existing.id_agence) {
     throw new HttpError(400, "Cet utilisateur n'est rattaché à aucune agence.");
   }
@@ -1058,6 +1091,18 @@ export const reactivateAgent = async (args: { id: string }, context: any) => {
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
+  }
+  // FIX isolation (audit 09/2026, idem deleteAgent) : périmètre entreprise
+  // explicite + comptes DIRECTION/plateforme intouchables pour un non-DIRECTION.
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient à une autre entreprise.");
+  }
+  const ciblePlateformeReact = (existing as any).platformRole === 'SUPER_ADMIN' || (existing as any).platformRole === 'SUPPORT';
+  if (ciblePlateformeReact) {
+    throw new HttpError(403, 'Les comptes plateforme se gèrent depuis la console Yeba Platform.');
+  }
+  if (existing.role === 'DIRECTION' && context.user.role !== 'DIRECTION') {
+    throw new HttpError(403, 'Seule la Direction peut réactiver un compte de direction.');
   }
   if (!existing.id_agence) {
     throw new HttpError(400, "Cet utilisateur n'est rattaché à aucune agence.");

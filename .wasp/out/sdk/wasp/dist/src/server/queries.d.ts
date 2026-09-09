@@ -49,17 +49,22 @@ export declare const getAvisGroupes: (args: GetAvisGroupesArgs, context: any) =>
     page: number;
     pageSize: number;
 }>;
-export declare const exportAvisGroupes: (args: GetReponsesArgs, context: any) => Promise<{
-    id_soumission: string;
-    date_reponse: any;
-    guichet: any;
-    agence: any;
-    service: any;
-    agent: string;
-    score_moyen: number | null;
-    commentaire: string;
-    criteres: string;
-}[]>;
+export declare const exportAvisGroupes: (args: GetReponsesArgs & {
+    curseurId?: number;
+}, context: any) => Promise<{
+    lignes: {
+        id_soumission: string;
+        date_reponse: any;
+        guichet: any;
+        agence: any;
+        service: any;
+        agent: string;
+        score_moyen: number | null;
+        commentaire: string;
+        criteres: string;
+    }[];
+    curseurSuivant: number | null;
+}>;
 export declare const getAgentsByAgence: (args: {
     id_agence: number;
 }, context: any) => Promise<any>;

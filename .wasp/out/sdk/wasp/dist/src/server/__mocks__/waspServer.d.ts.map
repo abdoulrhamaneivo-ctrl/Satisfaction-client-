@@ -1,0 +1,1 @@
+{"version":3,"file":"waspServer.d.ts","sourceRoot":"","sources":["../../../../src/server/__mocks__/waspServer.ts"],"names":[],"mappings":"AAIA,qBAAa,SAAU,SAAQ,KAAK;IAClC,UAAU,EAAE,MAAM,CAAC;IACnB,IAAI,CAAC,EAAE,OAAO,CAAC;gBACH,UAAU,EAAE,MAAM,EAAE,OAAO,EAAE,MAAM,EAAE,IAAI,CAAC,EAAE,OAAO;CAKhE;AAED,eAAO,MAAM,MAAM,EAAE,GAAQ,CAAC"}

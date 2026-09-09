@@ -113,7 +113,24 @@ export const AvisPage = () => {
         setPage(1);
         setAllAvis([]);
     };
-    // Export CSV & XLSX — charge TOUS les avis filtrés (sans pagination)
+    // Export CSV & XLSX — charge TOUS les avis filtrés (sans pagination).
+    // Le serveur pagine par curseur (lots de 2000) : on boucle en dédupliquant
+    // par id_soumission (un groupe à cheval sur deux lots apparaît deux fois,
+    // la version complète écrase la partielle). Garde-fou : 50 lots max.
+    const chargerTousLesAvis = async (exportArgs) => {
+        const parCle = new Map();
+        let curseur = undefined;
+        for (let tour = 0; tour < 50; tour++) {
+            const page = await exportAvisGroupes({ ...exportArgs, curseurId: curseur });
+            const lignes = page?.lignes ?? [];
+            for (const l of lignes)
+                parCle.set(String(l.id_soumission), l);
+            if (!page?.curseurSuivant)
+                break;
+            curseur = page.curseurSuivant;
+        }
+        return [...parCle.values()].sort((a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime());
+    };
     const [exporting, setExporting] = useState(false);
     const [exportingXLSX, setExportingXLSX] = useState(false);
     const handleExportCSV = useCallback(async () => {
@@ -126,7 +143,7 @@ export const AvisPage = () => {
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
             };
-            const raw = await exportAvisGroupes(exportArgs);
+            const raw = await chargerTousLesAvis(exportArgs);
             const formatted = formaterAvisPourCSV(raw);
             const date = new Date().toISOString().split('T')[0];
             exportToCSV(formatted, `Yeba_Avis_${date}`, metaDocs);
@@ -149,7 +166,7 @@ export const AvisPage = () => {
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
             };
-            const raw = await exportAvisGroupes(exportArgs);
+            const raw = await chargerTousLesAvis(exportArgs);
             const formatted = formaterAvisPourCSV(raw);
             const date = new Date().toISOString().split('T')[0];
             await exportToXLSX([{ name: 'Avis Clients Yéba', data: formatted }], `Yeba_Avis_Complet_${date}`, metaDocs);
