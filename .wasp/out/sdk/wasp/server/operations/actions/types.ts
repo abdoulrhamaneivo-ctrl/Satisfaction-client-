@@ -612,6 +612,29 @@ export type DesarchiverAgence<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
+export type DefinirAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _Agence,
+      _User,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type RetirerAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _User,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
 export type ArchiverAlerte<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedActionDefinition<
     [

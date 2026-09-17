@@ -41,11 +41,19 @@ function CreateCompanyInner() {
         limite_utilisateurs: PLANS[1].utilisateurs,
         limite_guichets: PLANS[1].guichets,
         totpCode: '',
+        mode: 'DIRECTION_RESEAU',
+        agence_nom: '',
+        agence_commune: '',
     });
     const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+    // Par défaut, l'admin reprend le numéro de l'entreprise (petites structures) :
+    // une seule saisie, case à décocher pour différencier les deux numéros.
+    const [telIdentique, setTelIdentique] = useState(true);
     const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.admin_email || form.email_administratif || '');
     const etape1Ok = form.nom_entreprise.trim().length >= 2 && emailValide;
-    const etape2Ok = form.admin_prenom.trim() && form.admin_nom.trim() && emailValide;
+    const avecAgence = form.mode !== 'DIRECTION_RESEAU';
+    const agenceOk = !avecAgence || (form.agence_nom.trim().length >= 2 && form.agence_commune.trim().length >= 2);
+    const etape2Ok = form.admin_prenom.trim() && form.admin_nom.trim() && emailValide && agenceOk;
     const totpCodeValide = /^\d{6}$/.test(form.totpCode);
     const planCourant = PLANS.find((p) => p.id === form.plan) ?? PLANS[1];
     async function soumettre() {
@@ -65,13 +73,17 @@ function CreateCompanyInner() {
                     prenom: form.admin_prenom,
                     nom: form.admin_nom,
                     email: form.admin_email || form.email_administratif,
-                    telephone: form.admin_telephone || undefined,
+                    telephone: (telIdentique ? form.telephone : form.admin_telephone) || undefined,
                 },
                 plan: form.plan,
-                limite_agences: form.limite_agences,
+                limite_agences: form.mode === 'CHEF_MONO' ? 1 : form.limite_agences,
                 limite_utilisateurs: form.limite_utilisateurs,
                 limite_guichets: form.limite_guichets,
                 totpCode: form.totpCode,
+                mode: form.mode,
+                premiereAgence: avecAgence
+                    ? { nom_agence: form.agence_nom.trim(), commune: form.agence_commune.trim() }
+                    : undefined,
             });
             setSucces({ id_entreprise: r.entreprise.id, email_envoye: r.email_envoye, message: r.message });
         }
@@ -101,7 +113,7 @@ function CreateCompanyInner() {
     if (succes) {
         const checks = [
             'Entreprise créée (statut ACTIVE)',
-            'Compte administrateur (DIRECTION)',
+            form.mode === 'CHEF_MONO' ? "Compte chef d'agence + 1ère agence" : form.mode === 'DIRECTION_CUMULEE' ? 'Compte directeur-pilote + 1ère agence' : 'Compte administrateur (DIRECTION)',
             'Invitation sécurisée générée (expire dans 24 h)',
             succes.email_envoye ? 'Email d’activation envoyé' : 'Email en échec — utilisez « Renvoyer l’invitation »',
             'Action journalisée (AuditLog)',
@@ -203,9 +215,55 @@ function CreateCompanyInner() {
               <input id="w-email-admin" type="email" className={inputCls} value={form.admin_email || form.email_administratif} onChange={(e) => { set('admin_email', e.target.value); set('email_administratif', e.target.value); }}/>
             </div>
             <div>
-              <label className={labelCls} htmlFor="w-tel-admin">Téléphone</label>
-              <input id="w-tel-admin" type="tel" className={inputCls} value={form.admin_telephone} onChange={(e) => set('admin_telephone', e.target.value)}/>
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm font-semibold text-foreground">
+                <input type="checkbox" checked={telIdentique} onChange={(e) => {
+                const coche = e.target.checked;
+                setTelIdentique(coche);
+                // En décochant, on part du numéro entreprise (modifiable ensuite).
+                if (!coche && !form.admin_telephone)
+                    set('admin_telephone', form.telephone);
+            }} className="size-4 accent-primary"/>
+                Même numéro que l'entreprise
+                {telIdentique && form.telephone && <span className="text-muted-foreground">({form.telephone})</span>}
+              </label>
             </div>
+            {!telIdentique && (<div>
+                <label className={labelCls} htmlFor="w-tel-admin">Téléphone admin</label>
+                <input id="w-tel-admin" type="tel" className={inputCls} value={form.admin_telephone} onChange={(e) => set('admin_telephone', e.target.value)} placeholder="+225 …"/>
+              </div>)}
+            <div className="space-y-2 pt-2">
+              <span className={labelCls}>Mode de pilotage *</span>
+              <div className="grid gap-2">
+                {[
+                { id: 'DIRECTION_CUMULEE', titre: 'Directeur-pilote (petite structure)', desc: 'Direction + chef de sa 1ère agence : voit tout, gère tout lui-même.' },
+                { id: 'CHEF_MONO', titre: "Chef d'agence unique (mono)", desc: "Limité à sa seule agence (1 agence max), ne crée que des agents." },
+                { id: 'DIRECTION_RESEAU', titre: 'Direction réseau', desc: "Vue entreprise multi-agences, crée des chefs (comportement actuel)." },
+            ].map((m) => (<label key={m.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition-colors ${form.mode === m.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}>
+                    <input type="radio" name="mode-pilotage" value={m.id} checked={form.mode === m.id} onChange={(e) => {
+                    const v = e.target.value;
+                    set('mode', v);
+                    if (v === 'CHEF_MONO')
+                        set('limite_agences', 1);
+                    if (v === 'DIRECTION_RESEAU')
+                        setForm((f) => ({ ...f, limite_agences: planCourant.agences }));
+                }} className="mt-1"/>
+                    <span>
+                      <span className="block text-sm font-bold text-foreground">{m.titre}</span>
+                      <span className="block text-xs text-muted-foreground">{m.desc}</span>
+                    </span>
+                  </label>))}
+              </div>
+            </div>
+            {avecAgence && (<div className="grid gap-4 sm:grid-cols-2 rounded-xl bg-muted/50 p-4">
+                <div>
+                  <label className={labelCls} htmlFor="w-ag-nom">Nom 1ère agence *</label>
+                  <input id="w-ag-nom" className={inputCls} value={form.agence_nom} onChange={(e) => set('agence_nom', e.target.value)} placeholder="Agence Centrale"/>
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="w-ag-commune">Commune *</label>
+                  <input id="w-ag-commune" className={inputCls} value={form.agence_commune} onChange={(e) => set('agence_commune', e.target.value)} placeholder="Plateau"/>
+                </div>
+              </div>)}
             <div className="flex items-start gap-2 rounded-xl bg-info/10 p-3 text-xs font-semibold text-info">
               <MailCheckIcon />
               Un email d'activation sera envoyé automatiquement à cette adresse. Aucun mot de passe n'est transmis par email.
@@ -239,8 +297,8 @@ function CreateCompanyInner() {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className={labelCls} htmlFor="w-l-agences">Limite agences</label>
-                <input id="w-l-agences" type="number" min={1} className={inputCls} value={form.limite_agences} onChange={(e) => set('limite_agences', Number(e.target.value))}/>
+                <label className={labelCls} htmlFor="w-l-agences">Limite agences{form.mode === 'CHEF_MONO' ? ' (forcée à 1 — mono)' : ''}</label>
+                <input id="w-l-agences" type="number" min={1} className={inputCls} value={form.mode === 'CHEF_MONO' ? 1 : form.limite_agences} disabled={form.mode === 'CHEF_MONO'} onChange={(e) => set('limite_agences', Number(e.target.value))}/>
               </div>
               <div>
                 <label className={labelCls} htmlFor="w-l-users">Limite utilisateurs</label>
@@ -261,6 +319,8 @@ function CreateCompanyInner() {
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Administrateur</dt><dd className="text-right font-bold text-foreground">{form.admin_prenom} {form.admin_nom}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Email</dt><dd className="text-right font-bold text-foreground">{form.admin_email || form.email_administratif}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Plan</dt><dd className="text-right font-bold text-foreground">{planCourant.label}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Pilotage</dt><dd className="text-right font-bold text-foreground">{form.mode === 'DIRECTION_CUMULEE' ? 'Directeur-pilote' : form.mode === 'CHEF_MONO' ? "Chef mono-agence" : 'Direction réseau'}</dd></div>
+              {avecAgence && (<div className="flex justify-between gap-3"><dt className="text-muted-foreground">1ère agence</dt><dd className="text-right font-bold text-foreground">{form.agence_nom} — {form.agence_commune}</dd></div>)}
               <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Limites</dt><dd className="text-right font-bold text-foreground">{form.limite_agences} agences · {form.limite_utilisateurs} utilisateurs · {form.limite_guichets} guichets</dd></div>
             </dl>
             <p className="text-xs font-semibold text-muted-foreground">À la création :</p>

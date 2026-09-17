@@ -1,5 +1,5 @@
 import type { WaspContext } from './middleware/rowLevelSecurity';
-export type AuditAction = 'entreprise.create' | 'entreprise.suspend' | 'entreprise.reactivate' | 'entreprise.update_limits' | 'entreprise.update_infos' | 'user.invite' | 'user.suspend' | 'user.reactivate' | 'invitation.create' | 'invitation.used' | 'invitation.revoked' | 'superadmin.invite' | 'guichet.create' | 'guichet.archive' | 'agence.create' | 'agence.archive' | 'branding.update' | 'criteres.update' | 'login.failed' | 'password.reset_requested' | 'password.reset_done' | '2fa.setup' | '2fa.activate' | '2fa.verify';
+export type AuditAction = 'entreprise.create' | 'entreprise.suspend' | 'entreprise.reactivate' | 'entreprise.update_limits' | 'entreprise.update_infos' | 'user.invite' | 'user.suspend' | 'user.reactivate' | 'invitation.create' | 'invitation.used' | 'invitation.revoked' | 'superadmin.invite' | 'guichet.create' | 'guichet.archive' | 'agence.create' | 'agence.archive' | 'direction.cumul.on' | 'direction.cumul.off' | 'branding.update' | 'criteres.update' | 'login.failed' | 'password.reset_requested' | 'password.reset_done' | '2fa.setup' | '2fa.activate' | '2fa.verify';
 export interface JournaliserArgs {
     context: WaspContext;
     action: AuditAction;

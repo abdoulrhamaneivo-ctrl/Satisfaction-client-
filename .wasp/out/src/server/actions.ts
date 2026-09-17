@@ -17,6 +17,7 @@ import {
   assertAgenceAccess,
   assertEntrepriseActive,
   resolveAgenceId,
+  estDirectionCumulee,
 } from './middleware/rowLevelSecurity';
 
 // Utilisé pour construire des liens directs vers l'application dans les
@@ -73,7 +74,9 @@ export const genererCodePublic = (): string => {
 export const createGuichet = async (args: CreateGuichetArgs, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['CHEF_AGENCE']);
+  // La Direction gère tout le réseau (guichets compris), comme les chefs —
+  // elle était en lecture seule sans raison métier (rôle incohérent).
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const { nomGuichet, typeGuichet, id_agence, serviceIds } = args;
 
@@ -167,7 +170,7 @@ export const updateGuichetServices = async (
 ) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
-  requireRole(context, ['CHEF_AGENCE']);
+  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: args.id_guichet }
@@ -568,7 +571,7 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   const critereIds = [...new Set(itemsToInsert.map((i) => i.critereId))];
   const criteresExistants = await context.entities.Critere.findMany({
     where: { id: { in: critereIds } },
-    select: { id: true, type_reponse: true, options_reponse: true },
+    select: { id: true, type_reponse: true, options_reponse: true, libelle_critere: true },
   });
   const critereById = new Map(criteresExistants.map((c: any) => [c.id, c]));
   const idsExistants = new Set(criteresExistants.map((c: any) => c.id));
@@ -788,22 +791,61 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     }
   }
 
-  // --- ANALYSE IA ASYNCHRONE (DeepSeek) — UNE SEULE par avis ---
-  // On n'analyse que le commentaire final (s'il existe), une seule fois par
-  // soumission, au lieu d'une entrée par réponse (qui dupliquait l'analyse
-  // du même commentaire sur chaque critère noté).
-  const commentaireFinal = (commentaire || '').trim().slice(0, 1000);
-  if (commentaireFinal.length > 0 && createdReponses.length > 0) {
+  // --- ANALYSE IA ASYNCHRONE — TOUT L'AVIS, UNE SEULE FOIS ---
+  // Avant : seul le commentaire final alimentait l'IA. Les réponses aux
+  // questions TEXTE (souvent le vrai contenu : « Riz sauce graine… »), les
+  // Oui/Non et les choix QCM n'étaient jamais analysés — et quand le
+  // commentaire final était vide, l'avis n'était pas analysé du tout.
+  // Maintenant le texte envoyé combine le commentaire final ET chaque
+  // réponse parlante, avec le libellé de sa question (et la note chiffrée
+  // quand elle existe) : l'IA voit tout l'avis et l'étiquetage (thèmes)
+  // devient précis. Une seule analyse par soumission, comme avant.
+  const optionQCMParIndex = (critere: any, score: number): string => {
+    const options = String(critere?.options_reponse || '')
+      .split(',')
+      .map((o: string) => o.trim())
+      .filter(Boolean);
+    return options[score - 1] || `Option n°${score}`;
+  };
+  const morceauxIA: string[] = [];
+  const reponsesVues = new Set<string>();
+  const commentaireFinal = (commentaire || '').trim();
+  const pousserMorceau = (question: string, reponse: string) => {
+    const r = reponse.trim();
+    if (!r || reponsesVues.has(r)) return;
+    reponsesVues.add(r);
+    morceauxIA.push(`Q : ${question}\nR : ${r}`);
+  };
+  for (const item of itemsToInsert) {
+    const critere: any = critereById.get(item.critereId);
+    const libelle = critere?.libelle_critere || 'Question';
+    const type = critere?.type_reponse;
+    const texte = (item.texte || '').trim();
+    if (type === 'TEXTE' || type === 'CASES') {
+      if (texte) pousserMorceau(libelle, texte);
+    } else if (type === 'QCM') {
+      pousserMorceau(libelle, texte || optionQCMParIndex(critere, item.score));
+    } else if (type === 'OUI_NON') {
+      pousserMorceau(libelle, item.score >= 4 ? 'Oui' : 'Non');
+    } else {
+      // SMILEY / ECHELLE : réponse chiffrée — on transmet la note normalisée
+      // pour calibrer sentiment et urgence, sans inventer de texte.
+      const note = normaliserScoreSur5(critere, item.score);
+      morceauxIA.push(`Q : ${libelle}\nNote : ${note !== null ? `${note}/5` : `${item.score}`}`);
+    }
+  }
+  if (commentaireFinal.length > 0) morceauxIA.push(`Commentaire final : ${commentaireFinal}`);
+  const texteCompletAvis = morceauxIA.join('\n\n').slice(0, 4000);
+  if (texteCompletAvis.length > 0 && createdReponses.length > 0) {
     try {
       if (context.entities.AnalyseAvisIA) {
-        // On conserve la note (score du critère noté, sinon la première
-        // réponse chiffrée) pour le croisement note ↔ texte côté job IA.
-        const reponseNotee = createdReponses.find((r) => typeof r.score_brut === 'number');
+        // La note transmise est la PLUS BASSE (worstScore) : c'est elle qui
+        // calibre l'urgence — une seule question à 1/5 suffit à alerter.
         await context.entities.AnalyseAvisIA.create({
           data: {
             reponseId: createdReponses[0].id,
-            commentaireTexte: commentaireFinal,
-            noteBrut: reponseNotee?.score_brut ?? null,
+            commentaireTexte: texteCompletAvis,
+            noteBrut: worstScore,
             status: 'PENDING',
           },
         });
@@ -928,6 +970,26 @@ export const updateAgent = async (
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
   }
+
+  // FIX isolation (audit 09/2026) : sans ces contrôles, n'importe quel compte
+  // de gestion pouvait modifier un utilisateur HORS tenant (autre entreprise)
+  // dès que celui-ci n'avait pas d'agence (ex. un DIRECTION : l'assert
+  // d'agence ci-dessous était sauté), voire détourner son compte en changeant
+  // son e-mail — ce qui migre aussi son identité de connexion. Règles :
+  // - même entreprise des deux côtés (cible sans entreprise = interdit) ;
+  // - un non-DIRECTION ne touche jamais un compte DIRECTION ;
+  // - jamais de compte plateforme (SUPER_ADMIN/SUPPORT) par cette action
+  //   (console Yeba Platform uniquement).
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient à une autre entreprise.");
+  }
+  const ciblePlateforme = (existing as any).platformRole === 'SUPER_ADMIN' || (existing as any).platformRole === 'SUPPORT';
+  if (ciblePlateforme) {
+    throw new HttpError(403, 'Les comptes plateforme se gèrent depuis la console Yeba Platform.');
+  }
+  if (existing.role === 'DIRECTION' && context.user.role !== 'DIRECTION') {
+    throw new HttpError(403, 'Seule la Direction peut modifier un compte de direction.');
+  }
   if (existing.id_agence) {
     await assertAgenceAccess(context, context.entities, existing.id_agence, 'agent');
   }
@@ -998,6 +1060,19 @@ export const deleteAgent = async (args: { id: string }, context: any) => {
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
   }
+  // FIX isolation (audit 09/2026, même faille que updateAgent) : périmètre
+  // entreprise explicite + comptes DIRECTION/plateforme intouchables pour
+  // un non-DIRECTION.
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient à une autre entreprise.");
+  }
+  const ciblePlateforme = (existing as any).platformRole === 'SUPER_ADMIN' || (existing as any).platformRole === 'SUPPORT';
+  if (ciblePlateforme) {
+    throw new HttpError(403, 'Les comptes plateforme se gèrent depuis la console Yeba Platform.');
+  }
+  if (existing.role === 'DIRECTION' && context.user.role !== 'DIRECTION') {
+    throw new HttpError(403, 'Seule la Direction peut suspendre un compte de direction.');
+  }
   if (!existing.id_agence) {
     throw new HttpError(400, "Cet utilisateur n'est rattaché à aucune agence.");
   }
@@ -1017,6 +1092,18 @@ export const reactivateAgent = async (args: { id: string }, context: any) => {
   const existing = await context.entities.User.findUnique({ where: { id: args.id } });
   if (!existing) {
     throw new HttpError(404, 'Agent introuvable.');
+  }
+  // FIX isolation (audit 09/2026, idem deleteAgent) : périmètre entreprise
+  // explicite + comptes DIRECTION/plateforme intouchables pour un non-DIRECTION.
+  if (!existing.id_entreprise || existing.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Ce compte appartient à une autre entreprise.");
+  }
+  const ciblePlateformeReact = (existing as any).platformRole === 'SUPER_ADMIN' || (existing as any).platformRole === 'SUPPORT';
+  if (ciblePlateformeReact) {
+    throw new HttpError(403, 'Les comptes plateforme se gèrent depuis la console Yeba Platform.');
+  }
+  if (existing.role === 'DIRECTION' && context.user.role !== 'DIRECTION') {
+    throw new HttpError(403, 'Seule la Direction peut réactiver un compte de direction.');
   }
   if (!existing.id_agence) {
     throw new HttpError(400, "Cet utilisateur n'est rattaché à aucune agence.");
@@ -1244,6 +1331,20 @@ export const archiverAgence = async (args: { id_agence: number }, context: any) 
   if (!agence) throw new HttpError(404, 'Agence introuvable.');
   if (agence.archive) return agence;
 
+  // F5 : une agence pilotée (chef ou direction cumulée) ne s'archive pas sans
+  // retirer le pilotage d'abord — sinon le pilote pointe vers une agence fermée.
+  const pilote = await context.entities.User.findFirst({
+    where: { id_agence: args.id_agence, role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
+  });
+  if (pilote) {
+    throw new HttpError(
+      400,
+      pilote.role === 'DIRECTION'
+        ? "Cette agence est pilotée par la direction (cumul). Retirez le cumul avant de l'archiver."
+        : "Cette agence a encore un chef actif. Suspendez-le ou réaffectez-le avant de l'archiver."
+    );
+  }
+
   const maintenant = new Date();
   return prisma.$transaction(async (tx) => {
     await tx.guichet.updateMany({
@@ -1278,6 +1379,64 @@ export const desarchiverAgence = async (args: { id_agence: number }, context: an
   });
 };
 
+// ============================================================================
+// CUMUL DIRECTION + PILOTAGE AGENCE (petites structures)
+// Seule une DIRECTION peut activer le cumul sur elle-même : pose son
+// id_agence vers l'agence pilotée (union des accès, verbatim total).
+// Garde F1 : refus si un CHEF_AGENCE actif occupe déjà l'agence.
+// ============================================================================
+
+export const definirAgencePilotee = async (args: { id_agence: number }, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ['DIRECTION']);
+  await assertAgenceAccess(context, context.entities, args.id_agence, 'agence');
+
+  const agence = await context.entities.Agence.findUnique({ where: { id: args.id_agence } });
+  if (!agence || agence.archive) throw new HttpError(400, "Agence introuvable ou archivée.");
+  if (agence.id_entreprise !== context.user.id_entreprise) {
+    throw new HttpError(403, "Cette agence appartient à une autre entreprise.");
+  }
+  const chefExistant = await context.entities.User.findFirst({
+    where: { id_agence: args.id_agence, role: 'CHEF_AGENCE', actif: true, id: { not: context.user.id } },
+  });
+  if (chefExistant) {
+    throw new HttpError(400, "Cette agence a déjà un chef actif. Suspendez-le avant d'activer le cumul.");
+  }
+  const maj = await context.entities.User.update({
+    where: { id: context.user.id },
+    data: { id_agence: args.id_agence },
+  });
+  await journaliser({
+    context,
+    action: 'direction.cumul.on',
+    resource: 'User',
+    resource_id: context.user.id,
+    entreprise_id: context.user.id_entreprise,
+    details: { id_agence: args.id_agence },
+  });
+  return maj;
+};
+
+export const retirerAgencePilotee = async (_args: any, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ['DIRECTION']);
+  const maj = await context.entities.User.update({
+    where: { id: context.user.id },
+    data: { id_agence: null },
+  });
+  await journaliser({
+    context,
+    action: 'direction.cumul.off',
+    resource: 'User',
+    resource_id: context.user.id,
+    entreprise_id: context.user.id_entreprise,
+    details: {},
+  });
+  return maj;
+};
+
 export const inviteAgent = async (
   args: { email?: string; nom: string; prenom: string; id_agence: number; role: string; telephone?: string },
   context: any
@@ -1291,7 +1450,7 @@ export const inviteAgent = async (
   // équipe de terrain (agents). (Le rôle auditeur QUALITE a été supprimé et
   // fusionné dans CHEF_AGENCE : il ne peut plus être attribué.)
   const ROLES_PAR_INVITEUR: Record<string, string[]> = {
-    DIRECTION: ['CHEF_AGENCE'],
+    DIRECTION: ['CHEF_AGENCE', 'AGENT'],
     CHEF_AGENCE: ['AGENT'],
   };
   const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role ?? ''] || [];
@@ -1299,7 +1458,7 @@ export const inviteAgent = async (
     throw new HttpError(
       403,
       context.user.role === 'DIRECTION'
-        ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence."
+        ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence et des Agents."
         : "En tant que Chef d'Agence, vous ne pouvez créer que des Agents de guichet."
     );
   }
@@ -1333,16 +1492,27 @@ export const inviteAgent = async (
       : 'Cet agent existe déjà dans cette agence.');
   }
 
-  // Un seul chef d'agence actif par agence
+  // Un seul pilote actif par agence (CHEF_AGENCE ou DIRECTION cumulée).
+  // Sans ce contrôle élargi, une direction cumulée (role=DIRECTION) serait
+  // invisible du test et un second chef pourrait être invité sur la même agence.
   if (args.role === 'CHEF_AGENCE') {
     if (!normalizedEmail) {
       throw new HttpError(400, "L'adresse e-mail est obligatoire pour un Chef d'Agence.");
     }
-    const chefExistant = await context.entities.User.findFirst({
-      where: { id_agence: targetAgenceId, role: 'CHEF_AGENCE', actif: true }
+    const piloteExistant = await context.entities.User.findFirst({
+      where: {
+        id_agence: targetAgenceId,
+        role: { in: ['CHEF_AGENCE', 'DIRECTION'] },
+        actif: true,
+      }
     });
-    if (chefExistant) {
-      throw new HttpError(400, "Cette agence possède déjà un Chef d'agence actif.");
+    if (piloteExistant) {
+      throw new HttpError(
+        400,
+        piloteExistant.role === 'DIRECTION'
+          ? "Cette agence est déjà pilotée par la direction (cumul directeur-chef). Retirez le cumul avant de nommer un chef."
+          : "Cette agence possède déjà un Chef d'agence actif."
+      );
     }
   }
 
@@ -1763,15 +1933,24 @@ export const toggleCritereAgence = async (
   await assertCritereAccessible(context, args.id_critere);
 
   if (args.active) {
-    const existing = await context.entities.AgenceCritere.findFirst({
-      where: { id_agence: idAgence, id_critere: args.id_critere },
-    });
-    if (!existing) {
-      return context.entities.AgenceCritere.create({
-        data: { id_agence: idAgence, id_critere: args.id_critere },
+    // Upsert ATOMIQUE (pas de findFirst + create) : le Switch n'a pas de
+    // verrou côté front historique et Neon répond en ~500 ms — un double-clic
+    // créait deux lignes et explosait en P2002 → 500 « impossible d'activer ».
+    // Le repli P2002 ci-dessous rend l'activation idempotente dans tous les cas.
+    try {
+      return await context.entities.AgenceCritere.upsert({
+        where: { id_agence_id_critere: { id_agence: idAgence, id_critere: args.id_critere } },
+        update: {},
+        create: { id_agence: idAgence, id_critere: args.id_critere },
       });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        return context.entities.AgenceCritere.findFirst({
+          where: { id_agence: idAgence, id_critere: args.id_critere },
+        });
+      }
+      throw e;
     }
-    return existing;
   } else {
     return context.entities.AgenceCritere.deleteMany({
       where: { id_agence: idAgence, id_critere: args.id_critere },

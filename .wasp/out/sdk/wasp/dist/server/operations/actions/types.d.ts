@@ -277,6 +277,15 @@ export type DesarchiverAgence<Input extends Payload = never, Output extends Payl
     _User,
     _Entreprise
 ], Input, Output>;
+export type DefinirAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _Agence,
+    _User,
+    _Entreprise
+], Input, Output>;
+export type RetirerAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _User,
+    _Entreprise
+], Input, Output>;
 export type ArchiverAlerte<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _Alerte,
     _Guichet,

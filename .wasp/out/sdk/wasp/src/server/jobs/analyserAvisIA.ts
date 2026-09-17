@@ -26,7 +26,7 @@ async function creerAlerteUrgenceIA(reponse: any, result: any) {
   try {
     const destinataire =
       (await prisma.user.findFirst({
-        where: { id_agence: reponse.id_agence, role: 'CHEF_AGENCE', actif: true },
+        where: { id_agence: reponse.id_agence, role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
       })) ||
       (await prisma.user.findFirst({
         where: {
@@ -69,7 +69,7 @@ async function creerAlerteIncoherenceNote(reponse: any, note: number | null, coh
   try {
     const destinataire =
       (await prisma.user.findFirst({
-        where: { id_agence: reponse.id_agence, role: 'CHEF_AGENCE', actif: true },
+        where: { id_agence: reponse.id_agence, role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
       })) ||
       (await prisma.user.findFirst({
         where: {

@@ -24,10 +24,9 @@ import { PageShell, PageTopNav } from '../components/PageShell';
 export const AvisPage = () => {
     const { data: user } = useAuth();
     const { toast } = useToast();
-    // FIX 05/09 : la Direction ne voit jamais les verbatims — au lieu d'une
-    // page vide avec message, redirection directe vers le tableau de bord
-    // (les chiffres). L'entrée menu est également retirée pour ce rôle.
-    if (user && user.role === 'DIRECTION') {
+    // Direction pure : pas de verbatims → dashboard. Direction cumulée
+    // (petite structure) : accès complet comme un chef.
+    if (user && user.role === 'DIRECTION' && user.id_agence == null) {
         return <Navigate to="/dashboard" replace/>;
     }
     // Filter States
@@ -48,8 +47,9 @@ export const AvisPage = () => {
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 20;
     const isDirection = user?.role === 'DIRECTION';
+    const agencePilotee = user?.id_agence ?? undefined;
     const effectiveAgenceId = isDirection
-        ? selectedAgenceId
+        ? (selectedAgenceId ?? agencePilotee)
         : (user?.id_agence || undefined);
     // Queries for filters
     const { data: agences } = useQuery(getAgences, undefined, { enabled: isDirection });
@@ -67,11 +67,10 @@ export const AvisPage = () => {
         page,
         pageSize: PAGE_SIZE,
     };
-    // CONFIDENTIALITÉ (RG16/RG17) : l'API renvoie 403 à getAvisGroupes pour la
-    // DIRECTION — on ne lance même pas la query pour ce rôle (sinon react-query
-    // marque la page en erreur). La page reste accessible à la Direction pour
-    // les filtres/agences mais la liste d'avis n'est jamais chargée.
-    const { data: avisData, isLoading } = useQuery(getAvisGroupes, queryArgs, { enabled: !isDirection });
+    // CONFIDENTIALITÉ (RG16/RG17) : seule la DIRECTION pure est refusée par
+    // l'API — la cumulée charge les avis comme un chef.
+    const estDirectionPure = isDirection && user?.id_agence == null;
+    const { data: avisData, isLoading } = useQuery(getAvisGroupes, queryArgs, { enabled: !estDirectionPure });
     // Pages accumulées (on ajoute les nouvelles au fur et à mesure)
     const [allAvis, setAllAvis] = useState([]);
     const [lastQueryKey, setLastQueryKey] = useState('');

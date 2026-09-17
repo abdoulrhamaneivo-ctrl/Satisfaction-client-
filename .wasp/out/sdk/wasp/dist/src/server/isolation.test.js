@@ -7,7 +7,8 @@
 // ============================================================================
 import { expect, test, vi } from 'vitest';
 import { updateAgent, deleteAgent } from './actions';
-import { getAIStatus } from './queries';
+import { getAIStatus, getReponses } from './queries';
+import { estDirectionCumulee, estDirectionPure, voitVerbatim } from './middleware/rowLevelSecurity';
 const ENTREPRISE_A = 10;
 const ENTREPRISE_B = 20;
 const chefA = { id: 'chef-a', role: 'CHEF_AGENCE', id_agence: 1, id_entreprise: ENTREPRISE_A, actif: true, email: 'chef@a.ci' };
@@ -63,6 +64,24 @@ test('getAIStatus : un AGENT est refusé (page Paramètres réservée Direction)
     const agentSimple = { ...agentA, role: 'AGENT' };
     const err = await erreurHttp(() => getAIStatus(undefined, ctx(agentSimple, [agentSimple])));
     expect(err.statusCode).toBe(403);
+});
+// ── Cumul direction-chef (petites structures) ─────────────────────────────
+test('cumul : DIRECTION sans agence = pure (aveugle), avec agence = cumulée (voit tout)', () => {
+    expect(estDirectionPure(directionA)).toBe(true);
+    expect(estDirectionCumulee(directionA)).toBe(false);
+    expect(voitVerbatim(directionA)).toBe(false);
+    const cumulee = { ...directionA, id_agence: 1 };
+    expect(estDirectionPure(cumulee)).toBe(false);
+    expect(estDirectionCumulee(cumulee)).toBe(true);
+    expect(voitVerbatim(cumulee)).toBe(true);
+    expect(voitVerbatim(chefA)).toBe(true);
+});
+test('cumul : getReponses refuse la direction pure mais pas la cumulée', async () => {
+    const err = await erreurHttp(() => getReponses({}, ctx(directionA, [directionA])));
+    expect(err.statusCode).toBe(403);
+    // Cumulée : passe la frontière (échoue plus loin sur les entities mockées, pas en 403)
+    const err2 = await erreurHttp(() => getReponses({}, ctx({ ...directionA, id_agence: 1 }, [{ ...directionA, id_agence: 1 }])));
+    expect(err2.message).not.toContain('réservées aux chefs');
 });
 test('getAIStatus : le modèle NVIDIA par défaut est supporté', async () => {
     const precedent = process.env.AI_PROVIDER;

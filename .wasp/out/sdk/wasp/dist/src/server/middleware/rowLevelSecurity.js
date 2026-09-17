@@ -132,6 +132,30 @@ export function requireManagementRole(context) {
     requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
 }
 // ─────────────────────────────────────────────
+// 2b. Cumul DIRECTION + pilotage agence (petites structures)
+// ─────────────────────────────────────────────
+// - DIRECTION sans id_agence = direction pure (vue réseau, pas de verbatim).
+// - DIRECTION avec id_agence = direction cumulée : union des accès
+//   DIRECTION + CHEF (verbatim total, écriture opérationnelle partout).
+// - CHEF_MONO (création entreprise) = simple CHEF_AGENCE mono-agence.
+export function estDirectionCumulee(user) {
+    return !!user && user.role === 'DIRECTION' && user.id_agence != null;
+}
+export function estDirectionPure(user) {
+    return !!user && user.role === 'DIRECTION' && user.id_agence == null;
+}
+/**
+ * La frontière verbatim RG16/RG17 ne s'applique qu'à la direction pure.
+ * Tout autre rôle de gestion (CHEF_AGENCE, DIRECTION cumulée) voit complet.
+ */
+export function voitVerbatim(user) {
+    if (!user?.role)
+        return false;
+    if (user.role === 'DIRECTION')
+        return user.id_agence != null;
+    return user.role === 'CHEF_AGENCE';
+}
+// ─────────────────────────────────────────────
 // 3. Isolation par entreprise + agence (RLS)
 // ─────────────────────────────────────────────
 /**

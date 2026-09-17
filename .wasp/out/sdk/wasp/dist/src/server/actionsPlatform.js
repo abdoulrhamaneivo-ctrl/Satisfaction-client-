@@ -31,7 +31,7 @@ export function lienActivation(tokenClair) {
 // Email d'activation (gabarit cohérent avec inviteAgent)
 // ─────────────────────────────────────────────
 export async function envoyerEmailActivation(params) {
-    const { to, prenom, nomEntreprise, lien } = params;
+    const { to, prenom, nomEntreprise, lien, roleLabel } = params;
     // L'invitation est déjà commitée par l'appelant : si l'e-mail échoue, on
     // l'explique au lieu de laisser un timeout muet (l'utilisateur saurait
     // sinon s'il doit recliquer — un renvoi révoque le lien précédent).
@@ -58,7 +58,7 @@ export async function envoyerEmailActivation(params) {
     <div style="padding: 32px 40px;">
       <p style="margin: 0 0 20px; color: #374151; font-size: 15px; line-height: 1.6;">
         Votre espace <strong>Yeba</strong> pour <strong>${nomEntreprise}</strong> vient d'être créé.
-        Vous êtes nommé <strong>Administrateur principal</strong> : configurez vos agences,
+        Vous êtes nommé <strong>${roleLabel ?? 'Administrateur principal'}</strong> : configurez vos agences,
         vos guichets et suivez la satisfaction de vos usagers en temps réel.
       </p>
 
@@ -103,11 +103,6 @@ export async function envoyerEmailActivation(params) {
         throw new HttpError(err?.statusCode ?? 502, `Lien créé, mais l'e-mail n'est pas parti (${err?.message ?? 'envoi impossible'}). Vérifiez la configuration e-mail puis cliquez « Renvoyer » une seule fois.`);
     }
 }
-// ─────────────────────────────────────────────
-// créerEntreprise — le cœur du SaaS (Doc 12 §6)
-// TRANSACTION : Entreprise + Admin DIRECTION + Invitation + Audit.
-// Rien n'est persisté si une étape échoue.
-// ─────────────────────────────────────────────
 export const creerEntreprise = async (args, context) => {
     requireSuperAdmin(context);
     await exigerTotpSiActif(context, args);
@@ -129,9 +124,22 @@ export const creerEntreprise = async (args, context) => {
     if (!PLANS[plan]) {
         throw new HttpError(400, 'Plan invalide. Choix : STARTER, BUSINESS, ENTERPRISE.');
     }
-    const limiteAgences = Number(args.limite_agences) || PLANS[plan].agences;
+    const mode = args.mode ?? 'DIRECTION_RESEAU';
+    if (!['DIRECTION_RESEAU', 'DIRECTION_CUMULEE', 'CHEF_MONO'].includes(mode)) {
+        throw new HttpError(400, 'Mode de pilotage invalide.');
+    }
+    const avecAgenceInitiale = mode !== 'DIRECTION_RESEAU';
+    const nomAgence0 = args.premiereAgence?.nom_agence?.trim() ?? '';
+    const communeAgence0 = args.premiereAgence?.commune?.trim() ?? '';
+    if (avecAgenceInitiale && (nomAgence0.length < 2 || communeAgence0.length < 2)) {
+        throw new HttpError(400, "Le nom et la commune de la première agence sont requis pour ce mode de pilotage.");
+    }
+    let limiteAgences = Number(args.limite_agences) || PLANS[plan].agences;
     const limiteUtilisateurs = Number(args.limite_utilisateurs) || PLANS[plan].utilisateurs;
     const limiteGuichets = Number(args.limite_guichets) || PLANS[plan].guichets;
+    // CHEF_MONO : strictement mono-agence, même si le front a été trafiqué.
+    if (mode === 'CHEF_MONO')
+        limiteAgences = 1;
     // Unicité de l'email admin (409 si déjà pris).
     // CAS FRÉQUENT : une première tentative a expiré côté navigateur (cold
     // start) alors que le serveur avait réussi → le retry retombe ici. Au
@@ -164,12 +172,13 @@ export const creerEntreprise = async (args, context) => {
     });
     // createUser de Wasp n'expose aucun champ custom (role, id_entreprise, ...) :
     // le profil métier est posé juste après la création du compte.
+    // CHEF_MONO naît CHEF_AGENCE, les deux autres naissent DIRECTION.
     await prisma.user.update({
         where: { id: admin.id },
         data: {
             nom, prenom,
             telephone: args.admin.telephone?.trim() || null,
-            role: 'DIRECTION',
+            role: mode === 'CHEF_MONO' ? 'CHEF_AGENCE' : 'DIRECTION',
             id_agence: null,
             actif: true,
             platformRole: 'NONE',
@@ -203,6 +212,22 @@ export const creerEntreprise = async (args, context) => {
                 where: { id: admin.id },
                 data: { id_entreprise: entreprise.id },
             });
+            // 2b. Première agence + rattachement pilotage (cumul / mono uniquement).
+            // Dans la même tx : rollback complet si la création échoue.
+            let agenceInitiale = null;
+            if (avecAgenceInitiale) {
+                agenceInitiale = await tx.agence.create({
+                    data: {
+                        nom_agence: nomAgence0,
+                        commune: communeAgence0,
+                        id_entreprise: entreprise.id,
+                    },
+                });
+                await tx.user.update({
+                    where: { id: admin.id },
+                    data: { id_agence: agenceInitiale.id },
+                });
+            }
             // 3. Invitation (hash uniquement — usage unique, 24 h)
             await tx.invitation.create({
                 data: {
@@ -222,10 +247,10 @@ export const creerEntreprise = async (args, context) => {
                     resource: 'Entreprise',
                     resource_id: String(entreprise.id),
                     entreprise_id: entreprise.id,
-                    details: { nom: nomE, plan, admin_email: adminEmail, limites: { limiteAgences, limiteUtilisateurs, limiteGuichets } },
+                    details: { nom: nomE, plan, mode, admin_email: adminEmail, premiere_agence: agenceInitiale ? { id: agenceInitiale.id, nom: nomAgence0 } : null, limites: { limiteAgences, limiteUtilisateurs, limiteGuichets } },
                 },
             });
-            return { entreprise, admin };
+            return { entreprise, admin, agence: agenceInitiale };
         });
     }
     catch (e) {
@@ -276,6 +301,7 @@ export const creerEntreprise = async (args, context) => {
             prenom: prenom,
             nomEntreprise: resultat.entreprise.nom_entreprise,
             lien: lienActivation(tokenClair),
+            roleLabel: mode === 'CHEF_MONO' ? "Chef d'agence" : mode === 'DIRECTION_CUMULEE' ? 'Directeur-pilote (Direction + Chef)' : 'Administrateur principal',
         });
     }
     catch (e) {

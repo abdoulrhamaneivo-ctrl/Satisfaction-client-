@@ -125,7 +125,7 @@ export const GuichetsPage = () => {
       setSelectedAgenceId(agences[0].id);
     }
   }, [isDirection, selectedAgenceId, agences]);
-  const effectiveAgenceId: number | undefined = isDirection ? selectedAgenceId : (userAgenceId || undefined);
+  const effectiveAgenceId: number | undefined = isDirection ? (selectedAgenceId ?? userAgenceId ?? undefined) : (userAgenceId || undefined);
 
   const {
     data: guichets,
@@ -429,12 +429,10 @@ export const GuichetsPage = () => {
               <Card className="h-fit p-6 lg:sticky lg:top-8 text-center rounded-3xl">
                 <Store className="mx-auto mb-3 size-8 text-muted-foreground" />
                 <p className="font-bold text-foreground font-satoshi">
-                  {isDirection ? "Vue Direction — lecture seule" : "Gestion réservée au Chef d'Agence"}
+                  Gestion réservée au Chef d'Agence
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground font-medium">
-                  {isDirection
-                    ? "Vous voyez les guichets et kits QR de l'agence sélectionnée. La création des guichets se fait par le Chef d'Agence, agence par agence."
-                    : "La création des guichets se fait désormais par le Chef d'Agence, agence par agence."}
+                  La création des guichets se fait par le Chef d'Agence (ou la direction en cumul), agence par agence.
                 </p>
               </Card>
             )}

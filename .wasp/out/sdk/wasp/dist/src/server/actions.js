@@ -1192,6 +1192,16 @@ export const archiverAgence = async (args, context) => {
         throw new HttpError(404, 'Agence introuvable.');
     if (agence.archive)
         return agence;
+    // F5 : une agence pilotée (chef ou direction cumulée) ne s'archive pas sans
+    // retirer le pilotage d'abord — sinon le pilote pointe vers une agence fermée.
+    const pilote = await context.entities.User.findFirst({
+        where: { id_agence: args.id_agence, role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
+    });
+    if (pilote) {
+        throw new HttpError(400, pilote.role === 'DIRECTION'
+            ? "Cette agence est pilotée par la direction (cumul). Retirez le cumul avant de l'archiver."
+            : "Cette agence a encore un chef actif. Suspendez-le ou réaffectez-le avant de l'archiver.");
+    }
     const maintenant = new Date();
     return prisma.$transaction(async (tx) => {
         await tx.guichet.updateMany({
@@ -1223,6 +1233,61 @@ export const desarchiverAgence = async (args, context) => {
         data: { archive: false, date_archivage: null },
     });
 };
+// ============================================================================
+// CUMUL DIRECTION + PILOTAGE AGENCE (petites structures)
+// Seule une DIRECTION peut activer le cumul sur elle-même : pose son
+// id_agence vers l'agence pilotée (union des accès, verbatim total).
+// Garde F1 : refus si un CHEF_AGENCE actif occupe déjà l'agence.
+// ============================================================================
+export const definirAgencePilotee = async (args, context) => {
+    requireAuth(context);
+    await assertEntrepriseActive(context, context.entities);
+    requireRole(context, ['DIRECTION']);
+    await assertAgenceAccess(context, context.entities, args.id_agence, 'agence');
+    const agence = await context.entities.Agence.findUnique({ where: { id: args.id_agence } });
+    if (!agence || agence.archive)
+        throw new HttpError(400, "Agence introuvable ou archivée.");
+    if (agence.id_entreprise !== context.user.id_entreprise) {
+        throw new HttpError(403, "Cette agence appartient à une autre entreprise.");
+    }
+    const chefExistant = await context.entities.User.findFirst({
+        where: { id_agence: args.id_agence, role: 'CHEF_AGENCE', actif: true, id: { not: context.user.id } },
+    });
+    if (chefExistant) {
+        throw new HttpError(400, "Cette agence a déjà un chef actif. Suspendez-le avant d'activer le cumul.");
+    }
+    const maj = await context.entities.User.update({
+        where: { id: context.user.id },
+        data: { id_agence: args.id_agence },
+    });
+    await journaliser({
+        context,
+        action: 'direction.cumul.on',
+        resource: 'User',
+        resource_id: context.user.id,
+        entreprise_id: context.user.id_entreprise,
+        details: { id_agence: args.id_agence },
+    });
+    return maj;
+};
+export const retirerAgencePilotee = async (_args, context) => {
+    requireAuth(context);
+    await assertEntrepriseActive(context, context.entities);
+    requireRole(context, ['DIRECTION']);
+    const maj = await context.entities.User.update({
+        where: { id: context.user.id },
+        data: { id_agence: null },
+    });
+    await journaliser({
+        context,
+        action: 'direction.cumul.off',
+        resource: 'User',
+        resource_id: context.user.id,
+        entreprise_id: context.user.id_entreprise,
+        details: {},
+    });
+    return maj;
+};
 export const inviteAgent = async (args, context) => {
     requireAuth(context);
     await assertEntrepriseActive(context, context.entities);
@@ -1232,13 +1297,13 @@ export const inviteAgent = async (args, context) => {
     // équipe de terrain (agents). (Le rôle auditeur QUALITE a été supprimé et
     // fusionné dans CHEF_AGENCE : il ne peut plus être attribué.)
     const ROLES_PAR_INVITEUR = {
-        DIRECTION: ['CHEF_AGENCE'],
+        DIRECTION: ['CHEF_AGENCE', 'AGENT'],
         CHEF_AGENCE: ['AGENT'],
     };
     const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role ?? ''] || [];
     if (!rolesAutorises.includes(args.role)) {
         throw new HttpError(403, context.user.role === 'DIRECTION'
-            ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence."
+            ? "En tant que direction, vous ne pouvez créer que des Chefs d'Agence et des Agents."
             : "En tant que Chef d'Agence, vous ne pouvez créer que des Agents de guichet.");
     }
     const targetAgenceId = await resolveAgenceId(context, context.entities, args.id_agence);
@@ -1267,16 +1332,24 @@ export const inviteAgent = async (args, context) => {
             ? 'Un utilisateur utilise déjà cette adresse e-mail.'
             : 'Cet agent existe déjà dans cette agence.');
     }
-    // Un seul chef d'agence actif par agence
+    // Un seul pilote actif par agence (CHEF_AGENCE ou DIRECTION cumulée).
+    // Sans ce contrôle élargi, une direction cumulée (role=DIRECTION) serait
+    // invisible du test et un second chef pourrait être invité sur la même agence.
     if (args.role === 'CHEF_AGENCE') {
         if (!normalizedEmail) {
             throw new HttpError(400, "L'adresse e-mail est obligatoire pour un Chef d'Agence.");
         }
-        const chefExistant = await context.entities.User.findFirst({
-            where: { id_agence: targetAgenceId, role: 'CHEF_AGENCE', actif: true }
+        const piloteExistant = await context.entities.User.findFirst({
+            where: {
+                id_agence: targetAgenceId,
+                role: { in: ['CHEF_AGENCE', 'DIRECTION'] },
+                actif: true,
+            }
         });
-        if (chefExistant) {
-            throw new HttpError(400, "Cette agence possède déjà un Chef d'agence actif.");
+        if (piloteExistant) {
+            throw new HttpError(400, piloteExistant.role === 'DIRECTION'
+                ? "Cette agence est déjà pilotée par la direction (cumul directeur-chef). Retirez le cumul avant de nommer un chef."
+                : "Cette agence possède déjà un Chef d'agence actif.");
         }
     }
     // QUOTA SAAS : limite d'utilisateurs du plan, vérifiée côté serveur.

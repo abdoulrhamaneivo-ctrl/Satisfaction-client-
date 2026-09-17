@@ -45,8 +45,9 @@ export async function envoyerEmailActivation(params: {
   prenom: string;
   nomEntreprise: string;
   lien: string;
+  roleLabel?: string;
 }): Promise<void> {
-  const { to, prenom, nomEntreprise, lien } = params;
+  const { to, prenom, nomEntreprise, lien, roleLabel } = params;
   // L'invitation est déjà commitée par l'appelant : si l'e-mail échoue, on
   // l'explique au lieu de laisser un timeout muet (l'utilisateur saurait
   // sinon s'il doit recliquer — un renvoi révoque le lien précédent).
@@ -73,7 +74,7 @@ export async function envoyerEmailActivation(params: {
     <div style="padding: 32px 40px;">
       <p style="margin: 0 0 20px; color: #374151; font-size: 15px; line-height: 1.6;">
         Votre espace <strong>Yeba</strong> pour <strong>${nomEntreprise}</strong> vient d'être créé.
-        Vous êtes nommé <strong>Administrateur principal</strong> : configurez vos agences,
+        Vous êtes nommé <strong>${roleLabel ?? 'Administrateur principal'}</strong> : configurez vos agences,
         vos guichets et suivez la satisfaction de vos usagers en temps réel.
       </p>
 
@@ -126,6 +127,8 @@ export async function envoyerEmailActivation(params: {
 // TRANSACTION : Entreprise + Admin DIRECTION + Invitation + Audit.
 // Rien n'est persisté si une étape échoue.
 // ─────────────────────────────────────────────
+export type ModePilotageCreation = 'DIRECTION_RESEAU' | 'DIRECTION_CUMULEE' | 'CHEF_MONO';
+
 export const creerEntreprise = async (
   args: {
     entreprise: {
@@ -141,6 +144,10 @@ export const creerEntreprise = async (
     limite_utilisateurs: number;
     limite_guichets: number;
     totpCode: string;
+    // Pilotage choisi à la création : réseau pur (défaut), directeur cumulé
+    // (petite structure), ou chef mono-agence (limité à 1 agence).
+    mode?: ModePilotageCreation;
+    premiereAgence?: { nom_agence: string; commune: string };
   },
   context: any
 ) => {
@@ -166,9 +173,22 @@ export const creerEntreprise = async (
     throw new HttpError(400, 'Plan invalide. Choix : STARTER, BUSINESS, ENTERPRISE.');
   }
 
-  const limiteAgences = Number(args.limite_agences) || PLANS[plan].agences;
+  const mode: ModePilotageCreation = args.mode ?? 'DIRECTION_RESEAU';
+  if (!['DIRECTION_RESEAU', 'DIRECTION_CUMULEE', 'CHEF_MONO'].includes(mode)) {
+    throw new HttpError(400, 'Mode de pilotage invalide.');
+  }
+  const avecAgenceInitiale = mode !== 'DIRECTION_RESEAU';
+  const nomAgence0 = args.premiereAgence?.nom_agence?.trim() ?? '';
+  const communeAgence0 = args.premiereAgence?.commune?.trim() ?? '';
+  if (avecAgenceInitiale && (nomAgence0.length < 2 || communeAgence0.length < 2)) {
+    throw new HttpError(400, "Le nom et la commune de la première agence sont requis pour ce mode de pilotage.");
+  }
+
+  let limiteAgences = Number(args.limite_agences) || PLANS[plan].agences;
   const limiteUtilisateurs = Number(args.limite_utilisateurs) || PLANS[plan].utilisateurs;
   const limiteGuichets = Number(args.limite_guichets) || PLANS[plan].guichets;
+  // CHEF_MONO : strictement mono-agence, même si le front a été trafiqué.
+  if (mode === 'CHEF_MONO') limiteAgences = 1;
 
   // Unicité de l'email admin (409 si déjà pris).
   // CAS FRÉQUENT : une première tentative a expiré côté navigateur (cold
@@ -208,12 +228,13 @@ export const creerEntreprise = async (
   });
   // createUser de Wasp n'expose aucun champ custom (role, id_entreprise, ...) :
   // le profil métier est posé juste après la création du compte.
+  // CHEF_MONO naît CHEF_AGENCE, les deux autres naissent DIRECTION.
   await prisma.user.update({
     where: { id: admin.id },
     data: {
       nom, prenom,
       telephone: args.admin.telephone?.trim() || null,
-      role: 'DIRECTION',
+      role: mode === 'CHEF_MONO' ? 'CHEF_AGENCE' : 'DIRECTION',
       id_agence: null,
       actif: true,
       platformRole: 'NONE',
@@ -250,6 +271,23 @@ export const creerEntreprise = async (
         data: { id_entreprise: entreprise.id },
       });
 
+      // 2b. Première agence + rattachement pilotage (cumul / mono uniquement).
+      // Dans la même tx : rollback complet si la création échoue.
+      let agenceInitiale: any = null;
+      if (avecAgenceInitiale) {
+        agenceInitiale = await tx.agence.create({
+          data: {
+            nom_agence: nomAgence0,
+            commune: communeAgence0,
+            id_entreprise: entreprise.id,
+          },
+        });
+        await tx.user.update({
+          where: { id: admin.id },
+          data: { id_agence: agenceInitiale.id },
+        });
+      }
+
       // 3. Invitation (hash uniquement — usage unique, 24 h)
       await tx.invitation.create({
         data: {
@@ -270,11 +308,11 @@ export const creerEntreprise = async (
         resource: 'Entreprise',
         resource_id: String(entreprise.id),
         entreprise_id: entreprise.id,
-        details: { nom: nomE, plan, admin_email: adminEmail, limites: { limiteAgences, limiteUtilisateurs, limiteGuichets } },
+        details: { nom: nomE, plan, mode, admin_email: adminEmail, premiere_agence: agenceInitiale ? { id: agenceInitiale.id, nom: nomAgence0 } : null, limites: { limiteAgences, limiteUtilisateurs, limiteGuichets } },
       },
     });
 
-    return { entreprise, admin };
+    return { entreprise, admin, agence: agenceInitiale };
     });
   } catch (e: any) {
     // NETTOYAGE : la transaction a échoué → le compte admin créé hors tx
@@ -323,6 +361,7 @@ export const creerEntreprise = async (
       prenom: prenom,
       nomEntreprise: resultat.entreprise.nom_entreprise,
       lien: lienActivation(tokenClair),
+      roleLabel: mode === 'CHEF_MONO' ? "Chef d'agence" : mode === 'DIRECTION_CUMULEE' ? 'Directeur-pilote (Direction + Chef)' : 'Administrateur principal',
     });
   } catch (e: any) {
     console.error('[PLATFORM] Échec envoi email activation (invitation reste valide):', e?.message);
@@ -643,9 +682,13 @@ export const activerCompte = async (
 
   const tokenHash = sha256(token);
   const invitation = await context.entities.Invitation.findUnique({ where: { token_hash: tokenHash } });
-  if (!invitation) throw new HttpError(404, "Ce lien d'activation est invalide ou a déjà été utilisé.");
-  if (invitation.used_at) throw new HttpError(409, "Ce lien a déjà été utilisé. Utilisez « Mot de passe oublié » pour vous connecter.");
-  if (invitation.expires_at < new Date()) throw new HttpError(410, "Ce lien a expiré. Demandez un nouveau lien d'activation.");
+  // Anti-énumération (audit 09/2026) : invalide, déjà utilisé ou expiré
+  // donnent la MÊME réponse — distinguer ces états offrait un oracle pour
+  // tester des tokens au hasard. L'utilisateur légitime reçoit de toute
+  // façon un nouveau lien via « Mot de passe oublié » / renvoi.
+  if (!invitation || invitation.used_at || invitation.expires_at < new Date()) {
+    throw new HttpError(404, "Ce lien est invalide ou a expiré. Demandez un nouveau lien d'activation.");
+  }
 
   // Transaction : poser le mot de passe + marquer l'invitation utilisée
   await prisma.$transaction(async (tx: any) => {

@@ -88,6 +88,8 @@ export { archiverGuichet } from './actions/index.js';
 export { desarchiverGuichet } from './actions/index.js';
 export { archiverAgence } from './actions/index.js';
 export { desarchiverAgence } from './actions/index.js';
+export { definirAgencePilotee } from './actions/index.js';
+export { retirerAgencePilotee } from './actions/index.js';
 export { archiverAlerte } from './actions/index.js';
 export { desarchiverAlerte } from './actions/index.js';
 export { archiverTache } from './actions/index.js';

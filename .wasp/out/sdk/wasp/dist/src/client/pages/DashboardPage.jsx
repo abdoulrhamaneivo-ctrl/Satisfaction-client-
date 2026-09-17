@@ -46,14 +46,11 @@ export const DashboardPage = () => {
     const { brandConfig } = useBrand();
     const nomEntrepriseDocs = brandConfig?.platform_name || 'Yeba';
     const [periodeJours, setPeriodeJours] = useState(30);
-    // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION ne reçoit pas
-    // les réponses brutes — l'API renvoie 403 à getReponses pour elle. On ne
-    // lance donc la query QUE pour les rôles autorisés (CHEF_AGENCE),
-    // sinon react-query marque la page en erreur et le dashboard casse.
-    // La Direction garde tous les agrégats : KPI, tendances, radar, heatmap,
-    // comparaisons, thèmes — alimentés par leurs propres queries.
+    // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : seule la DIRECTION pure
+    // est refusée à getReponses — la cumulée charge les réponses comme un chef.
     const estDirection = user?.role === 'DIRECTION';
-    const { data: reponses, isLoading: loadingReponses } = useQuery(getReponses, undefined, { enabled: !estDirection });
+    const estDirectionPure = estDirection && user?.id_agence == null;
+    const { data: reponses, isLoading: loadingReponses } = useQuery(getReponses, undefined, { enabled: !estDirectionPure });
     const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
     const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
     const { data: taches, isLoading: loadingTaches } = useQuery(getTachesCorrectives);
@@ -353,10 +350,9 @@ export const DashboardPage = () => {
             </Accordion>
           </section>
 
-          {/* Derniers avis — réservé aux rôles autorisés (la DIRECTION ne
-            voit jamais les verbatims, RG16/RG17). Pour elle, cette section
-            est remplacée par le bloc de synthèse directionnel ci-dessous. */}
-          {!isLoading && !estDirection && (<section>
+          {/* Derniers avis — réservé aux rôles autorisés (la DIRECTION pure
+            ne voit jamais les verbatims, RG16/RG17 ; la cumulée oui). */}
+          {!isLoading && !estDirectionPure && (<section>
               <div className="mb-4 flex items-center justify-between">
                 <Eyebrow tone="amber">Derniers retours enregistrés</Eyebrow>
                 <div className="flex items-center gap-3">
@@ -393,10 +389,9 @@ export const DashboardPage = () => {
                 </DataTable>) : (<EmptyState icon={Inbox} title="Aucun avis pour le moment" description="Dès que vos clients laisseront un retour, il apparaîtra ici avec les indicateurs associés."/>)}
             </section>)}
 
-          {/* Synthèse DIRECTION : chiffres seulement, jamais de verbatim.
-            Même en-tête visuel, contenu agrégé — la Direction voit le
-            volume et l'état des actions, pas les retours individuels. */}
-          {!isLoading && estDirection && (<section>
+          {/* Synthèse DIRECTION pure : chiffres seulement, jamais de verbatim.
+            La cumulée voit les derniers avis ci-dessus comme un chef. */}
+          {!isLoading && estDirectionPure && (<section>
               <div className="mb-4 flex items-center justify-between">
                 <Eyebrow tone="amber">Activité de la période ({labelPeriode})</Eyebrow>
               </div>

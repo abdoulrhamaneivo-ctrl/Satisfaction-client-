@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
-import { useQuery, getAgences, createAgence, archiverAgence } from 'wasp/client/operations';
+import { useQuery, useAction, getAgences, createAgence, archiverAgence, definirAgencePilotee, retirerAgencePilotee } from 'wasp/client/operations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, MapPin, PlusCircle, Archive, Search, SearchX } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
@@ -30,6 +30,40 @@ export const GestionAgencesPage = () => {
     const [agenceCree, setAgenceCree] = useState(null);
     const [archivingId, setArchivingId] = useState(null);
     const [recherche, setRecherche] = useState('');
+    const activerCumul = useAction(definirAgencePilotee);
+    const couperCumul = useAction(retirerAgencePilotee);
+    const [cumulEnCours, setCumulEnCours] = useState(null);
+    const agencePiloteeId = user?.id_agence ?? null;
+    const handleActiverCumul = async (idAgence, nomAgence) => {
+        setCumulEnCours(idAgence);
+        try {
+            await activerCumul({ id_agence: idAgence });
+            toast({ variant: 'success', title: 'Cumul activé', description: `Vous pilotez désormais « ${nomAgence} » comme un chef (verbatim + gestion), tout en gardant la vue réseau.` });
+            await rechargerAgences();
+            window.location.reload();
+        }
+        catch (e) {
+            toast({ variant: 'destructive', title: 'Cumul impossible', description: e?.message || 'Erreur inconnue' });
+        }
+        finally {
+            setCumulEnCours(null);
+        }
+    };
+    const handleCouperCumul = async () => {
+        setCumulEnCours('off');
+        try {
+            await couperCumul({});
+            toast({ variant: 'success', title: 'Cumul retiré', description: 'Retour en direction pure (agrégats, sans verbatim).' });
+            await rechargerAgences();
+            window.location.reload();
+        }
+        catch (e) {
+            toast({ variant: 'destructive', title: 'Erreur', description: e?.message || 'Erreur inconnue' });
+        }
+        finally {
+            setCumulEnCours(null);
+        }
+    };
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
@@ -104,7 +138,13 @@ export const GestionAgencesPage = () => {
       <RequireAuth>
       <AmbientBackground>
         <PageShell>
-            <PageHeader icon={Building2} eyebrow="Réseau" title="Gestion des agences" description="Créez les agences de votre réseau. Vous pourrez ensuite y rattacher un Chef d'Agence et des guichets."/>
+            <PageHeader icon={Building2} eyebrow="Réseau" title="Gestion des agences" description="Créez les agences de votre réseau. Vous pourrez ensuite y rattacher un Chef d'Agence et des guichets — ou activer le cumul directeur-pilote pour tout gérer vous-même (petite structure)."/>
+            {agencePiloteeId != null && (<div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/5 p-4">
+                <p className="text-sm font-bold text-primary">Cumul actif : vous pilotez l'agence #{agencePiloteeId} (verbatim + gestion partout, vue réseau conservée).</p>
+                <Button type="button" variant="outline" size="sm" disabled={cumulEnCours !== null} onClick={handleCouperCumul} className="rounded-xl font-bold">
+                  {cumulEnCours === 'off' ? 'Retrait…' : 'Retirer le cumul'}
+                </Button>
+              </div>)}
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
               {/* CARTE FORMULAIRE */}
@@ -191,10 +231,16 @@ export const GestionAgencesPage = () => {
                 aucun moyen de désigner un chef après création,
                 et le clic sur la carte ne donnait rien. */}
                             {agence.utilisateurs?.[0] ? (<p className="mt-1 truncate text-xs font-semibold text-success">
-                                Chef : {agence.utilisateurs[0].prenom} {agence.utilisateurs[0].nom}
-                              </p>) : (<button type="button" onClick={() => navigate(`/admin/personnel?agence=${agence.id}`)} className="mt-1 inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-1 text-[11px] font-bold text-warning hover:bg-warning/20 transition-colors">
-                                <PlusCircle className="size-3"/> Aucun chef — désigner
-                              </button>)}
+                                {agence.utilisateurs[0].role === 'DIRECTION' ? 'Pilotée par la direction : ' : 'Chef : '}{agence.utilisateurs[0].prenom} {agence.utilisateurs[0].nom}
+                                {agence.piloteeParVous && <span className="ml-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">Cumul actif</span>}
+                              </p>) : (<span className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <button type="button" onClick={() => navigate(`/admin/personnel?agence=${agence.id}`)} className="inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-1 text-[11px] font-bold text-warning hover:bg-warning/20 transition-colors">
+                                  <PlusCircle className="size-3"/> Aucun chef — désigner
+                                </button>
+                                {agencePiloteeId == null && (<button type="button" disabled={cumulEnCours !== null} onClick={() => handleActiverCumul(agence.id, agence.nom_agence)} className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/30 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors disabled:opacity-50" title="Petite structure : cumulez direction + chef sur cette agence">
+                                    {cumulEnCours === agence.id ? 'Activation…' : 'Se désigner pilote'}
+                                  </button>)}
+                              </span>)}
                           </div>
                         </div>
                         <Button type="button" variant="outline" size="icon" onClick={() => setAgenceAArchiver({ id: agence.id, nom: agence.nom_agence })} className="shrink-0 border-dashed hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive" title="Fermer définitivement cette agence (archivage, aucune perte de données)">

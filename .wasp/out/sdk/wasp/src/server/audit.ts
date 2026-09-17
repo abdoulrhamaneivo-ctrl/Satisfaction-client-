@@ -24,6 +24,8 @@ export type AuditAction =
   | 'guichet.archive'
   | 'agence.create'
   | 'agence.archive'
+  | 'direction.cumul.on'
+  | 'direction.cumul.off'
   | 'branding.update'
   | 'criteres.update'
   | 'login.failed'

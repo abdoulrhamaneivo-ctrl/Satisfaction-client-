@@ -43,6 +43,8 @@ import { ArchiverGuichet_ext } from 'wasp/server/operations/actions'
 import { DesarchiverGuichet_ext } from 'wasp/server/operations/actions'
 import { ArchiverAgence_ext } from 'wasp/server/operations/actions'
 import { DesarchiverAgence_ext } from 'wasp/server/operations/actions'
+import { DefinirAgencePilotee_ext } from 'wasp/server/operations/actions'
+import { RetirerAgencePilotee_ext } from 'wasp/server/operations/actions'
 import { ArchiverAlerte_ext } from 'wasp/server/operations/actions'
 import { DesarchiverAlerte_ext } from 'wasp/server/operations/actions'
 import { ArchiverTache_ext } from 'wasp/server/operations/actions'
@@ -324,6 +326,18 @@ export const archiverAgence: ActionFor<ArchiverAgence_ext> = createAction<Archiv
 export const desarchiverAgence: ActionFor<DesarchiverAgence_ext> = createAction<DesarchiverAgence_ext>(
   'operations/desarchiver-agence',
   ['Agence', 'User', 'Entreprise'],
+)
+
+// PUBLIC API
+export const definirAgencePilotee: ActionFor<DefinirAgencePilotee_ext> = createAction<DefinirAgencePilotee_ext>(
+  'operations/definir-agence-pilotee',
+  ['Agence', 'User', 'Entreprise'],
+)
+
+// PUBLIC API
+export const retirerAgencePilotee: ActionFor<RetirerAgencePilotee_ext> = createAction<RetirerAgencePilotee_ext>(
+  'operations/retirer-agence-pilotee',
+  ['User', 'Entreprise'],
 )
 
 // PUBLIC API

@@ -88,6 +88,10 @@ export const archiverAgence = createAction('operations/archiver-agence', ['Agenc
 // PUBLIC API
 export const desarchiverAgence = createAction('operations/desarchiver-agence', ['Agence', 'User', 'Entreprise']);
 // PUBLIC API
+export const definirAgencePilotee = createAction('operations/definir-agence-pilotee', ['Agence', 'User', 'Entreprise']);
+// PUBLIC API
+export const retirerAgencePilotee = createAction('operations/retirer-agence-pilotee', ['User', 'Entreprise']);
+// PUBLIC API
 export const archiverAlerte = createAction('operations/archiver-alerte', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
 export const desarchiverAlerte = createAction('operations/desarchiver-alerte', ['Alerte', 'Guichet', 'Reponse', 'User', 'Agence', 'Entreprise']);

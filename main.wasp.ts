@@ -64,6 +64,8 @@ import {
   desarchiverGuichet,
   archiverAgence,
   desarchiverAgence,
+  definirAgencePilotee,
+  retirerAgencePilotee,
   archiverAlerte,
   desarchiverAlerte,
   archiverTache,
@@ -209,6 +211,8 @@ const archiverGuichetAction = action(archiverGuichet, { entities: ["Guichet", "U
 const desarchiverGuichetAction = action(desarchiverGuichet, { entities: ["Guichet", "User", "Agence", "Entreprise"] });
 const archiverAgenceAction = action(archiverAgence, { entities: ["Agence", "Guichet", "User", "Entreprise"] });
 const desarchiverAgenceAction = action(desarchiverAgence, { entities: ["Agence", "User", "Entreprise"] });
+const definirAgencePiloteeAction = action(definirAgencePilotee, { entities: ["Agence", "User", "Entreprise"] });
+const retirerAgencePiloteeAction = action(retirerAgencePilotee, { entities: ["User", "Entreprise"] });
 const archiverAlerteAction = action(archiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
 const desarchiverAlerteAction = action(desarchiverAlerte, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
 const archiverTacheAction = action(archiverTache, { entities: ["TacheCorrective", "Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
@@ -387,6 +391,8 @@ export default app({
     desarchiverGuichetAction,
     archiverAgenceAction,
     desarchiverAgenceAction,
+    definirAgencePiloteeAction,
+    retirerAgencePiloteeAction,
     archiverAlerteAction,
     desarchiverAlerteAction,
     archiverTacheAction,

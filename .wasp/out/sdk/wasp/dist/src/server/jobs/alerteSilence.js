@@ -115,10 +115,12 @@ export const detecterAlertesSilence = async (_args, _context) => {
         });
         if (alerteRecente)
             continue;
-        // Chef d'agence en priorité pour le message "standard" ; s'il n'y en a
-        // pas, on retombe sur un compte DIRECTION de l'agence.
+        // Pilote en priorité : CHEF_AGENCE, puis DIRECTION cumulée de CETTE
+        // agence (petite structure), puis premier utilisateur. L'escalade vers
+        // la direction ignore déjà le destinataire (pas de double SMS au cumulé).
         const chefAgence = guichet.agence.utilisateurs.find((u) => u.role === 'CHEF_AGENCE');
-        const destinataire = chefAgence || guichet.agence.utilisateurs[0];
+        const directionPilote = guichet.agence.utilisateurs.find((u) => u.role === 'DIRECTION' && u.id_agence === guichet.agence.id);
+        const destinataire = chefAgence || directionPilote || guichet.agence.utilisateurs[0];
         if (!destinataire)
             continue;
         const duree = formatDuree(debutSurveillance, maintenant);

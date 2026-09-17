@@ -8,6 +8,8 @@ import {
   resolveAgenceId,
   resolveAgenceScope,
   assertEntrepriseActive,
+  estDirectionPure,
+  voitVerbatim,
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
 import { BRANDING } from '../shared/branding';
@@ -73,8 +75,9 @@ export const getStatsFiltrees = async (
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
   // CONFIDENTIALITÉ (RG16/RG17) : cette query retourne des réponses brutes
-  // (dont commentaire_texte). La DIRECTION n'y a pas droit, comme getReponses.
-  if (context.user.role === 'DIRECTION') {
+  // (dont commentaire_texte). Seule la DIRECTION pure n'y a pas droit ;
+  // la DIRECTION cumulée (id_agence posée) voit tout, comme un chef.
+  if (estDirectionPure(context.user)) {
     throw new HttpError(403, "Les réponses détaillées sont réservées aux chefs d'agence. La Direction dispose des KPI consolidés.");
   }
   const filter = await buildAgenceFilter(context, context.entities);
@@ -120,11 +123,10 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
 
-  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION pilote par
-  // les chiffres. Elle n'a JAMAIS accès aux réponses brutes (verbatims,
-  // coordonnées). Ce refus est serveur — masquer les cartes côté front ne
-  // suffit jamais, l'API est la seule frontière de confiance.
-  if (context.user.role === 'DIRECTION') {
+  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION pure pilote
+  // par les chiffres. La DIRECTION cumulée (petite structure) voit tout.
+  // Ce refus est serveur — masquer les cartes côté front ne suffit jamais.
+  if (estDirectionPure(context.user)) {
     throw new HttpError(
       403,
       "Les réponses détaillées sont réservées aux chefs d'agence. La Direction dispose des KPI consolidés, tendances et thèmes agrégés."
@@ -198,6 +200,7 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
 type GetAvisGroupesArgs = GetReponsesArgs & {
   page?: number;      // 1-indexed, défaut 1
   pageSize?: number;  // défaut 20, max 100
+  theme?: string;     // code thème IA (ex. TEMPS_ATTENTE) — filtre les avis étiquetés
 };
 
 export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => {
@@ -205,9 +208,8 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
   await assertEntrepriseActive(context, context.entities);
 
   // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : même frontière que
-  // getReponses — la DIRECTION ne reçoit jamais les avis détaillés
-  // (verbatims, coordonnées clients). Refus serveur, pas de masquage front.
-  if (context.user.role === 'DIRECTION') {
+  // getReponses — seule la DIRECTION pure est refusée (la cumulée voit tout).
+  if (estDirectionPure(context.user)) {
     throw new HttpError(
       403,
       "Les avis détaillés sont réservés aux chefs d'agence et auditeurs qualité. La Direction dispose des KPI consolidés et thèmes agrégés."
@@ -274,9 +276,16 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
 
   const groupes = regrouperParSoumission(brutes).map((g) => {
     const premiere = g.reponses[0];
-    const scores = g.reponses.map((r: any) => r.score_brut);
-    const scoreMin = Math.min(...scores);
-    const scoreMoyen = parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2));
+    // Notes NORMALISÉES uniquement : les lignes TEXTE (score neutre 3),
+    // QCM (index d'option) et CASES ne sont PAS des notes — les moyenner
+    // avec les vraies notes fabriquait des 3/5 et 2/5 fantômes.
+    const scores = g.reponses
+      .map((r: any) => scoreNormaliseSur5(r))
+      .filter((s): s is number => s !== null);
+    const scoreMin = scores.length > 0 ? Math.min(...scores) : null;
+    const scoreMoyen = scores.length > 0
+      ? parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2))
+      : null;
     const analyseEffective = g.reponses.find((r: any) => r.analyseIA)?.analyseIA || premiere.analyseIA || null;
 
     return {
@@ -294,15 +303,38 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
       reponses: g.reponses.map((r: any) => ({
         id: r.id,
         score_brut: r.score_brut,
+        // Le texte PAR QUESTION (réponse TEXTE, choix QCM/CASES) : sans lui,
+        // le front ne peut afficher que des barres X/5 mensongères.
+        commentaire_texte: r.commentaire_texte ?? null,
         critere: r.critere,
         analyseIA: r.analyseIA,
       })),
     };
   });
 
-  const filtered = args.score
-    ? groupes.filter((g) => g.reponses.some((r) => r.score_brut === Number(args.score)))
-    : groupes;
+  const lireThemes = (analyse: any): string[] => {
+    try {
+      const t = analyse?.themes ? JSON.parse(analyse.themes) : [];
+      return Array.isArray(t) ? t : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Filtre note sur scores NORMALISÉS (un filtre « 3 » ne doit pas remonter
+  // des réponses TEXTE au score neutre 3).
+  const filtered = groupes.filter((g) => {
+    if (args.score !== undefined && args.score !== null) {
+      const visee = Number(args.score);
+      const ok = g.reponses.some((r: any) => scoreNormaliseSur5(r) === visee);
+      if (!ok) return false;
+    }
+    // Filtre étiquette IA : l'avis est gardé si son analyse effective porte le thème.
+    if (args.theme) {
+      if (!lireThemes(g.analyseIA).includes(args.theme)) return false;
+    }
+    return true;
+  });
 
   const sorted = filtered.sort(
     (a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime()
@@ -320,15 +352,14 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
 // EXPORT AVIS COMPLET (pour CSV — sans pagination, limité à 20 000 lignes)
 // ============================================================================
 
-export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => {
+export const exportAvisGroupes = async (args: GetReponsesArgs & { curseurId?: number }, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
 
   // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : l'export est un chemin de
-  // contournement classique — /avis bloqué mais export ouvert = verbatims
-  // téléchargeables par la Direction. Même frontière que getReponses :
-  // refus serveur explicite, sans exception.
-  if (context.user.role === 'DIRECTION') {
+  // contournement classique. Même frontière que getReponses : seule la
+  // DIRECTION pure est refusée, la cumulée exporte comme un chef.
+  if (estDirectionPure(context.user)) {
     throw new HttpError(
       403,
       "L'export des avis détaillés est réservé aux chefs d'agence et auditeurs qualité. La Direction dispose des rapports consolidés."
@@ -356,10 +387,16 @@ export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => 
     if (args.endDate) whereClause.date_reponse.lte = new Date(args.endDate);
   }
 
+  // Pagination curseur (audit 09/2026) : l'ancien `take: 20000` chargeait
+  // toute l'histoire en une requête (risque timeout/OOM sur base mature).
+  // On pagine par id décroissant (≈ chronologique, autoincrement) par lots
+  // de 2000 ; le client boucle jusqu'à curseurSuivant null.
+  const LOT_EXPORT = 2000;
   const brutes = await context.entities.Reponse.findMany({
     where: whereClause,
-    orderBy: { date_reponse: 'desc' },
-    take: 20000,
+    orderBy: [{ id: 'desc' }],
+    ...(args.curseurId ? { cursor: { id: BigInt(args.curseurId) }, skip: 1 } : {}),
+    take: LOT_EXPORT,
     include: {
       guichet: true,
       critere: true,
@@ -369,11 +406,36 @@ export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => 
     },
   });
 
-  return regrouperParSoumission(brutes)
+  const lignes = regrouperParSoumission(brutes)
     .map((g) => {
       const premiere = g.reponses[0];
-      const scores = g.reponses.map((r: any) => r.score_brut);
-      const scoreMoyen = parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2));
+      // Notes NORMALISÉES (TEXTE/QCM/CASES exclus) + vraies réponses en
+      // clair : l'export ne doit contenir ni 3/5 fantômes ni index QCM.
+      const scores = g.reponses
+        .map((r: any) => scoreNormaliseSur5(r))
+        .filter((s): s is number => s !== null);
+      const scoreMoyen = scores.length > 0
+        ? parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2))
+        : null;
+      const texteGroupe = commentairesDeGroupe(g.reponses);
+      const decrire = (r: any): string => {
+        const lib = r.critere?.libelle_critere || 'Critère';
+        const type = r.critere?.type_reponse;
+        const texte = String(r.commentaire_texte || '').trim();
+        const specifique = texte && texte !== texteGroupe ? texte : null;
+        if (type === 'TEXTE') return `${lib}: ${specifique || texte || '—'}`;
+        if (type === 'CASES') return `${lib}: ${specifique || texte || '—'}`;
+        if (type === 'QCM') {
+          const options = String(r.critere?.options_reponse || '').split(',').map((o: string) => o.trim()).filter(Boolean);
+          return `${lib}: ${specifique || options[r.score_brut - 1] || `Option n°${r.score_brut}`}`;
+        }
+        if (type === 'OUI_NON') return `${lib}: ${r.score_brut >= 4 ? 'Oui' : 'Non'}`;
+        if (type === 'ECHELLE') {
+          const max = Number(String(r.critere?.options_reponse || '1,5').split(',')[1]) || 5;
+          return `${lib}: ${r.score_brut}/${max}`;
+        }
+        return `${lib}:${r.score_brut}`;
+      };
       return {
         id_soumission: g.id_soumission ?? g.cle,
         date_reponse: premiere.date_reponse,
@@ -382,11 +444,28 @@ export const exportAvisGroupes = async (args: GetReponsesArgs, context: any) => 
         service: premiere.service?.libelle_service || '',
         agent: premiere.agent ? `${premiere.agent.prenom || ''} ${premiere.agent.nom || ''}`.trim() : '',
         score_moyen: scoreMoyen,
-        commentaire: commentairesDeGroupe(g.reponses),
-        criteres: g.reponses.map((r: any) => `${r.critere?.libelle_critere || 'Critère'}:${r.score_brut}`).join(' | '),
+        commentaire: texteGroupe,
+        criteres: g.reponses.map(decrire).join(' | '),
       };
     })
     .sort((a, b) => new Date(b.date_reponse).getTime() - new Date(a.date_reponse).getTime());
+
+  // Groupes à cheval sur deux lots : le dernier groupe du lot peut être
+  // incomplet. Le curseur repart de sa PREMIÈRE ligne et le client déduplique
+  // par id_soumission (la dernière occurrence, complète, écrase les partielles).
+  let curseurSuivant: number | null = null;
+  if (brutes.length === LOT_EXPORT && lignes.length > 0) {
+    const dernier = lignes[lignes.length - 1];
+    if (lignes.length === 1) {
+      // Cas absurde (un seul avis de 2000+ lignes) : on avance quand même.
+      curseurSuivant = Number(brutes[brutes.length - 1].id);
+    } else {
+      const cleDerniere = dernier?.id_soumission;
+      const reprise = brutes.find((r: any) => (r.id_soumission ?? `r:${String(r.id)}`) === cleDerniere);
+      curseurSuivant = reprise ? Number(reprise.id) : Number(brutes[brutes.length - 1].id);
+    }
+  }
+  return { lignes, curseurSuivant };
 };
 
 export const getAgentsByAgence = async (args: { id_agence: number }, context: any) => {
@@ -395,14 +474,17 @@ export const getAgentsByAgence = async (args: { id_agence: number }, context: an
   const idAgence = requireNumber(args.id_agence, 'id_agence');
   await assertAgenceAccess(context, context.entities, idAgence, 'agence');
 
-  return context.entities.User.findMany({
+  // Inclut la DIRECTION cumulée de cette agence (sinon le pilote est
+  // invisible du Personnel et le badge "chef actuel" rate sa cible).
+  const membres = await context.entities.User.findMany({
     where: {
       id_agence: idAgence,
-      role: { in: ['AGENT', 'CHEF_AGENCE'] },
+      role: { in: ['AGENT', 'CHEF_AGENCE', 'DIRECTION'] },
     },
     select: { id: true, nom: true, prenom: true, role: true, email: true, telephone: true, actif: true },
     orderBy: [{ actif: 'desc' }, { role: 'asc' }, { nom: 'asc' }],
   });
+  return membres;
 };
 
 // Liste les agences DE L'ENTREPRISE de l'utilisateur (DIRECTION
@@ -414,22 +496,27 @@ export const getAgences = async (_args: void, context: any) => {
   if (context.user.role !== 'DIRECTION') return [];
   if (!context.user.id_entreprise) return [];
 
-  return context.entities.Agence.findMany({
+  const agences = await context.entities.Agence.findMany({
     where: { id_entreprise: context.user.id_entreprise, archive: false },
     // FIX 05/09 : la carte agence doit afficher le chef en place (ou son
     // absence) pour permettre de le désigner directement depuis le réseau.
+    // Élargi au pilote DIRECTION cumulé (F1/F2) + flag piloteeParVous.
     select: {
       id: true,
       nom_agence: true,
       commune: true,
       utilisateurs: {
-        where: { role: 'CHEF_AGENCE', actif: true },
-        select: { id: true, prenom: true, nom: true, email: true },
+        where: { role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
+        select: { id: true, prenom: true, nom: true, email: true, role: true },
         take: 1,
       },
     },
     orderBy: { id: 'asc' },
   });
+  return agences.map((a: any) => ({
+    ...a,
+    piloteeParVous: context.user.id_agence != null && a.id === context.user.id_agence,
+  }));
 };
 
 export const getAlertes = async (_args: void, context: any) => {
@@ -439,11 +526,10 @@ export const getAlertes = async (_args: void, context: any) => {
   const filter = await buildAgenceFilter(context, context.entities);
   const idAgenceClause = filter.id_agence;
 
-  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION, les alertes
-  // ne contiennent JAMAIS la réponse brute imbriquée (verbatim, coordonnées).
-  // Chemin de fuite classique : /avis bloqué mais /alertes → reponse → texte.
-  // On réduit le payload selon le rôle — le chef d'agence conserve tout.
-  const estDirection = context.user.role === 'DIRECTION';
+  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION pure, les
+  // alertes ne contiennent JAMAIS la réponse brute imbriquée. La DIRECTION
+  // cumulée reçoit le payload complet, comme un chef.
+  const estDirection = !voitVerbatim(context.user);
 
   // Une alerte archivée sort de la liste active — voir getArchives.
   return context.entities.Alerte.findMany({
@@ -962,11 +1048,9 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 
   const filter = await buildAgenceFilter(context, context.entities);
 
-  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION, la réponse
-  // imbriquée dans alerte → reponse ne doit contenir ni verbatim ni
-  // coordonnées. Même frontière que getAlertes — le chemin alternatif
-  // /taches → alerte → reponse → texte est fermé aussi.
-  const estDirection = context.user.role === 'DIRECTION';
+  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : même frontière que getAlertes —
+  // seule la DIRECTION pure reçoit le payload réduit, la cumulée voit tout.
+  const estDirection = !voitVerbatim(context.user);
 
   const alertes = await context.entities.Alerte.findMany({
     where: {
@@ -1010,10 +1094,10 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 // expose commentaire_texte à quiconque a include: true. Pour la DIRECTION
 // on ne livre que les métadonnées (id, date, score) — jamais le verbatim.
 function reponsePourArchives(context: any) {
-  if (context.user.role === 'DIRECTION') {
+  if (!voitVerbatim(context.user)) {
     return { select: { id: true, date_reponse: true, score_brut: true } };
   }
-  return true; // CHEF_AGENCE : accès complet à son périmètre
+  return true; // CHEF_AGENCE ou DIRECTION cumulée : accès complet
 }
 
 export const getArchives = async (_args: void, context: any) => {
@@ -1679,6 +1763,51 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
   resultats.sort((a, b) => (b.score_moyen ?? -1) - (a.score_moyen ?? -1));
   const avecScores = resultats.filter((r) => r.score_moyen !== null);
 
+  // Deltas vs période précédente (même durée, juste avant) : la Direction
+  // pilote aux tendances, pas aux photos. Une seule requête de plus.
+  const debutPrec = new Date(debut);
+  debutPrec.setDate(debutPrec.getDate() - nbJours);
+  let deltasParAgence = new Map<number, number | null>();
+  try {
+    const repsPrec = await context.entities.Reponse.findMany({
+      where: {
+        agence: { id_entreprise: context.user.id_entreprise, archive: false },
+        date_reponse: { gte: debutPrec, lt: debut },
+      },
+      select: {
+        id: true,
+        id_soumission: true,
+        score_brut: true,
+        id_agence: true,
+        critere: { select: { type_reponse: true, options_reponse: true } },
+      },
+    });
+    const parSoumPrec = new Map<string, { id_agence: number; scores: number[] }>();
+    for (const rep of repsPrec as any[]) {
+      const cle = rep.id_soumission ?? `_${rep.id}`;
+      if (!parSoumPrec.has(cle)) parSoumPrec.set(cle, { id_agence: rep.id_agence, scores: [] });
+      const score = scoreNormaliseSur5(rep);
+      if (score !== null) parSoumPrec.get(cle)!.scores.push(score);
+    }
+    const parAgencePrec = new Map<number, number[]>();
+    for (const { id_agence, scores } of parSoumPrec.values()) {
+      if (scores.length === 0) continue;
+      if (!parAgencePrec.has(id_agence)) parAgencePrec.set(id_agence, []);
+      parAgencePrec.get(id_agence)!.push(scores.reduce((s, v) => s + v, 0) / scores.length);
+    }
+    for (const [id, notes] of parAgencePrec) {
+      deltasParAgence.set(id, notes.reduce((s, v) => s + v, 0) / notes.length);
+    }
+  } catch {
+    // Fenêtre précédente indisponible : on renvoie sans deltas plutôt qu'en erreur.
+  }
+  for (const r of resultats) {
+    const prec = deltasParAgence.get(r.id_agence);
+    (r as any).delta_note = r.score_moyen !== null && prec !== undefined && prec !== null
+      ? parseFloat((r.score_moyen - prec).toFixed(2))
+      : null;
+  }
+
   return {
     nb_jours: nbJours,
     agences: resultats,
@@ -1988,9 +2117,9 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
     })),
     agents: agents.map((u: any) => ({ id: u.id, nom: u.nom, prenom: u.prenom, id_agence: u.id_agence })),
     // CONFIDENTIALITÉ MÉTIER (RG17) : la recherche globale est un 4e chemin
-    // vers les verbatims (Ctrl+K → "temps d'attente" → avis bruts). Pour la
-    // DIRECTION : aucun résultat d'avis, uniquement entités organisationnelles.
-    avis: context.user.role === 'DIRECTION'
+    // vers les verbatims. Pour la DIRECTION pure : aucun avis. La cumulée
+    // cherche comme un chef.
+    avis: !voitVerbatim(context.user)
       ? []
       : avis.map((r: any) => ({
           id: r.id.toString(),
@@ -2005,6 +2134,10 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
 export const getAIStatus = async (_args: void, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
+  // FIX isolation (audit 09/2026) : la page Paramètres qui consomme cette
+  // query est réservée Direction — un AGENT n'a rien à faire des compteurs
+  // IA ni du modèle configuré.
+  requireRole(context, ['DIRECTION']);
 
   const providerRaw = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
   const usingDeepseek = providerRaw === 'deepseek';
@@ -2019,16 +2152,21 @@ export const getAIStatus = async (_args: void, context: any) => {
       ? process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
       : process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
   const model = usingNvidia
-    ? process.env.NVIDIA_MODEL || 'mistralai/mistral-large-2-instruct'
+    ? process.env.NVIDIA_MODEL || 'mistralai/mistral-nemotron'
     : usingDeepseek
       ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
       : process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free';
 
+  // FIX isolation (audit 09/2026) : les compteurs étaient GLOBAUX (toutes
+  // entreprises confondues). Scope via reponse → agence → entreprise.
+  const scopeAnalyse = context.user.id_entreprise
+    ? { reponse: { agence: { id_entreprise: context.user.id_entreprise } } }
+    : { reponse: { id: -1 } }; // sans entreprise : aucun chiffre
   const [totalAnalyses, doneAnalyses, pendingAnalyses, failedAnalyses] = await Promise.all([
-    context.entities.AnalyseAvisIA.count(),
-    context.entities.AnalyseAvisIA.count({ where: { status: 'DONE' } }),
-    context.entities.AnalyseAvisIA.count({ where: { status: 'PENDING' } }),
-    context.entities.AnalyseAvisIA.count({ where: { status: 'FAILED' } }),
+    context.entities.AnalyseAvisIA.count({ where: scopeAnalyse }),
+    context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: 'DONE' } }),
+    context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: 'PENDING' } }),
+    context.entities.AnalyseAvisIA.count({ where: { ...scopeAnalyse, status: 'FAILED' } }),
   ]);
 
   return {

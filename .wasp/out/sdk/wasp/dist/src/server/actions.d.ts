@@ -84,6 +84,10 @@ export declare const archiverAgence: (args: {
 export declare const desarchiverAgence: (args: {
     id_agence: number;
 }, context: any) => Promise<any>;
+export declare const definirAgencePilotee: (args: {
+    id_agence: number;
+}, context: any) => Promise<any>;
+export declare const retirerAgencePilotee: (_args: any, context: any) => Promise<any>;
 export declare const inviteAgent: (args: {
     email?: string;
     nom: string;

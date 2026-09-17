@@ -23,8 +23,6 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
     ? `${window.location.origin}/q/${codeQr}`
     : `https://yeba.ci/q/${codeQr}`;
 
-  const ussdCode = `*789*42*${guichet.id}#`;
-
   const [selectedFormat, setSelectedFormat] = useState<FormatKey>('A5');
 
   // QR 100% LOCAL (FIX 05/09) : l'ancien code récupérait le PNG depuis
@@ -99,11 +97,55 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
 
   const currentConfig = formatConfigs[selectedFormat];
 
+  const telechargerFichier = (nom: string, dataUrl: string) => {
+    const link = document.createElement('a');
+    link.download = nom;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export QR seul (repli + usage ciblé) : sérialise le SVG du QR et le
+  // dessine sur canvas — aucun CSS embarqué, donc insensible aux couleurs
+  // exotiques (oklch Tailwind) qui font échouer html-to-image.
+  const telechargerQrSeul = async () => {
+    const svg = kitRef.current?.querySelector('svg');
+    if (!svg) throw new Error('QR introuvable.');
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', String(qrPx * 4));
+    clone.setAttribute('height', String(qrPx * 4));
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.decoding = 'sync';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Rendu du QR impossible.'));
+        img.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = qrPx * 4;
+      canvas.height = qrPx * 4;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas indisponible.');
+      ctx.fillStyle = qrBg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/png');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const downloadKit = async () => {
     if (!kitRef.current) return;
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
+    const nomBase = `affiche-${(brandConfig?.platform_name || "yeba").toLowerCase()}-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}`;
     try {
       const targetWidth = parseInt(currentConfig.containerStyle.width, 10) || 420;
       const dataUrl = await toPng(kitRef.current, {
@@ -117,19 +159,26 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
           margin: '0 auto',
         },
       });
-      const link = document.createElement('a');
-      link.download = `affiche-${(brandConfig?.platform_name || "yeba").toLowerCase()}-${selectedFormat.toLowerCase()}-${guichet.nom_guichet}.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      telechargerFichier(`${nomBase}.png`, dataUrl);
+      toast({ title: 'Affiche téléchargée', description: "L'affiche complète a été enregistrée en PNG." });
     } catch (err: any) {
+      // Repli : l'affiche complète échoue le plus souvent à cause de
+      // couleurs/canvas (oklch Tailwind, logo externe) — le QR seul,
+      // lui, s'exporte toujours. Mieux vaut un QR que pas d'export.
       console.error("Erreur lors de la génération de l'affiche PNG:", err);
-      toast({
-        variant: 'destructive',
-        title: "Échec de l'export de l'affiche",
-        description: err?.message || 'Réessayez, ou utilisez "Copier le lien" en alternative.',
-      });
+      try {
+        telechargerFichier(`${nomBase}-qr-seul.png`, await telechargerQrSeul());
+        toast({
+          title: 'QR téléchargé (affiche simplifiée)',
+          description: "L'affiche complète a échoué ; le QR seul a été enregistré à la place.",
+        });
+      } catch (err2: any) {
+        toast({
+          variant: 'destructive',
+          title: "Échec de l'export",
+          description: err2?.message || 'Réessayez, ou utilisez "Copier le lien" en alternative.',
+        });
+      }
     }
   };
 
@@ -198,21 +247,10 @@ export const KitGuichet = ({ guichet }: { guichet: any }) => {
               />
             </div>
 
-            <p className={`${currentConfig.scanTextClass} font-bold uppercase tracking-wide text-neutral-900`}>
-              {brandConfig?.qr_slogan || "Scannez ce QR Code"}
-            </p>
-            <p className={`${currentConfig.scanDescClass} font-medium text-neutral-600`}>
-              Notez-nous en 10 secondes, après votre passage à ce guichet
-            </p>
-
-            <div className={`rounded-xl bg-neutral-100 px-4 ${currentConfig.ussdPaddingClass} print:border print:border-neutral-400 print:bg-white`}>
-              <p className="text-xs font-semibold text-neutral-700">
-                {brandConfig?.ussd_help_text || "Pas de connexion internet ?"}
-              </p>
-              <p className="text-sm font-bold tracking-wide text-neutral-900 mt-1">
-                Composez <span className="font-bold text-primary">{ussdCode}</span>
-              </p>
-            </div>
+            {/* Affiche épurée (09/2026) : titre + guichet + QR uniquement.
+                Le bloc USSD et les slogans de bas d'affiche ont été retirés
+                à la demande (lisibilité + focus scan). Les réglages restants
+                (style, cadre, couleurs, logo incrusté) continuent de s'appliquer. */}
           </div>
         </div>
       </div>

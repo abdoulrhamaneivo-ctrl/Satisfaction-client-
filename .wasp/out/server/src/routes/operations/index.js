@@ -46,6 +46,8 @@ import archiverGuichet from './archiverGuichet.js'
 import desarchiverGuichet from './desarchiverGuichet.js'
 import archiverAgence from './archiverAgence.js'
 import desarchiverAgence from './desarchiverAgence.js'
+import definirAgencePilotee from './definirAgencePilotee.js'
+import retirerAgencePilotee from './retirerAgencePilotee.js'
 import archiverAlerte from './archiverAlerte.js'
 import desarchiverAlerte from './desarchiverAlerte.js'
 import archiverTache from './archiverTache.js'
@@ -153,6 +155,8 @@ router.post('/archiver-guichet', auth, archiverGuichet)
 router.post('/desarchiver-guichet', auth, desarchiverGuichet)
 router.post('/archiver-agence', auth, archiverAgence)
 router.post('/desarchiver-agence', auth, desarchiverAgence)
+router.post('/definir-agence-pilotee', auth, definirAgencePilotee)
+router.post('/retirer-agence-pilotee', auth, retirerAgencePilotee)
 router.post('/archiver-alerte', auth, archiverAlerte)
 router.post('/desarchiver-alerte', auth, desarchiverAlerte)
 router.post('/archiver-tache', auth, archiverTache)

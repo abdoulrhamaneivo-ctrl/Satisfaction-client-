@@ -241,10 +241,9 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
             Écoute Client
           </span>
 
-          {/* FIX 05/09 : la Direction ne voit jamais les verbatims (règle de
-              confidentialité) — au lieu d'une page vide avec message, l'entrée
-              est retirée et /avis redirige vers le tableau de bord. */}
-          {!isDirection && (
+          {/* Direction pure : pas de verbatims (RG16/RG17). Direction cumulée
+              (id_agence posée) : voit tout comme un chef, entrée conservée. */}
+          {(!isDirection || (user as any)?.id_agence != null) && (
             <NavItem to="/avis" icon={MessageSquareQuote} label="Avis & CSAT" isActive={isCurrent('/avis')} onNavigate={onNavigate} />
           )}
 

@@ -8,6 +8,8 @@ import {
   resolveAgenceId,
   resolveAgenceScope,
   assertEntrepriseActive,
+  estDirectionPure,
+  voitVerbatim,
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
 import { BRANDING } from '../shared/branding';
@@ -73,8 +75,9 @@ export const getStatsFiltrees = async (
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
   // CONFIDENTIALITÉ (RG16/RG17) : cette query retourne des réponses brutes
-  // (dont commentaire_texte). La DIRECTION n'y a pas droit, comme getReponses.
-  if (context.user.role === 'DIRECTION') {
+  // (dont commentaire_texte). Seule la DIRECTION pure n'y a pas droit ;
+  // la DIRECTION cumulée (id_agence posée) voit tout, comme un chef.
+  if (estDirectionPure(context.user)) {
     throw new HttpError(403, "Les réponses détaillées sont réservées aux chefs d'agence. La Direction dispose des KPI consolidés.");
   }
   const filter = await buildAgenceFilter(context, context.entities);
@@ -120,11 +123,10 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
   requireAuth(context);
   await assertEntrepriseActive(context, context.entities);
 
-  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION pilote par
-  // les chiffres. Elle n'a JAMAIS accès aux réponses brutes (verbatims,
-  // coordonnées). Ce refus est serveur — masquer les cartes côté front ne
-  // suffit jamais, l'API est la seule frontière de confiance.
-  if (context.user.role === 'DIRECTION') {
+  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION pure pilote
+  // par les chiffres. La DIRECTION cumulée (petite structure) voit tout.
+  // Ce refus est serveur — masquer les cartes côté front ne suffit jamais.
+  if (estDirectionPure(context.user)) {
     throw new HttpError(
       403,
       "Les réponses détaillées sont réservées aux chefs d'agence. La Direction dispose des KPI consolidés, tendances et thèmes agrégés."
@@ -206,9 +208,8 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
   await assertEntrepriseActive(context, context.entities);
 
   // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : même frontière que
-  // getReponses — la DIRECTION ne reçoit jamais les avis détaillés
-  // (verbatims, coordonnées clients). Refus serveur, pas de masquage front.
-  if (context.user.role === 'DIRECTION') {
+  // getReponses — seule la DIRECTION pure est refusée (la cumulée voit tout).
+  if (estDirectionPure(context.user)) {
     throw new HttpError(
       403,
       "Les avis détaillés sont réservés aux chefs d'agence et auditeurs qualité. La Direction dispose des KPI consolidés et thèmes agrégés."
@@ -356,10 +357,9 @@ export const exportAvisGroupes = async (args: GetReponsesArgs & { curseurId?: nu
   await assertEntrepriseActive(context, context.entities);
 
   // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : l'export est un chemin de
-  // contournement classique — /avis bloqué mais export ouvert = verbatims
-  // téléchargeables par la Direction. Même frontière que getReponses :
-  // refus serveur explicite, sans exception.
-  if (context.user.role === 'DIRECTION') {
+  // contournement classique. Même frontière que getReponses : seule la
+  // DIRECTION pure est refusée, la cumulée exporte comme un chef.
+  if (estDirectionPure(context.user)) {
     throw new HttpError(
       403,
       "L'export des avis détaillés est réservé aux chefs d'agence et auditeurs qualité. La Direction dispose des rapports consolidés."
@@ -474,14 +474,17 @@ export const getAgentsByAgence = async (args: { id_agence: number }, context: an
   const idAgence = requireNumber(args.id_agence, 'id_agence');
   await assertAgenceAccess(context, context.entities, idAgence, 'agence');
 
-  return context.entities.User.findMany({
+  // Inclut la DIRECTION cumulée de cette agence (sinon le pilote est
+  // invisible du Personnel et le badge "chef actuel" rate sa cible).
+  const membres = await context.entities.User.findMany({
     where: {
       id_agence: idAgence,
-      role: { in: ['AGENT', 'CHEF_AGENCE'] },
+      role: { in: ['AGENT', 'CHEF_AGENCE', 'DIRECTION'] },
     },
     select: { id: true, nom: true, prenom: true, role: true, email: true, telephone: true, actif: true },
     orderBy: [{ actif: 'desc' }, { role: 'asc' }, { nom: 'asc' }],
   });
+  return membres;
 };
 
 // Liste les agences DE L'ENTREPRISE de l'utilisateur (DIRECTION
@@ -493,22 +496,27 @@ export const getAgences = async (_args: void, context: any) => {
   if (context.user.role !== 'DIRECTION') return [];
   if (!context.user.id_entreprise) return [];
 
-  return context.entities.Agence.findMany({
+  const agences = await context.entities.Agence.findMany({
     where: { id_entreprise: context.user.id_entreprise, archive: false },
     // FIX 05/09 : la carte agence doit afficher le chef en place (ou son
     // absence) pour permettre de le désigner directement depuis le réseau.
+    // Élargi au pilote DIRECTION cumulé (F1/F2) + flag piloteeParVous.
     select: {
       id: true,
       nom_agence: true,
       commune: true,
       utilisateurs: {
-        where: { role: 'CHEF_AGENCE', actif: true },
-        select: { id: true, prenom: true, nom: true, email: true },
+        where: { role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
+        select: { id: true, prenom: true, nom: true, email: true, role: true },
         take: 1,
       },
     },
     orderBy: { id: 'asc' },
   });
+  return agences.map((a: any) => ({
+    ...a,
+    piloteeParVous: context.user.id_agence != null && a.id === context.user.id_agence,
+  }));
 };
 
 export const getAlertes = async (_args: void, context: any) => {
@@ -518,11 +526,10 @@ export const getAlertes = async (_args: void, context: any) => {
   const filter = await buildAgenceFilter(context, context.entities);
   const idAgenceClause = filter.id_agence;
 
-  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION, les alertes
-  // ne contiennent JAMAIS la réponse brute imbriquée (verbatim, coordonnées).
-  // Chemin de fuite classique : /avis bloqué mais /alertes → reponse → texte.
-  // On réduit le payload selon le rôle — le chef d'agence conserve tout.
-  const estDirection = context.user.role === 'DIRECTION';
+  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION pure, les
+  // alertes ne contiennent JAMAIS la réponse brute imbriquée. La DIRECTION
+  // cumulée reçoit le payload complet, comme un chef.
+  const estDirection = !voitVerbatim(context.user);
 
   // Une alerte archivée sort de la liste active — voir getArchives.
   return context.entities.Alerte.findMany({
@@ -1041,11 +1048,9 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 
   const filter = await buildAgenceFilter(context, context.entities);
 
-  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : pour la DIRECTION, la réponse
-  // imbriquée dans alerte → reponse ne doit contenir ni verbatim ni
-  // coordonnées. Même frontière que getAlertes — le chemin alternatif
-  // /taches → alerte → reponse → texte est fermé aussi.
-  const estDirection = context.user.role === 'DIRECTION';
+  // CONFIDENTIALITÉ MÉTIER (RG17 — Doc 08) : même frontière que getAlertes —
+  // seule la DIRECTION pure reçoit le payload réduit, la cumulée voit tout.
+  const estDirection = !voitVerbatim(context.user);
 
   const alertes = await context.entities.Alerte.findMany({
     where: {
@@ -1089,10 +1094,10 @@ export const getTachesCorrectives = async (_args: void, context: any) => {
 // expose commentaire_texte à quiconque a include: true. Pour la DIRECTION
 // on ne livre que les métadonnées (id, date, score) — jamais le verbatim.
 function reponsePourArchives(context: any) {
-  if (context.user.role === 'DIRECTION') {
+  if (!voitVerbatim(context.user)) {
     return { select: { id: true, date_reponse: true, score_brut: true } };
   }
-  return true; // CHEF_AGENCE : accès complet à son périmètre
+  return true; // CHEF_AGENCE ou DIRECTION cumulée : accès complet
 }
 
 export const getArchives = async (_args: void, context: any) => {
@@ -2112,9 +2117,9 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
     })),
     agents: agents.map((u: any) => ({ id: u.id, nom: u.nom, prenom: u.prenom, id_agence: u.id_agence })),
     // CONFIDENTIALITÉ MÉTIER (RG17) : la recherche globale est un 4e chemin
-    // vers les verbatims (Ctrl+K → "temps d'attente" → avis bruts). Pour la
-    // DIRECTION : aucun résultat d'avis, uniquement entités organisationnelles.
-    avis: context.user.role === 'DIRECTION'
+    // vers les verbatims. Pour la DIRECTION pure : aucun avis. La cumulée
+    // cherche comme un chef.
+    avis: !voitVerbatim(context.user)
       ? []
       : avis.map((r: any) => ({
           id: r.id.toString(),

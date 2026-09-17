@@ -50,6 +50,8 @@ import { archiverGuichet as archiverGuichet_ext } from 'wasp/src/server/actions'
 import { desarchiverGuichet as desarchiverGuichet_ext } from 'wasp/src/server/actions'
 import { archiverAgence as archiverAgence_ext } from 'wasp/src/server/actions'
 import { desarchiverAgence as desarchiverAgence_ext } from 'wasp/src/server/actions'
+import { definirAgencePilotee as definirAgencePilotee_ext } from 'wasp/src/server/actions'
+import { retirerAgencePilotee as retirerAgencePilotee_ext } from 'wasp/src/server/actions'
 import { archiverAlerte as archiverAlerte_ext } from 'wasp/src/server/actions'
 import { desarchiverAlerte as desarchiverAlerte_ext } from 'wasp/src/server/actions'
 import { archiverTache as archiverTache_ext } from 'wasp/src/server/actions'
@@ -738,6 +740,33 @@ export const desarchiverAgence: AuthenticatedOperationFor<DesarchiverAgence_ext>
     desarchiverAgence_ext,
     {
       Agence: prisma.agence,
+      User: prisma.user,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type DefinirAgencePilotee_ext = typeof definirAgencePilotee_ext
+
+// PUBLIC API
+export const definirAgencePilotee: AuthenticatedOperationFor<DefinirAgencePilotee_ext> =
+  createAuthenticatedOperation(
+    definirAgencePilotee_ext,
+    {
+      Agence: prisma.agence,
+      User: prisma.user,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type RetirerAgencePilotee_ext = typeof retirerAgencePilotee_ext
+
+// PUBLIC API
+export const retirerAgencePilotee: AuthenticatedOperationFor<RetirerAgencePilotee_ext> =
+  createAuthenticatedOperation(
+    retirerAgencePilotee_ext,
+    {
       User: prisma.user,
       Entreprise: prisma.entreprise,
     },

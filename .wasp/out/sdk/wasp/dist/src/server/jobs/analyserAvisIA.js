@@ -21,7 +21,7 @@ const DAILY_AI_BUDGET = Number(process.env.AI_DAILY_BUDGET || 40);
 async function creerAlerteUrgenceIA(reponse, result) {
     try {
         const destinataire = (await prisma.user.findFirst({
-            where: { id_agence: reponse.id_agence, role: 'CHEF_AGENCE', actif: true },
+            where: { id_agence: reponse.id_agence, role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
         })) ||
             (await prisma.user.findFirst({
                 where: {
@@ -62,7 +62,7 @@ async function creerAlerteUrgenceIA(reponse, result) {
 async function creerAlerteIncoherenceNote(reponse, note, coherence) {
     try {
         const destinataire = (await prisma.user.findFirst({
-            where: { id_agence: reponse.id_agence, role: 'CHEF_AGENCE', actif: true },
+            where: { id_agence: reponse.id_agence, role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
         })) ||
             (await prisma.user.findFirst({
                 where: {

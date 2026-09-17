@@ -112,12 +112,15 @@ export function CommandPalette() {
 
   const actionsFiltrees = useMemo(() => {
     const q = requete.trim().toLowerCase();
+    const estDirectionPure = user?.role === 'DIRECTION' && (user as any)?.id_agence == null;
     return ACTIONS_NAVIGATION.filter((a) => {
       if (a.roles && !a.roles.includes(user?.role ?? '')) return false;
+      // Direction pure : pas d'entrée Avis (RG16/RG17, comme la Sidebar).
+      if (a.id === 'nav-avis' && estDirectionPure) return false;
       if (q.length === 0) return true;
       return a.label.toLowerCase().includes(q);
     });
-  }, [requete, user?.role]);
+  }, [requete, user?.role, (user as any)?.id_agence]);
 
   // Regroupe navigation + résultats de recherche dans une seule liste plate,
   // pour que les flèches haut/bas et Entrée naviguent uniformément entre

@@ -480,7 +480,7 @@
             "file",
             "sdk/wasp/client/operations/actions/index.ts"
         ],
-        "bc0501242601617cc4f46cd068f6fbc625e4d31efb3757b892303a57ea6a656c"
+        "11cd88da1ead6d6f6dbddecb149830d28a13a81be4a24b14c4784c9cac77e9ec"
     ],
     [
         [
@@ -991,21 +991,21 @@
             "file",
             "sdk/wasp/server/operations/actions/index.ts"
         ],
-        "c9a5a9d48c74b6e6e31f8fb1a57596e5953dad64c6f4acf75b413ef2c96d8a08"
+        "baf8fcb663d89b612754fa897f41552174a23978fc1f679d664c067fa6dca3cc"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/actions/types.ts"
         ],
-        "3300f5a44c82231d8232c8846b9a9ad3e5e2d5e5127a97c837fcde24a624680c"
+        "332ee0616a6360686871ce1dfefd60c0185ef3f212fafe85e20b96914adb8261"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/index.ts"
         ],
-        "8176cb488ba2ab4ea5b0cc7a9c807247b3a237352892533abe126ef35843d253"
+        "be429c627f1453aa2d629818b7bb0dd61d439a5dbd3d32273f8ca820e4919779"
     ],
     [
         [
@@ -1201,7 +1201,7 @@
             "file",
             "sdk/wasp/src/client/components/BrandLogo.tsx"
         ],
-        "19401aa99f759beac8d887ae564ca222eaee6ea3f2696d64950c0c5351d9b2f9"
+        "d07289e45705b9b54d28c5342f4d00120ce398bef6ee6130afe533dee874ac5a"
     ],
     [
         [
@@ -1215,7 +1215,7 @@
             "file",
             "sdk/wasp/src/client/components/CommandPalette.tsx"
         ],
-        "6f269f803460c9f285abcdd97933a9ae98576f4d8608a78890c6042459e3f9cf"
+        "0c99d7fcac7cf4b48f35bd02422b8496e2bf3d4ecd6abe62e85b0be7833d3c8b"
     ],
     [
         [
@@ -1264,7 +1264,14 @@
             "file",
             "sdk/wasp/src/client/components/KitGuichet.tsx"
         ],
-        "80fb16a18d52dca20d08f4117d2f2f49a26a9581322706ca60d1d73c04c2a92f"
+        "f81fc7a5b37c9e9a04f8b5b346992dc4130d2f3327c48f7f76197b32fd9843ba"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/components/LigneReponse.tsx"
+        ],
+        "5eff01d3d557000afbbd1b3a364d3a23a344e2b2480b1be1d5e2dc40b28cee37"
     ],
     [
         [
@@ -1355,7 +1362,14 @@
             "file",
             "sdk/wasp/src/client/components/RapportMensuelPrint.tsx"
         ],
-        "3c8c58adc2abc6e8e907f0bbff397269fa4a82263872961548ed7c850b03dbf5"
+        "efa30898c7db11b8c3931c0cf19f1841fc4188c0e9b383049c38bbb0131ddede"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/components/RapportReseauPrint.tsx"
+        ],
+        "48ceff315e4375121c08bd0d4e67c4ae857a656ea9c902ceece4b4c88b035390"
     ],
     [
         [
@@ -1376,14 +1390,14 @@
             "file",
             "sdk/wasp/src/client/components/RequirePlatformRole.tsx"
         ],
-        "de98e132429c67f2c7ac81f37f71b977b9f2fc286bec62944b63034157149775"
+        "a3b71fe5726797a617472c3d8d2ca893ae64c450ad17300b6d88f84afb080c5e"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/components/Sidebar.tsx"
         ],
-        "9634adadad12bf6cbe03f58d5f254cb446bd864fcbeb677ddf3aa3c0683f3256"
+        "d2ca98c18b748cca8cba2967a54e6d83f9b093e4f5df8ac6e725e89d1e63b9b9"
     ],
     [
         [
@@ -1691,7 +1705,7 @@
             "file",
             "sdk/wasp/src/client/pages/AdminPersonnelPage.tsx"
         ],
-        "0dee6b3f814095dd3f918a41ba1c12290f1c3ad5875adadf7a90953989e19f0f"
+        "eb3da486af604e1c96a830de5ddfe6a9d2d06731a3ceef0136b3838f9969fb65"
     ],
     [
         [
@@ -1712,42 +1726,42 @@
             "file",
             "sdk/wasp/src/client/pages/AvisPage.tsx"
         ],
-        "1ccfd3d7eaed39cdfe946b643918852a1ca6393ae10720eb68124c279aac2258"
+        "fc1ac2b050ea162cf8d4447fa356df89453c4959b08938ff06c033c5d0e1b885"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/CollectePage.tsx"
         ],
-        "523704895d1c845f1c5ec7cf531850044aac54240e3f9616a4cab44967f0c0a5"
+        "906e9cadaf914854d82ad568147d941cf1c5976c19a28787fcb920582ab69a11"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/ConfigurationCriteresPage.tsx"
         ],
-        "0f22f0e22747a129083584d930d5bd14309111a73ba99854ff1ae140f18045cc"
+        "26d06657544bd615b2d80b6a40eb02319c77230fa886864d4354d46cda35584b"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "6b4679a85c80d8b1117612ca443f171e5a9e3d48220b604fe62b0f0c20866d47"
+        "d440eb2f864dc0153abcee89588e352e6bb2610a2ba4bccbd308d5c42e313b17"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/GestionAgencesPage.tsx"
         ],
-        "079c9c2df44d7e08dad9e6b79bef06cc00e1100719532d61834a8bfe96d92bc6"
+        "8bdfbc9c7b3c69cad8e025c71e9e393206c708a5c5b565e8d8c9c7148fcd97a7"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/GuichetsPage.tsx"
         ],
-        "5709dc78f985a73586ee5348d3e8da802bc1b91e3d4cafeeba4fceba1107351b"
+        "b1f083f7ac2d83a50cf79497a20da6ff1f817750bfb3d28b2b8f8c2b2703f030"
     ],
     [
         [
@@ -1775,14 +1789,14 @@
             "file",
             "sdk/wasp/src/client/pages/SettingsPage.tsx"
         ],
-        "0fa1c9e1a865682f6fc2198d1ba397d38551487308f3745997a0c0547dd40873"
+        "0221d294bd1a81f5a3af86c904d190ad3e2817f5014b5315d654f96d9855d819"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/PlatformShell.tsx"
         ],
-        "7f3c8cbf609fbb45271fe93aa08426e31b7cf30bd27a1a8a8875d6392710fbbd"
+        "f73cdd0bc7f50f60359796e10a2b31aaac804da39cf927e134c04edcaf775f5f"
     ],
     [
         [
@@ -1817,7 +1831,7 @@
             "file",
             "sdk/wasp/src/client/platform/pages/CreateCompanyPage.tsx"
         ],
-        "b2c466bb9518188bfe9d00a9f30c8f803fc9b38b9d4c59bf0d70d7932a865a8d"
+        "9a79e3e34e5af2bc3b48ef3c3523c7d910e3967532a364bb351a8a87b0218b3c"
     ],
     [
         [
@@ -1999,14 +2013,14 @@
             "file",
             "sdk/wasp/src/client/utils.ts"
         ],
-        "f213a958d38aa62d2a18da4f6f98b59dba7bf44acce503160f262ac4a947d329"
+        "010fe3f106d59f3caaf3b5a426f46cd27cc73e2b77b50f8976a32ee5b3cb2667"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/utils/exportData.ts"
         ],
-        "12eb7a8929e68d815fbae4fec98a65c2c94c44d45e19538485c0d4196d434d84"
+        "f860c8d26cb9a44072632ff831d107731d9425f74b4592fac94f8b3d39f5e57f"
     ],
     [
         [
@@ -2067,16 +2081,30 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/__mocks__/waspServer.ts"
+        ],
+        "2564c059aece229094524a1553d2096a5160307ad353b8902aaf5cbd19c0b2cd"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/__mocks__/waspServerAuth.ts"
+        ],
+        "8c60b1971374446914291fb63e02a2da11e2258cd2e4f42c3cdbe52b7e0fd828"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "ebaa5dc359d6266574a5e20945df54d99bd04662edcf1ffd0ca6f4be84c95b4d"
+        "4a97341f2e8f8577fc213a723ea9f59249c6f9d3e6bda98506e583134445d8a2"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/actionsPlatform.ts"
         ],
-        "6cc9141bd31546f2f36d607f712f54d149afca7e4501d377521c410db72e4042"
+        "285614eb7d66ad822d69fda186d3989ed76705c4273e7025dcf56b4976d277e0"
     ],
     [
         [
@@ -2118,7 +2146,7 @@
             "file",
             "sdk/wasp/src/server/audit.ts"
         ],
-        "6c3ce1bb43f5750be639b160451ccc1f460abd101d6874bb98a5dfc633c9d96f"
+        "91c45b6d2d0fb29003c7dbfd881df63dc25e15c6ac5f298063756e412448c379"
     ],
     [
         [
@@ -2130,16 +2158,23 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/isolation.test.ts"
+        ],
+        "f594763e5fac768d3be705022558ab82349cf3b4ca8fd2aba680c17d9142b760"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/jobs/alerteSilence.ts"
         ],
-        "12c499adb3f8b8e9e9495ed62d7035891bd7dbe59b7620a548c2d20709ddf068"
+        "2c72a90addd8b061441c9c1ca2016ecd70d6f912add0f41ce8dbc158de8cc80b"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/jobs/analyserAvisIA.ts"
         ],
-        "a3da869cedc0dd3a8143d615e13d6418ff4c2c8d3e5b7345456b6c94290fb038"
+        "9a12de2d39869b233aeb7af2d080e430727045ff11adc39930ccaf57989e231a"
     ],
     [
         [
@@ -2188,7 +2223,7 @@
             "file",
             "sdk/wasp/src/server/middleware/rowLevelSecurity.ts"
         ],
-        "2be42298df4498a0e70637ce5aec2dcb77e0838bf333ac3ab41d10551427c743"
+        "78240b5b92f24b76240fb3ae7a90495f8430fd6d2a3b7485cf0c3b154b269fcd"
     ],
     [
         [
@@ -2216,7 +2251,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "45ccd925915f62ba7fb4bb4170c507d6aace89dc58badd103de03b3802bc457c"
+        "f2c037adfb52fe26475523ab1f133913138aba5a149544413fb535688cf4552b"
     ],
     [
         [
@@ -2328,7 +2363,7 @@
             "file",
             "sdk/wasp/src/user/AccountPage.tsx"
         ],
-        "aa2151ffc7d3985cc9b64164e78a6fe34aba9f61284ac1ee53b16f3d68ac2683"
+        "a4fd63badf2a04fe7ec0c4a377ea7dec7e5cd4d9e0f76ac92c81f8401ee8ff42"
     ],
     [
         [
@@ -2613,6 +2648,13 @@
     [
         [
             "file",
+            "server/src/actions/definirAgencePilotee.ts"
+        ],
+        "6f8aacce659475ea8ad12db3694d362c0f0870f43e5c7b4f840b7d0b3af31452"
+    ],
+    [
+        [
+            "file",
             "server/src/actions/deleteAffectationGuichet.ts"
         ],
         "0b62135bc5cd24eb4d1d780a2ecd5cbb8cb588ac5aabe4a6fe0e1abc14e65e01"
@@ -2798,6 +2840,13 @@
             "server/src/actions/reorderCriteresInService.ts"
         ],
         "02110c54aae400870a9a32602043a80e5ecf894decb868516a792ec7fdc919e6"
+    ],
+    [
+        [
+            "file",
+            "server/src/actions/retirerAgencePilotee.ts"
+        ],
+        "f04dc64a79894bf1b141baf5e358791aabf7867dc00dcba2c5f0b3bea1f6cce9"
     ],
     [
         [
@@ -3509,6 +3558,13 @@
     [
         [
             "file",
+            "server/src/routes/operations/definirAgencePilotee.js"
+        ],
+        "ffe7fbe0dcde4002814e97b3803ba8ca69cc3e9ef0c6f0196ea218ee8f5ca269"
+    ],
+    [
+        [
+            "file",
             "server/src/routes/operations/deleteAffectationGuichet.js"
         ],
         "c67c44a93567d5346f6f82caa590ff9a19d95d3ec2e07959cd03c1e21c92d070"
@@ -3903,7 +3959,7 @@
             "file",
             "server/src/routes/operations/index.js"
         ],
-        "68446f760d5c351485bc99d7d35d732b12ac026c9c8fce5e4c9e77836d95dc75"
+        "53199ee533187081b548838b97d6752e20614dc3a401d187cf4104405049ad47"
     ],
     [
         [
@@ -3988,6 +4044,13 @@
             "server/src/routes/operations/reorderCriteresInService.js"
         ],
         "d0be8b06e7c57da88a9b4fd62bd41cbc319b301f0751e6a5a2778e81cadca10f"
+    ],
+    [
+        [
+            "file",
+            "server/src/routes/operations/retirerAgencePilotee.js"
+        ],
+        "ac4f24bb95f8dbe5b351bd11c49c1a6d045881d736064daca821f0f9a9e0659f"
     ],
     [
         [

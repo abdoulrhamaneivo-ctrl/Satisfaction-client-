@@ -125,7 +125,7 @@ export const GuichetsPage = () => {
       setSelectedAgenceId(agences[0].id);
     }
   }, [isDirection, selectedAgenceId, agences]);
-  const effectiveAgenceId: number | undefined = isDirection ? selectedAgenceId : (userAgenceId || undefined);
+  const effectiveAgenceId: number | undefined = isDirection ? (selectedAgenceId ?? userAgenceId ?? undefined) : (userAgenceId || undefined);
 
   const {
     data: guichets,
@@ -320,8 +320,9 @@ export const GuichetsPage = () => {
           </Reveal>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* Formulaire d'ajout rapide */}
-            {user?.role === 'CHEF_AGENCE' ? (
+            {/* Formulaire d'ajout rapide — chefs ET direction (qui gère
+                tout le réseau via le sélecteur d'agence ci-dessus). */}
+            {user?.role === 'CHEF_AGENCE' || isDirection ? (
               <Reveal delay={0.05}>
                 <Card variant="feature" className="h-fit p-6 lg:sticky lg:top-8 rounded-3xl">
                   <div className="mb-5 flex items-center gap-2.5">
@@ -428,12 +429,10 @@ export const GuichetsPage = () => {
               <Card className="h-fit p-6 lg:sticky lg:top-8 text-center rounded-3xl">
                 <Store className="mx-auto mb-3 size-8 text-muted-foreground" />
                 <p className="font-bold text-foreground font-satoshi">
-                  {isDirection ? "Vue Direction — lecture seule" : "Gestion réservée au Chef d'Agence"}
+                  Gestion réservée au Chef d'Agence
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground font-medium">
-                  {isDirection
-                    ? "Vous voyez les guichets et kits QR de l'agence sélectionnée. La création des guichets se fait par le Chef d'Agence, agence par agence."
-                    : "La création des guichets se fait désormais par le Chef d'Agence, agence par agence."}
+                  La création des guichets se fait par le Chef d'Agence (ou la direction en cumul), agence par agence.
                 </p>
               </Card>
             )}
@@ -530,7 +529,7 @@ export const GuichetsPage = () => {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <GuichetQrPreview guichet={g} />
-                          {user?.role === 'CHEF_AGENCE' && (
+                          {(user?.role === 'CHEF_AGENCE' || isDirection) && (
                             <Button
                               type="button"
                               variant="outline"
@@ -613,7 +612,7 @@ export const GuichetsPage = () => {
                                 )}
                               </div>
                             </div>
-                            {user?.role === 'CHEF_AGENCE' && (
+                            {(user?.role === 'CHEF_AGENCE' || isDirection) && (
                               <Button
                                 size="sm"
                                 variant="outline"

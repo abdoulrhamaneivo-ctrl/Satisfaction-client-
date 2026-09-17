@@ -44,6 +44,22 @@ export declare function requireAdmin(context: WaspContext): void;
  * Vérifie auth + rôle de gestion (DIRECTION, CHEF_AGENCE).
  */
 export declare function requireManagementRole(context: WaspContext): void;
+export declare function estDirectionCumulee(user: {
+    role?: string | null;
+    id_agence?: number | null;
+} | null | undefined): boolean;
+export declare function estDirectionPure(user: {
+    role?: string | null;
+    id_agence?: number | null;
+} | null | undefined): boolean;
+/**
+ * La frontière verbatim RG16/RG17 ne s'applique qu'à la direction pure.
+ * Tout autre rôle de gestion (CHEF_AGENCE, DIRECTION cumulée) voit complet.
+ */
+export declare function voitVerbatim(user: {
+    role?: string | null;
+    id_agence?: number | null;
+} | null | undefined): boolean;
 /**
  * Retourne la liste des ids d'agence appartenant à l'entreprise de l'utilisateur.
  * Nécessite `entities.Agence` dans le contexte de l'action/query appelante.

@@ -34,6 +34,9 @@ export interface RapportProps {
   guichets: GuichetStat[];
   agenceName: string;
   commune: string;
+  // Nom de l'entreprise cliente (personnalisation) — affiché en en-tête à
+  // la place de la mention générique codée en dur.
+  entrepriseName?: string;
   periodeLabel: string;
   dateDebut: Date;
   dateFin: Date;
@@ -126,6 +129,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
     guichets,
     agenceName,
     commune,
+    entrepriseName,
     periodeLabel,
     dateDebut,
     dateFin,
@@ -198,7 +202,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
               </span>
             </div>
             <p style={{ fontSize: 10, color: '#6C757D', marginTop: 4 }}>
-              Généré le {fmtDate(new Date())} · Plateforme Yeba × La Poste de Côte d'Ivoire
+              Généré le {fmtDate(new Date())} · {entrepriseName || 'Plateforme Yeba'}
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -434,9 +438,9 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
 
       <footer>
         <Liseré />
-        <p style={{ fontSize: 8.5, color: '#6C757D', marginTop: 6, textAlign: 'center' }}>
-          Document généré par la plateforme Yeba — données confidentielles, usage interne {agenceName}. Conforme loi n°2013-450 (ARTCI).
-        </p>
+          <p style={{ fontSize: 8.5, color: '#6C757D', marginTop: 6, textAlign: 'center' }}>
+            Document généré par {entrepriseName || 'la plateforme Yeba'} — données confidentielles, usage interne {agenceName}. Conforme loi n°2013-450 (ARTCI).
+          </p>
       </footer>
     </div>
   );

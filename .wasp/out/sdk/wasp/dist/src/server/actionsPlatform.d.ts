@@ -10,7 +10,9 @@ export declare function envoyerEmailActivation(params: {
     prenom: string;
     nomEntreprise: string;
     lien: string;
+    roleLabel?: string;
 }): Promise<void>;
+export type ModePilotageCreation = 'DIRECTION_RESEAU' | 'DIRECTION_CUMULEE' | 'CHEF_MONO';
 export declare const creerEntreprise: (args: {
     entreprise: {
         nom_entreprise: string;
@@ -30,6 +32,11 @@ export declare const creerEntreprise: (args: {
     limite_utilisateurs: number;
     limite_guichets: number;
     totpCode: string;
+    mode?: ModePilotageCreation;
+    premiereAgence?: {
+        nom_agence: string;
+        commune: string;
+    };
 }, context: any) => Promise<any>;
 export declare const suspendreEntreprise: (args: {
     id_entreprise: number;

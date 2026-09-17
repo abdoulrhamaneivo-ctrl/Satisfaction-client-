@@ -168,8 +168,13 @@ export const ConfigurationCriteresPage = () => {
     }
   };
 
+  // Verrou anti-double-clic : sans lui, deux toggles rapides créaient deux
+  // lignes AgenceCritere et la seconde explosait en 500 (contrainte unique).
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+
   const handleToggle = async (idCritere: number, checked: boolean) => {
-    if (selectedAgenceId === undefined) return;
+    if (selectedAgenceId === undefined || togglingId !== null) return;
+    setTogglingId(idCritere);
     try {
       await toggleCritereAgence({ id_critere: idCritere, id_agence: selectedAgenceId, active: checked });
     } catch (err: any) {
@@ -178,6 +183,8 @@ export const ConfigurationCriteresPage = () => {
         title: 'Erreur lors de la modification',
         description: err.message || 'Erreur inconnue',
       });
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -288,6 +295,12 @@ export const ConfigurationCriteresPage = () => {
               Glissez-déposez une question vers une opération (ex. Retrait, Dépôt...) pour l'y rattacher,
               réordonnez-les comme une liste de tâches, ou utilisez le bouton <strong>+</strong> de chaque
               colonne pour en ajouter une directement.
+              </p>
+              <p className="mt-2 max-w-3xl text-xs leading-5 text-muted-foreground">
+                Catalogue partagé : questions et opérations sont communes à <strong>toute
+                l'entreprise</strong> — chaque agence <strong>active</strong> ensuite ses propres
+                questions via les interrupteurs ci-dessous. Organiser ici change le parcours
+                de toutes les agences qui utilisent cette opération.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2 self-start rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground">
@@ -428,6 +441,7 @@ export const ConfigurationCriteresPage = () => {
                       )}
                       <Switch
                         checked={isActive}
+                        disabled={togglingId === critere.id}
                         onCheckedChange={(checked) => handleToggle(critere.id, checked)}
                         aria-label={`Activer « ${critere.libelle_critere} »`}
                       />

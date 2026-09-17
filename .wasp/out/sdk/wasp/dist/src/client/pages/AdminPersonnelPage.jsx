@@ -68,6 +68,7 @@ export const AdminPersonnelPage = () => {
     const roleOptions = user?.role === 'DIRECTION'
         ? [
             { value: 'CHEF_AGENCE', label: "Chef d’Agence" },
+            { value: 'AGENT', label: 'Agent de guichet' },
         ]
         : user?.role === 'CHEF_AGENCE'
             ? [
@@ -89,9 +90,9 @@ export const AdminPersonnelPage = () => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
-    // Chef actif de l'agence sélectionnée (s'il existe) : créer un second
-    // chef est interdit côté serveur — on propose le remplacement explicite.
-    const chefActuelDeLagence = agents?.find((a) => a.role === 'CHEF_AGENCE' && a.actif !== false) ?? null;
+    // Pilote actif de l'agence (chef ou direction cumulée) : un second est
+    // interdit côté serveur — on propose le remplacement explicite.
+    const chefActuelDeLagence = agents?.find((a) => (a.role === 'CHEF_AGENCE' || a.role === 'DIRECTION') && a.actif !== false) ?? null;
     const [chefARemplacer, setChefARemplacer] = useState(null);
     const handleSubmit = async (e) => {
         e.preventDefault();

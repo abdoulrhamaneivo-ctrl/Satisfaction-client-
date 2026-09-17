@@ -25,6 +25,7 @@ import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTrian
 import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets, HistogrammeSatisfactionSkeleton, RadarQualiteSkeleton, TendanceMensuelleSkeleton, ComparaisonAgentsSkeleton, ClassementGuichetsSkeleton, HeatmapReponsesSkeleton, ChartSkeleton } from '../components/DashboardCharts';
 import { HeatmapReponses } from '../components/HeatmapReponses';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
+import { RapportReseauPrint } from '../components/RapportReseauPrint';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { DashboardSummary } from '../components/DashboardSummary';
@@ -45,8 +46,9 @@ import { DataTable, DataTableRow } from '../components/ui/DataTable';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
 import { ObjectifsProgress } from '../components/ObjectifsProgress';
-import { regrouperAvisParSoumission } from '../utils';
+import { regrouperAvisParSoumission, scoreNormaliseSur5Client, decrireReponseCourte } from '../utils';
 import { exportToXLSX } from '../utils/exportData';
+import { useBrand } from '../context/BrandContext';
 import { Eyebrow, Reveal, Card } from '../components/ds';
 import { THEMES_LABELS } from '../components/AIAnalysisBadge';
 
@@ -64,20 +66,20 @@ const formatDuree = (heures: number | null) => {
 export const DashboardPage = () => {
   const { data: user } = useAuth();
   const navigate = useNavigate();
+  // Nom de l'entreprise pour les documents (exports, rapport imprimé).
+  const { brandConfig } = useBrand();
+  const nomEntrepriseDocs = brandConfig?.platform_name || 'Yeba';
 
   const [periodeJours, setPeriodeJours] = useState(30);
 
-  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : la DIRECTION ne reçoit pas
-  // les réponses brutes — l'API renvoie 403 à getReponses pour elle. On ne
-  // lance donc la query QUE pour les rôles autorisés (CHEF_AGENCE),
-  // sinon react-query marque la page en erreur et le dashboard casse.
-  // La Direction garde tous les agrégats : KPI, tendances, radar, heatmap,
-  // comparaisons, thèmes — alimentés par leurs propres queries.
+  // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : seule la DIRECTION pure
+  // est refusée à getReponses — la cumulée charge les réponses comme un chef.
   const estDirection = user?.role === 'DIRECTION';
+  const estDirectionPure = estDirection && (user as any)?.id_agence == null;
   const { data: reponses, isLoading: loadingReponses } = useQuery(
     getReponses,
     undefined,
-    { enabled: !estDirection }
+    { enabled: !estDirectionPure }
   );
   const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
   const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
@@ -146,6 +148,12 @@ export const DashboardPage = () => {
     contentRef: printRef,
     documentTitle: `Rapport-Mensuel-Yeba-${user?.id_agence || 'Agence'}`,
   });
+  // Impression réseau (Direction) : contenu 100 % agrégé, pas de verbatims.
+  const printRefReseau = useRef<HTMLDivElement>(null);
+  const handlePrintReseau = useReactToPrint({
+    contentRef: printRefReseau,
+    documentTitle: `Rapport-Reseau-Yeba-${new Date().toISOString().split('T')[0]}`,
+  });
 
   const [exportingXLSX, setExportingXLSX] = useState(false);
   const handleExportXLSX = useCallback(async () => {
@@ -153,17 +161,39 @@ export const DashboardPage = () => {
     try {
       await exportToXLSX(
         [
-          {
-            name: 'Avis clients',
-            data: avisGroupes.map((a) => ({
+          // Confidentialité : la Direction ne reçoit jamais les verbatims —
+          // sa feuille « Avis » est remplacée par la comparaison des agences.
+          ...(estDirection
+            ? [
+                {
+                  name: 'Comparaison agences',
+                  data: (comparaisonAgences?.agences || []).map((a: any) => ({
+                    'Agence': a.nom_agence,
+                    'Commune': a.commune || '',
+                    'Nb avis': a.nb_avis ?? 0,
+                    'Note moyenne (/5)': a.score_moyen ?? '—',
+                    'Tendance note': a.delta_note ?? '—',
+                    'Taux satisfaction (%)': a.taux_satisfaction ?? '—',
+                  })),
+                },
+              ]
+            : [
+                {
+                  name: 'Avis clients',
+                  data: avisGroupes.map((a) => ({
               'Date & Heure': a.reponses[0]?.date_reponse ? new Date(a.reponses[0].date_reponse).toLocaleString('fr-FR') : 'Non renseigné',
               'Guichet': a.reponses[0]?.guichet?.nom_guichet || 'Guichet principal',
               'Service': a.reponses[0]?.service?.libelle_service || 'Général',
-              'Note moyenne (/5)': typeof a.score_moyen === 'number' ? Number(a.score_moyen.toFixed(2)) : 'N/A',
-              'Détail critères': a.reponses.map((r: any) => `${r.critere?.libelle_critere || 'Critère'}: ${r.score_brut}/5`).join(' | '),
+              'Note moyenne (/5)': (() => {
+                const notes = a.reponses.map((r: any) => scoreNormaliseSur5Client(r)).filter((s): s is number => s !== null);
+                return notes.length > 0 ? Number((notes.reduce((s: number, v: number) => s + v, 0) / notes.length).toFixed(2)) : 'N/A';
+              })(),
+              'Détail critères': a.reponses.map((r: any) => decrireReponseCourte(r)).join(' | '),
               'Commentaire': a.reponses[0]?.commentaire_texte && a.reponses[0].commentaire_texte.trim() !== '' ? a.reponses[0].commentaire_texte.trim() : 'Aucun commentaire écrit',
             })),
-          },
+              },
+            ]
+          ),
           {
             name: 'Alertes',
             data: alertesList.map((a: any) => ({
@@ -196,14 +226,15 @@ export const DashboardPage = () => {
             }] : [],
           },
         ],
-        `Yeba_Rapport_Complet_${new Date().toISOString().split('T')[0]}`
+        `Yeba_Rapport_Complet_${new Date().toISOString().split('T')[0]}`,
+        { entreprise: nomEntrepriseDocs, periode: labelPeriode }
       );
     } catch (err: any) {
       console.error('Erreur export XLSX', err);
     } finally {
       setExportingXLSX(false);
     }
-  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode]);
+  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode, nomEntrepriseDocs, estDirection, comparaisonAgences]);
 
   return (
     <RequireEnterpriseRole>
@@ -244,7 +275,7 @@ export const DashboardPage = () => {
                     </SelectContent>
                   </Select>
                   <motion.div whileTap={{ scale: 0.97 }}>
-                    <Button variant="outline" onClick={() => handlePrint()} disabled={isLoading} className="rounded-xl border-border/80 font-bold">
+                    <Button variant="outline" onClick={() => (estDirection ? handlePrintReseau() : handlePrint())} disabled={isLoading} className="rounded-xl border-border/80 font-bold">
                       <Printer className="size-4" /> Exporter (PDF)
                     </Button>
                   </motion.div>
@@ -433,19 +464,22 @@ export const DashboardPage = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                      {isLoading ? (
-                        <>
-                          <HistogrammeSatisfactionSkeleton />
-                          <RadarQualiteSkeleton />
-                        </>
-                      ) : (
-                        <>
-                          <HistogrammeSatisfaction data={reponsesList} />
-                          <RadarQualite data={radarData || []} />
-                        </>
-                      )}
-                    </div>
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        {isLoading ? (
+                          <>
+                            <HistogrammeSatisfactionSkeleton />
+                            <RadarQualiteSkeleton />
+                          </>
+                        ) : (
+                          <>
+                            {/* L'histogramme lit les réponses brutes (403 Direction) :
+                                on ne l'affiche que hors Direction pour éviter
+                                une zone fantôme vide. Le radar est agrégé. */}
+                            {!estDirection && <HistogrammeSatisfaction data={reponsesList} />}
+                            <RadarQualite data={radarData || []} />
+                          </>
+                        )}
+                      </div>
 
                     <section>
                       <div className="mb-4 flex items-center gap-2">
@@ -498,10 +532,9 @@ export const DashboardPage = () => {
             </Accordion>
           </section>
 
-          {/* Derniers avis — réservé aux rôles autorisés (la DIRECTION ne
-              voit jamais les verbatims, RG16/RG17). Pour elle, cette section
-              est remplacée par le bloc de synthèse directionnel ci-dessous. */}
-          {!isLoading && !estDirection && (
+          {/* Derniers avis — réservé aux rôles autorisés (la DIRECTION pure
+              ne voit jamais les verbatims, RG16/RG17 ; la cumulée oui). */}
+          {!isLoading && !estDirectionPure && (
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <Eyebrow tone="amber">Derniers retours enregistrés</Eyebrow>
@@ -562,10 +595,9 @@ export const DashboardPage = () => {
             </section>
           )}
 
-          {/* Synthèse DIRECTION : chiffres seulement, jamais de verbatim.
-              Même en-tête visuel, contenu agrégé — la Direction voit le
-              volume et l'état des actions, pas les retours individuels. */}
-          {!isLoading && estDirection && (
+          {/* Synthèse DIRECTION pure : chiffres seulement, jamais de verbatim.
+              La cumulée voit les derniers avis ci-dessus comme un chef. */}
+          {!isLoading && estDirectionPure && (
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <Eyebrow tone="amber">Activité de la période ({labelPeriode})</Eyebrow>
@@ -589,22 +621,53 @@ export const DashboardPage = () => {
             </section>
           )}
 
-          {/* COMPARAISON INTER-AGENCES — DIRECTION uniquement (Doc 12).
+          {/* SANTÉ DU RÉSEAU — DIRECTION uniquement (Doc 12).
               Le chef d'agence ne la voit pas : il pilote la sienne, la
-              Direction pilote le portefeuille. Scores = moyenne par avis. */}
+              Direction pilote le portefeuille. Top/flop en tête, détail par
+              agence avec tendance vs période précédente. Scores = moyenne
+              par avis, jamais de verbatim. */}
           {!isLoading && estDirection && comparaisonAgences && comparaisonAgences.agences.length > 0 && (
             <section className="mt-6">
               <div className="mb-4 flex items-center justify-between">
-                <Eyebrow tone="accent">Comparaison des agences ({labelPeriode})</Eyebrow>
+                <Eyebrow tone="accent">Santé du réseau ({labelPeriode})</Eyebrow>
                 {comparaisonAgences.moyenne_globale !== null && (
                   <span className="text-xs font-bold text-muted-foreground">
                     Moyenne globale : <span className="text-foreground">{comparaisonAgences.moyenne_globale}/5</span>
                   </span>
                 )}
               </div>
+              {(comparaisonAgences.meilleure_agence || comparaisonAgences.agence_a_surveiller) && (
+                <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {comparaisonAgences.meilleure_agence && (() => {
+                    const top = comparaisonAgences.agences.find((x: any) => x.nom_agence === comparaisonAgences.meilleure_agence && x.nb_avis > 0);
+                    return top ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/15 text-lg" aria-hidden>🏆</span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-success">Top agence</p>
+                          <p className="truncate text-sm font-bold text-foreground">{top.nom_agence} — {top.score_moyen}/5</p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                  {comparaisonAgences.agence_a_surveiller && (() => {
+                    const flop = comparaisonAgences.agences.find((x: any) => x.nom_agence === comparaisonAgences.agence_a_surveiller && x.nb_avis > 0);
+                    return flop ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-lg" aria-hidden>⚠️</span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-warning">À surveiller</p>
+                          <p className="truncate text-sm font-bold text-foreground">{flop.nom_agence} — {flop.score_moyen}/5</p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
               <div className="space-y-2">
                 {comparaisonAgences.agences.map((a: any) => {
                   const max = Math.max(...comparaisonAgences.agences.map((x: any) => x.nb_avis || 0), 1);
+                  const delta = a.delta_note;
                   return (
                     <div key={a.id_agence} className="rounded-xl border border-border/60 bg-card/70 p-4">
                       <div className="flex items-center justify-between gap-3">
@@ -624,9 +687,14 @@ export const DashboardPage = () => {
                           <p className="text-lg font-bold font-satoshi text-foreground">
                             {a.score_moyen !== null ? `${a.score_moyen}/5` : '—'}
                           </p>
-                          {a.taux_satisfaction !== null && (
-                            <p className="text-[11px] font-semibold text-muted-foreground">{a.taux_satisfaction}% satisfaits</p>
-                          )}
+                          <p className="text-[11px] font-semibold text-muted-foreground">
+                            {a.taux_satisfaction !== null ? `${a.taux_satisfaction}% satisfaits` : ''}
+                            {delta !== null && delta !== undefined && (
+                              <span className={`ml-1.5 font-bold ${delta >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}
+                              </span>
+                            )}
+                          </p>
                         </div>
                       </div>
                       {a.score_moyen !== null && (
@@ -687,6 +755,28 @@ export const DashboardPage = () => {
           )}
 
         <div className="hidden">
+          {estDirection ? (
+            <RapportReseauPrint
+              ref={printRefReseau}
+              entrepriseName={nomEntrepriseDocs}
+              periodeLabel={labelPeriode}
+              dateDebut={(() => { const d = new Date(); d.setDate(d.getDate() - periodeJours); return d; })()}
+              dateFin={new Date()}
+              satisfaction={Number(satisfaction)}
+              noteMoyenne={Number(noteMoyenne)}
+              totalAvis={totalAvisPeriode}
+              deltaSatisfaction={deltaSatisfaction}
+              deltaNote={deltaNote}
+              deltaVolume={deltaVolume}
+              moyenneGlobale={comparaisonAgences?.moyenne_globale ?? null}
+              meilleureAgence={comparaisonAgences?.meilleure_agence ?? null}
+              agenceASurveiller={comparaisonAgences?.agence_a_surveiller ?? null}
+              agences={comparaisonAgences?.agences || []}
+              alertesNouvelles={alertesNouvelles}
+              tachesEnCours={tachesList.filter((t: any) => t.statut_tache !== 'TERMINEE').length}
+              themes={themesStats?.topThemes || []}
+            />
+          ) : (
           <RapportMensuelPrint
             ref={printRef}
             reponses={reponsesList}
@@ -697,6 +787,7 @@ export const DashboardPage = () => {
             guichets={guichetsList}
             agenceName={(user as any)?.agence?.nom_agence || (user?.id_agence ? `Agence #${user.id_agence}` : 'Mon Agence')}
             commune={(user as any)?.agence?.commune || ''}
+            entrepriseName={nomEntrepriseDocs}
             periodeLabel={periodeJours === 30 ? '30 derniers jours' : periodeJours === 1 ? '24 heures' : `${periodeJours} derniers jours`}
             dateDebut={(() => { const d = new Date(); d.setDate(d.getDate() - periodeJours); return d; })()}
             dateFin={new Date()}
@@ -707,6 +798,7 @@ export const DashboardPage = () => {
             }}
             tempsTraitement={tempsTraitement?.prise_en_charge || null}
           />
+          )}
         </div>
         </PageShell>
       </AmbientBackground>
