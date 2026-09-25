@@ -681,6 +681,15 @@ export const getFormDefinitionForGuichet = async (
                   options_reponse: true,
                   obligatoire: true,
                   archive: true,
+                  // Vague 1 Phase E : identifiants stables des options pour
+                  // QCM/CASES (le client envoie des optionIds, jamais de
+                  // position). Actives seules, ordre d'affichage. AUCUN
+                  // score/poids ne quitte le serveur (résolution serveur).
+                  options: {
+                    where: { actif: true },
+                    orderBy: { ordre_affichage: 'asc' },
+                    select: { id: true, libelle: true },
+                  },
                 },
               },
             },
@@ -704,6 +713,13 @@ export const getFormDefinitionForGuichet = async (
                   options_reponse: true,
                   obligatoire: true,
                   archive: true,
+                  // Vague 1 Phase E : voir commentaire ci-dessus (même règle
+                  // sur le vivier des critères d'agence).
+                  options: {
+                    where: { actif: true },
+                    orderBy: { ordre_affichage: 'asc' },
+                    select: { id: true, libelle: true },
+                  },
                 },
               },
             },
