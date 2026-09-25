@@ -76,14 +76,37 @@ Quatre rôles internes (source : cahier des charges §5, confirmés par le champ
 
 ---
 
-## 4. Échelle de notation (DÉCISION PRODUCT — consignée 2026-08-29)
+## 4. Échelle de notation (DÉCISION PRODUCT — 2026-08-29, AMENDÉE 2026-09-25/26)
 
-**Choix : étoiles 1→5** (ScoreInput, Doc 03 §3), pour TOUS les critères.
+**Choix initial (2026-08-29) : étoiles 1→5** (ScoreInput, Doc 03 §3), pour TOUS les critères.
+Cette règle reste vraie **par défaut** (type SMILEY, échelle 1-5, `note5Vers100`) mais n'est plus
+unitaire : le moteur de mesure (vague 1) autorise plusieurs types, chacun avec un `scoring_mode`
+et une `orientation` EXPLICITES, stockés sur le critère. Référence complète :
+`docs/SCORING_ARCHITECTURE.md` (§2 types → modes, §3 formules, §3 bis CES).
 
-- 5 étoiles = très satisfait ; 1 étoile = très insatisfait. Étoiles lucide (`Star`), état sélectionné fond jaune `--poste-jaune` + icône noire, état vide bordure gris-200.
-- Taux de satisfaction affiché (statistiques) = % d'avis avec moyenne ≥ 4/5 — définition unique, partagée avec le backend.
-- NPS et emojis 😞😐😊 EXCLUS de la v1 (le canal USSD/IVR futur pourra introduire une échelle alternative par canal, avec comparaison prudente).
-- Accessibilité ScoreInput : groupe radiogroup ARIA (chaque étoile = radio 1-5), navigation clavier flèches, libellé explicite par critère.
+| Type | Mode(s) | Usage | Écran de saisie |
+|---|---|---|---|
+| SMILEY | `SMILEY` | note 1-5 (défaut historique, inchangé) | étoiles |
+| OUI_NON | `BINARY` | question fermée, orientation portée par le critère (« Avez-vous rencontré un problème ? ») | deux boutons |
+| QCM | `ORDINAL` | choix unique **noté explicitement** (1-10 ou Auto) | liste de boutons |
+| CASES | `CASES_CATEGORICAL` / `CASES_WEIGHTED` | choix multiples : soit stats % (jamais noté), soit poids ± (base 100 + Σ clampé) | cases à cocher |
+| ECHELLE | `NUMERIC` / `CES` | note continue 1..N, ou **effort perçu 1-5 / 1-7 (CES)** | boutons chiffres, ou libellés d'effort si CES |
+| NPS | `NPS` | 0-10 natif (détracteurs / passifs / promoteurs) | 0-10 |
+| TEXTE | `FREE_TEXT` | verbatim | zone de texte — **jamais noté** |
+
+Invariants (doc de scoring, tests à l'appui) :
+
+- **5 étoiles = très satisfait ; 1 étoile = très insatisfait** (inchangé pour SMILEY).
+- Taux de satisfaction (statistiques) = % d'avis avec moyenne ≥ 4/5 sur l'échelle 1-5 — définition
+  unique, partagée avec le backend.
+- **NPS 0-10 et emojis ne sont plus exclus** (amendement 2026-09-26) : le type NPS est natif, et
+  l'emoji reste un simple habillage du SMILEY. Comparaison entre échelles : prudente et explicite
+  (le `/100` canonique est commun, la note métier ne l'est pas).
+- L'ordre d'affichage des choix est de l'UX : le score ne dépend **jamais** de la position
+  (`OptionCritere.id` + score explicite ; provenance `EXPLICIT`/`INFERRED`, jamais IA).
+- Accessibilité : radiogroup ARIA, navigation clavier, libellé explicité par critère ; une question
+  CES est annoncée « Effort : Très facile » et son échelle 1-7 n'affiche jamais des chiffres nus
+  quand un libellé existe.
 
 ---
 
@@ -107,23 +130,29 @@ Hiérarchie (§6) : Entreprise → Agence → Guichet → Agent(affectations) �
 
 ---
 
-## 6. Carte des routes (état v1 front — remplacera la carte du Doc 01 quand étendue)
+## 6. Carte des routes (état réel — alignée sur `main.wasp.ts`, vérifié 2026-09-26)
 
 | Route | Accès | Spec |
 |---|---|---|
-| `/` | public | Doc 05 — Accueil |
-| `/avis/:guichetCode` | public (QR) | Doc 06 — Formulaire |
-| `/avis/merci` | public (post-soumission) | Doc 07 — Confirmation |
-| `/connexion` | public | future Doc 08 |
-| `/app/*` (dashboard, agences, guichets, planning, personnel, opérations, critères, avis, analyse, alertes, actions, archives, rapports, paramètres — §43) | rôles internes | docs futurs 08+ (une spec par module, dans l'ordre de la roadmap §8) |
+| `/q/:code` | public (QR, code opaque à 10 caractères) | Doc 06 — Formulaire (l'ancienne `/q/:guichetId` énumérable est supprimée) |
+| `/connexion` | public | Auth Wasp (`src/auth/`) |
+| `/dashboard` | DIRECTION (vue réseau) / chef (vue agence) | Doc 04 + zone « Expérience client » (vague 1) |
+| `/synthese` | DIRECTION (déclenche) / tous rôles lecture | Vague 1 Phase K — synthèse globale IA (agrégats + limites) |
+| `/avis` | chef d'agence + direction cumulée | Doc 08 (verbatims filtrés RG16/RG17) |
+| `/criteres` | DIRECTION, CHEF_AGENCE | Doc 02 §3 + éditeur d'options / mode CES (vague 1) |
+| `/guichets`, `/planning` | tous rôles internes | Docs à spécifier |
+| `/alertes-taches`, `/archives` | tous rôles internes | Docs à spécifier |
+| `/admin/personnel`, `/admin/agences` | DIRECTION, CHEF_AGENCE / DIRECTION | Docs à spécifier |
+| `/settings` | tous rôles internes | Doc 13 — branding |
+| `/platform/*` | SUPER_ADMIN (hors espace entreprise) | Doc 12 |
 
 ---
 
 ## 7. Parcours utilisateurs (bout-en-bout)
 
 ### 7.1 Parcours CLIENT — le parcours critique (§13-§15)
-QR au guichet → `/avis/:guichetCode` (le code identifie agence+guichet) → écran d'accueil court du formulaire → sélection de l'OPÉRATION → critères chargés → notation étoiles → commentaire optionnel → envoi → `/avis/merci`.
-**Contrainte de temps : parcours complet < 60 secondes, ≤ 4 interactions avant validation.** Aucun compte, aucune donnée personnelle obligatoire.
+QR au guichet → `/q/:code` (code opaque : le serveur résout agence + guichet) → écran d'accueil court du formulaire → sélection de l'OPÉRATION → critères chargés (au clic : accusé immédiat, l'étape avance) → commentaire optionnel (autosave) → envoi → écran de confirmation dans la page.
+**Contrainte de temps : parcours complet < 60 secondes, et AUCUN bouton de validation d'étape** (l'accusé de réception est automatique — vague 1 Phase E). Aucun compte, aucune donnée personnelle obligatoire.
 
 ### 7.2 Parcours CHEF D'AGENCE (aperçu — détaillé en docs 08+)
 Connexion → dashboard agence (avis, moyenne, alertes) → traite une alerte → crée une action corrective assignée à un agent → suit l'avancement.
@@ -139,5 +168,21 @@ Connexion → dashboard agence (avis, moyenne, alertes) → traite une alerte �
 | **F2 — Auth + shell connecté** | /connexion, shell dashboard, RLS UI | 08+ | à spécifier |
 | **F3 — Gestion structure** | Agences, guichets, personnel, opérations, critères, planning | 08+ | à spécifier |
 | **F4 — Analyse & boucle qualité** | Avis, analyse, alertes, actions correctives, archives, rapports | 08+ | à spécifier |
+
+### 8bis. Vague 1 — refonte de la mesure (2026-09-25/26, multidisciplinarye)
+
+Cette vague est **transverse** (backend + front) : elle touche la chaîne de mesure, pas une
+écran de plus. Détail technique : `docs/SCORING_ARCHITECTURE.md` ; décisions : `00-INDEX.md` §3.
+
+| Lot | Contenu | État |
+|---|---|---|
+| **Moteur** | `scoringEngine` déterministe (8 stratégies), résolution serveur par `optionId`, `score_source` + `Critere.version`, ambiguïtés explicites | ✅ |
+| **Collecte** | Accusé <500 ms + autosave T2, payloads `optionId`/`valeur`, NPS 0-10, libellés CES, bornage des doublons | ✅ |
+| **IA individuelle** | Analyse enrichie (sévérité, sous-thèmes, confiance, cohérence note↔texte), prompts versionnés | ✅ |
+| **IA globale** | `GlobalExperienceAnalysis` + job hebdo (budget, seuil), page `/synthese` (résumé, irritants, tendances, anomalies, priorités, **limites**) | ✅ |
+| **Indicateurs** | Catalogue de 23 définitions (formule + source), agrégat unique `getIndicateursExperience`, zone « Expérience client » du dashboard, feuille XLSX « Expérience », bandeau CES dans les rapports PDF | ✅ |
+| **Administration** | Éditeur d'options (note explicite 1-10 / Auto, poids ±, code métier, ordre), édition de critère en ligne, mode CASES pondéré, mode CES 1-5/1-7 | ✅ |
+| **CES** | Bandes 1-5/1-7, top box, orientation forcée, agrégat + démonstration (`scripts/activerQuestionCES.ts`) | ✅ |
+| **Reste (à spécifier)** | Alerte « effort élevé » au-delà d'un seuil configurable ; comparaison inter-échelles (au-delà du `/100` canonique) ; formation/doc opérateur | ⬜ |
 
 **Vérification de couverture** (leçon EMSP Connect) : les 23 critères de réussite §47 ont été parcourus ; les critères couverts par le front public = 7, 8, 9 (anti-rejeu visible par message d'erreur dédié), 21 (notification de confirmation), 23 (responsive). Les autres appartiennent aux phases F2-F4 — aucune fonctionnalité officielle ne reste orpheline sans doc prévue.

@@ -21,6 +21,7 @@
 | 11 | `docs/frontend/11-architecture-saas-multi-tenant.md` | **Architecture SaaS** : platformRole, tenant Entreprise, workflow création, sécurité |
 | 12 | `docs/frontend/12-console-super-admin.md` | **Console /platform** : écrans, wizard 4 étapes, email d'activation, onboarding |
 | 13 | `docs/frontend/13-branding-studio-qr-designer.md` | **Branding par entreprise** : logo, charte, messages, QR Designer |
+| 14 | `docs/SCORING_ARCHITECTURE.md` | **Moteur de mesure** : types → modes, formules, ambiguïtés, CES, indicateurs, rétrocompatibilité (vague 1, 2026-09-25/26) |
 | 10 | `docs/frontend/patron-spec-page.md` | Patron des specs (10 sections) |
 
 Référence design : `design-template/Mint - Portfolio React Template/` (template fourni par Ivo — on TRANSPOSE son langage, jamais on ne recrée un équivalent).
@@ -53,6 +54,13 @@ Référence design : `design-template/Mint - Portfolio React Template/` (templat
 | 2026-08-29 | Typographie UI = **Satoshi** (déjà chargée, identité du produit) ; le logo reste en Poppins dans son SVG. La charte §4 du doc 04 (Poppins partout) est amendée sur ce point | Constat code |
 | 2026-08-29 | CONFIDENTIALITÉ PAR NIVEAU (RG12-RG18, Doc 08) : coordonnées client OPTIONNELLES (finalité recontact) ; le CHEF_AGENCE voit les avis de son agence ; la DIRECTION ne voit que chiffres/agrégats/thèmes — JAMAIS de verbatims ; k-anonymat ≥ 5 par agent ; garde-fou RH ; accès Qualité journalisé | Retour terrain chef d'agence + Ivo |
 | 2026-08-29 | Bloc recontact SANS question : champs simplement présents, vides = rien envoyé, normalisation +225 | Ivo |
+| 2026-09-25 | **Moteur de mesure déterministe** (vague 1) : le score officiel est calculé côté serveur à partir de `OptionCritere.id` — plus jamais `index + 1`. `src/shared/scoringEngine.ts` (pur, testé) = source unique ; `src/server/resolutionSoumission.ts` = autoritaire. Le client n'envoie qu'un `optionId` | Décision d'ingénierie (fin du biais de position) |
+| 2026-09-25 | **Provenance des scores** : `score_source` ∈ EXPLICIT \| INFERRED \| LEGACY_POSITIONAL \| MIGRATED — **aucune source IA**. L'IA interprète (thèmes, sévérité, synthèse) et n'écrit jamais un score. Statut `AMBIGU` plutôt qu'un score deviné ; `NON_NOTABLE` plutôt qu'un 0 | Idem |
+| 2026-09-25 | **Échelles multiples autorisées** (amendement de la décision du 2026-08-29 « étoiles 1→5 pour TOUS les critères ») : SMILEY 1-5 reste la note par défaut, mais QCM / CASES / ECHELLE / NPS 0-10 sont de première classe, avec `scoring_mode` + `orientation` explicites par critère. Voir `docs/SCORING_ARCHITECTURE.md` §2-§3 | Décision produit (2026-09-25) |
+| 2026-09-26 | **Collecte sans bouton de validation** : à chaque réponse l'accusé part en <500 ms et l'étape avance ; T2 (commentaire, coordonnées) en autosave debounce 900 ms sur la MÊME soumission. `src/client/pages/CollectePage.tsx` | Retour terrain (« le client abandonnait ») |
+| 2026-09-26 | **IA en deux étages** : individuelle (`AnalyseAvisIA` : sévérité, sous-thèmes, confiance, cohérence note↔texte) puis globale (`GlobalExperienceAnalysis` : synthèse hebdo du lundi 6 h, budget 5 appels/jour, seuil 10 avis). L'IA ne mesure rien : elle verbalise des agrégats déterministes et ses `limites` sont affichées | Décision produit |
+| 2026-09-26 | **CES (Customer Effort Score)** : question d'effort sur échelle 1-5 ou 1-7, `1 = très facile` ; `orientation` FORCÉE `LOWER_BETTER` (convention de mesure, non négociable) ; bandes et top box figées, dénominateur `n(CES)` seul, aucun benchmark externe embarqué. `src/shared/ces.ts`, doc §3 bis | Décision produit |
+| 2026-09-26 | **Indicateurs = catalogue unique** (`src/shared/indicateurs.ts`, 23 définitions avec formule + source) ; valeur absente = `N/A`, jamais 0 %. Le dashboard, les exports XLSX et les rapports PDF consomment le même agrégat (`getIndicateursExperience`) | Décision d'ingénierie (une seule vérité statistique) |
 
 ## 4. ANALYSE DES ÉCARTS — cahier des charges §47 (23 critères de réussite) vs code
 
