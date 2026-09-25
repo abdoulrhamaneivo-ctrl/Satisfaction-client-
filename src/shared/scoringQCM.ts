@@ -197,6 +197,16 @@ export function infererScoreOption(option: string): number | null {
   // 0. Construction neutre « ni … ni … » — gagne sur tout le reste.
   if (/\bni\b/.test(t)) return 3;
 
+  // 0bis-avant. Négation forte INTENSIFIÉE (« pas du tout satisfait »,
+  // « vraiment nul ») : vaut 1, avant la règle 0bis qui vaut 2 par défaut.
+  // Sans ça, le préfixe « pas » capterait ces cas en premier.
+  if (
+    /\b(tres|tout a fait|vraiment|completement|totalement|du tout)\b/.test(t) &&
+    contientUn(t, NEGATION_FORTE)
+  ) {
+    return 1;
+  }
+
   // 0bis. Négation préfixe d'un positif (« non satisfait », « pas clair »,
   // « jamais à l'heure ») : le positif seul vaudrait 4-5, nié il vaut 2.
   if (/^(non|pas|jamais|peu|sans)\b/.test(t) && contientUn(t, [...POSITIF_FORT, ...POSITIF])) {
