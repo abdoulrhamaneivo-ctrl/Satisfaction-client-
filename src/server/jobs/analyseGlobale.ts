@@ -26,6 +26,8 @@ export const SEUIL_MIN_AVIS = 10;
 const GLOBAL_AI_BUDGET = Number(process.env.GLOBAL_AI_BUDGET || 5);
 const LIMITE_TRAITEMENT = 5;
 
+const arrondi1 = (n: number): number => Math.round(n * 10) / 10;
+
 async function budgetRestant(): Promise<number> {
   const debutJour = new Date();
   debutJour.setHours(0, 0, 0, 0);
@@ -75,6 +77,17 @@ async function traiterLigne(row: any, entrepriseNom: string): Promise<'ok' | 'bu
     indicateurs: JSON.stringify({
       csat: agregats.csat,
       nps: agregats.nps,
+      // Phase L : effort perçu (null = aucune question CES dans le périmètre).
+      ces: agregats.ces
+        ? {
+            echelle: agregats.ces.echelle,
+            volume: agregats.ces.volume,
+            note_moyenne: agregats.ces.note_effort_moyenne,
+            top_box_pct: arrondi1(agregats.ces.top_box),
+            taux_effort_eleve_pct: arrondi1(agregats.ces.taux_effort_eleve),
+            taux_faible_effort_pct: arrondi1(agregats.ces.taux_faible_effort),
+          }
+        : null,
       coherence: {
         analyses: agregats.totalAnalyses,
         incoherentes: agregats.incoherents,

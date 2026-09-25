@@ -8,6 +8,7 @@ import {
   resoudreChoixUnique,
   resoudreBinaire,
   resoudreNumerique,
+  resoudreCES,
   resoudreNPS,
   resoudreCases,
   resoudreCasesMoyenne,
@@ -417,5 +418,68 @@ describe('dispatcher : déduction du type', () => {
       resoudreReponse({ ...base, type_reponse: 'NPS' }, { type: 'valeur', valeur: 9 })
         .categorie_nps,
     ).toBe('PROMOTEUR');
+  });
+});
+
+describe('CES : effort perçu, sens imposé', () => {
+  const ces = (max: number, orientation: any = 'HIGHER_BETTER'): CritereMoteur => ({
+    scoring_mode: 'CES',
+    type_reponse: 'ECHELLE',
+    orientation,
+    echelle_min: 1,
+    echelle_max: max,
+    options: [],
+  });
+
+  test('effort 1 = 100, effort max = 0 (inversion de l\'échelle CSAT)', () => {
+    expect(resoudreCES(ces(5), 1).score_normalise).toBe(100);
+    expect(resoudreCES(ces(5), 5).score_normalise).toBe(0);
+    expect(resoudreCES(ces(7), 1).score_normalise).toBe(100);
+    expect(resoudreCES(ces(7), 7).score_normalise).toBe(0);
+  });
+
+  test('orientation HIGH...ISIBLE ignorée : le sens vient de la mesure', () => {
+    const r = resoudreCES(ces(7, 'HIGHER_BETTER'), 2);
+    expect(r.statut).toBe('OK');
+    // (7-2)/6 = 83.33 — et non 16.67 : l'admin ne peut pas inverser le CES.
+    expect(r.score_normalise).toBeCloseTo(83.3333, 3);
+  });
+
+  test('hors bornes / non entier → AMBIGU, jamais de score approché', () => {
+    expect(resoudreCES(ces(5), 0).raison).toBe('ECHELLE_HORS_BORNES');
+    expect(resoudreCES(ces(5), 6).raison).toBe('ECHELLE_HORS_BORNES');
+    expect(resoudreCES(ces(5), 2.5).raison).toBe('VALEUR_NON_ENTIERE');
+  });
+
+  test('échelle non supportée (1-10, 0-5, min≠1) → AMBIGU de configuration', () => {
+    const mauvaise = (min: number, max: number): CritereMoteur => ({
+      scoring_mode: 'CES', type_reponse: 'ECHELLE', orientation: 'LOWER_BETTER',
+      echelle_min: min, echelle_max: max, options: [],
+    });
+    for (const [min, max] of [[1, 10], [0, 5], [2, 7], [1, 6]] as const) {
+      const r = resoudreCES(mauvaise(min as number, max as number), 3);
+      expect(r.statut).toBe('AMBIGU');
+      expect(r.raison).toBe('ECHELLE_CES_INVALIDE');
+      expect(r.score_normalise).toBeNull();
+    }
+  });
+
+  test('dispatcher : mode CES gagne sur le type ECHELLE', () => {
+    const r = resoudreReponse(ces(5), { type: 'valeur', valeur: 1 });
+    expect(r.statut).toBe('OK');
+    expect(r.source).toBe('EXPLICIT');
+    expect(r.score_normalise).toBe(100);
+  });
+
+  test('entrée incompatible (option au lieu d\'une valeur) → AMBIGU', () => {
+    expect(resoudreReponse(ces(5), { type: 'option', optionId: 'o' }).raison).toBe('ENTREE_INCOMPATIBLE');
+  });
+
+  test('type CES sans mode explicite → traité en CES', () => {
+    const c: CritereMoteur = {
+      scoring_mode: null, type_reponse: 'CES', orientation: 'HIGHER_BETTER',
+      echelle_min: 1, echelle_max: 5, options: [],
+    };
+    expect(resoudreReponse(c, { type: 'valeur', valeur: 1 }).score_normalise).toBe(100);
   });
 });

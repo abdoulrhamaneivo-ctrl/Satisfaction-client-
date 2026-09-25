@@ -2180,7 +2180,7 @@ export const createService = async (
 
 const MODES_SCORING_VALIDES = [
   'ORDINAL', 'BINARY', 'NUMERIC', 'SMILEY', 'NPS',
-  'CASES_CATEGORICAL', 'CASES_WEIGHTED', 'FREE_TEXT',
+  'CASES_CATEGORICAL', 'CASES_WEIGHTED', 'CES', 'FREE_TEXT',
 ];
 
 const MODES_PAR_TYPE: Record<string, Array<string | null>> = {
@@ -2188,10 +2188,17 @@ const MODES_PAR_TYPE: Record<string, Array<string | null>> = {
   OUI_NON: ['BINARY', null],
   QCM: ['ORDINAL', null],
   TEXTE: ['FREE_TEXT', null],
-  ECHELLE: ['NUMERIC', null],
+  ECHELLE: ['NUMERIC', 'CES', null],
   NPS: ['NPS', null],
   CASES: ['CASES_CATEGORICAL', 'CASES_WEIGHTED', null],
 };
+
+/**
+ * CES (Phase L) : échelle 1-5 ou 1-7 uniquement, et orientation IMPOSÉE
+ * LOWER_BETTER (1 = très facile = meilleure expérience). Refuser une autre
+ * échelle évite un CES illisible ; l'orientation n'est jamais négociable.
+ */
+const ECHELLES_CES_VALIDES = [5, 7];
 
 type EntreeOption = {
   libelle: string;
@@ -2335,7 +2342,7 @@ export const createCritere = async (
   }
   // Vague 1 : orientation (Oui = positif par défaut ; LOWER_BETTER pour les
   // questions « problème » où Oui est négatif).
-  const orientation =
+  let orientation =
     args.orientation === undefined || args.orientation === null || args.orientation === ''
       ? 'HIGHER_BETTER'
       : String(args.orientation).trim().toUpperCase();
@@ -2356,6 +2363,17 @@ export const createCritere = async (
     } else {
       optionsEchelle = '1,5';
     }
+  }
+
+  // Phase L — CES : échelle 1-5 / 1-7 et orientation FORCÉE (effort 1 = bon).
+  if (scoringMode === 'CES') {
+    const [, maxStr] = String(optionsEchelle || '').split(',');
+    const min = Number(String(optionsEchelle || '').split(',')[0]);
+    const max = Number(maxStr);
+    if (min !== 1 || !ECHELLES_CES_VALIDES.includes(max)) {
+      throw new HttpError(400, "Question d'effort (CES) : l'échelle doit être 1-5 ou 1-7 (1 = très facile).");
+    }
+    orientation = 'LOWER_BETTER';
   }
 
   // Faille corrigée : id_agence fourni par le client n'était jamais vérifié.
@@ -2593,6 +2611,22 @@ export const updateCritere = async (
       throw new HttpError(400, 'Orientation invalide (HIGHER_BETTER ou LOWER_BETTER).');
     }
     orientation = o;
+  }
+
+  // Phase L — CES : le mode effectif peut venir de CETTE modification ou
+  // être déjà en base. Échelle 1-5 / 1-7 obligatoire et orientation FORCÉE
+  // LOWER_BETTER (1 = très facile) : on corrige aussi un CES historique mal
+  // orienté, plutôt que de laisser un score inversé en production.
+  const modeEffectif = scoringMode !== undefined ? scoringMode : (critere?.scoring_mode ?? null);
+  if (modeEffectif === 'CES') {
+    const echelleFinale = optionsReponse !== undefined ? optionsReponse : (critere?.options_reponse ?? null);
+    const [minStr, maxStr] = String(echelleFinale || '').split(',').map((v) => v.trim());
+    const min = Number(minStr);
+    const max = Number(maxStr);
+    if (min !== 1 || !ECHELLES_CES_VALIDES.includes(max)) {
+      throw new HttpError(400, "Question d'effort (CES) : l'échelle doit être 1-5 ou 1-7 (1 = très facile).");
+    }
+    orientation = 'LOWER_BETTER';
   }
 
   const toucheScoring =

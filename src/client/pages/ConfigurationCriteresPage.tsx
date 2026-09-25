@@ -90,6 +90,12 @@ const MODES_CASES = [
   { id: 'CASES_WEIGHTED', label: 'Pondéré (poids ±, base 100)' },
 ];
 
+// Phase L — question d'effort : échelle 1-5 ou 1-7, 1 = très facile.
+const MODES_ECHELLE = [
+  { id: 'AUTO', label: 'Note standard (plus = mieux)' },
+  { id: 'CES', label: 'Effort client — CES (1 = très facile)' },
+];
+
 export const ConfigurationCriteresPage = () => {
   const { data: user } = useAuth();
   const { toast } = useToast();
@@ -149,6 +155,8 @@ export const ConfigurationCriteresPage = () => {
   const [editType, setEditType] = useState('SMILEY');
   const [editOptions, setEditOptions] = useState<OptionForm[]>([]);
   const [editMode, setEditMode] = useState('AUTO');
+  const [editEchelleMin, setEditEchelleMin] = useState('1');
+  const [editEchelleMax, setEditEchelleMax] = useState('5');
   const [editOrientation, setEditOrientation] = useState('HIGHER_BETTER');
   const [editObligatoire, setEditObligatoire] = useState(true);
   const [savingEdition, setSavingEdition] = useState(false);
@@ -164,6 +172,9 @@ export const ConfigurationCriteresPage = () => {
         : csvVersOptions(critere.options_reponse || ''),
     );
     setEditMode(critere.scoring_mode || 'AUTO');
+    const [min0, max0] = String(critere.options_reponse || '1,5').split(',').map((v) => String(v).trim());
+    setEditEchelleMin(min0 || '1');
+    setEditEchelleMax(max0 || '5');
     setEditOrientation(critere.orientation || 'HIGHER_BETTER');
     setEditObligatoire(critere.obligatoire !== false);
   };
@@ -198,6 +209,24 @@ export const ConfigurationCriteresPage = () => {
         .map((o) => ({ libelle: o.libelle, score: o.score, poids: o.poids, code_metier: o.code_metier })),
     );
     const optionsModifiees = typeChange || (payloadOptions ? signatureOptions(payloadOptions) !== avantOptions : false);
+    // Échelle (min,max) : envoyée seulement si modifiée, et seulement avec le
+    // type (updateCritere ne recalcule `options_reponse` que dans ce cas).
+    const echelleActuelle = String(original.options_reponse || '1,5').trim();
+    const echelleNouvelle = `${editEchelleMin.trim()},${editEchelleMax.trim()}`;
+    const echelleModifiee = editType === 'ECHELLE' && echelleNouvelle !== echelleActuelle;
+    if (echelleModifiee) {
+      const min = Number(editEchelleMin);
+      const max = Number(editEchelleMax);
+      if (!Number.isInteger(min) || !Number.isInteger(max) || max <= min) {
+        toast({ variant: 'destructive', title: 'Échelle invalide', description: 'Le maximum doit être un entier supérieur au minimum.' });
+        return;
+      }
+      if (editMode === 'CES' && !(min === 1 && (max === 5 || max === 7))) {
+        toast({ variant: 'destructive', title: 'Échelle d\'effort invalide', description: 'Un CES se mesure sur 1-5 ou 1-7 (1 = très facile).' });
+        return;
+      }
+    }
+    const modeModifie = editMode !== (original.scoring_mode || 'AUTO');
     setSavingEdition(true);
     try {
       await updateCritere({
@@ -207,13 +236,17 @@ export const ConfigurationCriteresPage = () => {
         // Type/mode/orientation/options : envoyés seulement si modifiés
         // (évite de bumper la version de scoring pour une simple retouche).
         ...(typeChange ? { type_reponse: editType } : {}),
+        ...(echelleModifiee ? { type_reponse: editType, options_reponse: echelleNouvelle } : {}),
         ...(optionsModifiees && payloadOptions ? { options: payloadOptions } : {}),
-        ...((editType === 'CASES' && (editMode !== (original.scoring_mode || 'AUTO'))) ? { scoring_mode: editMode === 'AUTO' ? null : editMode } : {}),
-        ...(editOrientation !== (original.orientation || 'HIGHER_BETTER') ? { orientation: editOrientation } : {}),
+        ...((editType === 'CASES' && modeModifie) ? { scoring_mode: editMode === 'AUTO' ? null : editMode } : {}),
+        ...(editType === 'ECHELLE' && (modeModifie || typeChange || echelleModifiee)
+          ? { scoring_mode: editMode === 'AUTO' ? null : editMode }
+          : {}),
+        ...(editType === 'ECHELLE' && editMode === 'CES' ? {} : editOrientation !== (original.orientation || 'HIGHER_BETTER') ? { orientation: editOrientation } : {}),
         obligatoire: editObligatoire,
       } as any);
       setCritereEnEdition(null);
-      toast({ variant: 'success', title: 'Question mise à jour', description: typeChange || optionsModifiees ? 'Nouvelle version de scoring : les avis passés gardent l’ancienne.' : 'Modifications enregistrées.' });
+      toast({ variant: 'success', title: 'Question mise à jour', description: typeChange || optionsModifiees || echelleModifiee || modeModifie ? 'Nouvelle version de scoring : les avis passés gardent l’ancienne.' : 'Modifications enregistrées.' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Mise à jour impossible', description: err.message || 'Erreur inconnue' });
     } finally {
@@ -227,7 +260,12 @@ export const ConfigurationCriteresPage = () => {
     if ((t === 'QCM' || t === 'CASES') && optionsCreation.length === 0) {
       setOptionsCreation([optionVide(), optionVide()]);
     }
+    // Le mode de scoring n'a de sens que pour CASES et ECHELLE.
+    if (t !== 'CASES' && t !== 'ECHELLE') setScoringModeCreation('AUTO');
   };
+
+  /** Garde-fou CES : échelle 1-5 ou 1-7 (le serveur revalide de toute façon). */
+  const echelleCESValide = Number(echelleMin) === 1 && (Number(echelleMax) === 5 || Number(echelleMax) === 7);
 
   const activeIds: number[] = agenceCriteresIds || [];
 
@@ -308,6 +346,14 @@ export const ConfigurationCriteresPage = () => {
         toast({ variant: 'destructive', title: 'Échelle invalide', description: 'Le maximum doit être un entier supérieur au minimum.' });
         return;
       }
+      if (scoringModeCreation === 'CES' && !echelleCESValide) {
+        toast({
+          variant: 'destructive',
+          title: 'Échelle d\'effort invalide',
+          description: 'Un CES se mesure sur 5 (1-5) ou 7 (1-7) niveaux, en partant de 1 = très facile.',
+        });
+        return;
+      }
     }
     // Vague 1 : jeu d'options explicite (notes = provenance EXPLICIT).
     const payloadOptions =
@@ -326,7 +372,11 @@ export const ConfigurationCriteresPage = () => {
         type_reponse: typeReponse,
         ...(payloadOptions ? { options: payloadOptions } : {}),
         ...(typeReponse === 'CASES' && scoringModeCreation !== 'AUTO' ? { scoring_mode: scoringModeCreation } : {}),
-        ...((typeReponse === 'OUI_NON' || typeReponse === 'ECHELLE') && orientationCreation !== 'HIGHER_BETTER'
+        ...(typeReponse === 'ECHELLE' && scoringModeCreation === 'CES' ? { scoring_mode: 'CES' } : {}),
+        ...(typeReponse === 'ECHELLE' && scoringModeCreation !== 'CES' && orientationCreation !== 'HIGHER_BETTER'
+          ? { orientation: orientationCreation }
+          : {}),
+        ...(typeReponse === 'OUI_NON' && orientationCreation !== 'HIGHER_BETTER'
           ? { orientation: orientationCreation }
           : {}),
         ...(typeReponse === 'ECHELLE' ? { options_reponse: `${echelleMin},${echelleMax}` } : {}),
@@ -636,7 +686,29 @@ export const ConfigurationCriteresPage = () => {
                   </Select>
                 </div>
 
-                {(typeReponse === 'OUI_NON' || typeReponse === 'ECHELLE') && (
+                {typeReponse === 'ECHELLE' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de mesure</label>
+                    <Select value={scoringModeCreation} onValueChange={setScoringModeCreation}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Note standard" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MODES_ECHELLE.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {scoringModeCreation === 'CES' && (
+                      <p className="mt-1.5 rounded-xl border border-info/25 bg-info/5 p-2.5 text-[11px] font-medium leading-5 text-info">
+                        Question d'effort : 1 = très facile, 5 ou 7 = très difficile. Le sens est inversé
+                        automatiquement (effort 1 = 100/100) et l'échelle doit être 1-5 ou 1-7.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {(typeReponse === 'OUI_NON' || (typeReponse === 'ECHELLE' && scoringModeCreation !== 'CES')) && (
                   <div>
                     <label className="block text-xs font-semibold text-foreground uppercase mb-1">Orientation de la note</label>
                     <Select value={orientationCreation} onValueChange={setOrientationCreation}>
@@ -845,7 +917,63 @@ export const ConfigurationCriteresPage = () => {
                 )}
               </div>
 
-              {(editType === 'OUI_NON' || editType === 'ECHELLE') && (
+              {editType === 'ECHELLE' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de mesure</label>
+                    <Select value={editMode === 'CES' ? 'CES' : 'AUTO'} onValueChange={setEditMode}>
+                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {MODES_ECHELLE.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {editMode === 'CES' && (
+                      <p className="mt-1.5 rounded-xl border border-info/25 bg-info/5 p-2.5 text-[11px] font-medium leading-5 text-info">
+                        1 = très facile, 5 ou 7 = très difficile ; le sens est inversé automatiquement.
+                        L'échelle doit être 1-5 ou 1-7.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Échelle</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={editEchelleMin}
+                        onChange={(e) => setEditEchelleMin(e.target.value)}
+                        aria-label="Note minimale"
+                        className="h-10 w-20"
+                      />
+                      <span className="text-muted-foreground">→</span>
+                      <Input
+                        type="number"
+                        value={editEchelleMax}
+                        onChange={(e) => setEditEchelleMax(e.target.value)}
+                        aria-label="Note maximale"
+                        className="h-10 w-20"
+                      />
+                      <div className="ml-auto flex gap-1.5">
+                        {[5, 7, 10].map((n) => (
+                          <Button
+                            key={n}
+                            type="button"
+                            variant={Number(editEchelleMax) === n && Number(editEchelleMin) === 1 ? 'secondary' : 'outline'}
+                            size="sm"
+                            onClick={() => { setEditEchelleMin('1'); setEditEchelleMax(String(n)); }}
+                            className="font-bold"
+                          >
+                            1-{n}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(editType === 'OUI_NON' || (editType === 'ECHELLE' && editMode !== 'CES')) && (
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">Orientation de la note</label>
                   <Select value={editOrientation} onValueChange={setEditOrientation}>

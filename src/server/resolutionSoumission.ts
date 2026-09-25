@@ -15,6 +15,7 @@ import {
   resoudreReponse,
   resoudreBinaire,
   resoudreNumerique,
+  resoudreCES,
   resoudreNPS,
   resoudreCases,
   resoudreCasesMoyenne,
@@ -232,7 +233,10 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
     if (valeur === undefined || !Number.isFinite(valeur)) {
       throw new HttpError(400, 'Note manquante pour cette question.');
     }
-    res = resoudreNumerique(cfg, valeur);
+    // Phase L : question d'effort (CES) — sens inversé imposé par le moteur.
+    res = String(cm.scoring_mode || '').toUpperCase() === 'CES'
+      ? resoudreCES(cfg, valeur)
+      : resoudreNumerique(cfg, valeur);
   } else if (type === 'NPS') {
     const valeur = entree.valeur ?? entree.score;
     if (valeur === undefined || !Number.isFinite(valeur)) {

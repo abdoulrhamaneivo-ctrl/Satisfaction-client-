@@ -29,6 +29,7 @@ export type ScoringMode =
   | 'NPS'
   | 'CASES_CATEGORICAL'
   | 'CASES_WEIGHTED'
+  | 'CES'
   | 'FREE_TEXT';
 
 export type Orientation = 'HIGHER_BETTER' | 'LOWER_BETTER';
@@ -248,6 +249,34 @@ export function resoudreNumerique(
   };
 }
 
+// ── CES (Customer Effort Score) ────────────────────────────────────────────
+
+/**
+ * CES : effort perçu, 1 = TRÈS FACILE … max = TRÈS DIFFICILE.
+ * L'orientation est IMPOSÉE (LOWER_BETTER) : elle découle de la convention
+ * de mesure, jamais d'une saisie admin — un « 1 » est toujours la meilleure
+ * expérience, quoi que dise `critere.orientation`.
+ * Échelles acceptées : 1-5 et 1-7 uniquement (voir shared/ces.ts).
+ * Toute autre configuration → AMBIGU (configuration à corriger, pas d'estimation).
+ */
+export function resoudreCES(
+  critere: Pick<CritereMoteur, 'echelle_min' | 'echelle_max'>,
+  valeur: number,
+): ResolutionScoring {
+  const min = Number(critere.echelle_min);
+  const max = Number(critere.echelle_max);
+  if (min !== 1 || !(max === 5 || max === 7)) return ambigu('ECHELLE_CES_INVALIDE');
+  if (!Number.isInteger(valeur)) return ambigu('VALEUR_NON_ENTIERE');
+  if (valeur < 1 || valeur > max) return ambigu('ECHELLE_HORS_BORNES');
+  return {
+    statut: 'OK',
+    score_officiel: valeur,
+    score_normalise: echelleVers100(valeur, 1, max, 'LOWER_BETTER'),
+    source: 'EXPLICIT',
+    options_retenues: [],
+  };
+}
+
 // ── NPS (0-10 natif) ──────────────────────────────────────────────────────
 
 export function categorieNPS(valeur: number): CategorieNPS {
@@ -447,7 +476,9 @@ export function resoudreReponse(
         ? 'BINARY'
         : type === 'ECHELLE'
           ? 'NUMERIC'
-          : type === 'SMILEY'
+          : type === 'CES'
+            ? 'CES'
+            : type === 'SMILEY'
             ? 'SMILEY'
             : type === 'NPS'
               ? 'NPS'
@@ -468,6 +499,9 @@ export function resoudreReponse(
     case 'NUMERIC':
       if (entree.type !== 'valeur') return ambigu('ENTREE_INCOMPATIBLE');
       return resoudreNumerique(critere, entree.valeur);
+    case 'CES':
+      if (entree.type !== 'valeur') return ambigu('ENTREE_INCOMPATIBLE');
+      return resoudreCES(critere, entree.valeur);
     case 'NPS':
       if (entree.type !== 'valeur') return ambigu('ENTREE_INCOMPATIBLE');
       return resoudreNPS(entree.valeur);

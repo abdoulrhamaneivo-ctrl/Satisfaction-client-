@@ -29,7 +29,7 @@ score officiel = serveur déterministe · IA = interprète sans modifier.
 | QCM | ORDINAL | optionId | score sémantique de l'option |
 | TEXTE | FREE_TEXT | verbatim | **NULL (jamais noté)** |
 | CASES | CATEGORICAL / WEIGHTED | optionIds[] | NULL, ou 100+Σ clampé |
-| ECHELLE | NUMERIC | valeur (min/max validés) | valeur, ratio → /100 |
+| ECHELLE | NUMERIC (ou **CES** → §3 bis) | valeur (min/max validés) | valeur, ratio → /100 |
 | NPS | NPS | valeur 0-10 | valeur, /100 = v×10, catégorie |
 
 ## 3. Formules
@@ -39,6 +39,20 @@ score officiel = serveur déterministe · IA = interprète sans modifier.
 - **NPS** : 0-6 détracteur, 7-8 passif, 9-10 promoteur ; **NPS = %prom − %detr** (jamais une moyenne).
 - **CASES pondéré** : 100 + Σ(poids), clampé 0-100 ; officiel = arrondi(/20).
 - **Indice global** : CSAT seul par défaut ; 60 % CSAT + 40 % NPS normalisé si dispo (`indiceGlobalExperience()`).
+
+## 3 bis. CES — effort perçu (`src/shared/ces.ts`)
+
+| Élément | Règle |
+|---|---|
+| Activation | `Critere.scoring_mode = 'CES'` sur un type `ECHELLE` |
+| Échelles | 1-5 ou 1-7 uniquement (autre échelle → refus admin + `AMBIGU`) |
+| Sens | 1 = **très facile** ; `orientation` forcée `LOWER_BETTER` (l'admin ne peut pas l'inverser) |
+| Score canonique | /100 = (échelle − note)/(échelle − 1)×100 (effort 1 → 100) |
+| Bandes 1-5 | 1-2 faible · 3 moyen · 4-5 élevé |
+| Bandes 1-7 | 1-3 faible · 4-5 moyen · 6-7 élevé |
+| Top box | meilleur tiers bas : 1-2 (1-5) / 1-3 (1-7) |
+| Dénominateur | `n(CES)` uniquement — jamais `n(global)`, jamais de question CES → métriques N/A |
+| Benchmarks externes | **aucun** embarqué : seuils = convention de mesure, pas une référence marché |
 
 ## 4. Ambiguïtés : jamais de score inventé
 

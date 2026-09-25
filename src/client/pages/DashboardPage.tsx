@@ -22,7 +22,7 @@ import { Link as WaspRouterLink, routes } from 'wasp/client/router';
 import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2, ChevronRight, Tag } from 'lucide-react';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2, ChevronRight, Tag, Gauge, Scale } from 'lucide-react';
 import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets, HistogrammeSatisfactionSkeleton, RadarQualiteSkeleton, TendanceMensuelleSkeleton, ComparaisonAgentsSkeleton, ClassementGuichetsSkeleton, HeatmapReponsesSkeleton, ChartSkeleton } from '../components/DashboardCharts';
 import { HeatmapReponses } from '../components/HeatmapReponses';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
@@ -429,6 +429,34 @@ export const DashboardPage = () => {
                   </div>
                 );
               })()}
+
+              {/* Phase L — effort perçu : top box (1 = très facile) + part
+                  d'effort élevé. N/A tant qu'aucune question CES n'est active. */}
+              {experience.agregats.ces && experience.agregats.ces.volume > 0 && (
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <StatCard
+                    title="Effort perçu (top box)"
+                    value={loadingExperience ? '…' : `${Math.round(experience.agregats.ces.top_box)} %`}
+                    icon={Gauge}
+                    accent="success"
+                    index={0}
+                  />
+                  <StatCard
+                    title={`CES moyen (1 = très facile, max ${experience.agregats.ces.echelle})`}
+                    value={loadingExperience ? '…' : experience.agregats.ces.note_effort_moyenne != null ? `${experience.agregats.ces.note_effort_moyenne}/${experience.agregats.ces.echelle}` : 'N/A'}
+                    icon={Scale}
+                    accent="secondary"
+                    index={1}
+                  />
+                  <StatCard
+                    title="Effort élevé"
+                    value={loadingExperience ? '…' : `${Math.round(experience.agregats.ces.taux_effort_eleve)} %`}
+                    icon={AlertTriangle}
+                    accent={experience.agregats.ces.taux_effort_eleve > 25 ? 'destructive' : 'primary'}
+                    index={2}
+                  />
+                </div>
+              )}
 
               <p className="mt-3 text-xs text-muted-foreground font-medium">
                 Cohérence note/texte :{' '}

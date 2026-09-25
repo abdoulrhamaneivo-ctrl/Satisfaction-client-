@@ -27,6 +27,7 @@ import {
   CalendarDays,
   Users,
   Target,
+  Gauge,
 } from 'lucide-react';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from '../components/RequireEnterpriseRole';
@@ -125,6 +126,7 @@ export const SyntheseGlobalePage: React.FC = () => {
   }, [lignes, selection]);
 
   const indicateurs = parseJson<any>(courante?.indicateurs, null);
+  const snapshotCES = indicateurs?.ces ?? null;
   const snapshot = parseJson<any>(courante?.datasetSnapshot, null);
   const pointsPositifs = parseJson<string[]>(courante?.pointsPositifs, []);
   const pointsNegatifs = parseJson<string[]>(courante?.pointsNegatifs, []);
@@ -279,6 +281,7 @@ export const SyntheseGlobalePage: React.FC = () => {
                   {[
                     { label: 'CSAT', valeur: indicateurs?.csat != null ? `${Number(indicateurs.csat).toFixed(1)}%` : 'N/A', icon: Target },
                     { label: 'NPS', valeur: indicateurs?.nps != null ? String(Math.round(Number(indicateurs.nps))) : 'N/A', icon: TrendingUp },
+                    { label: 'CES moyen', valeur: snapshotCES && snapshotCES.note_moyenne != null ? `${snapshotCES.note_moyenne}/${snapshotCES.echelle}` : 'non mesuré', icon: Gauge },
                     { label: 'Avis analysés', valeur: snapshot?.volumeAvis != null ? String(snapshot.volumeAvis) : String(courante.volumeAvis ?? 0), icon: Users },
                     { label: 'Qualité des données', valeur: courante.qualiteDonnees != null ? `${Math.round(Number(courante.qualiteDonnees) * 100)}%` : 'N/A', icon: CheckCircle2 },
                   ].map((k) => (

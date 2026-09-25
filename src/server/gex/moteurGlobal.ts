@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { agregerNPS, type AgregationNPS } from '../../shared/scoringEngine';
+import { agregerCES, reconnaitreCES, type AgregationCES } from '../../shared/ces';
 
 export interface PerimetreGlobal {
   id_entreprise: number;
@@ -42,6 +43,8 @@ export type AgregatsGlobaux = {
   csat: number | null;
   distribution5: Record<string, number>;
   nps: AgregationNPS | null;
+  /** Phase L : effort perçu. null = aucune question CES dans le périmètre. */
+  ces: AgregationCES | null;
   sentiments: Record<string, number>;
   totalAnalyses: number;
   incoherents: number;
@@ -154,7 +157,7 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
       id_agence: true,
       id_guichet: true,
       id_service: true,
-      critere: { select: { type_reponse: true, libelle_critere: true } },
+      critere: { select: { type_reponse: true, libelle_critere: true, scoring_mode: true, options_reponse: true } },
       guichet: { select: { nom_guichet: true } },
       service: { select: { libelle_service: true } },
       agence: { select: { nom_agence: true } },
@@ -186,6 +189,39 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
     .filter((r: any) => r.critere?.type_reponse === 'NPS' && Number.isInteger(r.score_officiel))
     .map((r: any) => Number(r.score_officiel));
   const nps = notesNPS.length > 0 ? agregerNPS(notesNPS) : null;
+
+  // Phase L — CES (effort perçu) : uniquement les critères explicitement
+  // marqués CES (échelle 1-5 / 1-7). Aucun critère, aucune estimation —
+  // ces = null et le rapport affiche « non mesuré ».
+  const notesCES: { note: number; echelle: 5 | 7 }[] = [];
+  for (const r of reponses) {
+    const c: any = r.critere;
+    if (!c) continue;
+    const [minStr, maxStr] = String(c.options_reponse || '').split(',').map((v) => String(v).trim());
+    const echelle = reconnaitreCES({
+      scoring_mode: c.scoring_mode,
+      type_reponse: c.type_reponse,
+      echelle_min: minStr ? Number(minStr) : null,
+      echelle_max: maxStr ? Number(maxStr) : null,
+    });
+    if (!echelle) continue;
+    if (Number.isInteger(r.score_officiel)) {
+      notesCES.push({ note: Number(r.score_officiel), echelle });
+    }
+  }
+  let ces: AgregationCES | null = null;
+  if (notesCES.length > 0) {
+    // Échelles mixtes (1-5 et 1-7) : on sépare, la plus nombreuse gagne,
+    // l'autre reste exclue du dénominateur (jamais de mélange silencieux).
+    const parEchelle = new Map<5 | 7, number[]>();
+    for (const n of notesCES) {
+      const l = parEchelle.get(n.echelle) ?? [];
+      l.push(n.note);
+      parEchelle.set(n.echelle, l);
+    }
+    const dominante = [...parEchelle.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+    ces = agregerCES(dominante[1], dominante[0]);
+  }
 
   const volumeCommentaires = reponses.filter(
     (r: any) => String(r.commentaire_texte || '').trim().length > 0,
@@ -379,6 +415,7 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
     csat,
     distribution5,
     nps,
+    ces,
     sentiments,
     totalAnalyses: analyses.length,
     incoherents,
@@ -463,6 +500,17 @@ export function construirePromptSynthese(
     csat_sur_100: a.csat ?? 'non disponible',
     distribution_notes_sur_5: a.distribution5,
     nps: a.nps ?? 'non disponible (aucune question NPS)',
+    ces_effort_percu: a.ces
+      ? {
+          echelle: `1-${a.ces.echelle}`,
+          volume: a.ces.volume,
+          note_effort_moyenne: a.ces.note_effort_moyenne,
+          top_box_faible_effort_pct: arrondi1(a.ces.top_box),
+          taux_effort_eleve_pct: arrondi1(a.ces.taux_effort_eleve),
+          repartition: a.ces.repartition,
+          rappel: "1 = très facile (bonne expérience), valeur max = très difficile",
+        }
+      : 'non disponible (aucune question d\'effort CES)',
     sentiments_ia: a.sentiments,
     coherence: {
       analyses: a.totalAnalyses,

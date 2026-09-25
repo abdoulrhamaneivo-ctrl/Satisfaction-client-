@@ -4,6 +4,7 @@ import { expect, test, describe } from 'vitest';
 import {
   prioriserIrritants,
   niveauConfianceGlobal,
+  calculerAgregats,
   construirePromptSynthese,
   derniereSemaineComplete,
   moisPrecedent,
@@ -85,6 +86,73 @@ describe('périodes : semaines complètes, jamais en cours', () => {
   });
 });
 
+describe('calculerAgregats : CES (Phase L)', () => {
+  const fenetre = { debut: new Date(2026, 0, 1), fin: new Date(2026, 0, 31) };
+
+  const dbAvec = (reponses: any[]) => ({
+    agence: { findMany: async () => [{ id: 1, nom_agence: 'Centrale' }] },
+    reponse: {
+      // Deux appels : période courante puis période précédente.
+      findMany: async (args: any) => (args?.where?.date_reponse?.gte === fenetre.debut ? reponses : []),
+    },
+    analyseAvisIA: { findMany: async () => [] },
+  });
+
+  const ligneCES = (note: number, options = '1,7') => ({
+    id: 1,
+    id_soumission: `s${note}`,
+    score_normalise: ((7 - note) / 6) * 100,
+    score_officiel: note,
+    commentaire_texte: null,
+    id_agence: 1,
+    id_guichet: 1,
+    id_service: null,
+    critere: { type_reponse: 'ECHELLE', libelle_critere: 'Effort', scoring_mode: 'CES', options_reponse: options },
+    guichet: { nom_guichet: 'G1' },
+    service: null,
+    agence: { nom_agence: 'Centrale' },
+  });
+
+  test('agrège le CES des critères marqués CES uniquement', async () => {
+    const a = await calculerAgregats(
+      dbAvec([
+        ligneCES(1),
+        ligneCES(2),
+        ligneCES(5),
+        ligneCES(7),
+        { ...ligneCES(4), id: 5, id_soumission: 's4', critere: { type_reponse: 'ECHELLE', libelle_critere: 'Satisfaction', scoring_mode: null, options_reponse: '1,10' } },
+      ]),
+      { id_entreprise: 1, ...fenetre },
+    );
+    expect(a.ces).not.toBeNull();
+    expect(a.ces!.volume).toBe(4);
+    expect(a.ces!.faible_effort).toBe(2);
+    expect(a.ces!.effort_moyen).toBe(1);
+    expect(a.ces!.effort_eleve).toBe(1);
+    expect(a.ces!.top_box).toBe(50);
+  });
+
+  test('aucun critère CES → ces = null (jamais une estimation)', async () => {
+    const a = await calculerAgregats(
+      dbAvec([{ ...ligneCES(3), critere: { type_reponse: 'ECHELLE', scoring_mode: 'NUMERIC', options_reponse: '1,10' } }]),
+      { id_entreprise: 1, ...fenetre },
+    );
+    expect(a.ces).toBeNull();
+  });
+
+  test('échelle CES non supportée (1-10) → ignorée, pas de calcul bancal', async () => {
+    const a = await calculerAgregats(dbAvec([ligneCES(3, '1,10')]), { id_entreprise: 1, ...fenetre });
+    expect(a.ces).toBeNull();
+  });
+
+  test('le prompt de synthèse cite le CES avec son rappel de sens', async () => {
+    const a = await calculerAgregats(dbAvec([ligneCES(2), ligneCES(2)]), { id_entreprise: 1, ...fenetre });
+    const prompt = construirePromptSynthese('E', 'S', a, []);
+    expect(prompt).toContain('ces_effort_percu');
+    expect(prompt).toContain('1 = très facile');
+  });
+});
+
 describe('prompt déterministe + schéma synthèse', () => {
   const agregats: AgregatsGlobaux = {
     volumeAvis: 421,
@@ -93,6 +161,7 @@ describe('prompt déterministe + schéma synthèse', () => {
     csat: 78.5,
     distribution5: { '1': 5, '2': 10, '3': 20, '4': 25, '5': 40 },
     nps: null,
+    ces: null,
     sentiments: { POSITIVE: 60, NEGATIVE: 30 },
     totalAnalyses: 90,
     incoherents: 9,
