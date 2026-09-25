@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { decrireReponse } from "../shared/libelleReponse";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,21 +50,11 @@ export function scoreNormaliseSur5Client(r: {
 
 // Libellé court d'une réponse pour exports : la VRAIE réponse en clair
 // (texte, Oui/Non, choix), jamais un index ou un score neutre.
+// Vague 2 : délégation à la règle partagée src/shared/libelleReponse.ts —
+// l'identité de l'option (ReponseOption) est la seule source autorisée, plus
+// aucune reconstruction `options[score_brut - 1]`.
 export function decrireReponseCourte(r: any): string {
-  const lib = r.critere?.libelle_critere || 'Critère';
-  const type = r.critere?.type_reponse;
-  const texte = String(r.commentaire_texte || '').trim();
-  if (type === 'TEXTE' || type === 'CASES') return `${lib}: ${texte || '—'}`;
-  if (type === 'QCM') {
-    const options = String(r.critere?.options_reponse || '').split(',').map((o: string) => o.trim()).filter(Boolean);
-    return `${lib}: ${texte || options[r.score_brut - 1] || `Option n°${r.score_brut}`}`;
-  }
-  if (type === 'OUI_NON') return `${lib}: ${r.score_brut >= 4 ? 'Oui' : 'Non'}`;
-  if (type === 'ECHELLE') {
-    const max = Number(String(r.critere?.options_reponse || '1,5').split(',')[1]) || 5;
-    return `${lib}: ${r.score_brut}/${max}`;
-  }
-  return `${lib}: ${r.score_brut}/5`;
+  return decrireReponse(r);
 }
 
 // Regroupe des lignes Reponse (une par critère répondu) en avis distincts :

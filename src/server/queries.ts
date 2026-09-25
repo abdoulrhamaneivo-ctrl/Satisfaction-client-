@@ -13,6 +13,7 @@ import {
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
 import { BRANDING } from '../shared/branding';
+import { decrireReponse } from '../shared/libelleReponse';
 import { calculerAgregats } from './gex/moteurGlobal';
 import { indiceGlobalExperience } from '../shared/indicateurs';
 
@@ -176,6 +177,10 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
       critere: true,
       service: true,
       analyseIA: true,
+      // Vague 2 : identité des options choisies — SEULE source autorisée pour
+      // afficher le libellé d'un QCM/CASES (plus aucune reconstruction par
+      // position). `select` minimal : un libellé et un id.
+      optionsChoisies: { select: { id_option: true, option: { select: { id: true, libelle: true } } } },
       agence: {
         select: { id: true, nom_agence: true, commune: true },
       },
@@ -270,6 +275,8 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
         critere: true,
         service: true,
         analyseIA: true,
+        // Vague 2 : identité des options choisies (voir getReponses).
+        optionsChoisies: { select: { id_option: true, option: { select: { id: true, libelle: true } } } },
         agence: { select: { id: true, nom_agence: true, commune: true } },
         agent: { select: { id: true, username: true, email: true, nom: true, prenom: true } },
       },
@@ -403,6 +410,9 @@ export const exportAvisGroupes = async (args: GetReponsesArgs & { curseurId?: nu
       guichet: true,
       critere: true,
       service: true,
+      // Vague 2 : identité des options choisies pour restituer les libellés
+      // QCM/CASES en clair (plus de `options[score_brut - 1]`).
+      optionsChoisies: { select: { id_option: true, option: { select: { id: true, libelle: true } } } },
       agence: { select: { id: true, nom_agence: true, commune: true } },
       agent: { select: { id: true, nom: true, prenom: true } },
     },
@@ -420,24 +430,10 @@ export const exportAvisGroupes = async (args: GetReponsesArgs & { curseurId?: nu
         ? parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2))
         : null;
       const texteGroupe = commentairesDeGroupe(g.reponses);
-      const decrire = (r: any): string => {
-        const lib = r.critere?.libelle_critere || 'Critère';
-        const type = r.critere?.type_reponse;
-        const texte = String(r.commentaire_texte || '').trim();
-        const specifique = texte && texte !== texteGroupe ? texte : null;
-        if (type === 'TEXTE') return `${lib}: ${specifique || texte || '—'}`;
-        if (type === 'CASES') return `${lib}: ${specifique || texte || '—'}`;
-        if (type === 'QCM') {
-          const options = String(r.critere?.options_reponse || '').split(',').map((o: string) => o.trim()).filter(Boolean);
-          return `${lib}: ${specifique || options[r.score_brut - 1] || `Option n°${r.score_brut}`}`;
-        }
-        if (type === 'OUI_NON') return `${lib}: ${r.score_brut >= 4 ? 'Oui' : 'Non'}`;
-        if (type === 'ECHELLE') {
-          const max = Number(String(r.critere?.options_reponse || '1,5').split(',')[1]) || 5;
-          return `${lib}: ${r.score_brut}/${max}`;
-        }
-        return `${lib}:${r.score_brut}`;
-      };
+      // Vague 2 : restitution centralisée (src/shared/libelleReponse.ts).
+      // L'export ne doit JAMAIS montrer un libellé déduit d'une position —
+      // si l'identité de l'option est absente, la cellule vaut « — ».
+      const decrire = (r: any): string => decrireReponse(r, { texteGroupe });
       return {
         id_soumission: g.id_soumission ?? g.cle,
         date_reponse: premiere.date_reponse,
@@ -2159,8 +2155,14 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
         id: true,
         commentaire_texte: true,
         score_brut: true,
+        score_officiel: true,
         date_reponse: true,
         guichet: { select: { nom_guichet: true } },
+        // Vague 2 : pour restituer le libellé réel du choix (QCM/CASES) et le
+        // sens d'un Oui/Non, la palette a besoin de l'identité de l'option et
+        // de l'orientation du critère — jamais d'un score deviné.
+        optionsChoisies: { select: { option: { select: { libelle: true } } } },
+        critere: { select: { type_reponse: true, libelle_critere: true, orientation: true, scoring_mode: true, options_reponse: true } },
       },
       orderBy: { date_reponse: 'desc' },
       take: 5,
@@ -2185,8 +2187,11 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
           id: r.id.toString(),
           commentaire_texte: r.commentaire_texte,
           score_brut: r.score_brut,
+          score_officiel: r.score_officiel,
           date_reponse: r.date_reponse,
           guichet: r.guichet?.nom_guichet ?? null,
+          optionsChoisies: r.optionsChoisies,
+          critere: r.critere,
         })),
   };
 };

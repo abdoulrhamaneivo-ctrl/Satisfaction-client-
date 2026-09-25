@@ -275,11 +275,6 @@ export function scoresEffectifsPourCritere(
   return inferes as number[];
 }
 
-/** Vrai si le critère porte une note (toutes options scorables). */
-export function estCritereNote(critere: CritereScorable | null | undefined): boolean {
-  return scoresEffectifsPourCritere(critere) !== null;
-}
-
 // ── Résolution au submit (serveur = autorité) ──────────────────────────────
 
 /** Index d'une option par libellé : exact normalisé, puis inclusion. */
@@ -291,58 +286,6 @@ function indexOptionParLabel(options: string[], label: string): number {
   if (i >= 0) return i;
   i = normees.findIndex((o) => o.length > 0 && (o.includes(cherche) || cherche.includes(o)));
   return i;
-}
-
-/**
- * QCM (choix unique) : score sémantique du libellé choisi.
- * null = libellé introuvable ou critère non noté → le serveur REJETTE
- * (400 : formulaire désynchronisé), il ne devine jamais.
- */
-export function resoudreScoreQCM(
-  critere: CritereScorable | null | undefined,
-  labelChoisi: string | null | undefined
-): number | null {
-  const options = parseOptionsCSV(critere?.options_reponse);
-  const scores = scoresEffectifsPourCritere(critere);
-  if (options.length === 0 || !scores) return null;
-  const i = indexOptionParLabel(options, String(labelChoisi || ''));
-  return i >= 0 ? scores[i] : null;
-}
-
-/**
- * CASES (choix multiples) : `texteJoint` = libellés cochés joints par « • »
- * (convention CollectePage). Score = MOYENNE ARRONDIS des options cochées.
- * null = aucune option coché mappable ou critère non noté → score neutre
- * historique (3, exclu des moyennes).
- */
-export function resoudreScoreCASES(
-  critere: CritereScorable | null | undefined,
-  texteJoint: string | null | undefined
-): number | null {
-  const options = parseOptionsCSV(critere?.options_reponse);
-  const scores = scoresEffectifsPourCritere(critere);
-  if (options.length === 0 || !scores) return null;
-  const labels = String(texteJoint || '')
-    .split(/[•;|]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  // Rétro-compat : anciennes soumissions jointes par « , » — on tente aussi
-  // le découpage par virgule si « • » ne donne qu'un seul morceau inconnu.
-  const morceaux =
-    labels.length === 1 && indexOptionParLabel(options, labels[0]) < 0
-      ? String(texteJoint || '')
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : labels;
-  const notes = morceaux
-    .map((l) => {
-      const i = indexOptionParLabel(options, l);
-      return i >= 0 ? scores[i] : null;
-    })
-    .filter((n): n is number => n !== null);
-  if (notes.length === 0) return null;
-  return Math.round(notes.reduce((s, n) => s + n, 0) / notes.length);
 }
 
 // ── Validation des scores explicites (create/updateCritere) ───────────────

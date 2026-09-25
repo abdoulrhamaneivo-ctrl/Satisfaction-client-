@@ -20,8 +20,23 @@ import {
 } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
 import { cn } from '../utils';
+import { reponseEnClair } from '../../shared/libelleReponse';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+
+// Vague 2 — libellés d'un résultat d'avis : plus de `${score_brut}/5` appliqué
+// à TOUT type (un QCM, un NPS ou une échelle 1-10 y affichaient une fausse
+// note sur 5). On affiche la réponse en clair ; à défaut le commentaire ; à
+// défaut de tout, l'identifiant de l'avis.
+function libelleAvis(r: any): string {
+  if (String(r.commentaire_texte || '').trim()) return String(r.commentaire_texte).trim().slice(0, 60);
+  return reponseEnClair(r) ?? `Avis ${String(r.id)}`;
+}
+
+function sousLibelleAvis(r: any): string {
+  const guichet = r.guichet ? `${r.guichet} · ` : '';
+  return guichet + (reponseEnClair(r) ?? 'sans réponse chiffrée');
+}
 
 // Actions de navigation statiques — même liste que la barre de navigation
 // (voir NavBar/constants.ts), reformatée pour la recherche : un seul niveau
@@ -178,8 +193,8 @@ export function CommandPalette() {
           titre: 'Avis clients',
           items: resultats.avis.map((r: any) => ({
             id: `avis-${r.id}`,
-            label: r.commentaire_texte?.slice(0, 60) || `Avis ${r.score_brut}/5`,
-            sublabel: r.guichet ? `${r.guichet} · ${r.score_brut}/5` : `${r.score_brut}/5`,
+            label: libelleAvis(r),
+            sublabel: sousLibelleAvis(r),
             to: '/avis',
             icon: MessageSquare,
           })),

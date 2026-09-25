@@ -2929,6 +2929,11 @@ export const duplicateCritere = async (
         scoring_mode: (original as any).scoring_mode ?? null,
         orientation: (original as any).orientation ?? 'HIGHER_BETTER',
         options_reponse: original.options_reponse,
+        // Vague 2 : le CSV des scores suit le CSV des libellés. L'original
+        // en était privé (audit P14 e) : la copie se retrouvait avec un jeu de
+        // libellés sans barème parallèle, donc une inférence lexique
+        // rejouée au lieu des scores réellement configurés.
+        scores_reponse: (original as any).scores_reponse ?? null,
         obligatoire: original.obligatoire,
         // La copie devient toujours un critère propre à l'entreprise qui
         // duplique (même si l'original était un critère socle partagé) :

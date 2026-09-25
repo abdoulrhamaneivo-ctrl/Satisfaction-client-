@@ -12,22 +12,8 @@
 import React from 'react';
 import { MessageSquareText, ListChecks, Tags, ThumbsUp, ThumbsDown, Hash } from 'lucide-react';
 import { visuelPourNote, BarreNote } from './NoteVisuel';
-
-export function optionQCMParIndex(optionsReponse: string | null | undefined, score: number): string | null {
-  const options = String(optionsReponse || '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  return options[score - 1] ?? null;
-}
-
-const normaliserEchelle = (score: number, optionsReponse?: string | null): number => {
-  const [a, b] = String(optionsReponse || '1,5').split(',');
-  const min = Number(a) || 1;
-  const max = Number(b) || 5;
-  if (!(max > min)) return score;
-  return Math.max(1, Math.min(5, 1 + ((score - min) / (max - min)) * 4));
-};
+import { reponseEnClair, reponseEstPositive, libelleOuiNon, libelleEchelle } from '../../shared/libelleReponse';
+import { scoreNormaliseSur5Client } from '../utils';
 
 const coquille = 'flex items-start gap-3 rounded-xl border border-border/40 bg-background px-3 py-2.5';
 
@@ -56,8 +42,18 @@ export const LigneReponse = ({ r, texteGroupe }: { r: any; texteGroupe?: string 
 
   // ── CASES À COCHER : les choix sous forme de chips ───────────────────────
   if (type === 'CASES') {
-    const source = texteSpecifique || (texte && !groupe ? texte : null) || texte;
-    const choix = source ? source.split('•').map((s: string) => s.trim()).filter(Boolean) : [];
+    // Vague 2 : identité des options cochées (source unique). Repli legacy :
+    // les libellés sont déjà stockés dans le commentaire, séparés par « • ».
+    const choisis = (r.optionsChoisies ?? [])
+      .map((co: any) => String(co?.option?.libelle ?? '').trim())
+      .filter(Boolean) as string[];
+    const source = choisis.length > 0
+      ? choisis
+      : (texteSpecifique || (texte && !groupe ? texte : null) || texte)
+          .split('•')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+    const choix = source;
     if (choix.length === 0) return null;
     return (
       <li className={`${coquille} flex-col !items-stretch gap-1.5`}>
@@ -77,7 +73,9 @@ export const LigneReponse = ({ r, texteGroupe }: { r: any; texteGroupe?: string 
 
   // ── QCM : le libellé choisi (jamais un index X/5) ────────────────────────
   if (type === 'QCM') {
-    const label = texteSpecifique || optionQCMParIndex(r.critere?.options_reponse, r.score_brut) || `Option n°${r.score_brut}`;
+    // Vague 2 : l'identité de l'option. Plus de `options[score - 1]`, qui
+    // pouvait nommer la MAUVAISE option quand le score n'était pas le rang.
+    const label = reponseEnClair(r, { texteGroupe: groupe }) ?? 'Réponse non restituable';
     return (
       <li className={coquille} title={libelle}>
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden>
@@ -93,21 +91,25 @@ export const LigneReponse = ({ r, texteGroupe }: { r: any; texteGroupe?: string 
 
   // ── OUI / NON : le 5 et le 1 stockés ne sont qu'un encodage ─────────────
   if (type === 'OUI_NON') {
-    const oui = r.score_brut >= 4;
+    // Vague 2 : le sens vient de l'ORIENTATION du critère. L'ancien
+    // `score_brut >= 4` affichait « Non » pour un « Oui » sur une question
+    // négative (« Avez-vous rencontré un problème ? »).
+    const oui = libelleOuiNon(r);
+    const positif = reponseEstPositive(r) ?? oui === 'Oui';
     return (
       <li className={coquille} title={libelle}>
         <span
           className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${
-            oui ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+            positif ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
           }`}
           aria-hidden
         >
-          {oui ? <ThumbsUp className="size-4" /> : <ThumbsDown className="size-4" />}
+          {positif ? <ThumbsUp className="size-4" /> : <ThumbsDown className="size-4" />}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-bold text-foreground">{libelle}</span>
-          <span className={`text-sm font-black ${oui ? 'text-success' : 'text-destructive'}`}>
-            {oui ? 'Oui' : 'Non'}
+          <span className={`text-sm font-black ${positif ? 'text-success' : 'text-destructive'}`}>
+            {oui ?? 'Réponse non restituable'}
           </span>
         </span>
       </li>
@@ -116,7 +118,11 @@ export const LigneReponse = ({ r, texteGroupe }: { r: any; texteGroupe?: string 
 
   // ── ÉCHELLE : note normalisée sur 5 + valeur brute sur son échelle ───────
   if (type === 'ECHELLE') {
-    const normalisee = normaliserEchelle(r.score_brut, r.critere?.options_reponse);
+    // Vague 2 : la normalisation passe par la règle partagée, qui lit
+    // `score_normalise` en priorité (le CES et le NPS ne sont donc plus
+    // retournés). Un effort élevé ne doit JAMAIS ressembler à une bonne note.
+    const brut = Number(r.score_officiel ?? r.score_brut);
+    const normalisee = scoreNormaliseSur5Client(r) ?? (Number.isFinite(brut) ? brut : 0);
     const [a, b] = String(r.critere?.options_reponse || '1,5').split(',');
     const max = Number(b) || 5;
     return (
@@ -129,7 +135,8 @@ export const LigneReponse = ({ r, texteGroupe }: { r: any; texteGroupe?: string 
           <BarreNote score={normalisee} />
         </span>
         <span className="shrink-0 text-sm font-bold text-foreground font-satoshi">
-          {r.score_brut}<span className="text-[11px] font-semibold text-muted-foreground">/{max}</span>
+          {Number.isFinite(brut) ? brut : '—'}
+          <span className="text-[11px] font-semibold text-muted-foreground">/{max}</span>
         </span>
       </li>
     );
