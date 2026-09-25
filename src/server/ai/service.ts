@@ -47,7 +47,14 @@ class AIServiceManager {
     return this.ordreEssai()[0] ?? this.providerName;
   }
 
-  async analyserAvis(commentaire: string, contexte?: ContextAvis): Promise<AnalyseResult> {
+  /**
+   * Analyse + traçabilité (vague 1, Phase F) : renvoie le résultat ET le
+   * provider/modèle EFFECTIVEMENT utilisé (secours inclus) pour stockage.
+   */
+  async analyserAvis(
+    commentaire: string,
+    contexte?: ContextAvis,
+  ): Promise<{ result: AnalyseResult; provider: string; model: string }> {
     const ordre = this.ordreEssai();
     if (ordre.length === 0) {
       throw new Error('Service IA non configuré (ni NVIDIA_API_KEY, ni OPENROUTER_API_KEY, ni DEEPSEEK_API_KEY).');
@@ -55,7 +62,9 @@ class AIServiceManager {
     let derniereErreur: any = null;
     for (const name of ordre) {
       try {
-        return await creerProvider(name).analyserAvis(commentaire, contexte);
+        const instance = creerProvider(name);
+        const result = await instance.analyserAvis(commentaire, contexte);
+        return { result, provider: instance.name, model: instance.nomModele() };
       } catch (err: any) {
         derniereErreur = err;
         // Bascule silencieuse sur le secours ; log serveur pour le diagnostic.

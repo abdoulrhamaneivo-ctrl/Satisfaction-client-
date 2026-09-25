@@ -7,7 +7,7 @@
 
 import { prisma } from 'wasp/server';
 import { AIService } from '../ai/service';
-import { evaluerCoherenceNote } from '../ai/types';
+import { evaluerCoherenceNote, PROMPT_VERSION } from '../ai/types';
 
 const MAX_ATTEMPTS = 3;
 
@@ -178,13 +178,19 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
           sentiment: 'NEUTRAL',
           sentimentScore: 0.5,
           themes: JSON.stringify(['AUTRE']),
+          sousThemes: JSON.stringify([]),
           problemePrincipal: null,
+          problemesSecondaires: JSON.stringify([]),
+          severite: 'LOW',
+          emotion: null,
+          confidence: 1,
           urgence: 'LOW',
           resume: "Aucun commentaire texte fourni par l'usager.",
           actionRecommandee: null,
           // Sans texte, pas de croisement possible
           coherenceNote: null,
           sentimentRetenu: null,
+          promptVersion: PROMPT_VERSION,
           processedAt: new Date(),
         },
       });
@@ -195,7 +201,9 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
     const agentNom = reponse.agent ? `${reponse.agent.prenom || ''} ${reponse.agent.nom || ''}`.trim() : null;
 
     try {
-      const result = await AIService.analyserAvis(commentaire, {
+      // Vague 1 Phase F : le service renvoie provider/modèle effectifs
+      // (secours inclus) pour traçabilité.
+      const { result, provider, model } = await AIService.analyserAvis(commentaire, {
         score: reponse.score_brut,
         agence: reponse.agence?.nom_agence,
         guichet: reponse.guichet?.nom_guichet,
@@ -219,13 +227,24 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
           sentiment: result.sentiment,
           sentimentScore: result.sentiment_score,
           themes: JSON.stringify(result.themes),
+          // Champs étendus v2 (replis si le modèle ne les renvoie pas) :
+          // severite ← urgence (même échelle), confidence ← sentiment_score.
+          sousThemes: JSON.stringify(result.sous_themes ?? []),
           problemePrincipal: result.probleme_principal || null,
+          problemesSecondaires: JSON.stringify(result.problemes_secondaires ?? []),
+          severite: result.severite ?? result.urgence,
+          emotion: result.emotion ?? null,
+          confidence: result.confidence ?? result.sentiment_score,
           urgence: result.urgence,
           resume: result.resume,
           actionRecommandee: result.action_recommandee || null,
           // Verdict de cohérence + sentiment retenu pour les statistiques
           coherenceNote: coherence.type,
           sentimentRetenu: coherence.sentiment_retenu,
+          // Traçabilité modèle (§47-48) : fini les défauts deepseek figés.
+          model,
+          provider,
+          promptVersion: PROMPT_VERSION,
           error: null,
           processedAt: new Date(),
         },

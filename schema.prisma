@@ -495,10 +495,20 @@ model AnalyseAvisIA {
   sentiment          String?  // POSITIVE, NEUTRAL, NEGATIVE, MIXED
   sentimentScore     Float?   // 0.0 à 1.0
   themes             String?  // JSON Array des thèmes contrôlés
+  // Vague 1 Phase F : analyse individuelle enrichie (§23).
+  sousThemes         String?  // JSON Array (max 5) de précisions
   problemePrincipal  String?
+  problemesSecondaires String? // JSON Array (max 3) de textes courts
+  severite           String?  // LOW, MEDIUM, HIGH, CRITICAL (gravité du pb)
+  emotion            String?  // émotion dominante perçue (1-2 mots)
+  confidence         Float?   // confiance globale 0.0-1.0 dans l'analyse
   urgence            String?  // LOW, MEDIUM, HIGH, CRITICAL
   resume             String?
   actionRecommandee  String?
+  // Traçabilité modèle (vague 1, §47-48) : prompt + analyse versionnés
+  // pour comparer les résultats dans le temps.
+  promptVersion      String?
+  analysisVersion    String?  @default("1")
   
   // Cohérence note ↔ commentaire (croisement serveur, Doc IA-2) :
   // null = pas d'évaluation (pas de note ou pas de texte). Valeurs :

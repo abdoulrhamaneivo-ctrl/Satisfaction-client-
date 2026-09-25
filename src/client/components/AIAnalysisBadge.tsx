@@ -33,6 +33,13 @@ export type AIAnalysisProps = {
     urgence?: string | null;
     resume?: string | null;
     actionRecommandee?: string | null;
+    // Vague 1 Phase F : affichés quand présents (anciens avis : absents).
+    coherenceNote?: string | null;
+    sentimentRetenu?: string | null;
+    severite?: string | null;
+    emotion?: string | null;
+    confidence?: number | null;
+    sousThemes?: string | null;
   } | null;
   className?: string;
 };
@@ -119,6 +126,22 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
           <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-2xs", urgenceCfg.bg)}>
             <AlertTriangle className="size-3" />
             {urgenceCfg.label}
+          </span>
+        )}
+
+        {/* Vague 1 Phase F : divergence note/texte + confiance. Le texte
+            prime sur la note : le responsable voit que la note brute ment. */}
+        {analyse.coherenceNote && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-warning/15 text-warning border border-warning/30">
+            <AlertTriangle className="size-3" />
+            {analyse.coherenceNote === 'NOTE_PLUS_HAUTE_QUE_TEXTE'
+              ? 'Note surévaluée vs texte'
+              : 'Note sous-évaluée vs texte'}
+          </span>
+        )}
+        {typeof analyse.confidence === 'number' && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted/80 text-muted-foreground border border-border/60">
+            Confiance IA {Math.round(analyse.confidence * 100)} %
           </span>
         )}
 

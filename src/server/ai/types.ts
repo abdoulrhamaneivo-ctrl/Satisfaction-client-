@@ -31,7 +31,23 @@ export type SentimentAutorise = typeof SENTIMENTS_AUTORISES[number];
 export const URGENCE_AUTORISES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 export type UrgenceAutorisee = typeof URGENCE_AUTORISES[number];
 
-// Schéma de validation Zod de la réponse du modèle LLM
+// Version du prompt d'analyse (vague 1, Phase F) : stockée sur chaque
+// AnalyseAvisIA (prompt_version) pour comparer les résultats dans le temps.
+// Incrémenter À CHAQUE modification d'un SYSTEM_PROMPT.
+export const PROMPT_VERSION = '2';
+
+// Fragment partagé (vague 1) : les 3 providers interpolent ce bloc dans
+// leur SYSTEM_PROMPT — une seule source au lieu de 3 copies divergentes.
+export const CHAMPS_ETENDUS_PROMPT = `Champs étendus — ajoute-les au JSON :
+- "sous_themes" : tableau (max 5) de précisions parmi les thèmes autorisés, ou tableau vide.
+- "problemes_secondaires" : tableau (max 3) de problèmes secondaires en texte court (max 120 caractères), ou tableau vide.
+- "severite" : gravité du problème principal ["LOW", "MEDIUM", "HIGH", "CRITICAL"] — gêne sans impact = LOW, dysfonctionnement avéré = MEDIUM, préjudice ou risque = HIGH, danger/accusation grave/fraude = CRITICAL. Sans problème : "LOW".
+- "emotion" : émotion dominante perçue en un ou deux mots (ex. "colère", "déception", "satisfaction"), ou null si indéterminable.
+- "confidence" : confiance globale 0.0-1.0 dans CETTE analyse (clarté du texte, volume d'indices, ambiguïtés). Texte vague ou contradictoire = confiance basse, jamais de faux semblant de certitude.`;
+
+// Schéma de validation Zod de la réponse du modèle LLM.
+// Les champs étendus (v2) sont OPTIONNELS : un provider en retard ou un
+// modèle verbeux reste accepté, le job applique des replis documentés.
 export const AnalyseResultSchema = z.object({
   sentiment: z.enum(SENTIMENTS_AUTORISES),
   sentiment_score: z.number().min(0).max(1),
@@ -40,6 +56,11 @@ export const AnalyseResultSchema = z.object({
   urgence: z.enum(URGENCE_AUTORISES),
   resume: z.string().max(300),
   action_recommandee: z.string().max(300).nullable().optional(),
+  sous_themes: z.array(z.enum(THEMES_AUTORISES)).max(5).optional(),
+  problemes_secondaires: z.array(z.string().max(120)).max(3).optional(),
+  severite: z.enum(URGENCE_AUTORISES).optional(),
+  emotion: z.string().max(40).nullable().optional(),
+  confidence: z.number().min(0).max(1).optional(),
 });
 
 export type AnalyseResult = z.infer<typeof AnalyseResultSchema>;
@@ -130,5 +151,7 @@ export type ContextAvis = {
 
 export interface AIProvider {
   name: string;
+  /** Modèle effectif (pour traçabilité : stocké sur l'analyse). */
+  nomModele(): string;
   analyserAvis(commentaire: string, contexte?: ContextAvis): Promise<AnalyseResult>;
 }

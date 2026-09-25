@@ -4,7 +4,7 @@
 // ~40 req/min par clé partagée entre tous les modèles (pas de SLA).
 // Prod = licence NVIDIA AI Enterprise. Voir docs : build.nvidia.com
 import OpenAI from 'openai';
-import { AIProvider, AnalyseResult, AnalyseResultSchema, ContextAvis } from './types';
+import { AIProvider, AnalyseResult, AnalyseResultSchema, CHAMPS_ETENDUS_PROMPT, ContextAvis } from './types';
 
 const SYSTEM_PROMPT = `Tu es le moteur d'analyse des avis clients de YEBA.
 
@@ -47,6 +47,8 @@ La NOTE (1-5) et le TEXTE du commentaire sont deux signaux indépendants. Tu re�
 2. Le champ "resume" doit mentionner explicitement l'écart quand il existe (ex. « Note 5/5 en décalage avec un commentaire décrivant un long problème d'attente »).
 3. Si le texte décrit un problème grave, ajuste "urgence" en conséquence MÊME SI la note est haute — une note 5/5 n'annule pas un problème réel.
 
+${CHAMPS_ETENDUS_PROMPT}
+
 N'ajoute aucun texte en dehors du JSON.`;
 
 // Modèle Mistral par défaut sur NIM. Testé le 08/09/2026 :
@@ -68,6 +70,11 @@ function estErreurRateLimit(err: any): boolean {
 }
 
 export class NvidiaProvider implements AIProvider {
+  /** Modèle effectif (traçabilité Phase F). */
+  nomModele(): string {
+    return this.model;
+  }
+
   name = 'nvidia';
   private client: OpenAI | null = null;
   private model: string;
