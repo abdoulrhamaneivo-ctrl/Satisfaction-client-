@@ -566,6 +566,14 @@ export const getCriteres = async (_args: void, context: any) => {
       ],
     },
     orderBy: { id: 'asc' },
+    // Vague 1 (écran d'administration) : options actives pour l'éditeur
+    // (scores/poids/ordre). Pas de secret : c'est la config de l'entreprise.
+    include: {
+      options: {
+        where: { actif: true },
+        orderBy: { ordre_affichage: 'asc' },
+      },
+    },
   });
 };
 
