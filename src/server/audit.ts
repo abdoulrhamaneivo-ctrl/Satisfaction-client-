@@ -34,6 +34,7 @@ export type AuditAction =
   | '2fa.setup'
   | '2fa.activate'
   | '2fa.verify'
+  | '2fa.failed'
   | 'rateLimit.exceeded';
 
 export interface JournaliserArgs {

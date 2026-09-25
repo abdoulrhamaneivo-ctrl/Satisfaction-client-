@@ -16,7 +16,10 @@
 export type ReponseAvecSoumission = {
   id: number | string | bigint;
   id_soumission?: string | null;
-  score_brut: number;
+  // Vague 1 : score_brut est NULLable (NULL = réponse non notable : TEXTE,
+  // CASES catégoriel, QCM non valencé). scoreNormaliseSur5 renvoie null
+  // pour ces lignes → exclues des moyennes, jamais de 0/3 déguisé.
+  score_brut: number | null;
   critere?: {
     type_reponse?: string | null;
     options_reponse?: string | null;
@@ -89,6 +92,10 @@ export function compterAvis<T extends ReponseAvecSoumission>(reponses: T[]): num
  * les inclure dans une moyenne créerait un score artificiel.
  */
 export function scoreNormaliseSur5(reponse: ReponseAvecSoumission): number | null {
+  // Vague 1 : un score_brut NULL (non notable) ne produit jamais de note —
+  // sans ce garde, le calcul ECHELLE produirait NaN qui polluerait les
+  // moyennes (NaN !== null donc non filtré).
+  if (reponse.score_brut == null) return null;
   const type = reponse.critere?.type_reponse;
   if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
 

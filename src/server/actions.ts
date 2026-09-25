@@ -447,17 +447,17 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   const ipClient = extraireIp(context);
   const rl1 = await checkRateLimit(`avis:${ipClient}:${idGuichetEffectif}`, { capacity: 8, refillPerMinute: 2 });
   if (!rl1.allowed) {
-    await journaliser(context, 'rateLimit.exceeded', 'soumettreAvis', { cle: `ip:guichet:${ipClient}:${idGuichetEffectif}`, retryAfter: rl1.retryAfterSeconds });
+    await journaliser({ context, action: 'rateLimit.exceeded', resource: 'soumettreAvis', details: { cle: `ip:guichet:${ipClient}:${idGuichetEffectif}`, retryAfter: rl1.retryAfterSeconds } });
     throw new HttpError(429, `Trop de soumissions depuis cet appareil pour ce guichet. Réessayez dans ${rl1.retryAfterSeconds} s.`, { headers: { 'Retry-After': String(rl1.retryAfterSeconds) } });
   }
   const rl2 = await checkRateLimit(`avis:${ipClient}`, { capacity: 30, refillPerMinute: 10 });
   if (!rl2.allowed) {
-    await journaliser(context, 'rateLimit.exceeded', 'soumettreAvis', { cle: `ip:${ipClient}`, retryAfter: rl2.retryAfterSeconds });
+    await journaliser({ context, action: 'rateLimit.exceeded', resource: 'soumettreAvis', details: { cle: `ip:${ipClient}`, retryAfter: rl2.retryAfterSeconds } });
     throw new HttpError(429, `Trop de soumissions depuis cette connexion. Réessayez dans ${rl2.retryAfterSeconds} s.`, { headers: { 'Retry-After': String(rl2.retryAfterSeconds) } });
   }
   const rl3 = await checkRateLimit(`avis:guichet:${idGuichetEffectif}`, { capacity: 100, refillPerMinute: 100 });
   if (!rl3.allowed) {
-    await journaliser(context, 'rateLimit.exceeded', 'soumettreAvis', { cle: `guichet:${idGuichetEffectif}`, retryAfter: rl3.retryAfterSeconds });
+    await journaliser({ context, action: 'rateLimit.exceeded', resource: 'soumettreAvis', details: { cle: `guichet:${idGuichetEffectif}`, retryAfter: rl3.retryAfterSeconds } });
     throw new HttpError(429, `Guichet saturé. Réessayez dans ${rl3.retryAfterSeconds} s.`, { headers: { 'Retry-After': String(rl3.retryAfterSeconds) } });
   }
 
@@ -1925,7 +1925,7 @@ export const demanderReinitialisation = async (args: { email: string }, context:
 
   // Anti-abus : 5 demandes/2 h par IP (un robot ne doit pas spammer la boîte
   // d'un agent ni épuiser le quota Brevo).
-  const rl = checkRateLimit(`reset-mdp:${extraireIp(context)}`, { capacity: 5, refillPerMinute: 0.5 });
+  const rl = await checkRateLimit(`reset-mdp:${extraireIp(context)}`, { capacity: 5, refillPerMinute: 0.5 });
   if (!rl.allowed) {
     throw new HttpError(429, `Trop de demandes. Réessayez dans ${rl.retryAfterSeconds} secondes.`);
   }

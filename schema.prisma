@@ -61,8 +61,10 @@ model User {
   invitationsEmises             Invitation[]             @relation("InvitationEmetteur")
   auditLogs                     AuditLog[]               @relation("AuditActeur")
 
-    // C5 (J+30) : Sessions révocables
-    sessions                      Session[]
+    // C5 (J+30) : Sessions révocables applicatives. Modèle nommé
+    // UserSession (et non Session) car Wasp injecte déjà son propre modèle
+    // Session pour l'auth — un doublon de nom fait échouer le build.
+    sessions                      UserSession[]
 
     affectations                  AffectationGuichet[]
   modelesHoraires              ModeleHoraire[]          @relation("ModeleHoraireAgent")
@@ -242,8 +244,21 @@ model Critere {
   
   // === NOUVEAUX CHAMPS DYNAMIQUES ===
   // SMILEY, OUI_NON, QCM (choix unique), TEXTE (texte libre),
-  // CASES (choix multiples / checkboxes), ECHELLE (échelle linéaire, ex. 1-10)
+  // CASES (choix multiples / checkboxes), ECHELLE (échelle linéaire, ex. 1-10),
+  // NPS (0-10 : détracteurs/passifs/promoteurs)
   type_reponse        String            @default("SMILEY")
+  // Mode de scoring fin (vague 1) : NULL = déduit du type_reponse.
+  // Pour CASES : 'CATEGORICAL' (stats %, jamais noté) ou 'WEIGHTED'
+  // (poids +/-, base 100 + Σ clampé 0-100). Valeurs : ORDINAL | BINARY |
+  // NUMERIC | SMILEY | NPS | CASES_CATEGORICAL | CASES_WEIGHTED | FREE_TEXT.
+  scoring_mode        String?
+  // Orientation de la note : HIGHER_BETTER (défaut) ou LOWER_BETTER
+  // (ex. « Avez-vous rencontré un problème ? » Oui = négatif).
+  orientation         String            @default("HIGHER_BETTER")
+  // Version du scoring : incrémentée à chaque modification des options ou
+  // du mode. Stampée sur Reponse.critere_version pour la traçabilité
+  // historique (un questionnaire modifié ne réinterprète pas le passé).
+  version             Int               @default(1)
   // QCM / CASES : choix séparés par des virgules.
   // ECHELLE : "min,max" (ex. "1,10"). Vide = échelle 1-5 par défaut.
   options_reponse     String?
@@ -279,6 +294,71 @@ model Critere {
   // glisser-déposer les questions pour les réordonner ou les déplacer
   // d'une opération à l'autre (voir CritereService plus bas).
   criteresServices    CritereService[]
+  // Options métier (vague 1) : source de vérité du scoring (voir
+  // OptionCritere ci-dessous). options_reponse/scores_reponse (CSV)
+  // restent en lecture pour rétrocompatibilité.
+  options             OptionCritere[]
+}
+
+// ============================================================================
+// OPTIONS MÉTIER D'UN CRITÈRE (vague 1 — scoring admin-proof)
+// ============================================================================
+// Chaque option a une identité stable (id cuid) : l'ordre d'affichage peut
+// changer sans modifier les scores. Unicité sur le libellé NORMALISÉ
+// (minuscules, sans accents) : « Très satisfait » ≡ « tres satisfait ».
+// Règle d'or : ne JAMAIS supprimer physiquement une option déjà utilisée
+// par un avis — passer actif=false (l'historique reste interprétable).
+// ============================================================================
+
+model OptionCritere {
+  id                String   @id @default(cuid())
+
+  id_critere        Int
+  critere           Critere  @relation(fields: [id_critere], references: [id], onDelete: Cascade)
+
+  libelle           String
+  libelle_normalise String
+  ordre_affichage   Int      @default(0)
+  actif             Boolean  @default(true)
+
+  // false = option purement catégorielle (ex. motif « Retrait ») : jamais
+  // notée, sert aux stats de répartition uniquement.
+  est_scorable      Boolean  @default(true)
+
+  // Score sémantique 1..5 (NULL = non valencé). Indépendant de
+  // ordre_affichage : c'est CE champ qui fait foi, jamais la position.
+  score             Int?
+
+  // CASES_WEIGHTED : poids + (atout) ou - (irritant), ex. -25.
+  poids             Int?
+
+  valeur_metier     String?
+  code_metier       String?
+
+  reponses          ReponseOption[]
+
+  @@unique([id_critere, libelle_normalise])
+  @@index([id_critere, ordre_affichage])
+}
+
+// ============================================================================
+// JONCTION RÉPONSE <-> OPTIONS (vague 1)
+// ============================================================================
+// QCM : exactement 1 ligne. CASES : 1 ligne par case cochée.
+// Les statistiques travaillent sur ces identifiants, JAMAIS sur le texte
+// joint « • » (conservé dans Reponse.commentaire_texte pour affichage et
+// historique uniquement).
+// ============================================================================
+
+model ReponseOption {
+  id_reponse  BigInt
+  reponse     Reponse       @relation(fields: [id_reponse], references: [id], onDelete: Cascade)
+
+  id_option   String
+  option      OptionCritere @relation(fields: [id_option], references: [id], onDelete: Restrict)
+
+  @@id([id_reponse, id_option])
+  @@index([id_option])
 }
 
 // Table de jonction explicite Critère <-> Opération (Service). Remplace
@@ -341,7 +421,23 @@ model Canal {
 model Reponse {
   id                  BigInt            @id @default(autoincrement())
   date_reponse        DateTime          @default(now())
-  score_brut          Int
+  // LEGACY (lecture seule) : historiquement NOT NULL, ce qui forçait des
+  // 3 fantômes sur TEXTE/CASES. Nullable depuis la vague 1 : NULL = non
+  // notable. Les anciennes lignes gardent leur valeur + score_source =
+  // LEGACY_POSITIONAL (jamais réécrites).
+  score_brut          Int?
+  // Score officiel (vague 1) : calcul déterministe serveur via OptionCritere.
+  // NULL = réponse non notable (TEXTE, CASES catégoriel, QCM non valencé).
+  // L'IA ne l'écrit JAMAIS (pas de source AI dans score_source).
+  score_officiel      Int?
+  // Score normalisé canonique /100 (vague 1) : ECHELLE via ratio,
+  // 1..5 via (s-1)/4*100, NPS via catégorie. NULL si non notable.
+  score_normalise     Float?
+  // EXPLICIT (config métier) | INFERRED (inférence lexicale stockée) |
+  // LEGACY_POSITIONAL (ancien index+1) | MIGRATED (backfill CSV→options).
+  score_source        String?
+  // Version du critère au moment de la réponse (traçabilité historique).
+  critere_version     Int?
   audio_url           String?
   commentaire_texte   String?
   id_soumission       String?
@@ -366,6 +462,7 @@ model Reponse {
   
   alertes             Alerte[]
   analyseIA           AnalyseAvisIA?
+  optionsChoisies     ReponseOption[]
 
   // PERFORMANCE : toutes les stats (dashboard, rapport, radar) filtrent par
   // (agence, période) ou (guichet, période) ; le rattachement avis→agent du
@@ -651,9 +748,11 @@ model BrandingConfig {
 }
 
 // ============================================================================
-// C5 (J+30) : Sessions révocables — table dédiée pour révocation immédiate
+// C5 (J+30) : Sessions révocables applicatives — table dédiée pour
+// révocation immédiate. Nommée UserSession car Wasp fournit déjà un modèle
+// Session (auth) : tout autre nom casserait `wasp build` (P1012).
 // ============================================================================
-model Session {
+model UserSession {
   id              String   @id @default(uuid())
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -27,7 +27,7 @@
 // ============================================================================
 
 import { PrismaClient } from '@prisma/client';
-import { chiffrerSecretTotp, dechiffrerSecretTotpAvecStatut } from '../totp.ts';
+import { chiffrerSecretTotp, dechiffrerSecretTotpAvecStatut } from '../totp';
 
 const APPLIQUER = process.argv.includes('--appliquer');
 

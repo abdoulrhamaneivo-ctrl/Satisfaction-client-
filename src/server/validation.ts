@@ -6,6 +6,33 @@
 
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js';
 import crypto from 'node:crypto';
+import { HttpError } from 'wasp/server';
+import * as z from 'zod';
+
+/**
+ * Valide rawArgs contre un schéma Zod, sinon HttpError 400.
+ * Restauré (était supprimé par erreur) : utilisé par file-upload/operations
+ * et user/accountsActions.
+ */
+export function ensureArgsSchemaOrThrowHttpError<Schema extends z.ZodType>(
+  schema: Schema,
+  rawArgs: unknown,
+): z.infer<Schema> {
+  const parseResult = schema.safeParse(rawArgs);
+  if (!parseResult.success) {
+    console.error(
+      new Error(
+        'Operation arguments validation failed:\n' +
+          z.prettifyError(parseResult.error),
+        { cause: parseResult.error },
+      ),
+    );
+    throw new HttpError(400, 'Operation arguments validation failed', {
+      cause: parseResult.error,
+    });
+  }
+  return parseResult.data;
+}
 
 /** Normalise un téléphone vers E.164 CI (+225XXXXXXXXXX). Lève si invalide. */
 export function normaliserTelephoneE164(tel: string): string {

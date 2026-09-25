@@ -31,7 +31,15 @@ function CreateCompanyInner() {
   const creer = useAction(creerEntreprise)
 
   // C5/UX : Persistance formulaire (localStorage) — ne perd plus les données au changement d'onglet
-  const initialForm = {
+  // Annotation explicite : sans elle, les littéraux de PLANS (as const)
+  // figent limite_agences/plan en types littéraux et cassent setForm.
+  const initialForm: {
+    nom_entreprise: string; nom_court: string; email_administratif: string;
+    telephone: string; pays: string; admin_prenom: string; admin_nom: string;
+    admin_email: string; admin_telephone: string; plan: string;
+    limite_agences: number; limite_utilisateurs: number; limite_guichets: number;
+    totpCode: string; mode: string; agence_nom: string; agence_commune: string;
+  } = {
     nom_entreprise: '',
     nom_court: '',
     email_administratif: '',
