@@ -57,6 +57,26 @@ const DELAI_AVANCE_APRES_SAVE_MS = 1400;
 // Borne partagée : reset automatique pour le client suivant.
 const DELAI_RESET_BORNE_MS = 10000;
 
+/**
+ * Identifiant de soumission (idempotence côté serveur).
+ * `crypto.randomUUID` n'existe qu'en contexte SÉCURISÉ : une borne servie en
+ * HTTP sur réseau local — déploiement de référence — n'en a pas. On propose
+ * donc un repli, jamais une exception : une soumission bloquée sans message
+ * est le pire scénario pour un client qui a répondu à tout.
+ */
+export const genererIdSoumission = (): string => {
+  const uuid = (globalThis.crypto as Crypto | undefined)?.randomUUID;
+  if (typeof uuid === 'function') {
+    try {
+      return uuid.call(globalThis.crypto);
+    } catch {
+      /* contexte non sécurisé malgré tout : on retombe plus bas */
+    }
+  }
+  const alea = Math.random().toString(36).slice(2, 10);
+  return `s-${Date.now().toString(36)}-${alea}-${alea}`;
+};
+
 const normaliserTelephone = (valeur: string): string => {
   const chiffres = valeur.replace(/[^\d]/g, '');
   if (!chiffres) return '';
@@ -110,6 +130,12 @@ export const CollectePage = () => {
   const avanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titreRef = useRef<HTMLHeadingElement | null>(null);
+  // Miroirs des champs de l'étape commentaire, lisibles depuis le
+  // nettoyage de l'onglet (le handler de démontage est capturé une fois).
+  const commentaireRef = useRef('');
+  const telephoneRef = useRef('');
+  commentaireRef.current = commentaire;
+  telephoneRef.current = telephone;
 
   const annulerDelais = () => {
     for (const r of [delaiRef, autosaveRef, avanceRef, resetRef]) {
@@ -132,7 +158,28 @@ export const CollectePage = () => {
   }, [currentQuestionIndex, step]);
 
   useEffect(() => () => {
-    annulerDelais();
+    // Vague 1 (P13) : à la fermeture de l'onglet, un debounce d'autosave en
+    // vol disappearait sans rien envoyer. On tente un envoi de dernière
+    // chance (le navigateur peut l'annuler, mais ce n'est plus une perte
+    // certaine) au lieu d'annuler bêtement le minuteur.
+    if (autosaveRef.current) {
+      clearTimeout(autosaveRef.current);
+      const texte = commentaireRef.current.trim();
+      const tel = telephoneRef.current.trim();
+      if ((texte || tel) && t1.etat === 'envoye') {
+        void completerSoumission({
+          id_soumission: soumissionIdRef.current ?? undefined,
+          ...(texte ? { commentaire: texte } : {}),
+          ...(tel ? { telephone: normaliserTelephone(tel) } : {}),
+        }).catch(() => undefined);
+      }
+    }
+    for (const r of [delaiRef, avanceRef, resetRef]) {
+      if (r.current) {
+        clearTimeout(r.current);
+        r.current = null;
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -166,6 +213,53 @@ export const CollectePage = () => {
       }
     }
   }, [formDef]);
+
+  // ── Effets de cycle de vie (déclarés AVANT tout retour conditionnel) ──
+  // Règles des hooks : un useEffect placé APRÈS un `if (…) return` est un bug
+  // d'hooks conditionnels — React lève « Rendered more hooks than during the
+  // previous render » dès que l'état passe de « chargement » à « contenu ».
+  // C'était le cas ici : le parcours de collecte plantait au chargement du
+  // questionnaire, et la base ne contenait aucune soumission (constat
+  // indirect mais convergent). Les deux effets ci-dessous sont donc remontés
+  // au-dessus des retours, et leurs fonctions utilisées en
+  //  (hoistées) pour éviter toute référence avant déclaration.
+
+  // Debounce T2 : rien n'est envoyé pendant la frappe.
+  useEffect(() => {
+    if (step !== 'COMMENT_STEP' || t1.etat !== 'envoye') return;
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    const texte = commentaire.trim();
+    const tel = telephone.trim();
+    if (!texte && !tel) return;
+    autosaveRef.current = setTimeout(() => {
+      autosaveRef.current = null;
+      void sauvegarderT2(texte, tel);
+    }, DELAI_AUTOSAVE_T2_MS);
+    return () => {
+      if (autosaveRef.current) {
+        clearTimeout(autosaveRef.current);
+        autosaveRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commentaire, telephone, step, t1.etat]);
+
+  // Borne partagée : reset automatique après Merci pour le client suivant.
+  useEffect(() => {
+    if (step !== 'SUCCESS') return;
+    if (resetRef.current) clearTimeout(resetRef.current);
+    resetRef.current = setTimeout(() => {
+      resetRef.current = null;
+      resetAll();
+    }, DELAI_RESET_BORNE_MS);
+    return () => {
+      if (resetRef.current) {
+        clearTimeout(resetRef.current);
+        resetRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   if (isLoading) {
     return (
@@ -209,7 +303,7 @@ export const CollectePage = () => {
     return message || "Une erreur est survenue lors de la soumission de votre avis. Veuillez réessayer.";
   };
 
-  const resetAll = () => {
+  function resetAll() {
     annulerDelais();
     setAnswers([]);
     setCurrentQuestionIndex(0);
@@ -273,7 +367,16 @@ export const CollectePage = () => {
       setT1({ etat: 'erreur', erreur: 'Veuillez répondre à au moins une question.' });
       return;
     }
-    if (!soumissionIdRef.current) soumissionIdRef.current = crypto.randomUUID();
+    // Vague 1 (P7) : `crypto.randomUUID()` n'existe pas en contexte non
+    // sécurisé — c'est le cas d'une borne servie en HTTP sur un réseau local,
+    // qui est le déploiement de référence de ce produit. L'appel était hors du
+    // try : le client restait bloqué sur sa dernière question, sans message,
+    // sans spinner, sans issue. On encapsule et on retombe sur un identifiant
+    // toujours disponible (l'idempotence reste garantie côté serveur par le
+    // verrou consultatif, même si un UUID faible était deviné).
+    if (!soumissionIdRef.current) {
+      soumissionIdRef.current = genererIdSoumission();
+    }
     setT1({ etat: 'encours', erreur: null });
 
     try {
@@ -307,12 +410,15 @@ export const CollectePage = () => {
 
   // T2 — commentaire/téléphone auto-sauvés sur la MÊME soumission (30 min).
   // Si le client quitte après T1, ses notes sont déjà enregistrées.
-  const sauvegarderT2 = async (texte: string, tel: string) => {
+  // Retourne `true` si le commentaire est persisté (ou s'il n'y avait rien à
+  // envoyer) — le retour permet à « Passer » de ne pas avancer si l'envoi a
+  // échoué, plutôt que de perdre la saisie.
+  async function sauvegarderT2(texte: string, tel: string): Promise<boolean> {
     const idSoumission = soumissionIdRef.current;
-    if (!idSoumission || t1.etat !== 'envoye') return;
+    if (!idSoumission || t1.etat !== 'envoye') return true;
     const signature = JSON.stringify([texte, tel]);
-    if (dernierSaveT2Ref.current === signature) return;
-    if (!texte && !tel) return;
+    if (dernierSaveT2Ref.current === signature) return true;
+    if (!texte && !tel) return true;
     setT2({ etat: 'saving', erreur: null });
     try {
       await completerSoumission({
@@ -328,50 +434,16 @@ export const CollectePage = () => {
         avanceRef.current = null;
         setStep('SUCCESS');
       }, DELAI_AVANCE_APRES_SAVE_MS);
+      return true;
     } catch (err: any) {
       if ((import.meta as any).env?.DEV) {
         console.error("Erreur lors de l'enregistrement du commentaire:", err);
       }
       setT2({ etat: 'error', erreur: messageErreurSubmit(err) });
+      return false;
     }
   };
 
-  // Debounce T2 : rien n'est envoyé pendant la frappe.
-  useEffect(() => {
-    if (step !== 'COMMENT_STEP' || t1.etat !== 'envoye') return;
-    if (autosaveRef.current) clearTimeout(autosaveRef.current);
-    const texte = commentaire.trim();
-    const tel = telephone.trim();
-    if (!texte && !tel) return;
-    autosaveRef.current = setTimeout(() => {
-      autosaveRef.current = null;
-      void sauvegarderT2(texte, tel);
-    }, DELAI_AUTOSAVE_T2_MS);
-    return () => {
-      if (autosaveRef.current) {
-        clearTimeout(autosaveRef.current);
-        autosaveRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commentaire, telephone, step, t1.etat]);
-
-  // Borne partagée : reset automatique après Merci pour le client suivant.
-  useEffect(() => {
-    if (step !== 'SUCCESS') return;
-    if (resetRef.current) clearTimeout(resetRef.current);
-    resetRef.current = setTimeout(() => {
-      resetRef.current = null;
-      resetAll();
-    }, DELAI_RESET_BORNE_MS);
-    return () => {
-      if (resetRef.current) {
-        clearTimeout(resetRef.current);
-        resetRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
 
   const avancer = (reponse: ReponseCollecte) => {
     const nouvelles = [...answers];
@@ -436,10 +508,27 @@ export const CollectePage = () => {
     }
   };
 
-  const passerAuMerci = () => {
+  // Vague 1 (P13) : « Passer » NE DOIT PLUS JETER le commentaire en cours.
+  // L'ancien code annulait le debounce d'autosave sans rien envoyer : un
+  // client qui écrivait puis cliquait « Passer » dans les 900 ms perdait son
+  // texte silencieusement. On force donc l'envoi immédiat avant l'écran de
+  // remerciement.
+  const passerAuMerci = async () => {
+    const texte = commentaire.trim();
+    const tel = telephone.trim();
     if (autosaveRef.current) {
       clearTimeout(autosaveRef.current);
       autosaveRef.current = null;
+    }
+    if (avanceRef.current) {
+      clearTimeout(avanceRef.current);
+      avanceRef.current = null;
+    }
+    if (texte || tel) {
+      // Échec de cet envoi : on reste sur l'étape commentaire avec le
+      // message d'erreur — jamais de passage à « Merci » en perdant le texte.
+      const ok = await sauvegarderT2(texte, tel);
+      if (!ok) return;
     }
     if (avanceRef.current) {
       clearTimeout(avanceRef.current);

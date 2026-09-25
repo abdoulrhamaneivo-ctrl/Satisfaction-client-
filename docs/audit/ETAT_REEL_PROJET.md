@@ -411,8 +411,18 @@ dérivé autrement.
 | **P9** plafond du budget IA globale | MOYEN | ⬜ ouvert | vague 6 |
 | **P10** priorité LLM inventée | MOYEN | ⬜ ouvert | vague 6 |
 | **P11** surface publique (3 trous + 2 faiblessesses) | MOYEN | ⬜ ouvert | vague 5 |
-| **P13** pertes de données sur la collecte | MOYEN | ⬜ ouvert | vague 3 |
+| **P13** pertes de données sur la collecte | MOYEN | ✅ **corrigé** | « Passer » force l'envoi du commentaire au lieu d'annuler le debounce ; envoi de dernière chance à la fermeture de l'onglet ; `crypto.randomUUID` encapsulé (borne en HTTP non sécurisé) — branche `hermes/v3-collecte` |
+| **P15** parcours de collecte **non fonctionnel** (bug trouvé en Vague 3) | CRITIQUE | ✅ **corrigé** | deux `useEffect` déclarés **après** un `if (…) return` → React lève « Rendered more hooks than during the previous render » dès que le questionnaire est chargé. La page de collecte **plantait** : cohérent avec la base vide (0 `Reponse`). Hooks remontés au-dessus des retours conditionnels, 13 tests de parcours ajoutés |
 | **P14 a→l** dette, code mort, index, énumérations, migrations liées | FAIBLE | 🟡 partiel | code mort et `duplicateCritere` corrigés en vague 2 ; reste en vague 4 |
+
+> **P15 est le constat le plus important de cette campagne.** Il n'a pas été
+> trouvé par la relecture du code de scoring ni par l'audit §10 : il est
+> apparu quand les tests de parcours ont monté la page pour de vrai
+> (`src/client/pages/CollectePage.test.tsx`). Un composant qui déclare des
+> hooks après un retour conditionnel casse **tout le parcours de collecte** —
+> et rien ne le révélait tant que personne n'avait soumis un avis : la base
+> contenait 0 ligne `Reponse` à l'audit. Les tests de flux ne sont pas un
+> luxe de couverture, c'est ce qui a trouvé le bug.
 
 **CRITIQUE : 0** · **ÉLEVÉ : 0** · **MOYEN : 6 ouverts** · **FAIBLE : 1 reliquat partiel**.
 
