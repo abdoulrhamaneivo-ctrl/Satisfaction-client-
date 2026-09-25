@@ -14,26 +14,28 @@ export interface PerimetreGlobal {
   id_entreprise: number;
   debut: Date;
   fin: Date;
+  /** Restreint aux agences listées (vue chef d'agence). Défaut : tout le réseau. */
+  idsAgences?: number[];
 }
 
-export interface LigneAgence {
+export type LigneAgence = {
   id: number;
   nom: string;
   volume: number;
   csat: number | null;
 }
 
-export interface ThemeCompte {
+export type ThemeCompte = {
   theme: string;
   count: number;
 }
 
-export interface ThemeDetail extends ThemeCompte {
+export type ThemeDetail = ThemeCompte & {
   severiteMax: string;
   agencesDistinctes: number;
 }
 
-export interface AgregatsGlobaux {
+export type AgregatsGlobaux = {
   volumeAvis: number;
   volumeNotables: number;
   volumeCommentaires: number;
@@ -128,7 +130,11 @@ export function prioriserIrritants(entrees: EntreeIrritant[]): IrritantPriorise[
 /** Calcule les agrégats déterministes d'un périmètre (requêtes scopées tenant). */
 export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<AgregatsGlobaux> {
   const agences = await db.agence.findMany({
-    where: { id_entreprise: p.id_entreprise, archive: false },
+    where: {
+      id_entreprise: p.id_entreprise,
+      archive: false,
+      ...(p.idsAgences && p.idsAgences.length > 0 ? { id: { in: p.idsAgences } } : {}),
+    },
     select: { id: true, nom_agence: true },
     orderBy: { id: 'asc' },
   });

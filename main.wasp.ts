@@ -133,7 +133,8 @@ import {
   getArchives,
   getAIStatus,
   getThemesStats,
-  getComparaisonAgences,} from "./src/server/queries" with { type: "ref" };
+  getComparaisonAgences,
+  getIndicateursExperience,} from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
 import { authConfig, authSpec } from "./src/auth/auth.wasp";
@@ -266,6 +267,8 @@ const getRechercheGlobaleQuery = query(getRechercheGlobale, { entities: ["Agence
 const getArchivesQuery = query(getArchives, { entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User", "Entreprise"] });
 const getAIStatusQuery = query(getAIStatus, { entities: ["AnalyseAvisIA", "Entreprise"] });
 const getThemesStatsQuery = query(getThemesStats, { entities: ["AnalyseAvisIA", "Agence", "Reponse", "Entreprise"] });
+// Indicateurs d'expérience, zone décisionnelle (§49) : même moteur que l'IA globale.
+const getIndicateursExperienceQuery = query(getIndicateursExperience, { entities: ["Reponse", "AnalyseAvisIA", "Agence", "Guichet", "Service", "Critere", "GlobalExperienceAnalysis", "Entreprise"] });
 // IA globale (vague 1, Phase G) : lectures scoped entreprise + déclenchement DIRECTION.
 const getAnalysesGlobalesQuery = query(getAnalysesGlobales, { entities: ["GlobalExperienceAnalysis", "Entreprise"] });
 const declencherAnalyseGlobaleAction = action(declencherAnalyseGlobale, { entities: ["GlobalExperienceAnalysis", "Entreprise"] });
@@ -461,6 +464,7 @@ export default app({
     getArchivesQuery,
     getAIStatusQuery,
     getThemesStatsQuery,
+    getIndicateursExperienceQuery,
     getAnalysesGlobalesQuery,
     declencherAnalyseGlobaleAction,
     // SAAS Platform

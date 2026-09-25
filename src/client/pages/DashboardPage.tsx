@@ -15,6 +15,7 @@ import {
   getComparaisonAgences,
   getTempsTraitement,
   getThemesStats,
+  getIndicateursExperience,
 } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { Link as WaspRouterLink, routes } from 'wasp/client/router';
@@ -119,6 +120,13 @@ export const DashboardPage = () => {
     { enabled: !loadingKpis } as any, // différé : après le premier écran (KPI)
   );
   const { data: themesStats, isLoading: loadingThemes } = useQuery(getThemesStats, { nbJours: periodeJours });
+  // Vague 1 Phase I (§49, zone 1) : même moteur que l'IA globale — une
+  // seule vérité statistique pour le dashboard et les synthèses.
+  const { data: experience, isLoading: loadingExperience } = useQuery(
+    getIndicateursExperience,
+    { nbJours: periodeJours },
+    { enabled: aUnTenant } as any,
+  );
 
   const reponsesList: any[] = reponses || [];
   const avisGroupes = regrouperAvisParSoumission(reponsesList);
@@ -138,6 +146,12 @@ export const DashboardPage = () => {
   const labelPeriode = periodeJours === 1 ? '24h' : `${periodeJours}j`;
 
   const alertesNouvelles = alertesList.filter((a: any) => a.statut_alerte === 'NOUVELLE').length;
+
+  // Vague 1 Phase I : NPS scopé (null = pas de question NPS sur la période).
+  const npsAgregat: { nps: number } | null =
+    (experience as any)?.agregats?.nps && typeof (experience as any).agregats.nps.nps === 'number'
+      ? { nps: (experience as any).agregats.nps.nps }
+      : null;
 
   const deltaSatisfaction = kpisPeriode?.delta_satisfaction_pts ?? 0;
   const deltaNote = kpisPeriode?.delta_note_pts ?? 0;
@@ -316,6 +330,115 @@ export const DashboardPage = () => {
             <p className="text-xs text-muted-foreground font-medium">
               Vue Agence : ces chiffres ne portent que sur {(user as any).agence.nom_agence}.
             </p>
+          )}
+
+          {/* ZONE 1 — Expérience client (§49, vague 1 Phase I) : indice
+              global, CSAT, NPS, volume, confiance. Chaque chiffre porte sa
+              définition (survol) : formule + source + période. */}
+          {experience?.agregats && (
+            <section aria-label="Expérience client">
+              <div className="mb-4 flex items-center gap-2">
+                <LayoutDashboard className="size-5 text-primary" />
+                <h2 className="text-xl font-bold text-foreground font-satoshi">
+                  Expérience client ({labelPeriode})
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:gap-5">
+                <div title={`Indice global : ${experience.indice?.formule ?? '—'} — Source : réponses notables.`}>
+                  <StatCard
+                    title="Indice global"
+                    value={loadingExperience ? '…' : experience.indice?.indice != null ? `${experience.indice.indice}/100` : 'N/A'}
+                    icon={LayoutDashboard}
+                    accent="primary"
+                    index={0}
+                  />
+                </div>
+                <div title="CSAT : moyenne des scores normalisés /100 des réponses notables.">
+                  <StatCard
+                    title="CSAT"
+                    value={loadingExperience ? '…' : experience.agregats.csat != null ? `${experience.agregats.csat}/100` : 'N/A'}
+                    icon={Smile}
+                    accent="success"
+                    index={1}
+                    trend={experience.agregats.evolutionCsatPts != null ? formatDelta(experience.agregats.evolutionCsatPts, ' pts') : undefined}
+                    trendDirection={(experience.agregats.evolutionCsatPts ?? 0) >= 0 ? 'up' : 'down'}
+                  />
+                </div>
+                <div title="NPS : % promoteurs − % détracteurs (jamais une moyenne). N/A sans question NPS.">
+                  <StatCard
+                    title="NPS"
+                    value={loadingExperience ? '…' : npsAgregat ? `${npsAgregat.nps >= 0 ? '+' : ''}${npsAgregat.nps}` : 'N/A'}
+                    icon={TrendingUp}
+                    accent="secondary"
+                    index={2}
+                  />
+                </div>
+                <div title="Volumes : avis = soumissions distinctes ; commentaires = lignes avec texte.">
+                  <StatCard
+                    title="Volume"
+                    value={loadingExperience ? '…' : `${experience.agregats.volumeAvis} avis`}
+                    icon={MessageSquare}
+                    accent="primary"
+                    index={3}
+                    trend={experience.agregats.evolutionVolumePct != null ? formatDelta(experience.agregats.evolutionVolumePct, '%') : undefined}
+                    trendDirection={(experience.agregats.evolutionVolumePct ?? 0) >= 0 ? 'up' : 'down'}
+                  />
+                </div>
+                <div title={`Confiance : volume + qualité + cohérence. Qualité des données : ${experience.agregats.qualiteDonnees}/100.`}>
+                  <StatCard
+                    title="Confiance"
+                    value={loadingExperience ? '…' : experience.agregats.confiance === 'ELEVEE' ? 'Élevée' : experience.agregats.confiance === 'MOYENNE' ? 'Moyenne' : 'Faible'}
+                    icon={CheckCircle2}
+                    accent={experience.agregats.confiance === 'ELEVEE' ? 'success' : 'secondary'}
+                    index={4}
+                  />
+                </div>
+              </div>
+
+              {/* Principal irritant : synthèse IA si disponible, sinon top thème live. */}
+              {(() => {
+                const analyse = experience.derniereAnalyse;
+                const topLive = experience.agregats.themesTop?.[0];
+                const irritant = analyse?.irritants?.[0];
+                if (!irritant && !topLive) return null;
+                return (
+                  <div className="mt-4 rounded-2xl border border-warning/30 bg-warning/5 p-4">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-warning">
+                      Principal irritant
+                    </p>
+                    {irritant ? (
+                      <p className="mt-1 text-sm font-bold text-foreground">
+                        {irritant.theme} — priorité {irritant.priorite}/100
+                        <span className="ml-2 text-xs font-medium text-muted-foreground">
+                          {irritant.constat} · confiance {irritant.confiance}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm font-bold text-foreground">
+                        {topLive.theme} — {topLive.count} mention{topLive.count > 1 ? 's' : ''}
+                        <span className="ml-2 text-xs font-medium text-muted-foreground">
+                          estimation live (en attente de la synthèse IA du lundi)
+                        </span>
+                      </p>
+                    )}
+                    {analyse?.resumeExecutif && (
+                      <p className="mt-2 text-xs text-muted-foreground font-medium italic">
+                        « {analyse.resumeExecutif} »
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <p className="mt-3 text-xs text-muted-foreground font-medium">
+                Cohérence note/texte :{' '}
+                {experience.agregats.totalAnalyses > 0
+                  ? `${Math.round((1 - experience.agregats.tauxIncoherence) * 100)} % cohérents sur ${experience.agregats.totalAnalyses} analyses`
+                  : 'aucune analyse IA sur la période'}
+                {' · '}Données exploitables : {experience.agregats.qualiteDonnees}/100
+                {' · '}Commentaires : {experience.agregats.volumeCommentaires}
+              </p>
+            </section>
           )}
 
           {/* NIVEAU 1 — Quoi faire aujourd'hui */}

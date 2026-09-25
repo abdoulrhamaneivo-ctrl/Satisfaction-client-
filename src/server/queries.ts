@@ -13,6 +13,8 @@ import {
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
 import { BRANDING } from '../shared/branding';
+import { calculerAgregats } from './gex/moteurGlobal';
+import { indiceGlobalExperience } from '../shared/indicateurs';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
 // PAS validé au runtime par Wasp. On le vérifie explicitement partout où on
@@ -2274,4 +2276,85 @@ export const getThemesStats = async (args: { nbJours?: number }, context: any) =
     .sort((a, b) => b.count - a.count);
 
   return { total, topThemes };
+};
+// ============================================================================
+// INDICATEURS D'EXPÉRIENCE (vague 1, Phase I — §49) : zone décisionnelle.
+// Une seule source (moteurGlobal.calculerAgregats) + indice global documenté
+// + dernière synthèse IA. Scopé : DIRECTION = réseau, CHEF/AGENT = agence(s) ;
+// la synthèse globale (multi-agences) n'est exposée qu'à la DIRECTION.
+// ============================================================================
+
+// Note Wasp : signature volontairement simple (args objet typé inline, sans
+// virgule traînante) — le codegen extrait Input/Output textuellement et une
+// forme inhabituelle fait retomber Input sur never (build P1012-like TS2344).
+export const getIndicateursExperience = async (args: { nbJours?: number }, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const idEntreprise = (context.user as any)?.id_entreprise ?? null;
+  if (!idEntreprise) return null; // comptes plateforme : espace /platform
+
+  const demandes = (args as any)?.nbJours;
+  const nbJours = Number.isFinite(demandes)
+    ? Math.min(90, Math.max(1, Math.round(demandes)))
+    : 30;
+  const fin = new Date();
+  const debut = new Date(fin);
+  debut.setDate(debut.getDate() - nbJours);
+
+  const filtre = await buildAgenceFilter(context, context.entities);
+  const brut = (filtre as any).id_agence;
+  const idsAgences = typeof brut === 'number' ? [brut] : Array.isArray(brut?.in) ? brut.in : undefined;
+
+  const agregats = await calculerAgregats(context.entities, {
+    id_entreprise: idEntreprise,
+    debut,
+    fin,
+    ...(idsAgences ? { idsAgences } : {}),
+  });
+
+  const estDirection = (context.user as any)?.role === 'DIRECTION';
+  const indice =
+    agregats.csat === null
+      ? { indice: null as number | null, formule: 'Données insuffisantes (aucune réponse notable sur la période)' }
+      : indiceGlobalExperience({
+          csat: agregats.csat,
+          nps: agregats.nps ? agregats.nps.nps : null,
+        });
+
+  let derniereAnalyse: any = null;
+  if (estDirection) {
+    const ligne = await context.entities.GlobalExperienceAnalysis.findFirst({
+      where: { id_entreprise: idEntreprise, status: 'DONE' },
+      orderBy: { fin: 'desc' },
+    });
+    if (ligne) {
+      let irritants: any[] = [];
+      try {
+        const lus = JSON.parse(String(ligne.irritants || '[]'));
+        if (Array.isArray(lus)) {
+          irritants = lus
+            .sort((a: any, b: any) => Number(b?.priorite ?? 0) - Number(a?.priorite ?? 0))
+            .slice(0, 3);
+        }
+      } catch {
+        irritants = [];
+      }
+      derniereAnalyse = {
+        id: String(ligne.id),
+        periode: ligne.periode,
+        fin: ligne.fin,
+        resumeExecutif: ligne.resumeExecutif,
+        irritants,
+        confiance: ligne.confiance,
+        volumeAvis: ligne.volumeAvis,
+      };
+    }
+  }
+
+  return {
+    periode: { debut, fin, nbJours },
+    agregats,
+    indice,
+    derniereAnalyse,
+  };
 };

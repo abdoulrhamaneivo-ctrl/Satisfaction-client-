@@ -270,7 +270,10 @@ export function resoudreNPS(valeur: number): ResolutionScoring {
   };
 }
 
-export interface AgregationNPS {
+// NOTE Wasp : `type` (et non `interface`) — les interfaces nommées n'ont
+// pas de signature d'index implicite et cassent la contrainte Payload
+// (SuperJSONObject) des queries retournant ce type (build TS2344).
+export type AgregationNPS = {
   volume: number;
   promoteurs: number;
   passifs: number;
@@ -280,7 +283,7 @@ export interface AgregationNPS {
   taux_detracteurs: number;
   /** % promoteurs − % détracteurs (entier, jamais une moyenne). */
   nps: number | null;
-}
+};
 
 /** Agrégation NPS — jamais une moyenne de notes. */
 export function agregerNPS(valeurs: number[]): AgregationNPS {
