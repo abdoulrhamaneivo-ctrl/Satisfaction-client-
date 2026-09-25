@@ -46,6 +46,11 @@ model User {
   totp_secret                   String?
   totp_actif                    Boolean                  @default(false)
 
+  // C5 (J+30) : 2FA lockout + session management
+  totp_failed_attempts          Int                      @default(0)
+  totp_locked_until             DateTime?
+  totp_last_used_step           BigInt?
+
   // Dénormalisé volontairement : permet de scoper DIRECTION à leur
   // propre entreprise (tenant) sans avoir à recharger la relation agence.entreprise
   // dans chaque query/action. Toujours tenu synchronisé avec agence.id_entreprise
@@ -55,8 +60,11 @@ model User {
   invitationsRecues             Invitation[]             @relation("InvitationInvite")
   invitationsEmises             Invitation[]             @relation("InvitationEmetteur")
   auditLogs                     AuditLog[]               @relation("AuditActeur")
-  
-  affectations                  AffectationGuichet[]
+
+    // C5 (J+30) : Sessions révocables
+    sessions                      Session[]
+
+    affectations                  AffectationGuichet[]
   modelesHoraires              ModeleHoraire[]          @relation("ModeleHoraireAgent")
   alertes                       Alerte[]
   taches                        TacheCorrective[]
@@ -99,6 +107,7 @@ model Entreprise {
   utilisateurs        User[]
   criteres            Critere[]
   services            Service[]
+  voteAntiRejeu       VoteAntiRejeu[]
 }
 
 model Agence {
@@ -238,6 +247,13 @@ model Critere {
   // QCM / CASES : choix séparés par des virgules.
   // ECHELLE : "min,max" (ex. "1,10"). Vide = échelle 1-5 par défaut.
   options_reponse     String?
+  // SCORING ADMIN-PROOF (voir src/shared/scoringQCM.ts) : scores sémantiques
+  // (1 = pire … 5 = meilleur) PARALLÈLES aux options, même convention CSV.
+  // Ex. options "Très satisfait,Neutre,Très insatisfait" → "5,3,1".
+  // Le score ne dépend donc JAMAIS de l'ordre saisi par l'admin. Rempli à la
+  // création/édition (explicite ou inférence lexicale FR stockée) ; NULL =
+  // critère non valencé (ex. CASES « motifs ») → exclu des moyennes.
+  scores_reponse      String?
   // Question obligatoire (bloque la progression tant qu'il n'y a pas de
   // réponse) ou facultative (un bouton "Passer" est proposé côté collecte).
   obligatoire         Boolean           @default(true)
@@ -488,12 +504,17 @@ model TacheCorrectiveHistorique {
 // ============================================================================
 // ANTI-REJEU DES VOTES (Yeba — Conformité ARTCI)
 // ============================================================================
-
+// C2 (J+30) : scope par entreprise + fenêtre journalière.
+// Unicité : (id_entreprise, hachage_tel, fenetre) où fenetre = date_vote::date
+// HMAC-SHA256(sel, E.164) — sel = ANTI_REPLAY_SALT (obligatoire, 32 octets min).
 model VoteAntiRejeu {
   id           BigInt   @id @default(autoincrement())
-  hachage_tel  String   @unique // SHA-256(sel + telephone) — anonymisé
+  id_entreprise Int
+  entreprise   Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  hachage_tel  String   // HMAC-SHA256(sel, telephone_E164)
   date_vote    DateTime @default(now())
 
+  @@unique([id_entreprise, hachage_tel, date_vote])
   @@index([date_vote])
 }
 
@@ -627,4 +648,22 @@ model BrandingConfig {
   updated_by      String?
   updated_at      DateTime @updatedAt
   created_at      DateTime @default(now())
+}
+
+// ============================================================================
+// C5 (J+30) : Sessions révocables — table dédiée pour révocation immédiate
+// ============================================================================
+model Session {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash       String   @unique
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  ip              String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
 }

@@ -47,23 +47,17 @@ const normaliserTelephone = (valeur: string): string => {
 };
 
 export const CollectePage = () => {
-  // QR opaque (Doc 11 §7) : la route porte un code public non prédictible
-  // (/q/BXYUUEHM9Y). Les vieux QR numériques (/q/12) restent supportés.
-  // Le parsing centralisé (routeParams.ts, couvert par tests) distingue les
-  // deux formes ; un identifiant vide ou invalide bloque le chargement.
-  const params = useParams<{ code?: string; guichetId?: string }>();
-  const identifiantBrut = (params.code ?? params.guichetId ?? '').trim();
+  // C4 : seule voie publique — code opaque non prédictible (/q/:code).
+  // Tout autre identifiant (y compris un ID numérique) → 404 uniforme.
+  const params = useParams<{ code?: string }>();
+  const identifiantBrut = (params.code ?? '').trim();
   const identifiant = parseCollecteIdentifier(identifiantBrut);
   const codePublic = identifiant?.kind === 'publicCode' ? identifiant.code : null;
-  const idGuichetNum = identifiant?.kind === 'guichetId' ? identifiant.guichetId : NaN;
-  const idGuichetValide = identifiant?.kind === 'guichetId';
 
   const { data: formDef, isLoading, isError } = useQuery(
     getFormDefinitionForGuichet,
-    codePublic
-      ? { code_public: codePublic }
-      : { id_guichet: idGuichetValide ? idGuichetNum : 0 },
-    { enabled: !!codePublic || idGuichetValide }
+    { code_public: codePublic ?? '' },
+    { enabled: !!codePublic }
   );
   const { brandConfig } = useBrand();
   // Personnalisation du guichet (FIX 05/09) : la page publique n'est pas
@@ -138,10 +132,9 @@ export const CollectePage = () => {
     );
   }
 
-  // FIX QR OPAQUE (05/09) : pour un QR code il n'y a pas d'id numérique —
-  // seul le formDef chargé compte. L'ancien test sur idGuichetNum rejetait
-  // TOUS les QR opaques avec "n'existe pas".
-  const identifiantInvalide = !codePublic && (!idGuichetValide);
+  // C4 : identifiant invalide (dont ex-ID numérique) → même 404 que code
+  // inconnu ou guichet désactivé. Pas d'oracle existe/n'existe pas.
+  const identifiantInvalide = !codePublic;
   if (identifiantInvalide || isError || !formDef) {
     return (
       <AmbientBackground>
@@ -240,10 +233,9 @@ export const CollectePage = () => {
       const reponsesRenseignees = answers.filter((a) => a && a.critereId !== undefined);
 
       await soumettreAvis({
-        // FIX QR OPAQUE (05/09) : pour un QR code, idGuichetNum vaut NaN
-        // (pas de :guichetId dans l'URL) — on envoie le code_public que le
-        // serveur résout, ou l'id renvoyé par le formDef.
-        guichetId: idGuichetValide ? idGuichetNum : ((formDef as any)?.id_guichet || undefined),
+        // C4 : résolution serveur par code_public uniquement. L'id renvoyé
+        // par le formDef sert à la soumission, jamais l'URL.
+        guichetId: ((formDef as any)?.id_guichet || undefined),
         code_public: codePublic || undefined,
         canalId: 1, // QR_WEB
         commentaire: commentaire.trim(),

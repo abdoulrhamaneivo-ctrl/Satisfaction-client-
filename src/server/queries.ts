@@ -614,14 +614,33 @@ export const getBranding = async (_args: void, context: any) => {
 
 // Route PUBLIQUE volontairement (formulaire de collecte scanné par un client
 // anonyme via QR code) : pas d'authentification requise ici par design.
-// Résolution par code_public OPAQUE (Doc 11 §7) : le QR n'expose jamais
-// l'ID séquentiel interne. On accepte aussi l'id numérique pour compatibilité
-// avec les QR déjà imprimés — le code devient la voie normale.
+// C4 : résolution UNIQUEMENT par code_public OPAQUE (10 caractères,
+// alphabet sans 0/O/1/I). La branche id_guichet (ID séquentiel énumérable +
+// oracle existe/n'existe pas) est supprimée. Réponse uniforme : null dans
+// tous les cas d'échec, avec temps de réponse normalisé (pas d'oracle
+// temporel entre code inexistant, guichet désactivé et format invalide).
+const DUREE_MINIMALE_COLLECTE_MS = 250;
+const delai = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export const getFormDefinitionForGuichet = async (
-  args: { code_public?: string; id_guichet?: number },
+  args: { code_public?: string },
   context: any
 ) => {
-  if (!args.code_public && !args.id_guichet) return null;
+  const debut = Date.now();
+  // Jitter anti-chronométrage : empêche de distinguer les chemins d'échec
+  // au temps près (±50 ms autour du plancher commun).
+  const normaliserTempsReponse = async () => {
+    const ecoule = Date.now() - debut;
+    const cible = DUREE_MINIMALE_COLLECTE_MS + Math.floor(Math.random() * 100);
+    if (ecoule < cible) await delai(cible - ecoule);
+  };
+
+  const brut = typeof args?.code_public === 'string' ? args.code_public.toUpperCase().trim() : '';
+  // Format strict du code opaque ; un ID numérique (« 42 ») ou tout autre
+  // format est rejeté comme un code inconnu : même valeur (null), même délai.
+  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{10}$/.test(brut)) {
+    await normaliserTempsReponse();
+    return null;
+  }
 
   // PERFORMANCE QR (Doc 00-INDEX §4, E1) : select explicite au lieu d'include
   // « critere: true » entier. La page publique ne reçoit QUE les champs
@@ -629,9 +648,7 @@ export const getFormDefinitionForGuichet = async (
   // surtout aucune fuite accidentelle de champs internes (id_entreprise,
   // archivage, etc.) sur une route publique sans authentification.
   const guichet = await context.entities.Guichet.findUnique({
-    where: args.code_public
-      ? { code_public: args.code_public.toUpperCase().trim() }
-      : { id: Number(args.id_guichet) },
+    where: { code_public: brut },
     select: {
       id: true,
       nom_guichet: true,
@@ -698,8 +715,12 @@ export const getFormDefinitionForGuichet = async (
 
   // Un QR code ne doit jamais réactiver une collecte sur un guichet ou une
   // agence retirée du service. Cette query est publique, donc elle constitue
-  // la première barrière côté client.
-  if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) return null;
+  // la première barrière côté client. Même valeur + même délai que le cas
+  // « code inexistant » : aucun oracle.
+  if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) {
+    await normaliserTempsReponse();
+    return null;
+  }
 
   const brandingTenant = await context.entities.BrandingConfig.findUnique({
     where: { id_entreprise: guichet.agence.id_entreprise },
@@ -742,6 +763,9 @@ export const getFormDefinitionForGuichet = async (
     .filter((c: any) => c && !c.archive);
   const criteresActifsAgence = new Set(agencyCriteres.map((c: any) => c.id));
   const criteresDejaRattaches = new Set<number>();
+
+  // Succès : même plancher temporel que les échecs (pas d'oracle temporel).
+  await normaliserTempsReponse();
 
   return {
     guichetName: guichet.nom_guichet,

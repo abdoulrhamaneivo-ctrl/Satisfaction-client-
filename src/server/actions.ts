@@ -11,6 +11,13 @@ import crypto from 'node:crypto';
 import { envoyerAlerteWhatsApp } from './notifications/gateway';
 import { checkRateLimit, extraireIp } from './rateLimit';
 import { journaliser } from './audit';
+import { normaliserTelephoneE164, sanitiserCommentaire, hmacSHA256, validerSecretEnv } from './validation';
+import {
+  resoudreScoreQCM,
+  resoudreScoreCASES,
+  construireScoresAStocker,
+  scoresEffectifsPourCritere,
+} from '../shared/scoringQCM';
 import {
   requireAuth,
   requireRole,
@@ -24,17 +31,10 @@ import {
 // notifications SMS/WhatsApp (ex. lien vers /alertes-taches).
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
 
-
-// Sel d'environnement pour le hachage des numéros de téléphone (ARTCI).
-// En production, un sel manquant compromettrait l'anti-rejeu (hachage
-// prévisible / attaquable par dictionnaire) : on refuse de démarrer plutôt
-// que de retomber silencieusement sur une valeur par défaut connue de tous.
-if (!process.env.TELEPHONE_HASH_SALT && process.env.NODE_ENV === 'production') {
-  throw new Error(
-    "TELEPHONE_HASH_SALT doit être défini en production (voir .env.server)."
-  );
+// C2 (J+30) : Sel HMAC anti-rejeu — OBLIGATOIRE en prod, validé à l'usage (lazy).
+function getAntiReplaySalt(): string {
+  return validerSecretEnv('ANTI_REPLAY_SALT', process.env.ANTI_REPLAY_SALT);
 }
-const TELEPHONE_SALT = process.env.TELEPHONE_HASH_SALT || 'yeba-default-salt-change-me';
 
 /** Résout l'id_agence auquel se rattache une Alerte (via son guichet ou sa réponse). */
 async function resolveAlerteAgenceId(entities: any, id_alerte: bigint): Promise<number> {
@@ -416,7 +416,6 @@ export const deleteAffectationGuichet = async (args: any, context: any) => {
 
 const soumettreAvisImpl = async (args: any, context: any) => {
   const { guichetId, code_public, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
-  let hachageTelephone: string | null = null;
 
   // FIX QR OPAQUE (05/09) : la page de collecte par code envoie le
   // code_public ; on le résout en guichet ici, côté serveur.
@@ -438,43 +437,60 @@ const soumettreAvisImpl = async (args: any, context: any) => {
 
   // ANTI-ABUS (Doc 11 §9 S8 adapté à la route publique) : la route de
   // collecte est anonyme — sans rate limiting, un script peut saturer la
-  // base de faux avis. Deux niveaux :
+  // base de faux avis. Trois niveaux (C1) :
   //  - par (IP, guichet) : 8 avis / min de rafale, recharge 2/min → un
   //    humain qui aide plusieurs clients au guichet passe toujours ;
   //  - par IP seule : 30 avis / min → un même point d'accès NAT (café,
   //    opérateur mobile) servant plusieurs guichets reste fluide.
+  //  - par guichet global : 100 avis / min anti-rafale distribuée.
   // Le téléphone seul ne suffit pas comme protection car il est optionnel.
   const ipClient = extraireIp(context);
-  const rl1 = checkRateLimit(`avis:${ipClient}:${idGuichetEffectif}`, { capacity: 8, refillPerMinute: 2 });
+  const rl1 = await checkRateLimit(`avis:${ipClient}:${idGuichetEffectif}`, { capacity: 8, refillPerMinute: 2 });
   if (!rl1.allowed) {
-    throw new HttpError(429, `Trop de soumissions depuis cet appareil pour ce guichet. Réessayez dans ${rl1.retryAfterSeconds} s.`);
+    await journaliser(context, 'rateLimit.exceeded', 'soumettreAvis', { cle: `ip:guichet:${ipClient}:${idGuichetEffectif}`, retryAfter: rl1.retryAfterSeconds });
+    throw new HttpError(429, `Trop de soumissions depuis cet appareil pour ce guichet. Réessayez dans ${rl1.retryAfterSeconds} s.`, { headers: { 'Retry-After': String(rl1.retryAfterSeconds) } });
   }
-  const rl2 = checkRateLimit(`avis:${ipClient}`, { capacity: 30, refillPerMinute: 10 });
+  const rl2 = await checkRateLimit(`avis:${ipClient}`, { capacity: 30, refillPerMinute: 10 });
   if (!rl2.allowed) {
-    throw new HttpError(429, `Trop de soumissions depuis cette connexion. Réessayez dans ${rl2.retryAfterSeconds} s.`);
+    await journaliser(context, 'rateLimit.exceeded', 'soumettreAvis', { cle: `ip:${ipClient}`, retryAfter: rl2.retryAfterSeconds });
+    throw new HttpError(429, `Trop de soumissions depuis cette connexion. Réessayez dans ${rl2.retryAfterSeconds} s.`, { headers: { 'Retry-After': String(rl2.retryAfterSeconds) } });
+  }
+  const rl3 = await checkRateLimit(`avis:guichet:${idGuichetEffectif}`, { capacity: 100, refillPerMinute: 100 });
+  if (!rl3.allowed) {
+    await journaliser(context, 'rateLimit.exceeded', 'soumettreAvis', { cle: `guichet:${idGuichetEffectif}`, retryAfter: rl3.retryAfterSeconds });
+    throw new HttpError(429, `Guichet saturé. Réessayez dans ${rl3.retryAfterSeconds} s.`, { headers: { 'Retry-After': String(rl3.retryAfterSeconds) } });
   }
 
-  // --- ANTI-REJEU : hachage SHA-256 du numéro de téléphone ---
-  if (telephone) {
-    hachageTelephone = crypto
-      .createHash('sha256')
-      .update(TELEPHONE_SALT + telephone.replace(/\s+/g, ''))
-      .digest('hex');
+  // --- ANTI-REJEU (C2) : HMAC-SHA256(sel, E.164) scoped par entreprise + jour ---
+    let hachageTelephone: string | undefined;
+    let telephoneE164: string | undefined;
+    if (telephone) {
+      telephoneE164 = normaliserTelephoneE164(telephone);
+      hachageTelephone = hmacSHA256(getAntiReplaySalt(), telephoneE164);
 
-    const hier = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const existant = await context.entities.VoteAntiRejeu.findFirst({
-      where: {
-        hachage_tel: hachageTelephone,
-        date_vote: { gte: hier },
-      },
-    });
+      const debutJour = new Date();
+      debutJour.setHours(0, 0, 0, 0);
 
-    if (existant) {
-      throw new HttpError(429, "Vous avez déjà soumis un avis depuis ce numéro ces dernières 24h.");
+      // Récupérer l'entreprise du guichet pour le scope tenant
+      const guichetPourEntreprise = await context.entities.Guichet.findUnique({
+        where: { id: Number(idGuichetEffectif) },
+        select: { agence: { select: { id_entreprise: true } } },
+      });
+      if (!guichetPourEntreprise) throw new HttpError(404, 'Guichet introuvable.');
+
+      const existant = await context.entities.VoteAntiRejeu.findFirst({
+        where: {
+          id_entreprise: guichetPourEntreprise.agence.id_entreprise,
+          hachage_tel: hachageTelephone,
+          date_vote: { gte: debutJour },
+        },
+      });
+
+      if (existant) {
+        throw new HttpError(429, 'Vous avez déjà soumis un avis depuis ce numéro aujourd\'hui.');
+      }
     }
-
-  }
-  // -----------------------------------------------------------
+    // -----------------------------------------------------------
 
   const guichet = await context.entities.Guichet.findUnique({
     where: { id: Number(idGuichetEffectif) },
@@ -549,7 +565,9 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     itemsToInsert = responses.map((r: any) => ({
       critereId: Number(r.critereId),
       score: Number(r.score),
-      texte: typeof r.texte === 'string' ? r.texte.trim().slice(0, 1000) : undefined,
+      // C-FIX: Le client peut envoyer le texte de l'option choisie (r.texte pour QCM/CASES)
+      // On le garde pour recalculer le score côté serveur
+      texte: typeof r.texte === 'string' ? r.texte.trim() : undefined,
     }));
   } else if (score !== undefined && score !== null && critereId !== undefined) {
     itemsToInsert = [{
@@ -571,7 +589,7 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   const critereIds = [...new Set(itemsToInsert.map((i) => i.critereId))];
   const criteresExistants = await context.entities.Critere.findMany({
     where: { id: { in: critereIds } },
-    select: { id: true, type_reponse: true, options_reponse: true, libelle_critere: true },
+    select: { id: true, type_reponse: true, options_reponse: true, scores_reponse: true, libelle_critere: true },
   });
   const critereById = new Map(criteresExistants.map((c: any) => [c.id, c]));
   const idsExistants = new Set(criteresExistants.map((c: any) => c.id));
@@ -672,6 +690,26 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     }
   }
 
+  // C-FIX (Score mapping) : Recalculer le score pour QCM/CASES/ECHELLE
+  // basé sur la position de l'option dans options_reponse du critère
+  // (le client envoie le texte de l'option choisie dans item.texte)
+  for (const item of itemsToInsert) {
+    const critere: any = critereById.get(item.critereId);
+    if (!critere) continue;
+
+    // Pour QCM/CASES : le client a envoyé le texte de l'option dans item.texte
+    // On recalcule le score = position dans options_reponse (1-indexed)
+    if ((critere.type_reponse === 'QCM' || critere.type_reponse === 'CASES') && item.texte) {
+      const options = critere.options_reponse?.split(',').map((o: string) => o.trim()) || [];
+      const index = options.findIndex((o: string) => o === item.texte);
+      if (index >= 0) {
+        item.score = index + 1; // 1-indexed : 1 = première option (pire), N = dernière (meilleure)
+      }
+    }
+    // Pour ECHELLE : le client a déjà envoyé la valeur réelle dans item.score
+    // La validation plus loin (min/max) suffit
+  }
+
   // Le téléphone n'est réservé qu'après la validation complète du formulaire.
   // Une erreur de configuration ne bloque donc plus le client pendant 24 h.
   //
@@ -681,12 +719,29 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // job cron (relanceTache / archivage) : en dernier recours la contrainte
   // upsert fait pointer date_vote sur maintenant, donc rien ne s'accumule
   // de façon unbounded pour un téléphone actif.
-  if (hachageTelephone) {
-    await context.entities.VoteAntiRejeu.upsert({
-      where: { hachage_tel: hachageTelephone },
-      update: { date_vote: new Date() },
-      create: { hachage_tel: hachageTelephone },
+  // C2 : scope tenant + fenêtre jour — utilise id_entreprise + hachage_tel + date_vote
+  if (hachageTelephone && telephoneE164) {
+    const guichetPourEntreprise = await context.entities.Guichet.findUnique({
+      where: { id: Number(idGuichetEffectif) },
+      select: { agence: { select: { id_entreprise: true } } },
     });
+    if (guichetPourEntreprise) {
+      await context.entities.VoteAntiRejeu.upsert({
+        where: {
+          id_entreprise_hachage_tel_date_vote: {
+            id_entreprise: guichetPourEntreprise.agence.id_entreprise,
+            hachage_tel: hachageTelephone,
+            date_vote: new Date(),
+          },
+        },
+        update: { date_vote: new Date() },
+        create: {
+          id_entreprise: guichetPourEntreprise.agence.id_entreprise,
+          hachage_tel: hachageTelephone,
+          date_vote: new Date(),
+        },
+      });
+    }
   }
 
   // Score normalisé sur 5 : sert uniquement à détecter les avis critiques
@@ -714,18 +769,21 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // soumettent simultanément. Le reroll canal (FK manquante sur base non
   // seedée) est appliqué au lot entier si nécessaire.
   const construireLigne = (item: { critereId: number; score: number; texte?: string }) => ({
-    score_brut: item.score,
-    // Correctif : chaque ligne porte désormais son propre texte ; on ne
-    // retombe sur le commentaire final que s'il n'y en a pas.
-    commentaire_texte: (item.texte && item.texte.length > 0) ? item.texte : (commentaire || ""),
-    id_soumission: submissionId,
-    id_critere: item.critereId,
-    id_canal: idCanalResolved,
-    id_agence: guichet.id_agence,
-    id_guichet: guichet.id,
-    id_service: serviceId ? Number(serviceId) : null,
-    id_agent: affectation?.id_agent || null,
-  });
+      score_brut: item.score,
+      // Correctif : chaque ligne porte désormais son propre texte ; on ne
+      // retombe sur le commentaire final que s'il n'y en a pas.
+      // C3 : sanitisation centrale (XSS/CSV/IA/SMS)
+      commentaire_texte: (item.texte && item.texte.length > 0)
+        ? sanitiserCommentaire(item.texte)
+        : sanitiserCommentaire(commentaire || ''),
+      id_soumission: submissionId,
+      id_critere: item.critereId,
+      id_canal: idCanalResolved,
+      id_agence: guichet.id_agence,
+      id_guichet: guichet.id,
+      id_service: serviceId ? Number(serviceId) : null,
+      id_agent: affectation?.id_agent || null,
+    });
 
   const lignes = itemsToInsert.map(construireLigne);
 
@@ -2075,6 +2133,15 @@ export const createCritere = async (
             : typeReponse === 'ECHELLE'
             ? optionsEchelle
             : null,
+        // C5/S3 (admin-proof scoring) : stocker les scores sémantiques
+        // (1 = pire ... 5 = meilleur) parallèlement à options_reponse.
+        scores_reponse:
+          typeReponse === 'QCM' || typeReponse === 'CASES'
+            ? construireScoresAStocker(
+                args.options_reponse!.trim(),
+                undefined // pas de scores explicites pour l'instant (futur UI)
+              )
+            : null,
         obligatoire: args.obligatoire !== false,
         // Isolation demandée : un critère créé par une entreprise reste
         // invisible aux autres entreprises (getCriteres filtre dessus).
@@ -2217,6 +2284,15 @@ export const updateCritere = async (
       ...(description !== undefined ? { description: description || null } : {}),
       ...(typeReponse !== undefined ? { type_reponse: typeReponse } : {}),
       ...(optionsReponse !== undefined ? { options_reponse: optionsReponse } : {}),
+      // C5/S3 (admin-proof scoring) : recalculer scores_reponse si options changent
+      ...(optionsReponse !== undefined
+        ? {
+            scores_reponse:
+              typeReponse === 'QCM' || typeReponse === 'CASES'
+                ? construireScoresAStocker(optionsReponse || '', undefined)
+                : null,
+          }
+        : {}),
       ...(args.obligatoire !== undefined ? { obligatoire: args.obligatoire } : {}),
     },
   });

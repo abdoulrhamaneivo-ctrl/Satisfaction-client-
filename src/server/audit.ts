@@ -33,7 +33,8 @@ export type AuditAction =
   | 'password.reset_done'
   | '2fa.setup'
   | '2fa.activate'
-  | '2fa.verify';
+  | '2fa.verify'
+  | 'rateLimit.exceeded';
 
 export interface JournaliserArgs {
   context: WaspContext;
@@ -49,6 +50,7 @@ export interface JournaliserArgs {
  * est loggué mais ne casse JAMAIS l'opération métier en cours (l'audit ne
  * doit pas rendre la plateforme indisponible). Fire-and-forget = ne pas
  * attendre la promesse dans les actions critiques.
+ * Pour les routes publiques (collecte), on logue avec actor_id = 'public'.
  */
 export async function journaliser({
   context,
@@ -60,8 +62,6 @@ export async function journaliser({
 }: JournaliserArgs): Promise<void> {
   try {
     const user = (context as any)?.user;
-    if (!user?.id) return; // pas d'acteur identifiable (routes publiques) — pas d'audit
-
     const req = (context as any)?.req ?? (context as any)?.request;
     const ip =
       req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
@@ -71,12 +71,12 @@ export async function journaliser({
 
     await (context as any).entities.AuditLog.create({
       data: {
-        actor_id: user.id,
-        actor_role: user.platformRole && user.platformRole !== 'NONE' ? user.platformRole : (user.role ?? null),
+        actor_id: user?.id ?? 'public',
+        actor_role: user?.platformRole && user?.platformRole !== 'NONE' ? user?.platformRole : (user?.role ?? null),
         action,
         resource,
         resource_id: resource_id != null ? String(resource_id) : null,
-        entreprise_id: entreprise_id ?? user.id_entreprise ?? null,
+        entreprise_id: entreprise_id ?? user?.id_entreprise ?? null,
         details: details ?? undefined,
         ip,
         user_agent: userAgent,

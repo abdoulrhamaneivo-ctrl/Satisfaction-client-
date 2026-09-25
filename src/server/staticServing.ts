@@ -89,14 +89,14 @@ export async function serveStaticClient({ app }: ServerSetupContext): Promise<vo
   }
   console.log('[static] CSP script _R_ :', hashR);
   app.disable('x-powered-by');
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     // ANTI BRUTE-FORCE (audit) : les routes d'auth Wasp sont limitées par IP
     // avant tout traitement — un robot qui mitraille le login ou le reset
     // reçoit 429 avec Retry-After au lieu de frapper la base et SendGrid.
     if (req.method === 'POST') {
       const regle = AUTH_RATE_LIMITS.find((r) => req.path.startsWith(r.prefixe));
       if (regle) {
-        const verdict = checkRateLimit(`auth:${ipClient(req)}:${regle.prefixe}`, {
+        const verdict = await checkRateLimit(`auth:${ipClient(req)}:${regle.prefixe}`, {
           capacity: regle.capacity,
           refillPerMinute: regle.refillPerMinute,
         });

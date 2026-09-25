@@ -144,8 +144,8 @@ const adminPersonnelRoute = route("AdminPersonnelRoute", "/admin/personnel", pag
 const gestionAgencesRoute = route("GestionAgencesRoute", "/admin/agences", page(GestionAgencesPage));
 const avisRoute = route("AvisRoute", "/avis", page(AvisPage));
 const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/criteres", page(ConfigurationCriteresPage));
-const collecteRoute = route("CollecteRoute", "/q/:guichetId", page(CollectePage));
-// QR opaque (Doc 11 §7) : nouvelle voie normale — code public non prédictible.
+// C4 : seule voie publique — code opaque non prédictible (/q/:code).
+// L'ancienne route /q/:guichetId (ID séquentiel énumérable) est supprimée.
 const collecteCodeRoute = route("CollecteCodeRoute", "/q/:code", page(CollectePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
 const archivesRoute = route("ArchivesRoute", "/archives", page(ArchivesPage));
@@ -339,7 +339,6 @@ export default app({
     gestionAgencesRoute,
     avisRoute,
     configurationCriteresRoute,
-    collecteRoute,
     collecteCodeRoute,
     alertesTachesRoute,
     archivesRoute,
