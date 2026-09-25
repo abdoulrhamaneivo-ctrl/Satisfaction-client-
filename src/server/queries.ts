@@ -689,6 +689,10 @@ export const getFormDefinitionForGuichet = async (
                   description: true,
                   type_reponse: true,
                   options_reponse: true,
+                  // Phase L : le formulaire public doit savoir qu'une échelle
+                  // est un CES pour afficher « Très facile / Très difficile »
+                  // au lieu de 1..7. AUCUN score ni poids n'est exposé.
+                  scoring_mode: true,
                   obligatoire: true,
                   archive: true,
                   // Vague 1 Phase E : identifiants stables des options pour
@@ -721,6 +725,8 @@ export const getFormDefinitionForGuichet = async (
                   description: true,
                   type_reponse: true,
                   options_reponse: true,
+                  // Phase L : idem — libellés d'effort sur le formulaire public.
+                  scoring_mode: true,
                   obligatoire: true,
                   archive: true,
                   // Vague 1 Phase E : voir commentaire ci-dessus (même règle

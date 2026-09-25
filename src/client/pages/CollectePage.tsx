@@ -21,6 +21,7 @@ import {
   payloadValeur,
   payloadCases,
   bornesEchelle,
+  choixEchelle,
   type ReponseCollecte,
   type OptionAffichage,
 } from '../collecte/payload';
@@ -710,27 +711,37 @@ export const CollectePage = () => {
                     </div>
                   )}
 
-                  {/* Échelle linéaire — valeur brute, bornes validées serveur. */}
+                  {/* Échelle linéaire — valeur brute, bornes validées serveur.
+                      Phase L : si le critère est un CES, les boutons portent
+                      les libellés d'effort (« Très facile »…) au lieu des
+                      chiffres ; la valeur transmise reste la note brute. */}
                   {currentCritere.type_reponse === 'ECHELLE' && (() => {
                     const { min, max } = bornesEchelle(currentCritere);
-                    const valeurs = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-                    const colsClass = valeurs.length <= 5 ? 'grid-cols-5' : valeurs.length <= 8 ? 'grid-cols-4 sm:grid-cols-8' : 'grid-cols-5 sm:grid-cols-10';
+                    const choix = choixEchelle(currentCritere);
+                    const labelsLongs = choix.some((c) => c.libelle.length > 3);
+                    const colsClass = choix.length <= 5
+                      ? 'grid-cols-5'
+                      : labelsLongs
+                        ? 'grid-cols-2 sm:grid-cols-4'
+                        : 'grid-cols-4 sm:grid-cols-8';
                     return (
                       <div className={`grid ${colsClass} gap-2 pt-2 w-full min-w-0`}>
-                        {valeurs.map((v) => (
+                        {choix.map((c) => (
                           <button
-                            key={v}
+                            key={c.valeur}
                             type="button"
-                            onClick={() => repondreAvecAccuse(payloadValeur(currentCritere.id, v), `echelle-${v}`, `Note ${v} sur ${max}`)}
-                            aria-pressed={choixEnCours === `echelle-${v}`}
-                            aria-label={`Note ${v} sur ${max}`}
-                            className={`w-full h-12 rounded-2xl border text-base font-bold transition-colors flex items-center justify-center font-satoshi ${BTN_BASE} ${
-                              choixEnCours === `echelle-${v}`
+                            onClick={() => repondreAvecAccuse(payloadValeur(currentCritere.id, c.valeur), `echelle-${c.valeur}`, c.libelle)}
+                            aria-pressed={choixEnCours === `echelle-${c.valeur}`}
+                            aria-label={c.aria}
+                            className={`w-full rounded-2xl border font-bold transition-colors flex items-center justify-center text-center font-satoshi ${BTN_BASE} ${
+                              labelsLongs ? 'h-auto min-h-[64px] px-2 py-2.5 text-[11px] sm:text-xs leading-tight' : 'h-12 text-base'
+                            } ${
+                              choixEnCours === `echelle-${c.valeur}`
                                 ? 'bg-primary text-primary-foreground border-primary shadow-md'
                                 : 'border-border/80 bg-background hover:bg-primary/15 hover:border-primary/50 text-foreground'
                             }`}
                           >
-                            {v}
+                            {c.libelle}
                           </button>
                         ))}
                       </div>

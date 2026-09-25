@@ -84,3 +84,66 @@ export function bornesEchelle(critere: any): { min: number; max: number } {
   }
   return { min, max };
 }
+
+// ---------- Phase L : libellés d'effort (CES) ----------
+
+/** Un critère est-il une question d'effort ? (miroir de reconaîtreCES). */
+export function estCritereCES(critere: any): boolean {
+  return String(critere?.scoring_mode || '').toUpperCase() === 'CES';
+}
+
+/**
+ * Libellés d'une échelle CES, du mieux (1 = très facile) au pire
+ * (max = très difficile). LeMapping 1-7 double volontairement deux
+ * intervalles neutres (2 et 3 « Très facile », 4 et 5 « Plutôt facile »,
+ * 6 « Plutôt difficile ») : c'est la convention de mesure du CES, pas
+ * une approximation. Sur 1-5, chaque niveau a son libellé.
+ *
+ * Un CES mal configuré (autre échelle) retombe sur les chiffres bruts :
+ * on n'invente jamais un libellé.
+ */
+export function libellesCES(max: number): string[] {
+  if (max === 5) {
+    return ['Très facile', 'Plutôt facile', 'Ni facile ni difficile', 'Plutôt difficile', 'Très difficile'];
+  }
+  if (max === 7) {
+    return [
+      'Très facile',
+      'Très facile',
+      'Plutôt facile',
+      'Plutôt facile',
+      'Ni facile ni difficile',
+      'Plutôt difficile',
+      'Très difficile',
+    ];
+  }
+  return [];
+}
+
+export type ChoixEchelle = {
+  valeur: number;
+  /** Texte affiché sur le bouton (libellé CES ou chiffre). */
+  libelle: string;
+  /** Libellé vocalisé (accessibilité) : « Effort : Très facile ». */
+  aria: string;
+};
+
+/**
+ * Boutons d'une question d'échelle : libellés d'effort pour un CES,
+ * chiffres pour une note classique. La valeur TRANSMISE reste toujours la
+ * note brute (le serveur, seul, décide du score).
+ */
+export function choixEchelle(critere: any): ChoixEchelle[] {
+  const { min, max } = bornesEchelle(critere);
+  const valeurs = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+  // Les libellés ne valent QUE pour 1..5 / 1..7 : un min≠1 ne doit jamais
+  // faire afficher « Très facile » en face d'une valeur qui ne l'est pas.
+  const libelles = estCritereCES(critere) && min === 1 ? libellesCES(max) : [];
+  return valeurs.map((valeur, i) => ({
+    valeur,
+    libelle: libelles[i] ?? String(valeur),
+    aria: libelles[i]
+      ? `Effort : ${libelles[i]}`
+      : `Note ${valeur} sur ${max}`,
+  }));
+}
