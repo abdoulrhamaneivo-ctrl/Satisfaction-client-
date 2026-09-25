@@ -25,6 +25,7 @@ import { AdminPersonnelPage } from "./src/client/pages/AdminPersonnelPage" with 
 import { GestionAgencesPage } from "./src/client/pages/GestionAgencesPage" with { type: "ref" };
 import { AvisPage } from "./src/client/pages/AvisPage" with { type: "ref" };
 import { ConfigurationCriteresPage } from "./src/client/pages/ConfigurationCriteresPage" with { type: "ref" };
+import { SyntheseGlobalePage } from "./src/client/pages/SyntheseGlobalePage" with { type: "ref" };
 import { AlertesTachesPage } from "./src/client/pages/AlertesTachesPage" with { type: "ref" };
 import { ArchivesPage } from "./src/client/pages/ArchivesPage" with { type: "ref" };
 import { SettingsPage } from "./src/client/pages/SettingsPage" with { type: "ref" };
@@ -151,6 +152,7 @@ const adminPersonnelRoute = route("AdminPersonnelRoute", "/admin/personnel", pag
 const gestionAgencesRoute = route("GestionAgencesRoute", "/admin/agences", page(GestionAgencesPage));
 const avisRoute = route("AvisRoute", "/avis", page(AvisPage));
 const configurationCriteresRoute = route("ConfigurationCriteresRoute", "/criteres", page(ConfigurationCriteresPage));
+const syntheseGlobaleRoute = route("SyntheseGlobaleRoute", "/synthese", page(SyntheseGlobalePage));
 // C4 : seule voie publique — code opaque non prédictible (/q/:code).
 // L'ancienne route /q/:guichetId (ID séquentiel énumérable) est supprimée.
 const collecteCodeRoute = route("CollecteCodeRoute", "/q/:code", page(CollectePage));
@@ -355,6 +357,7 @@ export default app({
     gestionAgencesRoute,
     avisRoute,
     configurationCriteresRoute,
+    syntheseGlobaleRoute,
     collecteCodeRoute,
     alertesTachesRoute,
     archivesRoute,

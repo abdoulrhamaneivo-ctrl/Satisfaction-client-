@@ -18,6 +18,7 @@ import {
   ScrollText,
   Lock,
   UserRound,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth, logout } from 'wasp/client/auth';
 import { useBrand } from '../context/BrandContext';
@@ -248,6 +249,8 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
           )}
 
           <NavItem to="/criteres" icon={SlidersHorizontal} label="Formulaires & Critères" isActive={isCurrent('/criteres')} onNavigate={onNavigate} />
+
+          <NavItem to="/synthese" icon={Sparkles} label="Synthèse globale IA" isActive={isCurrent('/synthese')} onNavigate={onNavigate} />
         </div>
 
         {hasAdminAccess && (

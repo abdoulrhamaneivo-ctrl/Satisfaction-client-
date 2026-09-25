@@ -16,6 +16,7 @@ import {
   MapPin,
   Loader2,
   CornerDownLeft,
+  Sparkles,
 } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
 import { cn } from '../utils';
@@ -42,6 +43,7 @@ const ACTIONS_NAVIGATION: ActionNavigation[] = [
   { id: 'nav-avis', label: 'Avis clients', to: '/avis', icon: MessageSquare },
   { id: 'nav-alertes', label: 'Alertes & Tâches', to: '/alertes-taches', icon: AlertTriangle },
   { id: 'nav-criteres', label: 'Critères', to: '/criteres', icon: ListChecks },
+  { id: 'nav-synthese', label: 'Synthèse globale IA', to: '/synthese', icon: Sparkles, roles: ['DIRECTION', 'CHEF_AGENCE'] },
   { id: 'nav-personnel', label: 'Personnel', to: '/admin/personnel', icon: Users2, roles: ['DIRECTION', 'CHEF_AGENCE'] },
 ];
 

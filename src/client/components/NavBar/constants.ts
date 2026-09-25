@@ -3,6 +3,7 @@ import type { NavigationItem } from "./NavBar";
 // Barre de navigation principale Yéba
 export const demoNavigationitems: NavigationItem[] = [
   { name: "Tableau de bord", to: "/dashboard" },
+  { name: "Synthèse IA", to: "/synthese", roles: ["DIRECTION", "CHEF_AGENCE"] },
   { name: "Guichets & Kits", to: "/guichets" },
   { name: "Planning", to: "/planning" },
   { name: "Avis & CSAT", to: "/avis" },
