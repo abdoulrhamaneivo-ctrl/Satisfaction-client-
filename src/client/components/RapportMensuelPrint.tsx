@@ -48,6 +48,14 @@ export interface RapportProps {
   tempsTraitement?: {
     moyenne_heures: number | null;
   } | null;
+  /** Phase L : effort perçu. absent / null = non mesuré (jamais 0 %). */
+  ces?: {
+    volume: number;
+    echelle: number;
+    top_box: number;
+    taux_effort_eleve: number;
+    note_effort_moyenne: number | null;
+  } | null;
 }
 
 // ---------- Helpers impression (CSS pur, zéro canvas/SVG — lisible à 100% sur papier) ----------
@@ -135,6 +143,7 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
     dateFin,
     deltas,
     tempsTraitement,
+    ces,
   } = props;
 
   // RG01/RG02 : un avis = une soumission — les stats du rapport ne comptent
@@ -253,6 +262,41 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
             valeur={tempsTraitement?.moyenne_heures != null ? `${tempsTraitement.moyenne_heures.toFixed(1)} h` : '—'}
             detail="Alerte créée → prise en charge"
           />
+        </div>
+        {/* Phase L — effort perçu : la base (n) accompagne chaque chiffre ;
+            sans question CES, on écrit « non mesuré » (jamais un 0 %). */}
+        <div
+          style={{
+            marginTop: 10,
+            border: '1px solid #E9ECEF',
+            borderRadius: 10,
+            padding: '10px 12px',
+            display: 'flex',
+            gap: 18,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6C757D' }}>
+            Effort perçu (CES)
+          </span>
+          {ces && ces.volume > 0 ? (
+            <>
+              <span style={{ fontSize: 11 }}>
+                <strong>{Math.round(ces.top_box)} %</strong> d'effort faible (top box, n = {ces.volume})
+              </span>
+              <span style={{ fontSize: 11 }}>
+                <strong>{ces.note_effort_moyenne != null ? ces.note_effort_moyenne : '—'}/{ces.echelle}</strong> effort moyen (1 = très facile)
+              </span>
+              <span style={{ fontSize: 11 }}>
+                <strong>{Math.round(ces.taux_effort_eleve)} %</strong> d'effort élevé
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: '#6C757D' }}>
+              non mesuré — aucune question d'effort (CES) sur la période
+            </span>
+          )}
         </div>
       </section>
 

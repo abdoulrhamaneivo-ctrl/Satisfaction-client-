@@ -148,9 +148,14 @@ export const DashboardPage = () => {
   const alertesNouvelles = alertesList.filter((a: any) => a.statut_alerte === 'NOUVELLE').length;
 
   // Vague 1 Phase I : NPS scopé (null = pas de question NPS sur la période).
-  const npsAgregat: { nps: number } | null =
+  // Le volume l'accompagne : l'export doit afficher la base (n) du NPS, sinon
+  // un indice calculé sur 3 réponses se lit comme un indice sur 300.
+  const npsAgregat: { nps: number; volume: number } | null =
     (experience as any)?.agregats?.nps && typeof (experience as any).agregats.nps.nps === 'number'
-      ? { nps: (experience as any).agregats.nps.nps }
+      ? {
+          nps: (experience as any).agregats.nps.nps,
+          volume: (experience as any).agregats.nps.volume ?? 0,
+        }
       : null;
 
   const deltaSatisfaction = kpisPeriode?.delta_satisfaction_pts ?? 0;
@@ -239,6 +244,73 @@ export const DashboardPage = () => {
               'Évolution volume': `${kpisPeriode.delta_volume_pct >= 0 ? '+' : ''}${kpisPeriode.delta_volume_pct ?? 0}%`,
             }] : [],
           },
+          // Phase L : indicateurs d'expérience, avec leur dénominateur. Une
+          // mesure absente vaut « N/A » (jamais 0 %) : le lecteur ne doit
+          // jamais lire « 0 % d'effort élevé » là où on n'a rien mesuré.
+          {
+            name: 'Expérience',
+            data: experience?.agregats
+              ? [
+                  {
+                    Indicateur: 'CSAT (/100)',
+                    Valeur: experience.agregats.csat != null ? experience.agregats.csat : 'N/A',
+                    'Base (n)': experience.agregats.volumeNotables,
+                    Formule: 'moyenne(score_normalise) des réponses notables',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'NPS',
+                    Valeur: npsAgregat ? npsAgregat.nps : 'N/A',
+                    'Base (n)': npsAgregat ? npsAgregat.volume : 0,
+                    Formule: '% promoteurs (9-10) − % détracteurs (0-6)',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'Indice global (/100)',
+                    Valeur: experience.indice?.indice != null ? experience.indice.indice : 'N/A',
+                    'Base (n)': experience.agregats.volumeAvis,
+                    Formule: experience.indice?.formule ?? '—',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'Qualité des données (/100)',
+                    Valeur: experience.agregats.qualiteDonnees,
+                    'Base (n)': experience.agregats.totalAnalyses,
+                    Formule: 'notables + commentées + cohérence IA',
+                    Source: 'Mixte',
+                  },
+                  {
+                    Indicateur: experience.agregats.ces
+                      ? `CES — top box faible effort (%) (échelle 1-${experience.agregats.ces.echelle})`
+                      : 'CES — top box faible effort (%)',
+                    Valeur: experience.agregats.ces ? Math.round(experience.agregats.ces.top_box * 10) / 10 : 'N/A',
+                    'Base (n)': experience.agregats.ces ? experience.agregats.ces.volume : 0,
+                    Formule: experience.agregats.ces
+                      ? '1 = très facile ; top box = 1-2 (1-5) ou 1-3 (1-7)'
+                      : 'aucune question d\'effort (CES) sur la période',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: experience.agregats.ces
+                      ? `CES — note d'effort moyenne (1-${experience.agregats.ces.echelle}, 1 = très facile)`
+                      : 'CES — note d\'effort moyenne',
+                    Valeur: experience.agregats.ces ? experience.agregats.ces.note_effort_moyenne : 'N/A',
+                    'Base (n)': experience.agregats.ces ? experience.agregats.ces.volume : 0,
+                    Formule: 'moyenne(score_officiel) des réponses CES',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'CES — effort élevé (%)',
+                    Valeur: experience.agregats.ces ? Math.round(experience.agregats.ces.taux_effort_eleve * 10) / 10 : 'N/A',
+                    'Base (n)': experience.agregats.ces ? experience.agregats.ces.volume : 0,
+                    Formule: experience.agregats.ces
+                      ? '4-5 (1-5) ou 6-7 (1-7)'
+                      : 'aucune question d\'effort (CES) sur la période',
+                    Source: 'Réponses',
+                  },
+                ]
+              : [],
+          },
         ],
         `Yeba_Rapport_Complet_${new Date().toISOString().split('T')[0]}`,
         { entreprise: nomEntrepriseDocs, periode: labelPeriode }
@@ -248,7 +320,7 @@ export const DashboardPage = () => {
     } finally {
       setExportingXLSX(false);
     }
-  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode, nomEntrepriseDocs, estDirection, comparaisonAgences]);
+  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode, nomEntrepriseDocs, estDirection, comparaisonAgences, experience, npsAgregat]);
 
   return (
     <RequireEnterpriseRole>
@@ -928,6 +1000,7 @@ export const DashboardPage = () => {
               alertesNouvelles={alertesNouvelles}
               tachesEnCours={tachesList.filter((t: any) => t.statut_tache !== 'TERMINEE').length}
               themes={themesStats?.topThemes || []}
+              ces={experience?.agregats?.ces ?? null}
             />
           ) : (
           <RapportMensuelPrint
@@ -950,6 +1023,7 @@ export const DashboardPage = () => {
               volume: kpisPeriode?.delta_volume_pct ?? 0,
             }}
             tempsTraitement={tempsTraitement?.prise_en_charge || null}
+            ces={experience?.agregats?.ces ?? null}
           />
           )}
         </div>
