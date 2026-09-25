@@ -81,7 +81,12 @@ import { relancerTachesEnRetard } from "./src/server/jobs/relanceTache" with { t
 import { envoyerRapportsMensuels } from "./src/server/jobs/rapportMensuel" with { type: "ref" };
 import { archiverElementsResolusAnciens } from "./src/server/jobs/archivageAutomatique" with { type: "ref" };
 import { analyserAvisIAJob } from "./src/server/jobs/analyserAvisIA" with { type: "ref" };
+import { analyserGlobaleJob } from "./src/server/jobs/analyseGlobale" with { type: "ref" };
 import { genererPlanningAutoJob } from "./src/server/jobs/genererPlanning" with { type: "ref" };
+import {
+  getAnalysesGlobales,
+  declencherAnalyseGlobale,
+} from "./src/server/globalExperience" with { type: "ref" };
 
 // === PLANNING : semaine type, reconduction, suggestion ===
 import {
@@ -261,6 +266,9 @@ const getRechercheGlobaleQuery = query(getRechercheGlobale, { entities: ["Agence
 const getArchivesQuery = query(getArchives, { entities: ["Guichet", "Agence", "Alerte", "TacheCorrective", "Reponse", "User", "Entreprise"] });
 const getAIStatusQuery = query(getAIStatus, { entities: ["AnalyseAvisIA", "Entreprise"] });
 const getThemesStatsQuery = query(getThemesStats, { entities: ["AnalyseAvisIA", "Agence", "Reponse", "Entreprise"] });
+// IA globale (vague 1, Phase G) : lectures scoped entreprise + déclenchement DIRECTION.
+const getAnalysesGlobalesQuery = query(getAnalysesGlobales, { entities: ["GlobalExperienceAnalysis", "Entreprise"] });
+const declencherAnalyseGlobaleAction = action(declencherAnalyseGlobale, { entities: ["GlobalExperienceAnalysis", "Entreprise"] });
 
 // === SAAS PLATFORM (Doc 11/12 — phase P1) ===
 import {
@@ -453,6 +461,8 @@ export default app({
     getArchivesQuery,
     getAIStatusQuery,
     getThemesStatsQuery,
+    getAnalysesGlobalesQuery,
+    declencherAnalyseGlobaleAction,
     // SAAS Platform
     getPlatformOverviewQuery,
     getPlatformEntreprisesQuery,
@@ -489,6 +499,13 @@ export default app({
       executor: "PgBoss",
       entities: ["Agence", "AffectationGuichet", "ModeleHoraire", "Guichet", "User", "Entreprise"],
       schedule: { cron: "0 5 * * *" },
+    }),
+    // IA globale (vague 1, Phase G) : chaque lundi 6h — semaines complètes
+    // + mois précédent, idempotent (lignes PENDING traitées, budget IA).
+    job(analyserGlobaleJob, {
+      executor: "PgBoss",
+      entities: ["GlobalExperienceAnalysis", "Entreprise", "Reponse", "AnalyseAvisIA", "Agence", "Guichet", "Service", "Critere"],
+      schedule: { cron: "0 6 * * 1" },
     }),
   ],
 });

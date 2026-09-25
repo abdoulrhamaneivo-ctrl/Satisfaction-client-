@@ -110,6 +110,7 @@ model Entreprise {
   criteres            Critere[]
   services            Service[]
   voteAntiRejeu       VoteAntiRejeu[]
+  analysesGlobales    GlobalExperienceAnalysis[]
 }
 
 model Agence {
@@ -528,6 +529,60 @@ model AnalyseAvisIA {
   processedAt        DateTime?
 
   @@index([status])
+}
+
+// ============================================================================
+// ANALYSE GLOBALE D'EXPÉRIENCE (vague 1, Phase G)
+// ============================================================================
+// Une ligne = une synthèse IA sur une période + périmètre, TOUJOURS adossée
+// à un snapshot d'indicateurs déterministes (datasetSnapshot + indicateurs
+// JSON) : chaque conclusion est reconstructible (pourquoi l'IA a dit ça).
+// L'IA verbalise et priorise, ne mesure jamais (volumes/scores viennent du
+// ScoreEngine). Reruns idempotents via @@unique (entreprise, periode, debut).
+// ============================================================================
+
+model GlobalExperienceAnalysis {
+  id                  BigInt   @id @default(autoincrement())
+
+  id_entreprise       Int
+  entreprise          Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+
+  periode             String   // SEMAINE | MOIS
+  debut               DateTime
+  fin                 DateTime
+
+  filtres             String?  // JSON {agences?: number[], services?: number[]}
+  datasetSnapshot     String?  // JSON {volumeAvis, volumeNotables, ...}
+  indicateurs         String?  // JSON {csat, nps, coherence, qualite, ...}
+
+  resumeExecutif      String?
+  pointsPositifs      String?  // JSON string[]
+  pointsNegatifs      String?  // JSON string[]
+  irritants           String?  // JSON [{theme, frequence, gravite, evolution, etendue, confiance, priorite}]
+  tendances           String?  // JSON string[]
+  anomalies           String?  // JSON string[]
+  priorites           String?  // JSON string[] (actions recommandées ordonnées)
+  confiance           String?  // FAIBLE | MOYENNE | ELEVEE
+  limites             String?  // JSON string[] (données manquantes, réserves)
+
+  volumeAvis          Int      @default(0)
+  volumeCommentaires  Int      @default(0)
+  qualiteDonnees      Float?
+
+  model               String?
+  provider            String?
+  promptVersion       String?
+  analysisVersion     String   @default("1")
+
+  status              String   @default("PENDING") // PENDING | DONE | FAILED
+  error               String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  processedAt         DateTime?
+
+  @@unique([id_entreprise, periode, debut])
+  @@index([id_entreprise, periode, fin])
 }
 
 model Alerte {

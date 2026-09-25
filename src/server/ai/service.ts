@@ -1,5 +1,5 @@
 // src/server/ai/service.ts
-import { AIProvider, AnalyseResult, ContextAvis } from './types';
+import { AIProvider, AnalyseResult, ContextAvis, SyntheseGlobale } from './types';
 import { DeepseekProvider } from './deepseekProvider';
 import { NvidiaProvider } from './nvidiaProvider';
 import { OpenRouterProvider } from './openrouterProvider';
@@ -69,6 +69,31 @@ class AIServiceManager {
         derniereErreur = err;
         // Bascule silencieuse sur le secours ; log serveur pour le diagnostic.
         if (ordre.length > 1) console.warn(`[AI] Provider ${name} en échec, bascule secours:`, err?.message);
+      }
+    }
+    throw derniereErreur ?? new Error('Service IA indisponible (tous les providers en échec).');
+  }
+
+  /**
+   * Synthèse globale (vague 1, Phase G) : même bascule multi-provider que
+   * l'analyse individuelle, avec traçabilité du provider/modèle effectifs.
+   */
+  async syntheseGlobale(
+    promptAgregats: string,
+  ): Promise<{ synthese: SyntheseGlobale; provider: string; model: string }> {
+    const ordre = this.ordreEssai();
+    if (ordre.length === 0) {
+      throw new Error('Service IA non configuré (ni NVIDIA_API_KEY, ni OPENROUTER_API_KEY, ni DEEPSEEK_API_KEY).');
+    }
+    let derniereErreur: any = null;
+    for (const name of ordre) {
+      try {
+        const instance = creerProvider(name);
+        const synthese = await instance.syntheseGlobale(promptAgregats);
+        return { synthese, provider: instance.name, model: instance.nomModele() };
+      } catch (err: any) {
+        derniereErreur = err;
+        if (ordre.length > 1) console.warn(`[AI] Synthèse ${name} en échec, bascule secours:`, err?.message);
       }
     }
     throw derniereErreur ?? new Error('Service IA indisponible (tous les providers en échec).');

@@ -4,7 +4,8 @@
 // ~40 req/min par clé partagée entre tous les modèles (pas de SLA).
 // Prod = licence NVIDIA AI Enterprise. Voir docs : build.nvidia.com
 import OpenAI from 'openai';
-import { AIProvider, AnalyseResult, AnalyseResultSchema, CHAMPS_ETENDUS_PROMPT, ContextAvis } from './types';
+import { extraireObjetJson, validerReponseJson } from './chatJson';
+import { AIProvider, AnalyseResult, AnalyseResultSchema, CHAMPS_ETENDUS_PROMPT, PROMPT_SYNTHESE_SYSTEM, SyntheseGlobale, SyntheseGlobaleSchema, ContextAvis } from './types';
 
 const SYSTEM_PROMPT = `Tu es le moteur d'analyse des avis clients de YEBA.
 
@@ -191,5 +192,31 @@ Retourne exclusivement le JSON demandé.`;
     }
 
     return parseResult.data;
+  }
+
+  /**
+   * Synthèse globale (vague 1, Phase G) : verbalise des agrégats DÉJÀ
+   * calculés — ne mesure rien. Tentative unique (le service bascule de
+   * provider en cas d'échec).
+   */
+  async syntheseGlobale(promptAgregats: string): Promise<SyntheseGlobale> {
+    if (!this.client) {
+      throw new Error('NVIDIA_API_KEY non configurée dans les variables d’environnement (build.nvidia.com). non configurée.');
+    }
+    const response = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: 'system', content: PROMPT_SYNTHESE_SYSTEM },
+        { role: 'user', content: promptAgregats },
+      ],
+      temperature: 0.1,
+      max_tokens: 2000,
+    } as any);
+    const msg: any = response.choices[0]?.message;
+    const brut = extraireObjetJson(
+      `synthèse ${this.name}`,
+      msg?.content || msg?.reasoning_content || msg?.reasoning,
+    );
+    return validerReponseJson(`synthèse ${this.name}`, SyntheseGlobaleSchema, brut);
   }
 }

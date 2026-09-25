@@ -154,4 +154,50 @@ export interface AIProvider {
   /** Modèle effectif (pour traçabilité : stocké sur l'analyse). */
   nomModele(): string;
   analyserAvis(commentaire: string, contexte?: ContextAvis): Promise<AnalyseResult>;
+  /** Synthèse globale à partir d'agrégats DÉJÀ calculés (vague 1, Phase G). */
+  syntheseGlobale(promptAgregats: string): Promise<SyntheseGlobale>;
 }
+
+// ---------- Synthèse globale (Phase G) ----------
+// L'IA VERBALISE des agrégats déterministes : elle ne mesure rien, ne
+// compte rien, n'invente aucun chiffre — chaque conclusion doit s'appuyer
+// sur une statistique fournie (le prompt l'exige, le schéma le contraint).
+
+export const CONFIANCES_AUTORISEES = ['FAIBLE', 'MOYENNE', 'ELEVEE'] as const;
+export type ConfianceAutorisee = typeof CONFIANCES_AUTORISEES[number];
+
+export const SyntheseGlobaleSchema = z.object({
+  resume_executif: z.string().max(800),
+  points_positifs: z.array(z.string().max(200)).max(6),
+  points_negatifs: z.array(z.string().max(200)).max(6),
+  irritants: z.array(z.object({
+    theme: z.string().max(40),
+    constat: z.string().max(300),
+    priorite: z.number().min(0).max(100),
+    confiance: z.enum(CONFIANCES_AUTORISEES),
+  })).max(8),
+  tendances: z.array(z.string().max(200)).max(6),
+  anomalies: z.array(z.string().max(200)).max(6),
+  priorites: z.array(z.string().max(200)).max(5),
+  confiance: z.enum(CONFIANCES_AUTORISEES),
+  limites: z.array(z.string().max(200)).max(6),
+});
+
+export type SyntheseGlobale = z.infer<typeof SyntheseGlobaleSchema>;
+
+// Version du prompt de synthèse (stockée sur chaque analyse globale).
+export const PROMPT_SYNTHESE_VERSION = '1';
+
+export const PROMPT_SYNTHESE_SYSTEM = `Tu es le synthétiseur d'expérience client de YEBA pour une direction d'entreprise.
+
+RÈGLE ABSOLUE : tu ne mesures rien. Tous les chiffres dont tu as besoin sont
+FOURNIS dans le message utilisateur (volumes, scores, répartitions, évolutions).
+- Chaque affirmation chiffrée de ta synthèse doit reprendre un nombre fourni.
+- Donnée absente ou marquée "non disponible" : écris "non disponible",
+  jamais une approximation, jamais une invention.
+- Les irritants sont fournis PRÉ-CLASSÉS par priorité calculée : conserve
+  cet ordre, ne le recalcule pas.
+- Signale explicitement les limites (faible volume, données manquantes).
+
+Tu dois toujours retourner uniquement un JSON valide respectant exactement
+le schéma demandé. N'ajoute aucun texte en dehors du JSON.`;
