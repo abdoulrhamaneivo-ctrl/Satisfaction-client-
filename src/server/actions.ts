@@ -13,11 +13,16 @@ import { checkRateLimit, extraireIp } from './rateLimit';
 import { journaliser } from './audit';
 import { normaliserTelephoneE164, sanitiserCommentaire, hmacSHA256, validerSecretEnv } from './validation';
 import {
-  resoudreScoreQCM,
-  resoudreScoreCASES,
   construireScoresAStocker,
-  scoresEffectifsPourCritere,
+  parseOptionsCSV,
+  normaliserLibelle,
 } from '../shared/scoringQCM';
+import {
+  normaliserEntree,
+  resoudreEntree,
+  type EntreeBrute,
+  type ItemResolu,
+} from './resolutionSoumission';
 import {
   requireAuth,
   requireRole,
@@ -559,21 +564,17 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     if (soumissionExistante) return soumissionExistante;
   }
 
-  // Normalize responses list
-  let itemsToInsert: Array<{ critereId: number; score: number; texte?: string }> = [];
+  // Normalisation des réponses — vague 1 : le client envoie des IDENTIFIANTS
+  // (optionId / optionIds[]), des valeurs (ECHELLE/NPS) ou du texte (TEXTE).
+  // Le `score` client n'est PLUS une source de vérité : il n'est accepté que
+  // sur les chemins legacy/directs (SMILEY, OUI_NON, ECHELLE, compat texte),
+  // toujours re-validé, jamais cru sur parole pour QCM/CASES.
+  // (normaliserEntree : voir src/server/resolutionSoumission.ts)
+  let entrees: EntreeBrute[] = [];
   if (responses && Array.isArray(responses) && responses.length > 0) {
-    itemsToInsert = responses.map((r: any) => ({
-      critereId: Number(r.critereId),
-      score: Number(r.score),
-      // C-FIX: Le client peut envoyer le texte de l'option choisie (r.texte pour QCM/CASES)
-      // On le garde pour recalculer le score côté serveur
-      texte: typeof r.texte === 'string' ? r.texte.trim() : undefined,
-    }));
+    entrees = responses.map(normaliserEntree);
   } else if (score !== undefined && score !== null && critereId !== undefined) {
-    itemsToInsert = [{
-      critereId: Number(critereId),
-      score: Number(score)
-    }];
+    entrees = [{ critereId: Number(critereId), score: Number(score) }];
   } else {
     throw new HttpError(400, "Données d'évaluation manquantes.");
   }
@@ -586,10 +587,20 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // → 500 brut renvoyé au client ("Request failed with status code 500"),
   // sans message exploitable. On vérifie donc explicitement l'existence des
   // critères avant d'insérer quoi que ce soit.
-  const critereIds = [...new Set(itemsToInsert.map((i) => i.critereId))];
+  const critereIds = [...new Set(entrees.map((i) => i.critereId))];
   const criteresExistants = await context.entities.Critere.findMany({
     where: { id: { in: critereIds } },
-    select: { id: true, type_reponse: true, options_reponse: true, scores_reponse: true, libelle_critere: true },
+    select: {
+      id: true, type_reponse: true, options_reponse: true, libelle_critere: true,
+      scoring_mode: true, orientation: true, version: true,
+      options: {
+        select: {
+          id: true, libelle: true, score: true, poids: true,
+          est_scorable: true, actif: true, code_metier: true,
+          score_provenance: true,
+        },
+      },
+    },
   });
   const critereById = new Map(criteresExistants.map((c: any) => [c.id, c]));
   const idsExistants = new Set(criteresExistants.map((c: any) => c.id));
@@ -667,47 +678,27 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     }
   }
 
-  // Validation des scores : bornée à l'échelle propre à chaque critère
-  // (ex. 1-10 pour une question de type ECHELLE configurée sur 10), 1-5
-  // sinon (SMILEY, OUI_NON, QCM, TEXTE, CASES restent sur l'échelle
-  // historique — TEXTE/CASES envoient un score neutre fixe, pas une vraie
-  // note, donc 1-5 leur suffit).
-  for (const item of itemsToInsert) {
-    const critere: any = critereById.get(item.critereId);
-    let min = 1;
-    let max = 5;
-    if (critere?.type_reponse === 'ECHELLE') {
-      const [minStr, maxStr] = (critere.options_reponse || '1,5').split(',');
-      min = Number(minStr);
-      max = Number(maxStr);
-      if (!Number.isInteger(min) || !Number.isInteger(max) || max <= min) {
-        min = 1;
-        max = 5;
-      }
-    }
-    if (!Number.isInteger(item.score) || item.score < min || item.score > max) {
-      throw new HttpError(400, `Le score doit être un entier compris entre ${min} et ${max}.`);
-    }
-  }
-
-  // C-FIX (Score mapping) : Recalculer le score pour QCM/CASES/ECHELLE
-  // basé sur la position de l'option dans options_reponse du critère
-  // (le client envoie le texte de l'option choisie dans item.texte)
-  for (const item of itemsToInsert) {
-    const critere: any = critereById.get(item.critereId);
-    if (!critere) continue;
-
-    // Pour QCM/CASES : le client a envoyé le texte de l'option dans item.texte
-    // On recalcule le score = position dans options_reponse (1-indexed)
-    if ((critere.type_reponse === 'QCM' || critere.type_reponse === 'CASES') && item.texte) {
-      const options = critere.options_reponse?.split(',').map((o: string) => o.trim()) || [];
-      const index = options.findIndex((o: string) => o === item.texte);
-      if (index >= 0) {
-        item.score = index + 1; // 1-indexed : 1 = première option (pire), N = dernière (meilleure)
-      }
-    }
-    // Pour ECHELLE : le client a déjà envoyé la valeur réelle dans item.score
-    // La validation plus loin (min/max) suffit
+  // ==========================================================================
+  // RÉSOLUTION DÉTERMINISTE — vague 1 (remplace validation + `index + 1`).
+  //
+  // Le SERVEUR est l'autorité : chaque réponse est résolue via le moteur
+  // (src/shared/scoringEngine.ts) à partir d'IDENTIFIANTS stables
+  // (optionId / optionIds[]) ou de valeurs validées (ECHELLE/NPS/OUI_NON).
+  // La position visuelle d'une option n'a AUCUNE valeur métier — aucun
+  // `index + 1` ne subsiste dans ce chemin.
+  //
+  // Compat transition (client pré-Phase E) : QCM/CASES envoyés en texte
+  // (libellé) sont appariés par libellé NORMALISÉ aux options actives —
+  // jamais par position — et stampés MIGRATED. TEXTE ne produit plus
+  // jamais de note (fini le 3 fantôme) : score_brut/officiel = NULL.
+  // ==========================================================================
+  // Délégation (vague 1, Phase D) : la résolution vit dans le module pur
+  // src/server/resolutionSoumission.ts (testable DB-free). Ici : boucle.
+  const itemsToInsert: ItemResolu[] = [];
+  for (const entree of entrees) {
+    const critere: any = critereById.get(entree.critereId);
+    if (!critere) continue; // garde-fous d'existence déjà appliqués plus haut
+    itemsToInsert.push(resoudreEntree(critere, entree));
   }
 
   // Le téléphone n'est réservé qu'après la validation complète du formulaire.
@@ -744,23 +735,28 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     }
   }
 
-  // Score normalisé sur 5 : sert uniquement à détecter les avis critiques
-  // (worstScore <= 2) et le seuil confetti, indépendamment de l'échelle
-  // réelle de saisie (une ECHELLE configurée 1-10 ne doit pas être comparée
-  // brute à un seuil pensé pour du 1-5).
-  const normaliserScoreSur5 = (critere: any, score: number): number | null => {
-    if (critere?.type_reponse === 'TEXTE' || critere?.type_reponse === 'CASES' || critere?.type_reponse === 'QCM') {
-      return null;
+  // Vague 1 : le pire score vient des résolutions moteur (score_normalise
+  // /100), pas d'un recalcul local — source unique de vérité, aucun
+  // `normaliserScoreSur5` dupliqué ici (supprimé).
+  const insererOptionsChoisies = async (
+    db: any,
+    reponses: Array<{ id: any; id_critere: number }>,
+  ) => {
+    // Jonction ReponseOption : les stats travaillent sur ces ids, jamais
+    // sur le texte joint. Requêtes par soumission (déjà lue) : pas de N+1.
+    const lignes: Array<{ id_reponse: any; id_option: string }> = [];
+    const parCritere = new Map<number, any>();
+    for (const r of reponses) parCritere.set(Number((r as any).id_critere), r);
+    for (const item of itemsToInsert) {
+      const ligne = parCritere.get(item.critereId);
+      if (!ligne) continue;
+      for (const id_option of item.optionsRetnues) {
+        lignes.push({ id_reponse: (ligne as any).id, id_option });
+      }
     }
-    if (critere?.type_reponse === 'ECHELLE') {
-      const [minStr, maxStr] = (critere.options_reponse || '1,5').split(',');
-      const min = Number(minStr) || 1;
-      const max = Number(maxStr) || 5;
-      if (max <= min) return score;
-      const ratio = (score - min) / (max - min);
-      return Math.max(1, Math.min(5, Math.round(1 + ratio * 4)));
+    if (lignes.length > 0) {
+      await db.reponseOption.createMany({ data: lignes, skipDuplicates: true });
     }
-    return score;
   };
 
   // PERFORMANCE QR (Doc 11 §10, priorité 1) : createMany remplace la boucle
@@ -768,13 +764,25 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // 5 allers-retours — la différence est décisive quand plusieurs clients
   // soumettent simultanément. Le reroll canal (FK manquante sur base non
   // seedée) est appliqué au lot entier si nécessaire.
-  const construireLigne = (item: { critereId: number; score: number; texte?: string }) => ({
-      score_brut: item.score,
-      // Correctif : chaque ligne porte désormais son propre texte ; on ne
-      // retombe sur le commentaire final que s'il n'y en a pas.
+  const construireLigne = (item: ItemResolu) => {
+    // Affichage : libellé résolu (QCM/CASES nouveau flux, qui n'envoie plus
+    // de texte) > verbatim > commentaire final. Les écrans existants
+    // (LigneReponse, exports) lisent commentaire_texte : aucun changement
+    // client requis pour afficher la bonne option (jamais positionnelle).
+    const texteLigne =
+      item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || '';
+    return {
+      // score_brut (legacy) = score officiel pour les nouvelles lignes
+      // (NULL si non notable — fini les 3 fantômes). L'historique garde
+      // ses valeurs + LEGACY_POSITIONAL, jamais réécrit.
+      score_brut: item.score_officiel,
+      score_officiel: item.score_officiel,
+      score_normalise: item.score_normalise,
+      score_source: item.score_source,
+      critere_version: item.critere_version,
       // C3 : sanitisation centrale (XSS/CSV/IA/SMS)
-      commentaire_texte: (item.texte && item.texte.length > 0)
-        ? sanitiserCommentaire(item.texte)
+      commentaire_texte: texteLigne.length > 0
+        ? sanitiserCommentaire(texteLigne)
         : sanitiserCommentaire(commentaire || ''),
       id_soumission: submissionId,
       id_critere: item.critereId,
@@ -783,7 +791,8 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       id_guichet: guichet.id,
       id_service: serviceId ? Number(serviceId) : null,
       id_agent: affectation?.id_agent || null,
-    });
+    };
+  };
 
   const lignes = itemsToInsert.map(construireLigne);
 
@@ -823,10 +832,14 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       // createMany ne renvoie pas les lignes : une seule lecture pour
       // récupérer les IDs générés (nécessaire pour l'analyse IA et l'alerte
       // critique).
-      return await tx.reponse.findMany({
+      const creees = await tx.reponse.findMany({
         where: { id_soumission: submissionId },
         orderBy: { id: 'asc' },
       });
+      createdReponses = creees;
+      // Jonction options (DANS la transaction : tout ou rien).
+      await insererOptionsChoisies(tx, creees as any);
+      return creees;
     });
   } catch (e: any) {
     // Reroll ciblé : violation FK id_canal uniquement (canal absent d'une
@@ -839,15 +852,21 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       where: { id_soumission: submissionId },
       orderBy: { id: 'asc' },
     });
+    await insererOptionsChoisies(context.entities, createdReponses as any);
   }
 
-  let worstScore: number | null = null;
+  // Vague 1 : le pire score est le MIN des score_normalise (/100) résolus —
+  // aucune re-normalisation locale. Seuil critique 40/100 (≡ 2/5).
+  let pireNormalise: number | null = null;
   for (const item of itemsToInsert) {
-    const scoreNormalise = normaliserScoreSur5(critereById.get(item.critereId), item.score);
-    if (scoreNormalise !== null && (worstScore === null || scoreNormalise < worstScore)) {
-      worstScore = scoreNormalise;
+    const n = item.score_normalise;
+    if (n !== null && Number.isFinite(n) && (pireNormalise === null || n < pireNormalise)) {
+      pireNormalise = n;
     }
   }
+  // Équivalent /5 pour l'affichage alerte et la calibration IA (cohérence
+  // note/texte, historiquement sur 1-5) : jamais une donnée stockée.
+  const pireSur5 = pireNormalise === null ? null : Math.max(1, Math.min(5, Math.round(pireNormalise / 20)));
 
   // --- ANALYSE IA ASYNCHRONE — TOUT L'AVIS, UNE SEULE FOIS ---
   // Avant : seul le commentaire final alimentait l'IA. Les réponses aux
@@ -858,13 +877,6 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // réponse parlante, avec le libellé de sa question (et la note chiffrée
   // quand elle existe) : l'IA voit tout l'avis et l'étiquetage (thèmes)
   // devient précis. Une seule analyse par soumission, comme avant.
-  const optionQCMParIndex = (critere: any, score: number): string => {
-    const options = String(critere?.options_reponse || '')
-      .split(',')
-      .map((o: string) => o.trim())
-      .filter(Boolean);
-    return options[score - 1] || `Option n°${score}`;
-  };
   const morceauxIA: string[] = [];
   const reponsesVues = new Set<string>();
   const commentaireFinal = (commentaire || '').trim();
@@ -882,14 +894,18 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     if (type === 'TEXTE' || type === 'CASES') {
       if (texte) pousserMorceau(libelle, texte);
     } else if (type === 'QCM') {
-      pousserMorceau(libelle, texte || optionQCMParIndex(critere, item.score));
+      // Vague 1 : libellé résolu par id (jamais options[score-1]).
+      pousserMorceau(libelle, item.libelleOption || texte || 'Option');
     } else if (type === 'OUI_NON') {
-      pousserMorceau(libelle, item.score >= 4 ? 'Oui' : 'Non');
+      pousserMorceau(libelle, (item.score_officiel ?? 1) >= 4 ? 'Oui' : 'Non');
     } else {
-      // SMILEY / ECHELLE : réponse chiffrée — on transmet la note normalisée
-      // pour calibrer sentiment et urgence, sans inventer de texte.
-      const note = normaliserScoreSur5(critere, item.score);
-      morceauxIA.push(`Q : ${libelle}\nNote : ${note !== null ? `${note}/5` : `${item.score}`}`);
+      // SMILEY / ECHELLE / NPS : réponse chiffrée — note /5 dérivée du
+      // normalisé pour calibrer sentiment et urgence, sans inventer de texte.
+      const n5 =
+        item.score_normalise !== null
+          ? Math.max(1, Math.min(5, Math.round(item.score_normalise / 20)))
+          : null;
+      morceauxIA.push(`Q : ${libelle}\nNote : ${n5 !== null ? `${n5}/5` : '—'}`);
     }
   }
   if (commentaireFinal.length > 0) morceauxIA.push(`Commentaire final : ${commentaireFinal}`);
@@ -897,13 +913,13 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   if (texteCompletAvis.length > 0 && createdReponses.length > 0) {
     try {
       if (context.entities.AnalyseAvisIA) {
-        // La note transmise est la PLUS BASSE (worstScore) : c'est elle qui
-        // calibre l'urgence — une seule question à 1/5 suffit à alerter.
+        // La note transmise est la PLUS BASSE (pireNormalise/20) : c'est
+        // elle qui calibre l'urgence — une seule question à 1/5 suffit.
         await context.entities.AnalyseAvisIA.create({
           data: {
             reponseId: createdReponses[0].id,
             commentaireTexte: texteCompletAvis,
-            noteBrut: worstScore,
+            noteBrut: pireSur5,
             status: 'PENDING',
           },
         });
@@ -913,8 +929,8 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     }
   }
 
-  // --- ALERTE + NOTIFICATIONS si note critique ---
-  if (worstScore !== null && worstScore <= 2) {
+  // --- ALERTE + NOTIFICATIONS si note critique (seuil 40/100 ≡ 2/5) ---
+  if (pireNormalise !== null && pireNormalise <= 40 && pireSur5 !== null) {
     // Bug corrigé : `findFirst` avec `role: { in: [...] }` sans `orderBy`
     // renvoyait un destinataire dans un ordre non garanti par la base — si
     // renvoyait un destinataire dans un ordre non garanti par la base.
@@ -944,7 +960,7 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     if (destinataire) {
       await context.entities.Alerte.create({
         data: {
-          message: `Note de ${worstScore}/5 reçue au guichet "${guichet.nom_guichet}". Commentaire: "${commentaire || 'Aucun'}"`,
+          message: `Note de ${pireSur5}/5 reçue au guichet "${guichet.nom_guichet}". Commentaire: "${commentaire || 'Aucun'}"`,
           type_alerte: "NOTE_CRITIQUE",
           statut_alerte: "NOUVELLE",
           id_reponse: createdReponses[0].id,
@@ -963,7 +979,7 @@ const soumettreAvisImpl = async (args: any, context: any) => {
         const extraitCommentaire = commentaire?.trim()
           ? ` « ${commentaire.trim().slice(0, 60)}${commentaire.trim().length > 60 ? '…' : ''} »`
           : '';
-        const msgAlerte = `⚠️ Yeba ALERTE — Note critique ${worstScore}/5 au guichet "${guichet.nom_guichet}".${extraitCommentaire} Traitez : ${FRONTEND_URL}/alertes-taches`;
+        const msgAlerte = `⚠️ Yeba ALERTE — Note critique ${pireSur5}/5 au guichet "${guichet.nom_guichet}".${extraitCommentaire} Traitez : ${FRONTEND_URL}/alertes-taches`;
         // La capture de variables synchrones avant le détachement évite tout
         // souci de closure après la fin de la requête.
         const tel = destinataire.telephone;
@@ -1000,6 +1016,116 @@ export const soumettreAvis = async (args: any, context: any) => {
       "Nous ne pouvons pas enregistrer votre avis pour le moment. Veuillez réessayer dans quelques instants."
     );
   }
+};
+
+// ============================================================================
+// COMPLÉTER UNE SOUMISSION (T2 — vague 1, sans bouton « Envoyer »)
+// ============================================================================
+// Le parcours sans-bouton enregistre les NOTES en T1 (soumettreAvis, déjà
+// fait). Le commentaire facultatif arrive ENSUITE, sur la MÊME soumission :
+//   notes (T1, id_soumission stable) → commentaire éventuel (T2, ici).
+// Avantage : si le client quitte après ses notes, elles sont déjà sauvées.
+//
+// Garde-fous (décisions validées) :
+// - fenêtre de 30 MIN après la première réponse (UUID non devinable +
+//   rate-limit implicite : un id_soumission ne se devine pas) ;
+// - le commentaire met à jour la PREMIÈRE ligne (celle qui porte l'analyse
+//   IA) ; l'analyse repasse PENDING (requeue, sans reset attempts) si elle
+//   n'a pas définitivement échoué ;
+// - téléphone optionnel : enregistré dans l'anti-rejeu (même règle qu'en
+//   T1), jamais en clair.
+// PUBLIQUE (même régime que soumettreAvis : route /q/* sans session).
+// ============================================================================
+
+const FENETRE_COMPLETION_MS = 30 * 60 * 1000;
+
+export const completerSoumission = async (
+  args: { id_soumission?: string; commentaire?: string; telephone?: string },
+  context: any,
+) => {
+  const idSoumission = typeof args?.id_soumission === 'string' ? args.id_soumission.trim() : '';
+  if (!idSoumission || idSoumission.length > 100) {
+    throw new HttpError(400, 'Soumission introuvable.');
+  }
+  const commentaireBrut = typeof args?.commentaire === 'string' ? args.commentaire.trim() : '';
+  const telephoneBrut = typeof args?.telephone === 'string' ? args.telephone.trim() : '';
+  if (!commentaireBrut && !telephoneBrut) {
+    throw new HttpError(400, 'Rien à enregistrer.');
+  }
+  if (commentaireBrut.length > 1000) {
+    throw new HttpError(400, 'Le commentaire est trop long (1000 caractères maximum).');
+  }
+
+  const lignes = await context.entities.Reponse.findMany({
+    where: { id_soumission: idSoumission },
+    orderBy: { id: 'asc' },
+    select: {
+      id: true, date_reponse: true, id_guichet: true,
+      guichet: { select: { id_agence: true, agence: { select: { id_entreprise: true } } } },
+    },
+  });
+  if (lignes.length === 0) {
+    // Anti-énumération : même réponse que « fenêtre dépassée ».
+    throw new HttpError(410, 'Cette soumission est clôturée.');
+  }
+  const premiere = lignes[0] as any;
+  if (Date.now() - new Date(premiere.date_reponse).getTime() > FENETRE_COMPLETION_MS) {
+    throw new HttpError(410, 'Cette soumission est clôturée.');
+  }
+
+  if (telephoneBrut) {
+    let telephoneE164: string;
+    try {
+      telephoneE164 = normaliserTelephoneE164(telephoneBrut);
+    } catch {
+      throw new HttpError(400, 'Numéro de téléphone invalide.');
+    }
+    const hachage = hmacSHA256(getAntiReplaySalt(), telephoneE164);
+    await context.entities.VoteAntiRejeu.upsert({
+      where: {
+        id_entreprise_hachage_tel_date_vote: {
+          id_entreprise: premiere.guichet.agence.id_entreprise,
+          hachage_tel: hachage,
+          date_vote: new Date(),
+        },
+      },
+      update: { date_vote: new Date() },
+      create: {
+        id_entreprise: premiere.guichet.agence.id_entreprise,
+        hachage_tel: hachage,
+        date_vote: new Date(),
+      },
+    });
+  }
+
+  if (commentaireBrut) {
+    await context.entities.Reponse.update({
+      where: { id: premiere.id },
+      data: { commentaire_texte: sanitiserCommentaire(commentaireBrut) },
+    });
+    // Requeue l'analyse IA sur le texte enrichi (sans reset attempts :
+    // un avis en échec définitif 3x ne boucle pas à l'infini).
+    try {
+      const analyse = await context.entities.AnalyseAvisIA.findUnique({
+        where: { reponseId: premiere.id },
+        select: { reponseId: true, status: true, attempts: true, commentaireTexte: true },
+      });
+      if (analyse && analyse.status !== 'FAILED') {
+        const enrichi = [analyse.commentaireTexte, commentaireBrut]
+          .filter(Boolean)
+          .join('\n\nCommentaire final : ')
+          .slice(0, 4000);
+        await context.entities.AnalyseAvisIA.update({
+          where: { reponseId: premiere.id },
+          data: { commentaireTexte: enrichi, status: 'PENDING', processedAt: null },
+        });
+      }
+    } catch (e: any) {
+      console.warn('[COMPLETER_SOUMISSION_IA] Requeue non-bloquante:', e?.message);
+    }
+  }
+
+  return { ok: true as const };
 };
 
 // ============================================================================
@@ -2039,12 +2165,132 @@ export const createService = async (
   });
 };
 
+// ============================================================================
+// OPTIONS MÉTIER — vague 1 (source de vérité du scoring).
+// synchroniserOptionsCritere écrit le jeu d'options d'un critère :
+//  - normalise + déduplique les libellés (400 si doublon) ;
+//  - upsert par libelle_normalise (jamais de DELETE : les options déjà
+//    utilisées par des avis passent actif=false, la FK Restrict de
+//    ReponseOption protège l'historique de toute suppression) ;
+//  - provenance EXPLICIT (scores saisis par l'admin) ou INFERRED ;
+//  - rebump critere.version (traçabilité : les avis stampent la version) ;
+//  - maintient options_reponse/scores_reponse CSV (compat lecture legacy ;
+//    scores_reponse = NULL si jeu partiellement scoré — honnête).
+// ============================================================================
+
+const MODES_SCORING_VALIDES = [
+  'ORDINAL', 'BINARY', 'NUMERIC', 'SMILEY', 'NPS',
+  'CASES_CATEGORICAL', 'CASES_WEIGHTED', 'FREE_TEXT',
+];
+
+const MODES_PAR_TYPE: Record<string, Array<string | null>> = {
+  SMILEY: ['SMILEY', null],
+  OUI_NON: ['BINARY', null],
+  QCM: ['ORDINAL', null],
+  TEXTE: ['FREE_TEXT', null],
+  ECHELLE: ['NUMERIC', null],
+  NPS: ['NPS', null],
+  CASES: ['CASES_CATEGORICAL', 'CASES_WEIGHTED', null],
+};
+
+type EntreeOption = {
+  libelle: string;
+  score?: number | null;
+  poids?: number | null;
+  est_scorable?: boolean;
+  code_metier?: string;
+  valeur_metier?: string;
+};
+
+async function synchroniserOptionsCritere(
+  tx: any,
+  idCritere: number,
+  entrees: EntreeOption[],
+  provenance: 'EXPLICIT' | 'INFERRED',
+): Promise<{ csvOptions: string; csvScores: string | null }> {
+  if (entrees.length < 2) {
+    throw new HttpError(400, 'Il faut au moins 2 choix.');
+  }
+  if (entrees.length > 50) {
+    throw new HttpError(400, 'Trop de choix (50 maximum).');
+  }
+  const vus = new Set<string>();
+  const propres = entrees.map((e, i) => {
+    const libelle = String(e?.libelle ?? '').trim();
+    if (!libelle) throw new HttpError(400, `Le choix n°${i + 1} est vide.`);
+    if (libelle.length > 200) throw new HttpError(400, `Le choix « ${libelle.slice(0, 40)} » dépasse 200 caractères.`);
+    const normalise = normaliserLibelle(libelle);
+    if (!normalise || vus.has(normalise)) {
+      throw new HttpError(400, `Choix en double : « ${libelle} » (les libellés doivent être uniques, sans tenir compte des accents et de la casse).`);
+    }
+    vus.add(normalise);
+    const score = e?.score === undefined || e?.score === null ? null : Number(e.score);
+    if (score !== null && (!Number.isInteger(score) || score < 1 || score > 20)) {
+      throw new HttpError(400, `Score invalide pour « ${libelle} » (entier 1-20).`);
+    }
+    const poids = e?.poids === undefined || e?.poids === null ? null : Number(e.poids);
+    if (poids !== null && (!Number.isInteger(poids) || poids < -100 || poids > 100)) {
+      throw new HttpError(400, `Poids invalide pour « ${libelle} » (entier -100 à +100).`);
+    }
+    const code = typeof e?.code_metier === 'string' ? e.code_metier.trim().toUpperCase().slice(0, 30) : null;
+    const valeurMetier = typeof e?.valeur_metier === 'string' ? e.valeur_metier.trim().slice(0, 200) : null;
+    return {
+      libelle, normalise, ordre: i, score,
+      est_scorable: typeof e?.est_scorable === 'boolean' ? e.est_scorable : score !== null,
+      poids, code_metier: code || null, valeur_metier: valeurMetier || null,
+    };
+  });
+
+  const existantes = await tx.optionCritere.findMany({ where: { id_critere: idCritere } });
+  const parNorm = new Map<string, any>(existantes.map((o: any) => [o.libelle_normalise, o]));
+  const gardees = new Set<string>();
+  for (const p of propres) {
+    gardees.add(p.normalise);
+    const deja = parNorm.get(p.normalise);
+    const data = {
+      libelle: p.libelle,
+      ordre_affichage: p.ordre,
+      actif: true,
+      est_scorable: p.est_scorable,
+      score: p.score,
+      score_provenance: p.score !== null ? provenance : null,
+      poids: p.poids,
+      code_metier: p.code_metier,
+      valeur_metier: p.valeur_metier,
+    };
+    if (deja) {
+      await tx.optionCritere.update({ where: { id: deja.id }, data });
+    } else {
+      await tx.optionCritere.create({
+        data: { id_critere: idCritere, libelle_normalise: p.normalise, ...data },
+      });
+    }
+  }
+  // Retirées du jeu → désactivées, JAMAIS supprimées (historique).
+  for (const o of existantes) {
+    if (!gardees.has(o.libelle_normalise) && o.actif) {
+      await tx.optionCritere.update({ where: { id: o.id }, data: { actif: false } });
+    }
+  }
+
+  const csvOptions = propres.map((p) => p.libelle).join(',');
+  const toutScore = propres.every((p) => p.score !== null);
+  return {
+    csvOptions,
+    csvScores: toutScore ? propres.map((p) => String(p.score)).join(',') : null,
+  };
+}
+
 export const createCritere = async (
   args: {
     libelle_critere: string;
     description?: string;
     type_reponse?: string;
     options_reponse?: string;
+    // Vague 1 : jeu d'options explicite (prioritaire sur options_reponse).
+    options?: EntreeOption[];
+    scoring_mode?: string;
+    orientation?: string;
     obligatoire?: boolean;
     id_agence?: number;
     serviceIds?: number[];
@@ -2073,16 +2319,28 @@ export const createCritere = async (
     throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
   }
 
-  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES'];
+  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES', 'NPS'];
   const typeReponse = args.type_reponse && typesValides.includes(args.type_reponse) ? args.type_reponse : 'SMILEY';
-  if ((typeReponse === 'QCM' || typeReponse === 'CASES') && !args.options_reponse?.trim()) {
+  if ((typeReponse === 'QCM' || typeReponse === 'CASES') && !args.options?.length && !args.options_reponse?.trim()) {
     throw new HttpError(400, 'Les choix sont requis pour ce type de réponse.');
   }
-  if ((typeReponse === 'QCM' || typeReponse === 'CASES')) {
-    const nbOptions = args.options_reponse!.split(',').map((o) => o.trim()).filter(Boolean).length;
-    if (nbOptions < 2) {
-      throw new HttpError(400, 'Il faut au moins 2 choix.');
+  // Vague 1 : mode de scoring explicite (validé + compatible avec le type).
+  let scoringMode: string | null = null;
+  if (args.scoring_mode !== undefined && args.scoring_mode !== null && String(args.scoring_mode).trim()) {
+    const m = String(args.scoring_mode).trim().toUpperCase();
+    if (!MODES_SCORING_VALIDES.includes(m) || !(MODES_PAR_TYPE[typeReponse] ?? []).includes(m)) {
+      throw new HttpError(400, `Mode de scoring invalide pour ce type de question (${typeReponse}).`);
     }
+    scoringMode = m;
+  }
+  // Vague 1 : orientation (Oui = positif par défaut ; LOWER_BETTER pour les
+  // questions « problème » où Oui est négatif).
+  const orientation =
+    args.orientation === undefined || args.orientation === null || args.orientation === ''
+      ? 'HIGHER_BETTER'
+      : String(args.orientation).trim().toUpperCase();
+  if (orientation !== 'HIGHER_BETTER' && orientation !== 'LOWER_BETTER') {
+    throw new HttpError(400, 'Orientation invalide (HIGHER_BETTER ou LOWER_BETTER).');
   }
   let optionsEchelle: string | null = null;
   if (typeReponse === 'ECHELLE') {
@@ -2127,19 +2385,21 @@ export const createCritere = async (
         libelle_critere: libelle,
         description,
         type_reponse: typeReponse,
+        scoring_mode: scoringMode,
+        orientation,
         options_reponse:
           typeReponse === 'QCM' || typeReponse === 'CASES'
             ? args.options_reponse?.trim() || null
             : typeReponse === 'ECHELLE'
             ? optionsEchelle
             : null,
-        // C5/S3 (admin-proof scoring) : stocker les scores sémantiques
-        // (1 = pire ... 5 = meilleur) parallèlement à options_reponse.
+        // Compat legacy (sera recalculé canoniquement après synchronisation
+        // des options ci-dessous).
         scores_reponse:
           typeReponse === 'QCM' || typeReponse === 'CASES'
             ? construireScoresAStocker(
-                args.options_reponse!.trim(),
-                undefined // pas de scores explicites pour l'instant (futur UI)
+                args.options_reponse?.trim() || '',
+                undefined
               )
             : null,
         obligatoire: args.obligatoire !== false,
@@ -2148,6 +2408,32 @@ export const createCritere = async (
         id_entreprise: context.user.id_entreprise,
       },
     });
+
+    // Vague 1 : écriture des OptionCritere (source de vérité du scoring).
+    // - options explicites (nouvelle UI) → provenance EXPLICIT ;
+    // - sinon CSV legacy → inférence lexicale, provenance INFERRED.
+    if (typeReponse === 'QCM' || typeReponse === 'CASES') {
+      let entrees: EntreeOption[];
+      let provenance: 'EXPLICIT' | 'INFERRED';
+      if (args.options && args.options.length > 0) {
+        entrees = args.options;
+        provenance = 'EXPLICIT';
+      } else {
+        const { infererScoreOption } = await import('../shared/scoringQCM');
+        entrees = parseOptionsCSV(args.options_reponse || '').map((libelle) => ({
+          libelle,
+          score: infererScoreOption(libelle),
+        }));
+        provenance = 'INFERRED';
+      }
+      const { csvOptions, csvScores } = await synchroniserOptionsCritere(
+        tx, created.id, entrees, provenance,
+      );
+      await tx.critere.update({
+        where: { id: created.id },
+        data: { options_reponse: csvOptions, scores_reponse: csvScores },
+      });
+    }
 
     await tx.agenceCritere.create({
       data: { id_agence: idAgence, id_critere: created.id },
@@ -2214,6 +2500,10 @@ export const updateCritere = async (
     description?: string;
     type_reponse?: string;
     options_reponse?: string;
+    // Vague 1 : jeu d'options explicite (prioritaire), mode et orientation.
+    options?: EntreeOption[];
+    scoring_mode?: string | null;
+    orientation?: string;
     obligatoire?: boolean;
   },
   context: any
@@ -2247,18 +2537,23 @@ export const updateCritere = async (
     throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
   }
 
-  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES'];
+  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES', 'NPS'];
   let typeReponse: string | undefined;
   let optionsReponse: string | null | undefined;
 
   if (args.type_reponse !== undefined) {
     typeReponse = typesValides.includes(args.type_reponse) ? args.type_reponse : 'SMILEY';
     if (typeReponse === 'QCM' || typeReponse === 'CASES') {
+      const aDesOptionsExplicites = args.options !== undefined && args.options.length > 0;
       const brut = args.options_reponse?.trim();
-      if (!brut) throw new HttpError(400, 'Les choix sont requis pour ce type de réponse.');
-      const nbOptions = brut.split(',').map((o) => o.trim()).filter(Boolean).length;
+      if (!aDesOptionsExplicites && !brut) {
+        throw new HttpError(400, 'Les choix sont requis pour ce type de réponse.');
+      }
+      const nbOptions = aDesOptionsExplicites
+        ? args.options!.length
+        : brut!.split(',').map((o) => o.trim()).filter(Boolean).length;
       if (nbOptions < 2) throw new HttpError(400, 'Il faut au moins 2 choix.');
-      optionsReponse = brut;
+      if (!aDesOptionsExplicites) optionsReponse = brut!;
     } else if (typeReponse === 'ECHELLE') {
       const brut = args.options_reponse?.trim();
       if (brut) {
@@ -2277,24 +2572,94 @@ export const updateCritere = async (
     }
   }
 
-  return context.entities.Critere.update({
-    where: { id: idCritere },
-    data: {
-      ...(libelle !== undefined ? { libelle_critere: libelle } : {}),
-      ...(description !== undefined ? { description: description || null } : {}),
-      ...(typeReponse !== undefined ? { type_reponse: typeReponse } : {}),
-      ...(optionsReponse !== undefined ? { options_reponse: optionsReponse } : {}),
-      // C5/S3 (admin-proof scoring) : recalculer scores_reponse si options changent
-      ...(optionsReponse !== undefined
-        ? {
-            scores_reponse:
-              typeReponse === 'QCM' || typeReponse === 'CASES'
-                ? construireScoresAStocker(optionsReponse || '', undefined)
-                : null,
-          }
-        : {}),
-      ...(args.obligatoire !== undefined ? { obligatoire: args.obligatoire } : {}),
-    },
+  // Vague 1 : mode + orientation (validés, compatibles avec le type final).
+  const typeFinal = typeReponse ?? critere?.type_reponse ?? 'SMILEY';
+  let scoringMode: string | null | undefined;
+  if (args.scoring_mode !== undefined) {
+    if (args.scoring_mode === null || String(args.scoring_mode).trim() === '') {
+      scoringMode = null;
+    } else {
+      const m = String(args.scoring_mode).trim().toUpperCase();
+      if (!MODES_SCORING_VALIDES.includes(m) || !(MODES_PAR_TYPE[typeFinal] ?? []).includes(m)) {
+        throw new HttpError(400, `Mode de scoring invalide pour ce type de question (${typeFinal}).`);
+      }
+      scoringMode = m;
+    }
+  }
+  let orientation: string | undefined;
+  if (args.orientation !== undefined) {
+    const o = String(args.orientation ?? '').trim().toUpperCase() || 'HIGHER_BETTER';
+    if (o !== 'HIGHER_BETTER' && o !== 'LOWER_BETTER') {
+      throw new HttpError(400, 'Orientation invalide (HIGHER_BETTER ou LOWER_BETTER).');
+    }
+    orientation = o;
+  }
+
+  const toucheScoring =
+    typeReponse !== undefined ||
+    optionsReponse !== undefined ||
+    (args.options !== undefined && args.options.length > 0) ||
+    scoringMode !== undefined ||
+    orientation !== undefined;
+
+  return await prisma.$transaction(async (tx: any) => {
+    const maj = await tx.critere.update({
+      where: { id: idCritere },
+      data: {
+        ...(libelle !== undefined ? { libelle_critere: libelle } : {}),
+        ...(description !== undefined ? { description: description || null } : {}),
+        ...(typeReponse !== undefined ? { type_reponse: typeReponse } : {}),
+        ...(optionsReponse !== undefined ? { options_reponse: optionsReponse } : {}),
+        ...(scoringMode !== undefined ? { scoring_mode: scoringMode } : {}),
+        ...(orientation !== undefined ? { orientation } : {}),
+        ...(toucheScoring ? { version: { increment: 1 } } : {}),
+        ...(args.obligatoire !== undefined ? { obligatoire: args.obligatoire } : {}),
+      },
+    });
+
+    // Vague 1 : (re)synchronisation des options + CSV canoniques.
+    const typeCourant = maj.type_reponse;
+    if (typeCourant === 'QCM' || typeCourant === 'CASES') {
+      if (args.options !== undefined && args.options.length > 0) {
+        const { csvOptions, csvScores } = await synchroniserOptionsCritere(
+          tx, idCritere, args.options, 'EXPLICIT',
+        );
+        await tx.critere.update({
+          where: { id: idCritere },
+          data: { options_reponse: csvOptions, scores_reponse: csvScores },
+        });
+      } else if (optionsReponse !== undefined) {
+        const { infererScoreOption } = await import('../shared/scoringQCM');
+        const { csvOptions, csvScores } = await synchroniserOptionsCritere(
+          tx,
+          idCritere,
+          parseOptionsCSV(optionsReponse || '').map((libelle) => ({
+            libelle,
+            score: infererScoreOption(libelle),
+          })),
+          'INFERRED',
+        );
+        await tx.critere.update({
+          where: { id: idCritere },
+          data: { options_reponse: csvOptions, scores_reponse: csvScores },
+        });
+      } else if (toucheScoring) {
+        // Mode/orientation/type changé sans toucher aux options : les CSV
+        // legacy restent valides, rien à resynchroniser.
+      }
+    } else if (typeReponse !== undefined) {
+      // Bascule vers un type sans options : désactivation (jamais de
+      // suppression — l'historique reste interprétable) + purge CSV legacy.
+      await tx.optionCritere.updateMany({
+        where: { id_critere: idCritere, actif: true },
+        data: { actif: false },
+      });
+      await tx.critere.update({
+        where: { id: idCritere },
+        data: { options_reponse: null, scores_reponse: null },
+      });
+    }
+    return maj;
   });
 };
 
@@ -2527,6 +2892,8 @@ export const duplicateCritere = async (
         libelle_critere: libelleCopie,
         description: original.description,
         type_reponse: original.type_reponse,
+        scoring_mode: (original as any).scoring_mode ?? null,
+        orientation: (original as any).orientation ?? 'HIGHER_BETTER',
         options_reponse: original.options_reponse,
         obligatoire: original.obligatoire,
         // La copie devient toujours un critère propre à l'entreprise qui
@@ -2536,6 +2903,31 @@ export const duplicateCritere = async (
         id_entreprise: context.user.id_entreprise,
       },
     });
+
+    // Vague 1 : la copie reprend les options actives (mêmes scores/poids,
+    // provenance conservée) — sinon un QCM dupliqué deviendrait non
+    // résolvable (AMBIGU) faute d'options.
+    const optionsOriginales = await tx.optionCritere.findMany({
+      where: { id_critere: idCritere, actif: true },
+      orderBy: { ordre_affichage: 'asc' },
+    });
+    if (optionsOriginales.length > 0) {
+      await tx.optionCritere.createMany({
+        data: optionsOriginales.map((o: any) => ({
+          id_critere: created.id,
+          libelle: o.libelle,
+          libelle_normalise: o.libelle_normalise,
+          ordre_affichage: o.ordre_affichage,
+          actif: true,
+          est_scorable: o.est_scorable,
+          score: o.score,
+          score_provenance: o.score_provenance,
+          poids: o.poids,
+          valeur_metier: o.valeur_metier,
+          code_metier: o.code_metier,
+        })),
+      });
+    }
 
     for (const lien of agenceLiensPropres) {
       await tx.agenceCritere.create({

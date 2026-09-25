@@ -328,6 +328,10 @@ model OptionCritere {
   // Score sémantique 1..5 (NULL = non valencé). Indépendant de
   // ordre_affichage : c'est CE champ qui fait foi, jamais la position.
   score             Int?
+  // Provenance du score : EXPLICIT (saisi par l'admin) | INFERRED
+  // (inférence lexicale) | MIGRATED (backfill CSV→options). NULL = non
+  // scoré. Permet au moteur de stamp score_source honnêtement.
+  score_provenance  String?
 
   // CASES_WEIGHTED : poids + (atout) ou - (irritant), ex. -25.
   poids             Int?

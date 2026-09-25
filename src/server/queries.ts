@@ -2017,7 +2017,11 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
 
   // Agrégat SQL : { id_agence, id_critere } → moyenne + nombre. Plus aucun
   // chargement de lignes Reponse vers Node — PostgreSQL fait le travail.
-  const agregats: Array<{ id_agence: number; id_critere: number; _avg: { score_brut: number | null }; _count: { id: number } }> = await context.entities.Reponse.groupBy({
+  // Vague 1 : moyenne du score_normalise STOCKÉ (/100, moteur Phase C/D) —
+  // jamais AVG(score_brut) : le brut mélange TEXTE=3 fantômes, index QCM
+  // positionnels et échelles non normalisées. AVG SQL ignore les NULL :
+  // les non notables (TEXTE, CASES catégoriel) sont exclus d'office.
+  const agregats: Array<{ id_agence: number; id_critere: number; _avg: { score_normalise: number | null }; _count: { id: number } }> = await context.entities.Reponse.groupBy({
     by: ['id_agence', 'id_critere'],
     where: {
       id_agence: { in: agencesIds },
@@ -2030,7 +2034,7 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
         },
       })),
     },
-    _avg: { score_brut: true },
+    _avg: { score_normalise: true },
     _count: { id: true },
   });
   const agregatKey = (idAgence: number, idCritere: number) => `${idAgence}:${idCritere}`;
@@ -2049,9 +2053,9 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
       let ecart: number | null = null;
       let statut: 'ATTEINT' | 'EN_RETARD' | 'PAS_DE_DONNEES' = 'PAS_DE_DONNEES';
 
-      if (nb > 0 && g?._avg?.score_brut != null) {
-        const moyenne = g._avg.score_brut;
-        realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
+      if (nb > 0 && g?._avg?.score_normalise != null) {
+        // score_normalise est déjà /100 : pas de conversion /5.
+        realise_pct = parseFloat(Number(g._avg.score_normalise).toFixed(1));
         ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
         statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
       }

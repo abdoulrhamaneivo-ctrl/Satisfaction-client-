@@ -63,6 +63,7 @@ export async function backfillOptionsCriteres(
       actif: boolean;
       est_scorable: boolean;
       score: number | null;
+      score_provenance: string | null;
     }[] = [];
 
     libelles.forEach((libelle, index) => {
@@ -85,6 +86,9 @@ export async function backfillOptionsCriteres(
         actif: true,
         est_scorable: score != null,
         score,
+        // Backfill historique : ni saisi admin (EXPLICIT) ni inféré à la
+        // volée (INFERRED) — MIGRATED, traçable via score_source des avis.
+        score_provenance: score != null ? 'MIGRATED' : null,
       });
     });
 

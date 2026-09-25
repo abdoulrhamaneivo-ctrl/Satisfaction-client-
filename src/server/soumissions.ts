@@ -92,9 +92,16 @@ export function compterAvis<T extends ReponseAvecSoumission>(reponses: T[]): num
  * les inclure dans une moyenne créerait un score artificiel.
  */
 export function scoreNormaliseSur5(reponse: ReponseAvecSoumission): number | null {
-  // Vague 1 : un score_brut NULL (non notable) ne produit jamais de note —
-  // sans ce garde, le calcul ECHELLE produirait NaN qui polluerait les
-  // moyennes (NaN !== null donc non filtré).
+  // Vague 1 : le score_normalise STOCKÉ (/100, moteur Phase C/D) est la
+  // seule vérité statistique — il prime sur tout recalcul. Le recalcul
+  // legacy ci-dessous ne sert que pour les lignes antérieures.
+  const stocke = (reponse as { score_normalise?: number | null }).score_normalise;
+  if (typeof stocke === 'number' && Number.isFinite(stocke)) {
+    return Math.max(1, Math.min(5, stocke / 20));
+  }
+  // Un score_brut NULL (non notable) ne produit jamais de note — sans ce
+  // garde, le calcul ECHELLE produirait NaN qui polluerait les moyennes
+  // (NaN !== null donc non filtré).
   if (reponse.score_brut == null) return null;
   const type = reponse.critere?.type_reponse;
   if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;

@@ -141,14 +141,18 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
   // jamais les lignes Reponse individuelles.
   const avisGroupes = regrouperAvisParSoumission(reponses);
   const totalAvis = avisGroupes.length;
+  // Vague 1 : les stats de notes portent sur les SEULS avis notables
+  // (un avis TEXTE-only n'a pas de note — ni 0 ni 3).
+  const avisNotes = avisGroupes.filter((a) => a.score_moyen !== null);
+  const totalNotes = avisNotes.length;
 
   const distribution = [1, 2, 3, 4, 5].map((note) => {
-    const nb = avisGroupes.filter((a) => Math.round(a.score_moyen) === note).length;
-    return { note, nb, pct: totalAvis > 0 ? Math.round((nb / totalAvis) * 100) : 0 };
+    const nb = avisNotes.filter((a) => Math.round(a.score_moyen as number) === note).length;
+    return { note, nb, pct: totalNotes > 0 ? Math.round((nb / totalNotes) * 100) : 0 };
   });
 
-  const noteMoyenne = totalAvis > 0 ? avisGroupes.reduce((s, a) => s + a.score_moyen, 0) / totalAvis : 0;
-  const tauxSatisfaction = totalAvis > 0 ? (avisGroupes.filter((a) => a.score_moyen >= 4).length / totalAvis) * 100 : 0;
+  const noteMoyenne = totalNotes > 0 ? avisNotes.reduce((s, a) => s + (a.score_moyen as number), 0) / totalNotes : 0;
+  const tauxSatisfaction = totalNotes > 0 ? (avisNotes.filter((a) => (a.score_moyen as number) >= 4).length / totalNotes) * 100 : 0;
 
   const alertesCloturees = alertes.filter((a) => a.statut_alerte === 'TRAITEE').length;
   const tachesEnRetard = taches.filter((t: any) => {

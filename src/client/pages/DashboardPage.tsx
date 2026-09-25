@@ -565,12 +565,14 @@ export const DashboardPage = () => {
                         <td className="px-6 py-4">
                           <span
                             className={`rounded-full px-2.5 py-1 text-xs font-bold border ${
-                              avis.score_moyen <= 2
-                                ? 'bg-destructive/10 text-destructive border-destructive/20'
-                                : 'bg-success/10 text-success border-success/20'
+                              avis.score_moyen == null
+                                ? 'bg-muted text-muted-foreground border-border'
+                                : avis.score_moyen <= 2
+                                  ? 'bg-destructive/10 text-destructive border-destructive/20'
+                                  : 'bg-success/10 text-success border-success/20'
                             }`}
                           >
-                            {avis.score_moyen}/5
+                            {avis.score_moyen == null ? '—' : `${avis.score_moyen}/5`}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-foreground font-medium">{premiere.guichet?.nom_guichet || 'Guichet inconnu'}</td>

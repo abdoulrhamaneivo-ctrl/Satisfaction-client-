@@ -34,6 +34,7 @@ import {
   createGuichet,
   assignAgent,
   soumettreAvis,
+  completerSoumission,
   updateAgent,
   deleteAgent,
   reactivateAgent,
@@ -174,7 +175,11 @@ const genererPlanningAction = action(genererPlanning, { entities: ["ModeleHorair
 const reconduirePlanningAction = action(reconduirePlanning, { entities: ["AffectationGuichet", "Guichet", "User", "Agence", "Entreprise"] });
 const appliquerSuggestionAction = action(appliquerSuggestion, { entities: ["AffectationGuichet", "Guichet", "User", "Agence", "Entreprise"] });
 const soumettreAvisAction = action(soumettreAvis, {
-  entities: ["Reponse", "Critere", "AgenceCritere", "CritereService", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "AnalyseAvisIA", "Canal"],
+  entities: ["Reponse", "Critere", "OptionCritere", "ReponseOption", "AgenceCritere", "CritereService", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "AnalyseAvisIA", "Canal"],
+});
+// T2 vague 1 (commentaire auto-sauvé sur la même soumission, public).
+const completerSoumissionAction = action(completerSoumission, {
+  entities: ["Reponse", "Guichet", "Agence", "VoteAntiRejeu", "AnalyseAvisIA"],
 });
 const createAgenceAction = action(createAgence, { entities: ["Agence", "User", "Entreprise"] });
 const updateAgentAction = action(updateAgent, { entities: ["User", "Agence", "Entreprise"] });
@@ -362,6 +367,7 @@ export default app({
     reconduirePlanningAction,
     appliquerSuggestionAction,
     soumettreAvisAction,
+    completerSoumissionAction,
     createAgenceAction,
     updateAgentAction,
     deleteAgentAction,

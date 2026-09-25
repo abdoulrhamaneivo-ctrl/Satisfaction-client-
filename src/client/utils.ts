@@ -22,11 +22,19 @@ export function messageErreurAction(err: any, defaut: string): string {
 }
 
 // Normalise une réponse sur 5 — miroir client de scoreNormaliseSur5
-// (src/server/soumissions.ts). TEXTE/QCM/CASES ne sont pas des notes.
+// (src/server/soumissions.ts). Vague 1 : le score_normalise STOCKÉ (/100)
+// prime quand il existe (seule vérité statistique) ; le recalcul legacy
+// ne sert que pour les lignes antérieures sans normalisé.
 export function scoreNormaliseSur5Client(r: {
-  score_brut: number;
+  score_brut: number | null;
+  score_normalise?: number | null;
   critere?: { type_reponse?: string | null; options_reponse?: string | null } | null;
 }): number | null {
+  const stocke = (r as any)?.score_normalise;
+  if (typeof stocke === 'number' && Number.isFinite(stocke)) {
+    return Math.max(1, Math.min(5, stocke / 20));
+  }
+  if (r.score_brut == null) return null;
   const type = r.critere?.type_reponse;
   if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
   if (type === 'ECHELLE') {
@@ -64,9 +72,9 @@ export function decrireReponseCourte(r: any): string {
 // docs/logique-avis-uniques.md pour le pourquoi. Les lignes "legacy" sans
 // id_soumission (avant l'introduction de ce champ) restent chacune leur
 // propre avis.
-export function regrouperAvisParSoumission<T extends { id: any; id_soumission?: string | null; score_brut: number }>(
+export function regrouperAvisParSoumission<T extends { id: any; id_soumission?: string | null; score_brut: number | null }>(
   reponses: T[]
-): { id_soumission: string | null; reponses: T[]; score_moyen: number }[] {
+): { id_soumission: string | null; reponses: T[]; score_moyen: number | null }[] {
   const index = new Map<string, T[]>();
   const ordre: string[] = [];
 
@@ -81,11 +89,18 @@ export function regrouperAvisParSoumission<T extends { id: any; id_soumission?: 
 
   return ordre.map((cle) => {
     const groupe = index.get(cle)!;
-    const total = groupe.reduce((s, r) => s + r.score_brut, 0);
+    // Vague 1 : moyenne des SEULES réponses notables (miroir serveur).
+    // Un avis TEXTE-only n'a pas de note : null, jamais 0 ni 3.
+    const notes = groupe
+      .map((r) => scoreNormaliseSur5Client(r as any))
+      .filter((s): s is number => s !== null);
     return {
       id_soumission: groupe[0].id_soumission ?? null,
       reponses: groupe,
-      score_moyen: parseFloat((total / groupe.length).toFixed(2)),
+      score_moyen:
+        notes.length > 0
+          ? parseFloat((notes.reduce((s, n) => s + n, 0) / notes.length).toFixed(2))
+          : null,
     };
   });
 }
