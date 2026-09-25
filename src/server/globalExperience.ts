@@ -11,6 +11,7 @@ import { HttpError } from 'wasp/server';
 import {
   requireAuth,
   requireRole,
+  requireManagementRole,
   assertEntrepriseActive,
 } from './middleware/rowLevelSecurity';
 import { semaineContenant, moisContenant } from './gex/moteurGlobal';
@@ -20,6 +21,11 @@ export const getAnalysesGlobales = async (
   context: any,
 ) => {
   requireAuth(context);
+  // SÉCURITÉ (Vague 1, P5) : la synthèse exécutive, les irritants et les
+  // priorités sont des agrégats de direction. Le module RLS documente que
+  // « le front n'est jamais la protection » : l'absence de contrôle de rôle
+  // laissait un AGENT lire la lecture complète de l'entreprise.
+  requireManagementRole(context);
   const idEntreprise = (context.user as any)?.id_entreprise ?? null;
   // Comptes plateforme (sans entreprise) : leur espace est /platform.
   if (!idEntreprise) return [];
@@ -55,6 +61,10 @@ export const declencherAnalyseGlobale = async (
     throw new HttpError(400, 'Date invalide.');
   }
   const bornes = periode === 'SEMAINE' ? semaineContenant(ref) : moisContenant(ref);
+  // Vague 1 (P4) : le déclencheur manuel REMET EN FILE une analyse échouée ou
+  // bloquée. Avant, `update: {}` laissait la ligne FAILED telle quelle et
+  // répondait « déjà disponible » : un incident de fournisseur condamnait la
+  // synthèse de la semaine, définitivement et sans issue.
   const existante = await context.entities.GlobalExperienceAnalysis.upsert({
     where: {
       id_entreprise_periode_debut: {
@@ -63,7 +73,7 @@ export const declencherAnalyseGlobale = async (
         debut: bornes.debut,
       },
     },
-    update: {},
+    update: { status: 'PENDING', error: null, attempts: 0, processedAt: null },
     create: {
       id_entreprise: idEntreprise,
       periode,
@@ -75,6 +85,8 @@ export const declencherAnalyseGlobale = async (
   return {
     id: String(existante.id),
     status: existante.status,
-    dejaExistante: existante.status !== 'PENDING',
+    // true = il existait déjà une analyse ETABLIE (DONE) : le message doit
+    // dire « déjà publiée », pas « remise en file ».
+    dejaExistante: existante.status === 'DONE',
   };
 };

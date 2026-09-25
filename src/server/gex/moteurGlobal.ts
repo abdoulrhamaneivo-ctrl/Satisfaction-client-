@@ -10,6 +10,7 @@
 
 import { agregerNPS, type AgregationNPS } from '../../shared/scoringEngine';
 import { agregerCES, reconnaitreCES, type AgregationCES } from '../../shared/ces';
+import { estCritereSatisfaction } from '../../shared/noteSur5';
 
 export interface PerimetreGlobal {
   id_entreprise: number;
@@ -176,11 +177,21 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
   const notables = reponses.filter(
     (r: any) => typeof r.score_normalise === 'number' && Number.isFinite(r.score_normalise),
   );
-  const notesNotables = notables.map((r: any) => Number(r.score_normalise));
-  const csat = notesNotables.length > 0 ? arrondi1(moyenne(notesNotables) as number) : null;
+  // Vague 1 (P2) : le CSAT ne doit mesurer QUE de la satisfaction. Le
+  // calcul.previous mélangeait dans la même moyenne les notes de
+  // recommandation (NPS 0-10) et les scores d'effort (CES, sens inversé) —
+  // un « très difficile » 0/100 faisait ainsi plummir un CSAT de 4,2 à 3,8.
+  // Ces deux familles ont leurs propres indicateurs (nps, ces ci-dessous).
+  const notesSatisfaction: number[] = [];
+  for (const r of notables) {
+    const c: any = r.critere;
+    if (!estCritereSatisfaction({ type_reponse: c?.type_reponse, scoring_mode: c?.scoring_mode })) continue;
+    notesSatisfaction.push(Number(r.score_normalise));
+  }
+  const csat = notesSatisfaction.length > 0 ? arrondi1(moyenne(notesSatisfaction) as number) : null;
 
   const distribution5: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
-  for (const n of notesNotables) {
+  for (const n of notesSatisfaction) {
     const b = Math.max(1, Math.min(5, Math.round(n / 20)));
     distribution5[String(b)] += 1;
   }

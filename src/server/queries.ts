@@ -797,10 +797,11 @@ export const getFormDefinitionForGuichet = async (
 
   return {
     guichetName: guichet.nom_guichet,
-    // FIX QR OPAQUE (05/09) : la page de collecte par code a besoin de l'id
-    // numérique pour la soumission — le code public ne suffit pas.
-    id_guichet: guichet.id,
-    id_agence: guichet.id_agence,
+    // SÉCURITÉ (Vague 1, P1) : plus aucun identifiant numérique de guichet ni
+    // d'agence n'est exposé publiquement. La page de collecte n'en a plus
+    // besoin — la soumission se fait par `code_public` (action
+    // `soumettreAvis`). Exposer `id_guichet` rendait l'énumération triviale
+    // et contournait le QR opaque côté serveur.
     services: guichet.services.map((s: any) => ({
       id: s.id,
       libelle_service: s.libelle_service,
@@ -1046,7 +1047,10 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
           id_critere: true,
           date_reponse: true,
           score_brut: true,
-          critere: { select: { type_reponse: true, options_reponse: true } },
+          // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+          // et inversait le CES / comptait le NPS en étoiles.
+          score_normalise: true,
+          critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
         },
       })
     : [];
@@ -1081,6 +1085,14 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
           return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
         }
         const moyenne = scores.reduce((s: number, score: number) => s + score, 0) / scores.length;
+        // Vague 1 (P12) : la cible saisie par l'admin est un pourcentage 0-100.
+        // `moyenne` est sur 1-5, donc (moyenne/5)×100 est la conversion
+        // correcte — mais elle ne vaut que si les notes viennent du MOTEUR.
+        // C'est désormais le cas : le `select` demande `score_normalise` et la
+        // règle partagée exclut NPS/CES. Avant, la valeur comparée à la cible
+        // venait d'un recalcul legacy — donc d'un autre nombre que celui
+        // affiché au client. L'autre implémentation, getObjectifsParAgence
+        // (_avg SQL sur score_normalise), n'est toujours appelée par personne.
         realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
         ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
         statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
@@ -1257,8 +1269,11 @@ export const getTendanceMensuelle = async (args: { id_agence?: number }, context
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       date_reponse: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
     orderBy: { date_reponse: 'asc' },
   });
@@ -1324,8 +1339,11 @@ export const getStatsByAgent = async (args: { id_agence?: number; nbJours?: numb
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       id_agent: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 
@@ -1391,8 +1409,11 @@ export const getStatsByGuichet = async (args: { id_agence?: number; nbJours?: nu
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       id_guichet: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 
@@ -1527,7 +1548,10 @@ export const getKPIsPeriode = async (args: { nbJours?: number } | void, context:
         id: true,
         id_soumission: true,
         score_brut: true,
-        critere: { select: { type_reponse: true, options_reponse: true } },
+        // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+        // et inversait le CES / comptait le NPS en étoiles.
+        score_normalise: true,
+        critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
         // SÉPARATION OPÉRATIONS (FIX 05/09) : ventiler les KPI par opération
         // (par_operation ci-dessous). Sans l'opération sur chaque ligne, les
         // notes restaient mélangées toutes opérations confondues.
@@ -1541,7 +1565,10 @@ export const getKPIsPeriode = async (args: { nbJours?: number } | void, context:
         id: true,
         id_soumission: true,
         score_brut: true,
-        critere: { select: { type_reponse: true, options_reponse: true } },
+        // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+        // et inversait le CES / comptait le NPS en étoiles.
+        score_normalise: true,
+        critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
       },
     }),
   ]);
@@ -1772,9 +1799,12 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       date_reponse: true,
       id_agence: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 
@@ -1830,8 +1860,11 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
         id: true,
         id_soumission: true,
         score_brut: true,
+        // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+        // et inversait le CES / comptait le NPS en étoiles.
+        score_normalise: true,
         id_agence: true,
-        critere: { select: { type_reponse: true, options_reponse: true } },
+        critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
       },
     });
     const parSoumPrec = new Map<string, { id_agence: number; scores: number[] }>();
@@ -1904,8 +1937,11 @@ export const getHeatmapReponses = async (args: { id_agence?: number; nbJours?: n
       id_soumission: true,
       id: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       date_reponse: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 

@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { decrireReponse } from "../shared/libelleReponse";
+import { noteSur5 } from "../shared/noteSur5";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -22,30 +23,12 @@ export function messageErreurAction(err: any, defaut: string): string {
   return brut || defaut;
 }
 
-// Normalise une réponse sur 5 — miroir client de scoreNormaliseSur5
-// (src/server/soumissions.ts). Vague 1 : le score_normalise STOCKÉ (/100)
-// prime quand il existe (seule vérité statistique) ; le recalcul legacy
-// ne sert que pour les lignes antérieures sans normalisé.
-export function scoreNormaliseSur5Client(r: {
-  score_brut: number | null;
-  score_normalise?: number | null;
-  critere?: { type_reponse?: string | null; options_reponse?: string | null } | null;
-}): number | null {
-  const stocke = (r as any)?.score_normalise;
-  if (typeof stocke === 'number' && Number.isFinite(stocke)) {
-    return Math.max(1, Math.min(5, stocke / 20));
-  }
-  if (r.score_brut == null) return null;
-  const type = r.critere?.type_reponse;
-  if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
-  if (type === 'ECHELLE') {
-    const [a, b] = String(r.critere?.options_reponse || '1,5').split(',');
-    const min = Number(a) || 1;
-    const max = Number(b) || 5;
-    if (!(max > min)) return r.score_brut;
-    return Math.max(1, Math.min(5, 1 + ((r.score_brut - min) / (max - min)) * 4));
-  }
-  return r.score_brut >= 1 && r.score_brut <= 5 ? r.score_brut : null;
+// Normalise une réponse sur 5 — Vague 1 (P2) : la règle est unique et vit dans
+// `src/shared/noteSur5.ts` (exclusion du NPS et du CES, priorité au
+// score_normalise stocké). Elle ne fut plus réimplémentée ici : les copies
+// divergentes étaient la cause du CES inversé et du NPS compté en étoiles.
+export function scoreNormaliseSur5Client(r: any): number | null {
+  return noteSur5(r);
 }
 
 // Libellé court d'une réponse pour exports : la VRAIE réponse en clair

@@ -420,25 +420,26 @@ export const deleteAffectationGuichet = async (args: any, context: any) => {
 // ============================================================================
 
 const soumettreAvisImpl = async (args: any, context: any) => {
-  const { guichetId, code_public, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
+  const { code_public, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
 
-  // FIX QR OPAQUE (05/09) : la page de collecte par code envoie le
-  // code_public ; on le résout en guichet ici, côté serveur.
-  let idGuichetEffectif = guichetId;
-  if (!idGuichetEffectif && code_public) {
-    const guichetParCode = await context.entities.Guichet.findUnique({
-      where: { code_public: String(code_public).toUpperCase().trim() },
-      select: { id: true },
-    });
-    if (!guichetParCode) {
-      throw new HttpError(404, "Guichet introuvable.");
-    }
-    idGuichetEffectif = guichetParCode.id;
+  // SÉCURITÉ (Vague 1, P1 — audit docs/audit/ETAT_REEL_PROJET.md) :
+  // le `code_public` est désormais OBLIGATOIRE et l'identifiant numérique
+  // n'est plus accepté. La version précédente priorisait `guichetId`, si bien
+  // qu'un appel anonyme pouvait écrire un avis dans le guichet d'une autre
+  // entreprise en devinant un entier (que la query publique renvoyait
+  // elle-même). Le QR opaque est le seul identifiant d'entrée.
+  const codeBrut = typeof code_public === 'string' ? code_public.toUpperCase().trim() : '';
+  if (!codeBrut) {
+    throw new HttpError(400, "Code de collecte requis.");
   }
-
-  if (!idGuichetEffectif) {
-    throw new HttpError(400, "Identifiant du guichet requis.");
+  const guichetParCode = await context.entities.Guichet.findUnique({
+    where: { code_public: codeBrut },
+    select: { id: true, id_agence: true },
+  });
+  if (!guichetParCode) {
+    throw new HttpError(404, "Guichet introuvable.");
   }
+  const idGuichetEffectif = guichetParCode.id;
 
   // ANTI-ABUS (Doc 11 §9 S8 adapté à la route publique) : la route de
   // collecte est anonyme — sans rate limiting, un script peut saturer la
@@ -589,7 +590,17 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // critères avant d'insérer quoi que ce soit.
   const critereIds = [...new Set(entrees.map((i) => i.critereId))];
   const criteresExistants = await context.entities.Critere.findMany({
-    where: { id: { in: critereIds } },
+    // SÉCURITÉ (Vague 1, P1) : périmètre tenant sur les critères. Sans ce
+    // filtre, un appel forgé pouvait référencer un critère d'une AUTRE
+    // entreprise — le seul garde restant étant l'appartenance à l'agence du
+    // guichet, qui ne dit rien du propriétaire du critère.
+    where: {
+      id: { in: critereIds },
+      OR: [
+        { id_entreprise: null },                                    // socle plateforme
+        { id_entreprise: guichet.agence.id_entreprise ?? -1 },       // propres à l'entreprise du guichet
+      ],
+    },
     select: {
       id: true, type_reponse: true, options_reponse: true, libelle_critere: true,
       scoring_mode: true, orientation: true, version: true,
@@ -1009,7 +1020,8 @@ export const soumettreAvis = async (args: any, context: any) => {
       message: error?.message,
       code: error?.code,
       meta: error?.meta,
-      guichetId: args?.guichetId,
+      // Jamais la valeur du code_public en clair dans les logs.
+      codeGuichet: args?.code_public ? 'fourni' : 'absent',
     });
     throw new HttpError(
       500,

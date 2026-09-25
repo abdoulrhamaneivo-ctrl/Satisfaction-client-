@@ -151,6 +151,37 @@ describe('calculerAgregats : CES (Phase L)', () => {
     expect(prompt).toContain('ces_effort_percu');
     expect(prompt).toContain('1 = très facile');
   });
+
+  test('Vague 1 (P2) : le CSAT ne mélange PAS satisfaction, NPS et CES', async () => {
+    const sat = (normalise: number) => ({
+      ...ligneCES(1),
+      id: Math.round(normalise),
+      id_soumission: `s${normalise}`,
+      score_normalise: normalise,
+      score_officiel: 5,
+      critere: { type_reponse: 'SMILEY', libelle_critere: 'Satisfaction', scoring_mode: 'SMILEY', options_reponse: null },
+    });
+    const nps = (note: number) => ({
+      ...sat(0),
+      id: 900 + note,
+      id_soumission: `n${note}`,
+      score_normalise: note * 10,
+      score_officiel: note,
+      critere: { type_reponse: 'NPS', libelle_critere: 'Recommandation', scoring_mode: 'NPS', options_reponse: null },
+    });
+    // 4 réponses de satisfaction à 80/100 → CSAT attendu 80.
+    const avecBruit = [sat(80), sat(80), sat(80), sat(80), nps(0), ligneCES(7)];
+    const a = await calculerAgregats(dbAvec(avecBruit), { id_entreprise: 1, ...fenetre });
+
+    // Le NPS 0/10 (0/100) et le CES 7/7 (0/100) ne doivent PAS faire plummir
+    // le CSAT : ce sont deux métriques distinctes.
+    expect(a.csat).toBe(80);
+    expect(a.nps?.nps).toBe(-100);
+    expect(a.ces?.volume).toBe(1);
+    // La distribution ne compte que la satisfaction.
+    expect(a.distribution5['4']).toBe(4);
+    expect(a.distribution5['1']).toBe(0);
+  });
 });
 
 describe('prompt déterministe + schéma synthèse', () => {

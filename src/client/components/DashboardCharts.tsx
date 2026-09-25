@@ -15,6 +15,7 @@ import {
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '../utils';
+import { noteSur5 } from '../../shared/noteSur5';
 
 type ChartSkeletonVariant = 'bar' | 'radar' | 'area' | 'horizontalBar' | 'heatmap';
 
@@ -182,22 +183,11 @@ const CSAT_COLORS = [
 ];
 
 export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
-  const normaliserScoreSur5 = (reponse: any): number | null => {
-    const type = reponse.critere?.type_reponse;
-    if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
-    if (type === 'ECHELLE') {
-      const [minBrut, maxBrut] = (reponse.critere?.options_reponse || '1,5').split(',');
-      const min = Number(minBrut);
-      const max = Number(maxBrut);
-      if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
-        return Math.max(1, Math.min(5, 1 + ((reponse.score_brut - min) / (max - min)) * 4));
-      }
-    }
-    return reponse.score_brut >= 1 && reponse.score_brut <= 5 ? reponse.score_brut : null;
-  };
-
+  // Vague 1 (P2) : la normalisation n'est plus réimplémentée ici. Cette copie
+  // locale n'avait AUCUNE branche `score_normalise` et laissait un NPS 3/10
+  // entrer dans l'histogramme comme un 3 étoiles.
   const scores = data
-    .map(normaliserScoreSur5)
+    .map((reponse) => noteSur5(reponse))
     .filter((score): score is number => score !== null);
   const counts = [1, 2, 3, 4, 5].map((note) => ({
     name: `${note} ⭐`,

@@ -8,8 +8,9 @@
 import { prisma } from 'wasp/server';
 import { AIService } from '../ai/service';
 import { evaluerCoherenceNote, PROMPT_VERSION } from '../ai/types';
+import { estObsolete, DELAI_OBSOLESCENCE_MINUTES, MAX_ATTEMPTS_ANALYSE } from '../ai/etatAnalyse';
 
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = MAX_ATTEMPTS_ANALYSE;
 
 // Garde-fou budget IA : le modèle gratuit OpenRouter est plafonné
 // (~50 requêtes/jour). On limite le nombre d'analyses réellement envoyées
@@ -107,6 +108,21 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
     return { status: 'skipped', message: 'Clé IA non configurée (NVIDIA_API_KEY, OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
   }
 
+  // RÉCUPÉRATION (Vague 1, P3) : un traitement resté PROCESSING plus de
+  // DELAI_OBSOLESCENCE_MINUTES est mort (crash, OOM, redéploiement, worker
+  // tué) : sans ce rattrapage, la ligne restait coincée pour toujours et
+  // l'UI affichait « Analyse IA en cours… » indéfiniment. On remet en file
+  // avec la mention du recovered, jamais en silence.
+  const maintenant = new Date();
+  const perimeeAvant = new Date(maintenant.getTime() - DELAI_OBSOLESCENCE_MINUTES * 60_000);
+  const { count: recuperees } = await prisma.analyseAvisIA.updateMany({
+    where: { status: 'PROCESSING', updatedAt: { lt: perimeeAvant } },
+    data: {
+      status: 'PENDING',
+      error: `Traitement interrompu (statut PROCESSING depuis plus de ${DELAI_OBSOLESCENCE_MINUTES} min) — remis en file.`,
+    },
+  });
+
   // Sélectionne les analyses en attente ou en échec avec des tentatives restantes
   const pendingAnalyses = await prisma.analyseAvisIA.findMany({
     where: {
@@ -126,11 +142,12 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
         },
       },
     },
+    orderBy: { createdAt: 'asc' }, // backlog traité en FIFO (audit P14 h)
     take: 10, // Concurrence maîtrisée
   });
 
   if (pendingAnalyses.length === 0) {
-    return { status: 'idle', count: 0 };
+    return { status: 'idle', count: 0, recuperees };
   }
 
   // Budget quotidien : on compte les analyses déjà traitées aujourd'hui
@@ -157,14 +174,18 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
     // Évite les doublons si déjà traitée entre-temps
     if (item.status === 'DONE') continue;
 
-    // Passage au statut PROCESSING
-    await prisma.analyseAvisIA.update({
-      where: { id: item.id },
+    // Prise en charge ATOMIQUE : `updateMany` filtré sur le statut constaté.
+    // Si un autre worker a traité la ligne entre-temps, count = 0 → on
+    // l'ignore au lieu de l'écraser (audit P14 h : le `update` classique
+    // réécrivait un statut peut-être déjà DONE et ré-incrémentait attempts).
+    const prise = await prisma.analyseAvisIA.updateMany({
+      where: { id: item.id, status: item.status as any },
       data: {
         status: 'PROCESSING',
         attempts: { increment: 1 },
       },
     });
+    if (prise.count === 0) continue;
 
     const reponse = item.reponse;
     const commentaire = (item.commentaireTexte || reponse.commentaire_texte || '').trim();

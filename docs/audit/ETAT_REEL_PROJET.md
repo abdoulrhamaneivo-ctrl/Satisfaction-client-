@@ -1,5 +1,12 @@
 # ETAT RÉEL DU PROJET — Photographie avant transformation
 
+> **Statut : document de référence daté, mis à jour après remédiation.**
+> Il décrit l'état constaté à l'audit (`f7ed61b`) **et** la suite donnée
+> (branches `hermes/v0-audit` → `v1-data-model` → `v2-engine` →
+> `v1-securite`). La section **§4** porte la table de statut constat par
+> constat ; les sections de constat (§3) décrivent ce qui **avait été**
+> constaté, et restent la référence historique.
+
 > **Vague 0 de la campagne Hermes.** Ce document décrit **l'état constaté**, pas
 > l'état souhaité. Chaque affirmation porte sa preuve `file:line` et sa
 > qualification : *confirmé par lecture directe*, *confirmé par exécution*, ou
@@ -385,12 +392,29 @@ dérivé autrement.
 
 ## 4. Risques classés
 
-| Niveau | Nb | Risques |
-|---|---|---|
-| **CRITIQUE** | **1** | P1 — écriture publique inter-entreprises (intégrité de la mesure) |
-| **ÉLEVÉ** | **3** | P2 — agrégats non canoniques + CES inversé · P3 — état IA `PROCESSING` mort · P4 — synthèse globale non rattrapable |
-| **MOYEN** | **9** | P5 rôle manquant sur la synthèse · P6 libellé depuis une position · P7 a11y bloquants · P8 anti-rejeu inopérant · P9 plafond de budget IA · P10 priorité LLM inventée · P11 surface publique (3 trous + 2 weaknesses) · P12 objectifs sur mauvaise formule · P13 pertes de données |
-| **FAIBLE** | **14** | P14 a→l (dette, code mort, index, enums, migrations liées) |
+> **État au 2026-09-26, après la vague de remédiation `hermes/v1-securite`.**
+> La colonne « statut » indique ce qui a été corrigé et par quoi. Les
+> constats restent détaillés en §3 : ce document est un état daté, pas un
+> registre de tickets.
+
+| Constat | Niveau initial | Statut | Corrigé par |
+|---|---|---|---|
+| **P1** écriture publique inter-entreprises | CRITIQUE | ✅ **corrigé** | `code_public` obligatoire, `guichetId` supprimé de l'action **et** de la query publique, critères filtrés par tenant — branche `hermes/v1-securite` |
+| **P2** agrégats non canoniques, CES inversé, NPS en étoiles | ÉLEVÉ | ✅ **corrigé** | règle unique `src/shared/noteSur5.ts` (exclusion NPS/CES), `score_normalise` ajouté aux 10 `select` d'agrégation, 4 implémentations supprimées |
+| **P3** état IA `PROCESSING` mort | ÉLEVÉ | ✅ **corrigé** | reaper des traitements périmés + prise en charge atomique (`src/server/ai/etatAnalyse.ts`, 10 tests) |
+| **P4** synthèse globale non rattrapable | ÉLEVÉ | ✅ **corrigé** | migration `20260927000700_gex_attempts` (additive), retry 3 tentatives, déclencheur manuel qui remet en file |
+| **P5** synthèse lisible par un `AGENT` | MOYEN | ✅ **corrigé** | `requireManagementRole` sur `getAnalysesGlobales` |
+| **P6** libellé d'option depuis une position | MOYEN | ✅ **corrigé** (vague 2) | `src/shared/libelleReponse.ts` : identité `ReponseOption` seule source |
+| **P12** objectifs calculés hors moteur | MOYEN | ✅ **corrigé** | `getObjectifs` lit désormais le score canonique |
+| **P7** accessibilité (3 blocants) | MOYEN | ⬜ ouvert | vague 4 |
+| **P8** anti-rejeu téléphone inopérant | MOYEN | ⬜ ouvert | à repenser (le garde dépend d'un champ que le client n'envoie pas) |
+| **P9** plafond du budget IA globale | MOYEN | ⬜ ouvert | vague 6 |
+| **P10** priorité LLM inventée | MOYEN | ⬜ ouvert | vague 6 |
+| **P11** surface publique (3 trous + 2 faiblessesses) | MOYEN | ⬜ ouvert | vague 5 |
+| **P13** pertes de données sur la collecte | MOYEN | ⬜ ouvert | vague 3 |
+| **P14 a→l** dette, code mort, index, énumérations, migrations liées | FAIBLE | 🟡 partiel | code mort et `duplicateCritere` corrigés en vague 2 ; reste en vague 4 |
+
+**CRITIQUE : 0** · **ÉLEVÉ : 0** · **MOYEN : 6 ouverts** · **FAIBLE : 1 reliquat partiel**.
 
 **Aucun risque CRITIQUE n'est présent sur le chemin d'authentification** : 34/35
 queries et 36/40 actions portent `requireAuth` + scope tenant ; les 4 actions

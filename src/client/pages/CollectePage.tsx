@@ -278,9 +278,10 @@ export const CollectePage = () => {
 
     try {
       await soumettreAvis({
-        // C4 : résolution serveur par code_public uniquement. L'id renvoyé
-        // par le formDef sert à la soumission, jamais l'URL.
-        guichetId: ((formDef as any)?.id_guichet || undefined),
+        // Vague 1 (P1) : le code opaque est le SEUL identifiant transmis.
+        // L'identifiant numérique du guichet n'est plus ni renvoyé par la
+        // query ni accepté par l'action : c'est ce qui rendait possible une
+        // écriture dans le guichet d'une autre entreprise.
         code_public: codePublic || undefined,
         canalId: 1, // QR_WEB
         commentaire: '',

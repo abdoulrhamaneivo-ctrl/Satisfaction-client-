@@ -25,6 +25,7 @@ import {
 export const SEUIL_MIN_AVIS = 10;
 const GLOBAL_AI_BUDGET = Number(process.env.GLOBAL_AI_BUDGET || 5);
 const LIMITE_TRAITEMENT = 5;
+const MAX_ATTEMPTS_GEX = Number(process.env.GLOBAL_AI_MAX_ATTEMPTS || 3);
 
 const arrondi1 = (n: number): number => Math.round(n * 10) / 10;
 
@@ -171,9 +172,18 @@ async function traiterLigne(row: any, entrepriseNom: string): Promise<'ok' | 'bu
     });
     return 'ok';
   } catch (e: any) {
+    // Vague 1 (P4) : compteur de tentatives + remise en PENDING tant que le
+    // quota n'est pas atteint, pour que l'exécution suivante reprenne. La
+    // trace de l'échec est conservée dans `error` même en cas de remise en
+    // file : rien n'est effacé en silence.
+    const tentatives = (row.attempts ?? 0) + 1;
     await prisma.globalExperienceAnalysis.update({
       where: { id: row.id },
-      data: { status: 'FAILED', error: String(e?.message ?? e).slice(0, 500) },
+      data: {
+        status: tentatives < MAX_ATTEMPTS_GEX ? 'PENDING' : 'FAILED',
+        attempts: tentatives,
+        error: String(e?.message ?? e).slice(0, 500),
+      },
     });
     return 'echec';
   }
@@ -194,8 +204,16 @@ export async function analyserGlobaleJob(_args: any, _context: any) {
     await assurerProgrammee(e.id, 'MOIS', mois.debut, mois.fin);
   }
 
+  // Sélection : PENDING **et** FAILED sous le quota de tentatives (Vague 1,
+  // P4). Sans les echecs, un incident de fournisseur a 6 h un lundi rendait la
+  // synthese definitive : aucune execution suivante ne la reprenait.
   const files = await prisma.globalExperienceAnalysis.findMany({
-    where: { status: 'PENDING' },
+    where: {
+      OR: [
+        { status: 'PENDING' },
+        { status: 'FAILED', attempts: { lt: MAX_ATTEMPTS_GEX } },
+      ],
+    },
     orderBy: { createdAt: 'asc' },
     take: LIMITE_TRAITEMENT,
     include: { entreprise: { select: { nom_entreprise: true } } },

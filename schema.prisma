@@ -574,7 +574,11 @@ model GlobalExperienceAnalysis {
   promptVersion       String?
   analysisVersion     String   @default("1")
 
-  status              String   @default("PENDING") // PENDING | DONE | FAILED
+  status              String   @default("PENDING") // PENDING | PROCESSING | DONE | FAILED
+  // Vague 1 (P4) : compteur de tentatives. Sans lui, un échec de fournisseur
+  // rendait la synthese definitive (le job ne traitait que PENDING) et le
+  // declencheur manuel repondait « deja disponible » sur une ligne morte.
+  attempts            Int      @default(0)
   error               String?
 
   createdAt           DateTime @default(now())
