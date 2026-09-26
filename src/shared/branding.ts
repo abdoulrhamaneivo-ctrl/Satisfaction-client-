@@ -15,9 +15,20 @@ export const BRANDING = {
   color_card_foreground: "216 40% 12%",
   color_popover: "0 0% 100%",
   color_popover_foreground: "216 40% 12%",
-  color_primary: "149 100% 33%",
+  /* `--poste-vert` du Doc 04 §2.1 : « Primaire : boutons pleins,
+     en-têtes, liens, texte sur blanc » — mesuré 4,77:1 avec le blanc,
+     donc AA pour le texte normal. Le Doc 04 est la source unique de vérité
+     couleur et interdit tout code qui en choisirait une autre ; le vert
+     vif #00A851 qui figurait ici n'était NI #00843D NI le vert clair
+     #00B050, c'est-à-dire hors charte. Il reste défini à part dans
+     Main.css (`--brand-green`) pour les halos décoratifs, seul usage que
+     le Doc 04 accorde au vert clair. */
+  color_primary: "148 100% 26%",
   color_primary_foreground: "0 0% 100%",
-  color_secondary: "148 100% 26%",
+  /* Secondaire : un cran plus sombre que le primaire, pour que les deux
+     rôles restent distinguables (17 aplats + graphiques radar/aire) tout
+     en gardant le blanc lisible dessus (7,11:1). */
+  color_secondary: "152 100% 20%",
   color_secondary_foreground: "0 0% 98%",
   color_secondary_muted: "149 30% 90%",
   color_secondary_muted_foreground: "216 53% 24%",
@@ -32,13 +43,12 @@ export const BRANDING = {
   color_warning: "45 100% 50%",
   color_warning_foreground: "216 40% 12%",
   /* ── Variantes « texte » (Vague 4 — WCAG 2.2 AA 1.4.3) ──
-     Le vert de marque #00A851 (3,11:1 sur blanc) reste réservé aux APLATS
-     (boutons, badges, graphiques) : la charte Doc 04 est contractuelle et
-     n'est pas modifiée. En revanche, un vert de marque utilisé comme TEXTE
-     sur fond clair échoue l'exigence 4,5:1. Ces quatre jetons sont des
-     ASSOMBISSEMENTS de la même famille chromatique, réservés à l'usage en
-     texte (dont sur fonds teintés /10-15 %). Ratios mesurés par la formule
-     WCAG (luminance relative), vérifiés par src/shared/branding.test.ts :
+     Avec le primaire Doc 04 (#00843D), le blanc sur aplat est conforme
+     (4,77:1). En revanche le MÊME vert utilisé comme TEXTE sur fond clair
+     plafonne à 4,41:1 sur la crème — sous le seuil de 4,5:1. Ces quatre
+     jetons sont des assombrissements de la même famille, réservés à
+     l'usage en texte (dont sur fonds teintés /10-15 %). Ratios mesurés par
+     la formule WCAG, vérifiés par src/shared/branding.test.ts :
        primary-strong      5,73:1 sur crème · 6,19:1 sur blanc
        success-strong      4,99:1 · 5,39:1
        warning-strong      5,52:1 · 5,96:1  (le jaune #FFBF00 plafonne à 1,65:1)
@@ -164,4 +174,25 @@ export function varianteTextePourFond(
     clarte = Math.max(clarteMinimale, clarte * 0.92);
   }
   return `${h} ${s}% ${clarteMinimale}%`;
+}
+
+/**
+ * Couleur de texte d'un aplat personnalisé (Vague 4 — WCAG 2.2 AA 1.4.3).
+ *
+ * Les garde-fous ci-dessus traitent le texte de la MARQUE sur fond clair
+ * et l'anneau de focus, mais pas l'autre moitié du problème : le LIBELLÉ
+ * posé sur l'aplat du tenant. Un blanc sur un jaune pâle plafonne à
+ * 1,6:1, et aucun calcul de contraste ne rattrape un choix de teinte.
+ *
+ * On ne peut pas assombrir l'aplat sans détruire l'identité visuelle du
+ * client. Le levier correct est donc l'autre terme du couple : on renvoie
+ * le noir des jetons (18,9:1) dès que le blanc ne passe pas le seuil, ce
+ * qui préserve la teinte du client et rend le texte lisible.
+ */
+export function foregroundPourAplat(primaire: string, seuil = 4.5): string {
+  const blanc = '0 0% 100%';
+  if (ratioContrasteHsl(blanc, primaire) >= seuil) return blanc;
+  // Noir de la charte (Doc 04 §2.2) : l'option la plus contrastée possible
+  // tout en restant un noir neutre, pas une teinte de la marque.
+  return '216 40% 12%';
 }

@@ -12,7 +12,12 @@ import {
   voitVerbatim,
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
-import { BRANDING, fondWhiteLabelRecevable, varianteTextePourFond } from '../shared/branding';
+import {
+  BRANDING,
+  fondWhiteLabelRecevable,
+  varianteTextePourFond,
+  foregroundPourAplat,
+} from '../shared/branding';
 import { decrireReponse } from '../shared/libelleReponse';
 import { calculerAgregats } from './gex/moteurGlobal';
 import { indiceGlobalExperience } from '../shared/indicateurs';
@@ -805,6 +810,12 @@ export const getFormDefinitionForGuichet = async (
         form_thank_you: brandingTenant.form_thank_you ?? BRANDING.form_thank_you,
         qr_slogan: brandingTenant.qr_slogan ?? BRANDING.qr_slogan,
         ...(brandingTenant.color_primary ? { color_primary: primaireApplique } : {}),
+        // Libellé de l'aplat : blanc si le tenant le permet, noir sinon.
+        // On ne peut pas assombrir son aplat sans casser son identité —
+        // c'est donc l'autre terme du couple qui s'adapte.
+        ...(brandingTenant.color_primary
+          ? { color_primary_foreground: foregroundPourAplat(brandingTenant.color_primary) }
+          : {}),
         ...(brandingTenant.color_secondary ? { color_secondary: brandingTenant.color_secondary } : {}),
         ...(brandingTenant.color_accent ? { color_accent: brandingTenant.color_accent } : {}),
         color_background: fondApplique,

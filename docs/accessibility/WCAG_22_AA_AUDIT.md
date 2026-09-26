@@ -10,17 +10,41 @@ statuts : **Corrigé** (le code a été modifié et un test le verrouille),
 
 ---
 
-## 1. Décision structurante : la charte reste intacte
+## 1. Décision structurante : aligner le primaire sur la charte
 
-`docs/frontend/04-charte-graphique-poste-ci.md` fige le vert de marque
-(`149 100% 33%`, #00A851). Ce vert **en texte** sur fond clair plafonne à
-**3,11:1** : il échoue l'exigence 1.4.3 (4,5:1 pour du texte normal).
+Une première version de ce document affirmait que la charte
+(`docs/frontend/04-charte-graphique-poste-ci.md`) figeait le vert
+`#00A851` et interdisait donc de le modifier. **C'était faux**, et l'erreur
+a été reprise dans le code, les commentaires et l'audit V0.
 
-Deux règles d'emploi ont donc été adoptées, sans toucher à la teinte :
+Ce que dit réellement le Doc 04 — qui se déclare « source unique de vérité
+couleur » et interdit « AUCUN code qui choisirait une couleur hors de ce
+document » :
+
+| Token Doc 04 | Hex | Usage autorisé | Contraste mesuré |
+|---|---|---|---|
+| `--poste-vert` | `#00843D` | **Boutons pleins**, en-têtes, liens, texte sur blanc | 4,81:1 sur blanc ✓ |
+| `--poste-vert-clair` | `#00B050` | **UNIQUEMENT** dégradés et halos décoratifs — *jamais en texte* | 2,87:1 ✗ |
+
+`#00A851` n'est ni l'un ni l'autre : c'était une troisième vert, hors
+charte. `color_primary` a donc été aligné sur `#00843D`, et le vert vif
+conservé dans `Main.css` (`--brand-green`) pour les seuls halos
+décoratifs — exactement l'usage que le Doc 04 accorde au vert clair.
+
+**L'écart 1.4.3 sur les aplats est donc levé, pas documenté** : le blanc
+sur le bouton primaire passe de 3,11:1 à **4,77:1**, sans toucher aux
+76 `<Button>` ni aux badges pleins. `color_secondary` a été assombri d'un
+cran (`152 100% 20%`, 7,11:1 sous texte blanc) pour rester distinct du
+primaire — sans quoi les deux jetons de hiérarchie se confondraient.
+
+### Règle d'emploi qui subsiste
+
+Le même vert, **en texte** sur fond clair, plafonne à **4,41:1** sur la
+crème : sous le seuil. D'où les variantes réservées au texte :
 
 | Usage | Jeton | Exemple |
 |---|---|---|
-| Aplat (fond de bouton, badge, barre de graphique) | `color_primary`, `color_success`… | `bg-primary text-primary-foreground` |
+| Aplat (fond de bouton, badge, barre de graphique) | `color_primary`, `color_secondary`… | `bg-primary text-primary-foreground` |
 | Texte, icône, bordure sur fond clair ou teinté | `color_*_strong` | `text-primary-strong` |
 
 Quatre jetons ont été ajoutés dans `src/shared/branding.ts` :
@@ -31,7 +55,8 @@ Ratios mesurés (luminance relative WCAG) :
 
 | Jeton | Sur crème `#FAF7F2` | Sur blanc `#FFFFFF` |
 |---|---|---|
-| `primary` (avant) | 2,88:1 ✗ | 3,11:1 ✗ |
+| `primary` (vert vif, avant) | 2,88:1 ✗ | 3,11:1 ✗ |
+| `primary` (Doc 04, aujourd'hui) | 4,41:1 — voir ci-dessus | **4,77:1** ✓ |
 | `primary-strong` | **5,73:1** ✓ | **6,19:1** ✓ |
 | `success` (avant) | 3,29:1 ✗ | 3,55:1 ✗ |
 | `success-strong` | **4,99:1** ✓ | **5,39:1** ✓ |
@@ -40,15 +65,9 @@ Ratios mesurés (luminance relative WCAG) :
 | `destructive` (avant) | 4,44:1 ✗ | 4,80:1 ✓ |
 | `destructive-strong` | **6,28:1** ✓ | **6,79:1** ✓ |
 
-Ces valeurs sont verrouillées par `src/shared/branding.test.ts` (4 tests) :
-un retour en arrière de teinte fait échouer la suite.
-
-### Écart assumé
-
-Le **blanc sur aplat vert de marque** reste à **3,11:1**. Ce cas n'est pas
-corrigé : il est **documenté ici** et verrouillé par un test qui échouerait
-si quelqu'un modifait le jeton sans le signaler. Deux voies possibles, à
-décider au niveau produit (voir §5).
+Ces valeurs sont verrouillées par `src/shared/branding.test.ts` : revenir
+au vert vif ferait échouer la suite, au lieu de casser silencieusement
+tous les boutons pleins.
 
 ---
 
@@ -74,13 +93,18 @@ Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
   disparaît dès la saisie. Ils sont maintenant associés par `htmlFor`/`id`
   (`avis-commentaire`, `avis-telephone`).
 
-### 1.4.3 Contraste (minimum) — 🟡
+### 1.4.3 Contraste (minimum) — ✅
 - ✅ 64 occurrences de `text-primary|success|warning|destructive` sur fond
   clair ou teinté converties en `-strong` dans : `CollectePage`,
   `DashboardPage`, `AvisPage`, `StatCard`, `DashboardSummary`,
   `AIAnalysisBadge`, `ds/Badge`, `ObjectifsProgress`.
 - ✅ `text-muted-foreground` vérifié à 5,22:1 sur crème (conforme).
-- 🟡 Écart documenté : blanc sur `bg-primary` (3,11:1) — voir §1.
+- ✅ **Blanc sur aplat de marque : 3,11:1 → 4,77:1**, en alignant
+  `color_primary` sur le vert que le Doc 04 désigne pour les boutons pleins
+  (voir §1). Écart levé, pas documenté.
+- ✅ Le white-label ne peut plus déroger : fond non conforme ignoré,
+  variante texte et anneau dérivés, libellé d'aplat basculé au noir si le
+  blanc ne passe pas (voir §4, A5).
 
 ### 1.4.11 Anneau de focus non masqué — ✅
 - ✅ `color_ring` passe de `149 100% 33%` à `152 100% 22%` (1,58:1 → 5,73:1).
@@ -151,10 +175,10 @@ Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
 
 | Fichier | Tests | Ce qui est verrouillé |
 |---|---|---|
-| `src/shared/branding.test.ts` | 11 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, écart du blanc sur aplat documenté, garde-fous white-label |
+| `src/shared/branding.test.ts` | 13 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, **blanc sur aplat ≥ 4,5:1**, hiérarchie primaire/secondaire, garde-fous white-label |
 | `src/client/pages/CollectePage.test.tsx` | +5 | radiogroup nommés, flèches, région live pré-montée, labels associés, cible 44 px |
 
-Total après Vague 4 : **251 tests** répartis sur 21 fichiers, dont 18 sur le parcours
+Total après Vague 4 : **253 tests** répartis sur 21 fichiers, dont 18 sur le parcours
 de collecte (13 de flux + 5 d'accessibilité) et 11 de contraste/garde-fous.
 
 Ces tests protègent contre la régression silencieuse type : le parcours
@@ -181,29 +205,40 @@ portaient que sur `BRANDING`, pas sur la valeur réellement injectée dans
 la feuille de style du guichet. Un fond sombre ou un primaire jaune pâle
 rendaient la page illisible sans qu'aucun test ne le voie.
 
-Deux garde-fous purs et testés (`src/shared/branding.ts`, 7 tests) :
+Trois garde-fous purs et testés (`src/shared/branding.ts`, 8 tests) :
 
 - `fondWhiteLabelRecevable(fond, texteParDefaut)` : un fond qui n'est pas une
   surface claire, ou qui n'atteint pas 4,5:1 avec le texte par défaut, est
   **ignoré** — l'application retombe sur la charte Yéba ;
 - `varianteTextePourFond(primaire, fond, ratio)` : la teinte d'aplat du client
   est conservée, mais sa variante « texte » et l'anneau de focus sont
-  assombris juste ce qu'il faut pour atteindre 4,5:1 (respectivement 3:1).
+  assombris juste ce qu'il faut pour atteindre 4,5:1 (respectivement 3:1) ;
+- `foregroundPourAplat(primaire)` : le **libellé posé sur l'aplat** bascule
+  au noir des jetons (18,9:1) quand le blanc ne passe pas. On ne peut pas
+  assombrir l'aplat sans détruire l'identité du client : c'est donc l'autre
+  terme du couple qui s'adapte. Un aplat sombre — le cas courant — garde le
+  blanc, rien ne change.
 
-Il reste un cas non automatisable : le blanc sur un aplat primaire très
-pâle choisi par le tenant. Corriger exigerait de dégrader le code couleur de
-la marque du client — arbitrage produit, pas technique.
+Un tenant qui ne touche à aucune couleur conserve la charte à
+l'identique : la dérivation n'est appliquée que s'il personnalise
+réellement une couleur.
 
-## 5. Décisions produit attendues
+## 5. Décisions product restantes
 
-1. **Blanc sur vert de marque (3,11:1)** : trois options —
-   (a) conserver l'aplat et passer les libellés de boutons en `primary-strong`
-   (le fond reste la marque, le texte devient conforme) ;
-   (b) garde-fou : réserver `bg-primary` aux aplats sans texte et documenter
-   l'usage ;
-   (c) assouplir la charte Doc 04 pour un vert foncé — **nécessite un arbitrage
-   explicite**, le Doc 04 étant contractuel.
-2. **Choix de l'outil de test a11y** (axe-core / Playwright) pour A4.
+1. **Choix de l'outil de test a11y** (axe-core / Playwright) pour A4 — c'est
+   la seule chose qui bloque une certification « AA vérifiée » : tout le
+   reste est vérifié par le calcul et par des tests jsdom, mais la cible
+   tactile réelle et l'anneau de focus visible ne se mesurent que dans un
+   navigateur.
+2. **Revue visuelle du vert foncé** : aligner le primaire sur `#00843D`
+   assombrit tous les aplats pleins (boutons, badges, cases cochées,
+   pastilles de progression, curseur de l'onboarding). C'est conforme et
+   conforme au Doc 04, mais c'est un changement d'aspect qui mérite un
+   coup d'œil avant déploiement.
+3. **Couleur du tenant** : le garde-fou garantit le contraste, pas
+   l'esthétique. Un tenant qui saisit une teinte hors de la famille verte
+   verra son aplat respecté (c'est son identité) mais un libellé noir.
+   Une validation visuelle avant enregistrement serait cohérente.
 
 ---
 
@@ -211,6 +246,6 @@ la marque du client — arbitrage produit, pas technique.
 
 ```bash
 npx tsc --noEmit -p tsconfig.src.json     # 0 erreur
-npm test                                  # 251 tests / 21 fichiers
+npm test                                  # 253 tests / 21 fichiers
 set -a; source .env.server; set +a; timeout 600 wasp build
 ```

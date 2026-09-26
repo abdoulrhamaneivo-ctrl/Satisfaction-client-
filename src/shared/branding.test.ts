@@ -19,6 +19,7 @@ import {
   fondWhiteLabelRecevable,
   varianteTextePourFond,
   ratioContrasteHsl,
+  foregroundPourAplat,
 } from './branding';
 
 /** Convertit un token « H S% L% » en triplet RVB normalisé. */
@@ -83,18 +84,38 @@ describe('Charte — contrastes WCAG 2.2 AA (Vague 4)', () => {
     }
   });
 
-  test("le texte de premier plan sur aplat de marque reste un écart DOCUMENTÉ", () => {
-    // Le blanc sur le vert de marque d'origine plafonne à ~3,1:1 : sous 4,5:1
-    // pour du texte normal. La Vague 4 ne change PAS la teinte (charte
-    // figée par le Doc 04) : elle documente l'écart et ajoute les variantes
-    // `-strong` pour les fonds clairs. Ce test empêche de « corriger » le
-    // token en croyant résoudre l'écart sans le signaler, et garantit que
-    // la variante foncée, elle, passe le seuil.
+  test('le blanc sur aplat de marque est CONFORME (écart 1.4.3 levé)', () => {
+    // Historique : le blanc sur le vert vif #00A851 plafonnait à 3,11:1, sous
+    // le seuil de 4,5:1. Le primaire a été aligné sur le vert que le
+    // Doc 04 §2.1 désigne pour les boutons pleins (#00843D) : le blanc
+    // passe à 4,77:1. Ce test verrouille l'alignement — revenir au vert
+    // vif ferait échouer la suite, au lieu de casser silencieusement 76
+    // boutons et les badges pleins.
     const r = ratio(BRANDING.color_primary_foreground, BRANDING.color_primary);
-    expect(r).toBeLessThan(4.5);
+    expect(r, `blanc sur aplat de marque : ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test('le vert de marque en TEXTE sur crème reste sous le seuil — d’où les variantes -strong', () => {
+    // C'est exactement pour cela que les quatre variantes `-strong`
+    // existent : le même vert, en aplat, est conforme ; utilisé comme
+    // texte sur le fond crème, il plafonne à 4,41:1. Si un jour le
+    // primaire remontait assez haut pour passer 4,5:1 sur crème, les
+    // variantes `-strong` deviendraient inutiles — ce test le signalerait.
+    const r = ratio(BRANDING.color_primary, FOND_PAGE);
+    expect(r, `vert de marque en texte sur crème : ${r.toFixed(2)}:1`).toBeLessThan(4.5);
     expect(
-      ratio(BRANDING.color_primary_foreground, BRANDING.color_primary_strong),
+      ratio(BRANDING.color_primary_strong, FOND_PAGE),
     ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test('le secondaire reste plus sombre que le primaire et lisible sous texte blanc', () => {
+    // Les deux jetons servaient de niveaux de hiérarchie distincts
+    // (17 aplats + graphiques). Aligner le primaire sur #00843D aurait
+    // rendu secondary identique au primaire si on ne l'avait pas
+    // assombri : les deux rôles se confondraient.
+    expect(BRANDING.color_secondary).not.toBe(BRANDING.color_primary);
+    expect(ratio(BRANDING.color_secondary_foreground, BRANDING.color_secondary))
+      .toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -130,7 +151,15 @@ describe('White-label — le contraste ne peut pas être contourné', () => {
     expect(fondWhiteLabelRecevable(undefined, BRANDING.color_foreground)).toBe(false);
     expect(fondWhiteLabelRecevable('', BRANDING.color_foreground)).toBe(false);
     expect(fondWhiteLabelRecevable('red', BRANDING.color_foreground)).toBe(false);
+    // Un fond en hexadécimal n'est pas un jeton HSL : il doit être rejeté
+    // explicitement, sinon `parseFloat('00A851')` produirait un jeton
+    // aberrant — un tenant qui saisit un code couleur verrait sa
+    // personnalisation acceptée puis appliquée de travers.
     expect(fondWhiteLabelRecevable('#00A851', BRANDING.color_foreground)).toBe(false);
+    expect(fondWhiteLabelRecevable('00A851', BRANDING.color_foreground)).toBe(false);
+    // Trois composants, c'est bien un jeton — mais trop sombre pour porter
+    // le texte par défaut.
+    expect(fondWhiteLabelRecevable('149 100% 33%', BRANDING.color_foreground)).toBe(false);
   });
 
   test('la variante texte d’un primaire personnalisé atteint 4,5:1', () => {
@@ -151,12 +180,15 @@ describe('White-label — le contraste ne peut pas être contourné', () => {
     expect(ratioContrasteHsl(variante, fond)).toBeGreaterThanOrEqual(3);
   });
 
-  test('le blanc sur un primaire personnalisé pâle reste le seul écart possible', () => {
-    // Le contrôle porte sur ce qui est automatisable (texte, focus). Le
-    // couple blanc/aplat ne l'est pas : c'est le tenant qui choisit son
-    // aplat, et le transformer impliquerait de Trident le code couleur de
-    // la marque. Le test documente la limite au lieu de la masquer.
+  test('le libellé posé sur un aplat pâle bascule au noir, sans toucher à la teinte', () => {
+    // Le blanc ne passe pas sur un jaune pâle. Assombrir l'aplat
+    // détruirait l'identité du client : c'est donc le texte qui s'adapte.
     const primairePale = '45 100% 70%';
     expect(ratioContrasteHsl('0 0% 100%', primairePale)).toBeLessThan(4.5);
+    const fg = foregroundPourAplat(primairePale);
+    expect(fg).not.toBe('0 0% 100%');
+    expect(ratioContrasteHsl(fg, primairePale)).toBeGreaterThanOrEqual(4.5);
+    // Un aplat sombre conserve le blanc : au quotidien, rien ne change.
+    expect(foregroundPourAplat(BRANDING.color_primary)).toBe('0 0% 100%');
   });
 });
