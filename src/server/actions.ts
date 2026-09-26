@@ -2541,7 +2541,7 @@ export const createCritere = async (
   // critère rattaché en double à la même opération.
   const serviceIds = args.serviceIds ? Array.from(new Set(args.serviceIds)) : [];
   if (serviceIds.length > 1) {
-    throw new HttpError(400, "Un critère ne peut être rattaché qu'à une seule opération. Déplacez-le ensuite depuis l'écran d'organisation si nécessaire.");
+    throw new HttpError(400, "Un critère ne peut être rattaché qu'à une seule opération. Pour la changer ou le retirer, déplacez sa carte dans le Kanban « Questions par opération » de l'écran /criteres.");
   }
   if (serviceIds.length > 0) {
     for (const idService of serviceIds) {
@@ -2885,15 +2885,30 @@ export const moveCritereToService = async (
 
   // Transaction atomique : lecture de l'ordre actuel + suppression des
   // autres rattachements + réécriture complète de l'ordre de la colonne
-  // de destination doivent former une seule opération indivisible. Sans
-  // transaction, une erreur en cours de route (ex. la question est
-  // retirée des autres opérations mais l'upsert échoue) pouvait faire
-  // disparaître une question de partout — perte de donnée silencieuse.
+  // de destination + réindexation des colonnes quittées doivent former une
+  // seule opération indivisible. Sans transaction, une erreur en cours de
+  // route (ex. la question est retirée des autres opérations mais l'upsert
+  // échoue) pouvait faire disparaître une question de partout — perte de
+  // donnée silencieuse.
   await prisma.$transaction(async (tx) => {
     const existants = await tx.critereService.findMany({
       where: { id_service: idService },
       orderBy: { ordre: 'asc' },
     });
+
+    // COLONNES QUITTÉES (26/09) : toutes les opérations où la question est
+    // rattachée (hors destination, réécrite en entier plus bas) perdent son
+    // rattachement. On ne retient que leurs IDENTIFIANTS avant la
+    // suppression : les lignes restantes sont rechargées APRÈS (le
+    // `deleteMany` change l'état) puis réindexées sans trou — SANS ÇA, la
+    // question d'ordre 1 laissait les autres à `0, 2`, et tout
+    // réordonnancement ultérieur partait d'une base fausse.
+    const rattachementsSources = await tx.critereService.findMany({
+      where: { id_critere: idCritere, id_service: { not: idService } },
+      orderBy: [{ id_service: 'asc' }, { ordre: 'asc' }],
+      select: { id_service: true },
+    });
+    const servicesQuittes = [...new Set(rattachementsSources.map((r) => r.id_service))];
 
     // On retire la question si elle était déjà dans cette colonne, puis on
     // la réinsère à la position demandée (permet aussi bien un simple
@@ -2910,6 +2925,36 @@ export const moveCritereToService = async (
     await tx.critereService.deleteMany({
       where: { id_critere: idCritere, id_service: { not: idService } },
     });
+
+    // Réindexation des colonnes quittées : on recharge leurs lignes
+    // RESTANTES (les sœurs de la question partie, pas la question elle-même
+    // qui n'existe plus là) et on réécrit les ordres sans trou. La
+    // destination est exclue : elle est déjà réécrite en entier ci-dessous.
+    // Rien à faire si la question ne venait que de la destination
+    // (réordonnancement interne) ou du vivier.
+    if (servicesQuittes.length > 0) {
+      const restantes = await tx.critereService.findMany({
+        where: { id_service: { in: servicesQuittes } },
+        orderBy: [{ id_service: 'asc' }, { ordre: 'asc' }],
+        select: { id: true, id_service: true, ordre: true },
+      });
+      const parService = new Map<number, typeof restantes>();
+      for (const r of restantes) {
+        const liste = parService.get(r.id_service) ?? [];
+        liste.push(r);
+        parService.set(r.id_service, liste);
+      }
+      for (const [, sœurs] of parService) {
+        for (let index = 0; index < sœurs.length; index++) {
+          if (sœurs[index].ordre !== index) {
+            await tx.critereService.update({
+              where: { id: sœurs[index].id },
+              data: { ordre: index },
+            });
+          }
+        }
+      }
+    }
 
     // Écritures séquentielles (et non en parallèle) À DESSEIN à l'intérieur
     // de la transaction : des upserts concurrents sur les mêmes lignes
@@ -2965,17 +3010,31 @@ export const removeCritereFromService = async (
       where: { id_critere: idCritere },
     });
 
-    // Réordonne chaque opération qui perdait un rattachement.
-    const parService = new Map<number, typeof rattachements>();
-    for (const r of rattachements) {
-      if (r.id_critere === idCritere) continue;
-      const liste = parService.get(r.id_service) ?? [];
-      liste.push(r);
-      parService.set(r.id_service, liste);
-    }
-    for (const [, restants] of parService) {
-      for (let index = 0; index < restants.length; index++) {
-        await tx.critereService.update({ where: { id: restants[index].id }, data: { ordre: index } });
+    // CORRECTION 26/09 : la boucle précédente ne réordonnait JAMAIS rien —
+    // `rattachements` ne contient QUE les lignes de cette question (le
+    // `where` ne filtre que sur elle), donc `r.id_critere === idCritere`
+    // était vrai pour chaque ligne et le `continue` vidait tout. Résultat :
+    // des trous d'ordre (`0, 2`) dans chaque opération touchée. On recharge
+    // les lignes RESTANTES des opérations concernées et on réindexe.
+    const servicesTouches = [...new Set(rattachements.map((r) => r.id_service))];
+    if (servicesTouches.length > 0) {
+      const restantes = await tx.critereService.findMany({
+        where: { id_service: { in: servicesTouches } },
+        orderBy: [{ id_service: 'asc' }, { ordre: 'asc' }],
+        select: { id: true, id_service: true, ordre: true },
+      });
+      const parService = new Map<number, typeof restantes>();
+      for (const r of restantes) {
+        const liste = parService.get(r.id_service) ?? [];
+        liste.push(r);
+        parService.set(r.id_service, liste);
+      }
+      for (const [, sœurs] of parService) {
+        for (let index = 0; index < sœurs.length; index++) {
+          if (sœurs[index].ordre !== index) {
+            await tx.critereService.update({ where: { id: sœurs[index].id }, data: { ordre: index } });
+          }
+        }
       }
     }
   });
