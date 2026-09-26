@@ -46,14 +46,49 @@ export function normaliserTelephoneE164(tel: string): string {
 }
 
 /** Valide et normalise un commentaire : texte brut, max 1000 car., sans HTML/JS. */
+export const MAX_LONGUEUR_COMMENTAIRE = 1000;
+
 export function sanitiserCommentaire(txt: string): string {
   const brut = txt.trim();
   if (!brut) return '';
-  if (brut.length > 1000) throw new Error('Commentaire trop long (max 1000 caractères)');
+  if (brut.length > MAX_LONGUEUR_COMMENTAIRE) {
+    // Vague 5, P11 : `Error` ordinaire levée depuis une fonction de
+    // validation. Appelée HORS du try/catch qui traduit en HttpError, elle
+    // remontait jusqu'au wrapper de `soumettreAvis`, qui répondait 500
+    // « réessayez plus tard » pour une faute de frappe du client — le
+    // message ne disait rien et la reprise automatique ne pouvait pas
+    // distinguer une erreur réseau d'un commentaire trop long.
+    // `ValiderEntreeErreur` porte un code 4xx : voir `verserErreurClient`.
+    throw new ValiderEntreeErreur(
+      `Commentaire trop long (max ${MAX_LONGUEUR_COMMENTAIRE} caractères)`,
+    );
+  }
   // Strip tags & scripts basique (défense en profondeur, le front n'envoie que du texte)
   return brut
     .replace(/<[^>]*>/g, '') // strip HTML tags
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''); // strip control chars
+}
+
+/**
+ * Erreur de saisie du client (Vague 5, P11).
+ *
+ * Se distingue d'une panne : elle mérite un 4xxactionnable, pas un 500.
+ * Toute validation de contenu qui doit être rattrapée par le wrapper
+ * d'action devrait lever ce type plutôt qu'un `Error` nu.
+ */
+export class ValiderEntreeErreur extends Error {
+  readonly code = 'ENTREE_INVALIDE';
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValiderEntreeErreur';
+  }
+}
+
+/** Traduit une erreur de validation en `HttpError` 4xx, ou la laisse passer. */
+export function versHttpSiEntreeInvalide(error: unknown): Error | null {
+  return error instanceof ValiderEntreeErreur
+    ? new HttpError(400, error.message)
+    : null;
 }
 
 /** Échappe une cellule CSV (RFC 4180) : guillemets doublés, préfixe ' pour formules. */

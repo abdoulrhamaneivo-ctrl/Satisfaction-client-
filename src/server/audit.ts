@@ -6,6 +6,7 @@
 // ============================================================================
 
 import type { WaspContext } from './middleware/rowLevelSecurity';
+import { extraireIp } from './rateLimit';
 
 export type AuditAction =
   | 'entreprise.create'
@@ -63,11 +64,14 @@ export async function journaliser({
 }: JournaliserArgs): Promise<void> {
   try {
     const user = (context as any)?.user;
+    // Vague 5, P11-e : l'IP vient d'Express, qui applique la confiance
+    // déclarée (`app.set('trust proxy', …)`), et non d'une lecture directe
+    // de `x-forwarded-for`. Cette ligne était la troisième copie de la
+    // même logique — et c'est celle qui écrivait dans les journaux une IP
+    // que l'appelant pouvait choisir librement.
+    const ipBrute = extraireIp(context);
+    const ip = ipBrute === 'inconnue' ? null : ipBrute;
     const req = (context as any)?.req ?? (context as any)?.request;
-    const ip =
-      req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
-      req?.socket?.remoteAddress ||
-      null;
     const userAgent = req?.headers?.['user-agent']?.slice(0, 300) || null;
 
     await (context as any).entities.AuditLog.create({

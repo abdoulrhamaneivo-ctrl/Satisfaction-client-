@@ -17,7 +17,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import express, { type Express } from 'express';
 import type { Server } from 'node:http';
-import { checkRateLimit } from './rateLimit';
+import { checkRateLimit, extraireIpDeRequete, nombreDeProxysDeConfiance } from './rateLimit';
 import { isPublicSignupRequest } from './security/policies';
 
 // Le build Vite est copié dans l'image Docker à ce chemin (Dockerfile.render).
@@ -46,14 +46,18 @@ const AUTH_RATE_LIMITS: Array<{ prefixe: string; capacity: number; refillPerMinu
   { prefixe: '/auth/email/signup', capacity: 10, refillPerMinute: 2 },
 ];
 
-/** IP réelle derrière Render + Cloudflare (x-forwarded-for écrasé par le proxy). */
-function ipClient(req: any): string {
-  const fwd = req?.headers?.['x-forwarded-for'];
-  if (typeof fwd === 'string' && fwd.length > 0) return fwd.split(',')[0].trim();
-  return req?.socket?.remoteAddress ?? 'inconnue';
-}
+
 
 export async function serveStaticClient({ app }: ServerSetupContext): Promise<void> {
+  // Vague 5, P11-e : declare explicitement combien de proxys sont de
+  // confiance, AVANT tout middleware. Sans cela, toute lecture de
+  // `x-forwarded-for` croit un en-tête que le client a lui-meme forge :
+  // limite de debit contournable et IP d'audit falsifiable.
+  const proxys = nombreDeProxysDeConfiance();
+  app.set('trust proxy', proxys);
+  console.log(
+    `[static] trust proxy = ${proxys} (${typeof proxys === 'number' ? 'n proxies de confiance' : 'confiance totale'})`,
+  );
   // Le routeur Wasp est déjà monté quand setupFn s'exécute. On mémorise la
   // taille de la pile afin de déplacer toutes les couches ajoutées ici avant
   // ce routeur, y compris quand le build SPA est absent.
@@ -96,7 +100,7 @@ export async function serveStaticClient({ app }: ServerSetupContext): Promise<vo
     if (req.method === 'POST') {
       const regle = AUTH_RATE_LIMITS.find((r) => req.path.startsWith(r.prefixe));
       if (regle) {
-        const verdict = await checkRateLimit(`auth:${ipClient(req)}:${regle.prefixe}`, {
+        const verdict = await checkRateLimit(`auth:${extraireIpDeRequete(req)}:${regle.prefixe}`, {
           capacity: regle.capacity,
           refillPerMinute: regle.refillPerMinute,
         });

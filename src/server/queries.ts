@@ -21,6 +21,8 @@ import {
 import { decrireReponse } from '../shared/libelleReponse';
 import { calculerAgregats } from './gex/moteurGlobal';
 import { indiceGlobalExperience } from '../shared/indicateurs';
+import { checkRateLimit, extraireIp } from './rateLimit';
+import { journaliser } from './audit';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
 // PAS validé au runtime par Wasp. On le vérifie explicitement partout où on
@@ -651,6 +653,35 @@ export const getFormDefinitionForGuichet = async (
   if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{10}$/.test(brut)) {
     await normaliserTempsReponse();
     return null;
+  }
+
+  /* Vague 5, P11 — anti-bot sur la lecture publique.
+     Cette query est le point d'entrée du parcours : elle est anonyme, elle
+     interroge la base à chaque appel (guichet, branding, critères, services)
+     et rien n'en limitait la fréquence. La garde temporelle de 250 ms
+     gêne un script, mais 4 requêtes/seconde restent un amplificateur
+     de charge sur la base et un moyen de fatiguer une connexion.
+     La limite est volontairement large (30/min, 15/min de recharge) : un
+     agent qui aide plusieurs clients au guichet, ou qui recharge la page
+     plusieurs fois, ne la rencontre jamais. Elle est posée sur l'IP seule
+     et AVANT toute lecture en base, donc elle ne peut pas servir d'oracle
+     d'existence de code. Comme pour l'écriture, un dépassement est
+     journalisé pour rester traçable. */
+  const ipLecture = extraireIp(context);
+  const rlLecture = await checkRateLimit(`form-def:${ipLecture}`, {
+    capacity: 30,
+    refillPerMinute: 15,
+  });
+  if (!rlLecture.allowed) {
+    await journaliser({
+      context,
+      action: 'rateLimit.exceeded',
+      resource: 'getFormDefinitionForGuichet',
+      details: { cle: `ip:${ipLecture}`, retryAfter: rlLecture.retryAfterSeconds },
+    });
+    throw new HttpError(429, "Trop de consultations. Réessayez dans un instant.", {
+      headers: { 'Retry-After': String(rlLecture.retryAfterSeconds) },
+    });
   }
 
   // PERFORMANCE QR (Doc 00-INDEX §4, E1) : select explicite au lieu d'include

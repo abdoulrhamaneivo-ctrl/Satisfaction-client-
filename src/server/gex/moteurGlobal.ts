@@ -110,6 +110,44 @@ export interface IrritantPriorise extends EntreeIrritant {
 }
 
 /**
+ * Recale les irritants verbalisés par le modèle sur les mesures réelles
+ * (Vague 5, P10).
+ *
+ * Le modèle reçoit une liste d'irritants DÉTERMINISTES et la commente. Il
+ * peut toutefois en formuler un dont la donnée ne dit rien — un thème
+ * absent des mesures, donc sans fréquence, sans gravité, sans étendue.
+ *
+ * Le code précédent gardait la priorité du modèle dans ce cas :
+ *
+ *     priorite: deterministe(theme) ?? i.priorite
+ *
+ * Une valeur « plausible » entre 0 et 100 se retrouvait donc affichée à
+ * la direction avec l'apparence d'une mesure. Le repli rendait
+ * l'invention invisible : impossible de distinguer une priorité calculée
+ * d'une priorité inventée, même en relisant le code.
+ *
+ * Ici on SUPPRIME ce qui n'est pas mesuré. Un irritant absent des
+ * données n'a pas de priorité, donc il n'est pas affiché. Le modèle
+ * verbalise, il ne mesure pas.
+ *
+ * @returns les irritants retenus, priorité réécrite, et le nombre écarté.
+ */
+export function recalerIrritantsSurMesures<T extends { theme: string; priorite: number }>(
+  irritantsDuModele: T[],
+  mesures: Pick<IrritantPriorise, 'theme' | 'priorite'>[],
+): { retenus: T[]; ecarte: number } {
+  const prioriteParTheme = new Map(mesures.map((m) => [m.theme, m.priorite]));
+  const retenus: T[] = [];
+  for (const irritant of irritantsDuModele) {
+    const priorite = prioriteParTheme.get(irritant.theme);
+    // Thème non mesuré → écarté, sans conserver la valeur du modèle.
+    if (priorite === undefined) continue;
+    retenus.push({ ...irritant, priorite });
+  }
+  return { retenus, ecarte: irritantsDuModele.length - retenus.length };
+}
+
+/**
  * Priorité opérationnelle DÉTERMINISTE (documentée, §28) :
  *   priorite = frequence × gravite × (1 + |evolution|) × etendue × confiance × 100
  * Jamais présentée comme mesure universelle : indicateur interne.

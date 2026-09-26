@@ -406,11 +406,11 @@ dérivé autrement.
 | **P5** synthèse lisible par un `AGENT` | MOYEN | ✅ **corrigé** | `requireManagementRole` sur `getAnalysesGlobales` |
 | **P6** libellé d'option depuis une position | MOYEN | ✅ **corrigé** (vague 2) | `src/shared/libelleReponse.ts` : identité `ReponseOption` seule source |
 | **P12** objectifs calculés hors moteur | MOYEN | ✅ **corrigé** | `getObjectifs` lit désormais le score canonique |
-| **P7** accessibilité (3 blocants) | MOYEN | ⬜ ouvert | vague 4 |
+| **P7** accessibilité (3 blocants) | MOYEN | ✅ **corrigé** (vague 4) | contrastes, clavier, focus, messages d’état — voir `docs/accessibility/WCAG_22_AA_AUDIT.md` |
 | **P8** anti-rejeu téléphone inopérant | MOYEN | ⬜ ouvert | à repenser (le garde dépend d'un champ que le client n'envoie pas) |
-| **P9** plafond du budget IA globale | MOYEN | ⬜ ouvert | vague 6 |
-| **P10** priorité LLM inventée | MOYEN | ⬜ ouvert | vague 6 |
-| **P11** surface publique (3 trous + 2 faiblessesses) | MOYEN | ⬜ ouvert | vague 5 |
+| **P9** plafond du budget IA globale | MOYEN | ✅ **corrigé** (vague 5) | budget dimensionné sur les entreprises actives (plafond 20/jour), cron quotidien au lieu du lundi, SEMAINE traitée avant MOIS, reliquat journalisé. Réserve : le filtre `model: { not: null }` était déjà présent, le constat était erroné sur ce point |
+| **P10** priorité LLM inventée | MOYEN | ✅ **corrigé** (vague 5) | un irritant dont le thème est absent des mesures est ÉCARTÉ au lieu de conserver la priorité du modèle (`?? i.priorite`) — la valeur inventée disparaît au lieu de ressembler à une mesure. Schème Zod resserré (`min(1)`, entiers) |
+| **P11** surface publique (3 trous + 2 faiblessesses) | MOYEN | ✅ **corrigé** (vague 5) | rate limit sur la lecture publique et sur T2 ; borne haute sur `responses` ; erreur de saisie en 400 au lieu de 500 ; IP lue par Express (`trust proxy` déclaré, 3 copies de lecture supprimées) ; repli Redis signalé au démarrage en production |
 | **P13** pertes de données sur la collecte | MOYEN | ✅ **corrigé** | « Passer » force l'envoi du commentaire au lieu d'annuler le debounce ; envoi de dernière chance à la fermeture de l'onglet ; `crypto.randomUUID` encapsulé (borne en HTTP non sécurisé) — branche `hermes/v3-collecte` |
 | **P15** parcours de collecte **non fonctionnel** (bug trouvé en Vague 3) | CRITIQUE | ✅ **corrigé** | deux `useEffect` déclarés **après** un `if (…) return` → React lève « Rendered more hooks than during the previous render » dès que le questionnaire est chargé. La page de collecte **plantait** : cohérent avec la base vide (0 `Reponse`). Hooks remontés au-dessus des retours conditionnels, 13 tests de parcours ajoutés |
 | **P14 a→l** dette, code mort, index, énumérations, migrations liées | FAIBLE | 🟡 partiel | code mort et `duplicateCritere` corrigés en vague 2 ; reste en vague 4 |

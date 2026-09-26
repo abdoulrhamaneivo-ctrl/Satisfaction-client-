@@ -11,6 +11,7 @@ import {
   semaineContenant,
   moisContenant,
   type AgregatsGlobaux,
+  recalerIrritantsSurMesures,
 } from './moteurGlobal';
 import { SyntheseGlobaleSchema } from '../ai/types';
 
@@ -235,5 +236,89 @@ describe('prompt déterministe + schéma synthèse', () => {
     expect(
       SyntheseGlobaleSchema.safeParse({ ...ok, confiance: 'CERTAIN' }).success,
     ).toBe(false);
+  });
+});
+
+// ============================================================================
+// VAGUE 5, P10 — un irritant non mesuré ne doit jamais être affiché
+// ============================================================================
+// Le modèle verbalise une liste qu'il a reçue ; il peut en formuler un
+// dont la donnée ne dit rien. Le code antérieur gardait alors la priorité
+// du modèle (`deterministe ?? i.priorite`), produisant une valeur
+// « plausible » présentée à la direction comme une mesure.
+describe('P10 — recalage des irritants sur les mesures', () => {
+  const mesures = [
+    { theme: 'Accueil', priorite: 82 },
+    { theme: 'Attente', priorite: 61 },
+  ];
+
+  test('la priorité déterministe écrase celle du modèle', () => {
+    const { retenus } = recalerIrritantsSurMesures(
+      [{ theme: 'Accueil', priorite: 3 }],
+      mesures,
+    );
+    expect(retenus).toEqual([{ theme: 'Accueil', priorite: 82 }]);
+  });
+
+  test('un thème ABSENT des mesures est écarté, pas conservé avec la valeur du modèle', () => {
+    // C'est le cas du constat : le modèle propose « Climatisation », la
+    // donnée n'en dit rien. Conserver 77/100 l'aurait affichée comme une
+    // priorité mesurée.
+    const { retenus, ecarte } = recalerIrritantsSurMesures(
+      [
+        { theme: 'Accueil', priorite: 80 },
+        { theme: 'Climatisation', priorite: 77 },
+      ],
+      mesures,
+    );
+    expect(retenus.map((r) => r.theme)).toEqual(['Accueil']);
+    expect(ecarte).toBe(1);
+    // Aucune trace de l'irritant inventé, pas même sa priorité.
+    expect(JSON.stringify(retenus)).not.toContain('Climatisation');
+  });
+
+  test('une liste entièrement inventée est vidée plutôt que tronquée', () => {
+    const { retenus, ecarte } = recalerIrritantsSurMesures(
+      [
+        { theme: 'Climatisation', priorite: 77 },
+        { theme: 'Musique', priorite: 12 },
+      ],
+      mesures,
+    );
+    expect(retenus).toEqual([]);
+    expect(ecarte).toBe(2);
+  });
+
+  test('l\'ordre du modèle est conservé (il porte la narration)', () => {
+    const { retenus } = recalerIrritantsSurMesures(
+      [
+        { theme: 'Attente', priorite: 1, constat: 'b' },
+        { theme: 'Accueil', priorite: 2, constat: 'a' },
+      ],
+      mesures,
+    );
+    expect(retenus.map((r) => r.theme)).toEqual(['Attente', 'Accueil']);
+  });
+
+  test('les autres champs du modèle sont conservés', () => {
+    const { retenus } = recalerIrritantsSurMesures(
+      [{ theme: 'Accueil', priorite: 3, constat: 'Phrase du modèle', confiance: 'ELEVEE' }],
+      mesures,
+    );
+    expect(retenus[0]).toEqual({
+      theme: 'Accueil',
+      priorite: 82,
+      constat: 'Phrase du modèle',
+      confiance: 'ELEVEE',
+    });
+  });
+
+  test('sans mesure, rien n\'est retenu — jamais de repli sur le modèle', () => {
+    const { retenus, ecarte } = recalerIrritantsSurMesures(
+      [{ theme: 'Accueil', priorite: 42 }],
+      [],
+    );
+    expect(retenus).toEqual([]);
+    expect(ecarte).toBe(1);
   });
 });

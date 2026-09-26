@@ -20,22 +20,34 @@ import {
   derniereSemaineComplete,
   moisPrecedent,
   type EntreeIrritant,
+  recalerIrritantsSurMesures,
 } from '../gex/moteurGlobal';
+import { budgetDuJour as calculerBudgetDuJour, comparerParPriorite } from '../gex/budget';
 
 export const SEUIL_MIN_AVIS = 10;
-const GLOBAL_AI_BUDGET = Number(process.env.GLOBAL_AI_BUDGET || 5);
-const LIMITE_TRAITEMENT = 5;
+
+/* ── Budget IA (Vague 5, P9) ──────────────────────────────────────────────
+ * La règle elle-même vit dans `src/server/gex/budget.ts` : fonction pure,
+ * testable sans ouvrir de connexion Prisma. Ce qui suit n'est que le
+ * branchement sur l'environnement du job. */
+const budgetDuJour = (nbEntreprisesActives: number) =>
+  calculerBudgetDuJour(nbEntreprisesActives, process.env);
+
 const MAX_ATTEMPTS_GEX = Number(process.env.GLOBAL_AI_MAX_ATTEMPTS || 3);
 
 const arrondi1 = (n: number): number => Math.round(n * 10) / 10;
 
-async function budgetRestant(): Promise<number> {
+async function budgetRestant(budget: number): Promise<number> {
   const debutJour = new Date();
   debutJour.setHours(0, 0, 0, 0);
+  // `model: { not: null }` : une analyse close pour volume insuffisant ne
+  // consomme AUCUN budget — elle n'a appelé aucun modèle. (L'audit V0
+  // signalait l'inverse sur ce point ; le filtre était déjà là, on le
+  // conserve et on le couvre par un test.)
   const consommees = await prisma.globalExperienceAnalysis.count({
     where: { status: 'DONE', processedAt: { gte: debutJour }, model: { not: null } },
   });
-  return Math.max(0, GLOBAL_AI_BUDGET - consommees);
+  return Math.max(0, budget - consommees);
 }
 
 async function assurerProgrammee(
@@ -59,7 +71,11 @@ async function assurerProgrammee(
   });
 }
 
-async function traiterLigne(row: any, entrepriseNom: string): Promise<'ok' | 'budget' | 'echec'> {
+async function traiterLigne(
+  row: any,
+  entrepriseNom: string,
+  budget: number,
+): Promise<'ok' | 'budget' | 'echec'> {
   const debut = new Date(row.debut);
   const fin = new Date(row.fin);
   const agregats = await calculerAgregats(prisma, {
@@ -119,7 +135,7 @@ async function traiterLigne(row: any, entrepriseNom: string): Promise<'ok' | 'bu
     return 'ok';
   }
 
-  if ((await budgetRestant()) <= 0) return 'budget';
+  if ((await budgetRestant(budget)) <= 0) return 'budget';
 
   try {
     const freqPrev = new Map(agregats.themesTopPrev.map((t) => [t.theme, t.count]));
@@ -142,6 +158,29 @@ async function traiterLigne(row: any, entrepriseNom: string): Promise<'ok' | 'bu
     const prompt = construirePromptSynthese(entrepriseNom, periodeLabel, agregats, irritants);
     const { synthese, provider, model } = await AIService.syntheseGlobale(prompt);
 
+    /* Vague 5, P10 — la priorité DÉTERMINISTE fait foi, sans exception.
+       Le code précédent conservait la priorité du modèle pour tout thème
+       absent de la liste mesurée :
+           priorite: deterministe ?? i.priorite
+       Un thème que le modèle invente (donc sans fréquence, sans
+       sévérité, sans measure) gardait ainsi une priorité « plausible »
+       entre 0 et 100, affichée comme un fait à la direction. Le repli
+       rendait l'invention invisible : la valeur avait l'air mesurée.
+
+       On filtre donc plutôt que de retomber : un irritant qui n'existe pas
+       dans les données déterministes n'a pas de priorité, et n'apparaît
+       pas. Le modèle ne fait que VERBALISER une liste qu'il a reçue. */
+    const { retenus: irritantsVerifies, ecarte: themesInventes } = recalerIrritantsSurMesures(
+      synthese.irritants,
+      irritants,
+    );
+    if (themesInventes > 0) {
+      console.warn(
+        `[GEX] ${themesInventes} irritant(s) écarté(s) : thème absent des mesures ` +
+          `déterministes (le modèle l'avait formulé, la donnée ne le dit pas).`,
+      );
+    }
+
     await prisma.globalExperienceAnalysis.update({
       where: { id: row.id },
       data: {
@@ -149,14 +188,7 @@ async function traiterLigne(row: any, entrepriseNom: string): Promise<'ok' | 'bu
         resumeExecutif: synthese.resume_executif,
         pointsPositifs: JSON.stringify(synthese.points_positifs),
         pointsNegatifs: JSON.stringify(synthese.points_negatifs),
-        irritants: JSON.stringify(
-          synthese.irritants.map((i) => ({
-            ...i,
-            // La priorité DÉTERMINISTE fait foi : le LLM ne la recalcule pas.
-            priorite:
-              irritants.find((d) => d.theme === i.theme)?.priorite ?? i.priorite,
-          })),
-        ),
+        irritants: JSON.stringify(irritantsVerifies),
         tendances: JSON.stringify(synthese.tendances),
         anomalies: JSON.stringify(synthese.anomalies),
         priorites: JSON.stringify(synthese.priorites),
@@ -204,10 +236,21 @@ export async function analyserGlobaleJob(_args: any, _context: any) {
     await assurerProgrammee(e.id, 'MOIS', mois.debut, mois.fin);
   }
 
+  const budget = budgetDuJour(entreprises.length);
+
   // Sélection : PENDING **et** FAILED sous le quota de tentatives (Vague 1,
   // P4). Sans les echecs, un incident de fournisseur a 6 h un lundi rendait la
   // synthese definitive : aucune execution suivante ne la reprenait.
-  const files = await prisma.globalExperienceAnalysis.findMany({
+  //
+  // Vague 5, P9 : deux ajustements.
+  //  - On prend plus large que le budget puis on trie, au lieu de lire les N
+  //    plus anciennes lignes : l'ordre par `createdAt` seul pouvait
+  //    consommer le budget du jour sur des périodes MOIS alors que la
+  //    SEMAINE correspondante restait en attente. La donnée fraîche passe
+  //    d'abord.
+  //  - Le reliquat est décompté et renvoyé : un retard qui s'accumule en
+  //    silence est un bug invisible.
+  const candidats = await prisma.globalExperienceAnalysis.findMany({
     where: {
       OR: [
         { status: 'PENDING' },
@@ -215,18 +258,42 @@ export async function analyserGlobaleJob(_args: any, _context: any) {
       ],
     },
     orderBy: { createdAt: 'asc' },
-    take: LIMITE_TRAITEMENT,
+    take: budget * 3,
     include: { entreprise: { select: { nom_entreprise: true } } },
   });
+
+  const files = [...candidats].sort(comparerParPriorite).slice(0, budget);
 
   let traitees = 0;
   let budgetAtteint = false;
   for (const row of files) {
     if (budgetAtteint) break;
-    const res = await traiterLigne(row, row.entreprise?.nom_entreprise || 'Entreprise');
+    const res = await traiterLigne(row, row.entreprise?.nom_entreprise || 'Entreprise', budget);
     if (res === 'budget') budgetAtteint = true;
     else traitees += 1;
   }
 
-  return { status: 'completed', entreprises: entreprises.length, traitees, budgetAtteint };
+  const enAttente = await prisma.globalExperienceAnalysis.count({
+    where: {
+      OR: [
+        { status: 'PENDING' },
+        { status: 'FAILED', attempts: { lt: MAX_ATTEMPTS_GEX } },
+      ],
+    },
+  });
+  if (enAttente > 0) {
+    console.warn(
+      `[GEX] ${enAttente} analyse(s) en attente après ce passage (budget ${budget}, ` +
+        `${entreprises.length} entreprise(s) active(s)). Le budget IA est la file d'attente.`,
+    );
+  }
+
+  return {
+    status: 'completed',
+    entreprises: entreprises.length,
+    budget,
+    traitees,
+    budgetAtteint,
+    enAttente,
+  };
 }

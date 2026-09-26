@@ -167,20 +167,28 @@ export const CONFIANCES_AUTORISEES = ['FAIBLE', 'MOYENNE', 'ELEVEE'] as const;
 export type ConfianceAutorisee = typeof CONFIANCES_AUTORISEES[number];
 
 export const SyntheseGlobaleSchema = z.object({
-  resume_executif: z.string().max(800),
-  points_positifs: z.array(z.string().max(200)).max(6),
-  points_negatifs: z.array(z.string().max(200)).max(6),
+  resume_executif: z.string().min(1).max(800),
+  points_positifs: z.array(z.string().min(1).max(200)).max(6),
+  points_negatifs: z.array(z.string().min(1).max(200)).max(6),
   irritants: z.array(z.object({
-    theme: z.string().max(40),
-    constat: z.string().max(300),
-    priorite: z.number().min(0).max(100),
+    // Vague 5, P10 : `min(1)` sur le thème. Une chaîne vide passerait le
+    // filtre d'appariement et disparaîtrait silencieusement de l'analyse ;
+    // mieux vaut refuser la réponse et la rejouer (le job remet en PENDING
+    // sous le quota de tentatives) que d'enregistrer une synthèse amputée
+    // d'un irritant sans que rien ne le signale.
+    theme: z.string().min(1).max(40),
+    constat: z.string().min(1).max(300),
+    // La priorité est réécrite par le serveur (valeur déterministe). Elle
+    // reste bornée ici pour qu'une réponse aberrante soit rejetée plutôt
+    // que normalisée en silence.
+    priorite: z.number().int().min(0).max(100),
     confiance: z.enum(CONFIANCES_AUTORISEES),
   })).max(8),
-  tendances: z.array(z.string().max(200)).max(6),
-  anomalies: z.array(z.string().max(200)).max(6),
-  priorites: z.array(z.string().max(200)).max(5),
+  tendances: z.array(z.string().min(1).max(200)).max(6),
+  anomalies: z.array(z.string().min(1).max(200)).max(6),
+  priorites: z.array(z.string().min(1).max(200)).max(5),
   confiance: z.enum(CONFIANCES_AUTORISEES),
-  limites: z.array(z.string().max(200)).max(6),
+  limites: z.array(z.string().min(1).max(200)).max(6),
 });
 
 export type SyntheseGlobale = z.infer<typeof SyntheseGlobaleSchema>;

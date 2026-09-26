@@ -35,7 +35,7 @@ import {
   createGuichet,
   assignAgent,
   soumettreAvis,
-  completerSoumission,
+  completerSoumissionPublic as completerSoumission,
   updateAgent,
   deleteAgent,
   reactivateAgent,
@@ -186,6 +186,9 @@ const soumettreAvisAction = action(soumettreAvis, {
   entities: ["Reponse", "Critere", "OptionCritere", "ReponseOption", "AgenceCritere", "CritereService", "Guichet", "AffectationGuichet", "Alerte", "VoteAntiRejeu", "Service", "User", "AnalyseAvisIA", "Canal"],
 });
 // T2 vague 1 (commentaire auto-sauvé sur la même soumission, public).
+// Vague 5, P11 : le nom public reste `completerSoumission` côté client, mais
+// l’action appelle désormais le wrapper qui traduit une erreur de saisie en
+// 4xx explicite (au lieu d’un 500 sans message).
 const completerSoumissionAction = action(completerSoumission, {
   entities: ["Reponse", "Guichet", "Agence", "VoteAntiRejeu", "AnalyseAvisIA"],
 });
@@ -507,12 +510,21 @@ export default app({
       entities: ["Agence", "AffectationGuichet", "ModeleHoraire", "Guichet", "User", "Entreprise"],
       schedule: { cron: "0 5 * * *" },
     }),
-    // IA globale (vague 1, Phase G) : chaque lundi 6h — semaines complètes
-    // + mois précédent, idempotent (lignes PENDING traitées, budget IA).
+    // IA globale (vague 1, Phase G) : semaines complètes + mois précédent,
+    // idempotent (lignes PENDING traitées, budget IA).
+    //
+    // Vague 5, P9 : le cron passe du lundi au QUOTIDIEN. Le job est
+    // idempotent (upsert sur entreprise × période × début), donc des
+    // exécutions rapprochées ne dupliquent rien ; en revanche, un cron
+    // hebdomadaire transformait un budget « 5 appels/jour » en
+    // « 5 appels par semaine » utilisables, et laissait les lignes en
+    // surplus attendre sept jours. En quotidien, le budget se répartit et
+    // le retard se résorbe. 6 h : après la clôture des espaces clients,
+    // avant les consolidations de fin de journée.
     job(analyserGlobaleJob, {
       executor: "PgBoss",
       entities: ["GlobalExperienceAnalysis", "Entreprise", "Reponse", "AnalyseAvisIA", "Agence", "Guichet", "Service", "Critere"],
-      schedule: { cron: "0 6 * * 1" },
+      schedule: { cron: "0 6 * * *" },
     }),
   ],
 });

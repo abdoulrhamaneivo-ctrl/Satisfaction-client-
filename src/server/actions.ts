@@ -11,7 +11,13 @@ import crypto from 'node:crypto';
 import { envoyerAlerteWhatsApp } from './notifications/gateway';
 import { checkRateLimit, extraireIp } from './rateLimit';
 import { journaliser } from './audit';
-import { normaliserTelephoneE164, sanitiserCommentaire, hmacSHA256, validerSecretEnv } from './validation';
+import {
+  normaliserTelephoneE164,
+  sanitiserCommentaire,
+  hmacSHA256,
+  validerSecretEnv,
+  versHttpSiEntreeInvalide,
+} from './validation';
 import {
   construireScoresAStocker,
   parseOptionsCSV,
@@ -419,6 +425,42 @@ export const deleteAffectationGuichet = async (args: any, context: any) => {
 // COLLECTE D'AVIS (avec anti-rejeu + notifications)
 // ============================================================================
 
+/**
+ * Nombre maximal de réponses acceptées dans UN appel public (Vague 5, P11).
+ *
+ * Calibré sur le réel : un formulaire de guichet compte quelques dizaines
+ * de questions au maximum (un par critère, tous services et toutes agences
+ * confondus). 50 laisse une marge très large tout en empêchant qu'un
+ * appel unique transforme la vérification des critères en `IN (...)` de
+ * taille arbitraire. La borne est sur le TOTAL, pas par entrée.
+ */
+const MAX_REPONSES_PAR_SOUMISSION = 50;
+
+/**
+ * Vérifie le nombre de réponses d'un avis (Vague 5, P11).
+ *
+ * Fonction pure et exportée pour être testée sans contexte serveur : chaque entrée
+ * était déjà bornée (50 `optionIds`), mais la LONGUEUR DU TABLEAU ne
+ * l'était pas. Un appel public unique pouvait envoyer 100 000 réponses et
+ * transformer la vérification des critères — un `id IN (...)` — en requête
+ * énorme, en mémoire et en temps base.
+ *
+ * La borne est sur le TOTAL. Elle est posée avant toute lecture en base :
+ * un appel abusif doit être refusé sans coût.
+ *
+ * @returns un message d'erreur, ou `null` si le volume est acceptable.
+ */
+export function verifierVolumeReponses(
+  responses: unknown,
+  max: number = MAX_REPONSES_PAR_SOUMISSION,
+): string | null {
+  if (!Array.isArray(responses)) return null;
+  if (responses.length > max) {
+    return `Trop de réponses envoyées (max ${max} par avis).`;
+  }
+  return null;
+}
+
 const soumettreAvisImpl = async (args: any, context: any) => {
   const { code_public, score, critereId, canalId, commentaire, telephone, serviceId, responses } = args;
 
@@ -573,6 +615,16 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   // (normaliserEntree : voir src/server/resolutionSoumission.ts)
   let entrees: EntreeBrute[] = [];
   if (responses && Array.isArray(responses) && responses.length > 0) {
+    // Vague 5, P11 : borne haute sur le NOMBRE de réponses. Chaque entrée
+    // était déjà bornée (50 optionIds), mais rien ne bornait la longueur
+    // du tableau : un seul appel public pouvait envoyer 100 000 entrées et
+    // transformer le `id IN (...)` de vérification des critères en requête
+    // énorme, en mémoire et en temps base. La borne est posée sur le
+    // total, pas par entrée.
+    const erreurVolume = verifierVolumeReponses(responses);
+    if (erreurVolume) {
+      throw new HttpError(400, erreurVolume);
+    }
     entrees = responses.map(normaliserEntree);
   } else if (score !== undefined && score !== null && critereId !== undefined) {
     entrees = [{ critereId: Number(critereId), score: Number(score) }];
@@ -1016,6 +1068,14 @@ export const soumettreAvis = async (args: any, context: any) => {
   } catch (error: any) {
     if (error instanceof HttpError) throw error;
 
+    // Vague 5, P11 : une erreur de saisie se distingue d'une panne. Un
+    // commentaire trop long levait un `Error` ordinaire, remontait ici et
+    // devenait un 500 « réessayez plus tard » : le client ne savait pas
+    // quoi corriger, et le front ne pouvait pas distinguer une coupure
+    // réseau d'un refus définitif.
+    const erreurSaisie = versHttpSiEntreeInvalide(error);
+    if (erreurSaisie) throw erreurSaisie;
+
     console.error('[SOUMETTRE_AVIS] Échec inattendu', {
       message: error?.message,
       code: error?.code,
@@ -1066,6 +1126,45 @@ export const completerSoumission = async (
   }
   if (commentaireBrut.length > 1000) {
     throw new HttpError(400, 'Le commentaire est trop long (1000 caractères maximum).');
+  }
+
+  /* Vague 5, P11 — anti-amplification sur T2.
+     La fenêtre de 30 min et l'`id_soumission` non devinable protègent
+     contre l'énumération, mais pas contre la répétition : un appelant
+     détenant UN seul identifiant valide pouvait boucler l'action et
+     réécrire le commentaire, le vote anti-rejeu et la file IA en
+     boucle. Deux garde-fous :
+       - par (IP, soumission) : serré, car un client lisible appelle
+         T2 quelques fois au plus (saisie + reprise) ;
+       - par IP : large, car un guichet partage souvent une connexion
+         entre plusieurs clients. */
+  const ipT2 = extraireIp(context);
+  const rlT2a = await checkRateLimit(`t2:${ipT2}:${idSoumission}`, {
+    capacity: 6,
+    refillPerMinute: 2,
+  });
+  if (!rlT2a.allowed) {
+    await journaliser({
+      context,
+      action: 'rateLimit.exceeded',
+      resource: 'completerSoumission',
+      details: { cle: `ip:soumission:${ipT2}`, retryAfter: rlT2a.retryAfterSeconds },
+    });
+    throw new HttpError(429, 'Trop d’enregistrements. Réessayez dans un instant.', {
+      headers: { 'Retry-After': String(rlT2a.retryAfterSeconds) },
+    });
+  }
+  const rlT2b = await checkRateLimit(`t2:${ipT2}`, { capacity: 40, refillPerMinute: 20 });
+  if (!rlT2b.allowed) {
+    await journaliser({
+      context,
+      action: 'rateLimit.exceeded',
+      resource: 'completerSoumission',
+      details: { cle: `ip:${ipT2}`, retryAfter: rlT2b.retryAfterSeconds },
+    });
+    throw new HttpError(429, 'Trop d’enregistrements depuis cette connexion. Réessayez dans un instant.', {
+      headers: { 'Retry-After': String(rlT2b.retryAfterSeconds) },
+    });
   }
 
   const lignes = await context.entities.Reponse.findMany({
@@ -1138,6 +1237,37 @@ export const completerSoumission = async (
   }
 
   return { ok: true as const };
+};
+
+/**
+ * Wrapper public de `completerSoumission` (Vague 5, P11).
+ *
+ * L'action n'avait AUCUN filet : une erreur de saisie — un commentaire
+ * au-delà de 1000 caractères, say — remontait jusqu'au framework et
+ * devenait un 500 sans message. Or T2 est précisément l'étape où le
+ * client tape librement : c'est le chemin le plus susceptible de
+ * déclencher une refus de saisie, et donc le moins outillé pour l'expliquer.
+ *
+ * Le comportement métier est inchangé ; seul le contrat d'erreur est
+ * explicite. `id_soumission` reste non devinable (UUID v4) et la fenêtre
+ * de 30 minutes borne toujours le risque.
+ */
+export const completerSoumissionPublic = async (args: any, context: any) => {
+  try {
+    return await completerSoumission(args, context);
+  } catch (error: any) {
+    if (error instanceof HttpError) throw error;
+    const erreurSaisie = versHttpSiEntreeInvalide(error);
+    if (erreurSaisie) throw erreurSaisie;
+    console.error('[COMPLETER_SOUMISSION] Échec inattendu', {
+      message: error?.message,
+      code: error?.code,
+    });
+    throw new HttpError(
+      500,
+      "Nous ne pouvons pas enregistrer votre commentaire pour le moment. Veuillez réessayer.",
+    );
+  }
 };
 
 // ============================================================================
