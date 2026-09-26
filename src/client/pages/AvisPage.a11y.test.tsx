@@ -19,7 +19,6 @@ import React from 'react';
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import axe from 'axe-core';
 import {
   getAgences,
   getAvisGroupes,
@@ -27,68 +26,20 @@ import {
   getServices,
 } from 'wasp/client/operations';
 import { AvisPage } from './AvisPage';
+import { auditerPage } from '../__mocks__/harnaisA11y';
 
 // La page importe depuis 'react-router' (et non react-router-dom) : les
 // deux doivent être mockés, sinon `useLocation` est undefined.
-vi.mock('react-router', () => ({
-  useParams: () => ({ code: 'ABCDEFGHJK' }),
-  useLocation: () => ({ pathname: '/avis', search: '', hash: '' }),
-  useNavigate: () => () => undefined,
-  Navigate: ({ to }: any) => <div data-testid="navigate" data-to={to} />,
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
-  // NavLink sert aux onglets de PageShell.
-  NavLink: ({ children, ...props }: any) => <a {...props}>{children}</a>,
-  // Le routeur Wasp est résolu via ses routes générées.
-  routes: { LoginRoute: { to: '/login' }, AccountRoute: { to: '/account' } },
-}));
-
-vi.mock('react-router-dom', () => ({
-  useParams: () => ({ code: 'ABCDEFGHJK' }),
-  Navigate: ({ to }: any) => <div data-testid="navigate" data-to={to} />,
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
-  NavLink: ({ children, ...props }: any) => <a {...props}>{children}</a>,
-  useNavigate: () => () => undefined,
-  useLocation: () => ({ pathname: '/avis', search: '', hash: '' }),
-}));
-
+// Les factories de `vi.mock` sont hissées : elles ne peuvent pas accéder
+// aux imports du fichier avant son initialisation. L'import DYNAMIQUE du
+// harnais est donc fait à l'intérieur de chaque factory — c'est la seule
+// façon de partager les mocks sans les recopier.
+vi.mock('react-router', async () => (await import('../__mocks__/harnaisA11y')).routerMock());
+vi.mock('react-router-dom', async () => (await import('../__mocks__/harnaisA11y')).routerMock());
+vi.mock('framer-motion', async () => (await import('../__mocks__/harnaisA11y')).motionMock());
+vi.mock('../context/BrandContext', async () => (await import('../__mocks__/harnaisA11y')).brandMock());
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
-
-// RequireAuth redirige vers /login tant que `useAuth().data` est undefined :
-// sans cet utilisateur, la page auditée ne serait jamais montée et le test
-// passerait sur la page de connexion.
-vi.mock('wasp/client/auth', () => ({
-  useAuth: () => ({
-    isLoading: false,
-    data: { id: 1, email: 'chef@agence.ci', role: 'CHEF_AGENCE', id_agence: 1, id_entreprise: 42, actif: true },
-  }),
-}));
-
-vi.mock('framer-motion', async () => {
-  const ReactLocal = await import('react');
-  const transversal = (Tag: any) => {
-    const Composant = ({ children, ...props }: any) => {
-      const {
-        initial, animate, exit, transition, whileHover, whileTap,
-        variants, layout, layoutId, onAnimationStart, onAnimationComplete,
-        ...reste
-      } = props;
-      return ReactLocal.createElement(Tag, reste, children);
-    };
-    Composant.displayName = 'motion-' + (typeof Tag === 'string' ? Tag : 'component');
-    return Composant;
-  };
-  return {
-    motion: new Proxy({}, { get: (_t, cle) => transversal(cle === 'create' ? 'div' : String(cle)) }),
-    AnimatePresence: ({ children }: any) => children,
-    useReducedMotion: () => true,
-    LayoutGroup: ({ children }: any) => children,
-    MotionConfig: ({ children }: any) => children,
-  };
-});
-
-vi.mock('../context/BrandContext', () => ({
-  useBrand: () => ({ brandConfig: {}, loading: false, isCustom: false }),
-}));
+vi.mock('wasp/client/auth', async () => (await import('../__mocks__/harnaisA11y')).authMock());
 
 // --- Données de test : un avis par soumission, avec commentaire et note ---
 const AGENCES = [{ id: 1, nom_agence: 'Agence Centrale', commune: 'Abidjan' }];
@@ -141,21 +92,6 @@ const monter = () => {
   );
 };
 
-const auditer = async (libelle: string) => {
-  const resultats = await axe.run(document.body, {
-    runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] },
-    // Le contraste et la géométrie sont hors de portée de jsdom.
-    rules: { 'color-contrast': { enabled: false } },
-  });
-  const violations = resultats.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    aide: v.help,
-    noeuds: v.nodes.slice(0, 3).map((n) => n.html.slice(0, 140)),
-  }));
-  expect(violations, `${libelle} — ${violations.length} violation(s) axe-core`).toEqual([]);
-};
-
 beforeEach(() => {
   vi.mocked(getAgences).mockResolvedValue(AGENCES as any);
   vi.mocked(getServices).mockResolvedValue(SERVICES as any);
@@ -178,6 +114,6 @@ describe('A4 — audit axe-core de la page Avis', () => {
     // un texte que la page rend réellement, plutôt que sur le commentaire
     // (qui n'apparaît que dans le détail dépliable).
     expect(screen.getAllByText('Retrait').length).toBeGreaterThan(0);
-    await auditer('page Avis — état chargé');
+    await auditerPage('page Avis — état chargé');
   });
 });

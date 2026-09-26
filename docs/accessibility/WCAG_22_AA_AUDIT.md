@@ -225,11 +225,25 @@ les deux branches n'étaient pas d'accord sur la source, et celle du
 SMILEY reprenait la colonne que la migration avait marquée « legacy ».
 Même famille de défaut que la vague 6 : deux règles pour une même donnée.
 
-L'élargissement a aussi nécessité un correctif de configuration : les
-tests transformaient le JSX en runtime CLASSIQUE alors que l'application
-utilise le runtime AUTOMATIQUE. Tout composant qui n'importe pas React
-explicitement échouait donc au rendu en test — ce qui aurait découragé
-d'auditer une page de plus.
+Trois pages internes supplémentaires ont depuis été auditées avec le même
+harnais (Guichets, Planning, Alertes & Tâches) : **aucune violation**.
+Le planning mérite d'être noté — c'est le seul écran construit comme une
+grille (7 jours × créneaux), donc celui où les sémantiques de tableau
+devraient porter l'information ; il est conforme.
+
+L'élargissement a aussi nécessité deux correctifs de configuration, tous
+deux sighted comme des obstacles à l'audit lui-même :
+- les tests transformaient le JSX en runtime CLASSIQUE alors que
+  l'application utilise le runtime AUTOMATIQUE : tout composant qui
+  n'importe pas React explicitement échouait au rendu ;
+- `ResizeObserver` n'existe pas dans jsdom, alors que Recharts l'utilise
+  au montage : le test échouait sur une absence d'API, sans rapport avec
+  le code audité. Fourni une double muette.
+
+Délai de test relevé à 20 s pour le projet UI : un audit axe sur une page
+interne réelle dépasse régulièrement 5 s. À 5 s, le test échouait sur la
+charge de la machine, jamais sur le code — le pire signal possible, parce
+qu'on apprend à l'ignorer.
 
 ## 4. Restant connu (Vague 4b)
 
@@ -239,7 +253,7 @@ d'auditer une page de plus.
 | ~~A2~~ | Carte de chaleur sans alternative | — | **corrigé** |
 | ~~A3~~ | Lignes de tableau cliquables sans `tabIndex` | — | **corrigé** |
 | ~~A5~~ | White-label : le tenant pouvait casser le contraste | — | **corrigé** (voir ci-dessous) |
-| A4 (partiel) | axe-core couvre le parcours public et la page Avis ; restent les autres pages internes et le rendu réel (focus visible, taille de cible) | `vitest.config.ts` | — |
+| A4 (partiel) | axe-core couvre 5 écrans (parcours public, Avis, Guichets, Planning, Alertes & Tâches) ; restent les pages de configuration et le rendu réel (focus visible, taille de cible) | `src/client/__mocks__/harnaisA11y.tsx` | — |
 
 ### A5 — le white-label pouvait déroger au contraste
 

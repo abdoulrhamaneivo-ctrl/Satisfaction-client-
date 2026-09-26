@@ -25,49 +25,23 @@
 // coûteux (téléchargement du navigateur, il faut faire tourner l'app
 // entière avec sa base) pour un gain réel mais circonscrit.
 // ============================================================================
+import axe from 'axe-core';
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import axe from 'axe-core';
 import { getFormDefinitionForGuichet, soumettreAvis, completerSoumission } from 'wasp/client/operations';
 import { CollectePage } from './CollectePage';
+import { auditerPage } from '../__mocks__/harnaisA11y';
 
 // --- Mocks : mêmes qu'un parcours jsdom classique -----------------------------
-vi.mock('react-router-dom', () => ({
-  useParams: () => ({ code: 'ABCDEFGHJK' }),
-  Navigate: ({ to }: any) => <div data-testid="navigate" data-to={to} />,
-  Link: ({ children }: any) => <>{children}</>,
-}));
-
+// Mocks partagés — import DYNAMIQUE dans chaque factory, `vi.mock` étant
+// hissé (cf. harnaisA11y.tsx).
+vi.mock('react-router-dom', async () => (await import('../__mocks__/harnaisA11y')).routerMock());
+vi.mock('react-router', async () => (await import('../__mocks__/harnaisA11y')).routerMock());
+vi.mock('framer-motion', async () => (await import('../__mocks__/harnaisA11y')).motionMock());
+vi.mock('../context/BrandContext', async () => (await import('../__mocks__/harnaisA11y')).brandMock());
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
-
-vi.mock('framer-motion', async () => {
-  const ReactLocal = await import('react');
-  const transversal = (Tag: any) => {
-    const Composant = ({ children, ...props }: any) => {
-      const {
-        initial, animate, exit, transition, whileHover, whileTap,
-        variants, layout, layoutId, onAnimationStart, onAnimationComplete,
-        ...reste
-      } = props;
-      return ReactLocal.createElement(Tag, reste, children);
-    };
-    Composant.displayName = 'motion-' + (typeof Tag === 'string' ? Tag : 'component');
-    return Composant;
-  };
-  return {
-    motion: new Proxy({}, { get: (_t, cle) => transversal(cle === 'create' ? 'div' : String(cle)) }),
-    AnimatePresence: ({ children }: any) => children,
-    useReducedMotion: () => true,
-    LayoutGroup: ({ children }: any) => children,
-    MotionConfig: ({ children }: any) => children,
-  };
-});
-
-vi.mock('../context/BrandContext', () => ({
-  useBrand: () => ({ brandConfig: {}, loading: false, isCustom: false }),
-}));
 
 const formDef = {
   guichetName: 'Guichet Centre',
@@ -102,23 +76,6 @@ const monter = () => {
   );
 };
 
-/** Exécute axe-core et rend un message lisible en cas d'échec. */
-const auditer = async (libelle: string) => {
-  const resultats = await axe.run(document.body, {
-    runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] },
-    // Le contraste et la géométrie sont hors de portée de jsdom : on ne
-    // veut pas de faux positifs qui masqueraient les vrais défauts.
-    rules: { 'color-contrast': { enabled: false } },
-  });
-  const violations = resultats.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    aide: v.help,
-    noeuds: v.nodes.slice(0, 3).map((n) => n.html.slice(0, 120)),
-  }));
-  expect(violations, `${libelle} — ${violations.length} violation(s) axe-core`).toEqual([]);
-};
-
 describe('A4 — audit axe-core du parcours public', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -136,7 +93,7 @@ describe('A4 — audit axe-core du parcours public', () => {
       await vi.advanceTimersByTimeAsync(10);
     });
     expect(screen.getByText('Satisfaction')).toBeTruthy();
-    await auditer('question SMILEY affichée');
+    await auditerPage('question SMILEY affichée');
   });
 
   test('la question Oui/Non ne présente aucune violation WCAG', async () => {
@@ -151,7 +108,7 @@ describe('A4 — audit axe-core du parcours public', () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
     expect(screen.getAllByRole('radiogroup').length).toBeGreaterThan(0);
-    await auditer('question OUI_NON affichée');
+    await auditerPage('question OUI_NON affichée');
   });
 
   test("l'étape commentaire ne présente aucune violation WCAG", async () => {
@@ -169,7 +126,7 @@ describe('A4 — audit axe-core du parcours public', () => {
       ouiNon[ouiNon.length - 1].click();
       await vi.advanceTimersByTimeAsync(3000);
     });
-    await auditer('étape commentaire affichée');
+    await auditerPage('étape commentaire affichée');
   });
 });
 
@@ -202,7 +159,7 @@ describe('A4 — l\'auditeur fonctionne (témoin)', () => {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] },
       rules: { 'color-contrast': { enabled: false } },
     });
-    const ids = resultats.violations.map((v) => v.id);
+    const ids = (resultats.violations as Array<{ id: string }>).map((v) => v.id);
     expect(ids, `axe n'a rien signalé — l'auditeur est cassé (ids: ${ids})`).toContain('button-name');
     expect(ids).toContain('image-alt');
     expect(ids.length, 'seulement ' + ids.length + ' violation(s) détectée(s)').toBeGreaterThanOrEqual(3);
