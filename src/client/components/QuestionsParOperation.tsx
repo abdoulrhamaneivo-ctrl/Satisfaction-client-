@@ -103,6 +103,28 @@ type Column = {
 
 const UNASSIGNED_KEY = 'unassigned';
 
+/**
+ * PRÉDICAT PUR — testé, sans rendu. Vrai quand ce déplacement viderait une
+ * opération de sa DERNIÈRE question : la colonne d'origine est une vraie
+ * opération (pas le vivier), elle ne contient que cette question, et la
+ * destination est ailleurs (pas un réordonnancement interne ni un no-op).
+ * Le cas « opération vide » affiche « Questionnaire en préparation » au QR —
+ * c'est le seul déplacement qui mérite une confirmation explicite.
+ */
+export function operationVideeApresDeplacement(
+  sourceCol: { key: string; id_service: number | null; criteres: Array<{ id: number }> } | null | undefined,
+  activeId: number,
+  destKey: string,
+): boolean {
+  if (!sourceCol) return false;
+  if (sourceCol.id_service === null) return false; // le vivier n'est pas une opération
+  if (sourceCol.key === destKey) return false; // réordonnancement interne
+  return (
+    sourceCol.criteres.length === 1 &&
+    sourceCol.criteres[0]?.id === activeId
+  );
+}
+
 const typeLabel: Record<string, string> = {
   SMILEY: '⭐ Note',
   OUI_NON: '👍 Oui/Non',
@@ -127,6 +149,16 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<number | null>(null);
   const [critereASupprimer, setCritereASupprimer] = useState<Critere | null>(null);
+  // Confirmation « opération vidée » : le déplacement qui retirerait la
+  // DERNIÈRE question d'une opération attend un clic explicite (sinon le QR
+  // de cette opération bascule sur « Questionnaire en préparation » sans
+  // que personne ne s'en aperçoive). Mémorise ce qui était demandé pour le
+  // rejouer après confirmation.
+  const [deplacementEnAttente, setDeplacementEnAttente] = useState<{
+    activeId: number;
+    destKey: string;
+    destIndex?: number;
+  } | null>(null);
   // Verrou anti-chevauchement : tant qu'un déplacement précédent n'a pas
   // fini d'être persisté côté serveur, on bloque le suivant. Sans ça, deux
   // glissers rapides successifs pourraient partir avec des instantanés
@@ -236,6 +268,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
     activeId: number,
     destKey: string,
     destIndexOverride?: number,
+    confirme = false,
   ) => {
     if (isSaving) return;
 
@@ -243,6 +276,15 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
     if (!sourceCol) return;
     const destCol = findColumnByKey(destKey);
     if (!destCol) return;
+
+    // POINT DE CONTRÔLE UNIQUE (sélecteur ET glisser-déposer) : avant toute
+    // mutation optimiste. Si ce déplacement vide l'opération de sa dernière
+    // question, on mémorise la demande et on attend le clic — sauf si le
+    // clic vient déjà d'arriver (`confirme`), auquel cas on exécute.
+    if (!confirme && operationVideeApresDeplacement(sourceCol, activeId, destKey)) {
+      setDeplacementEnAttente({ activeId, destKey, destIndex: destIndexOverride });
+      return;
+    }
 
     const sourceIndex = sourceCol.criteres.findIndex((q) => q.id === activeId);
     const destIndex = destIndexOverride ?? destCol.criteres.length;
@@ -363,6 +405,36 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
     }
   };
 
+  // Exécute un déplacement mis en attente par la confirmation « opération
+  // vidée ». On vide l'attente AVANT de rejouer : à l'exécution, le
+  // prédicat serait encore vrai et redéclencherait le dialogue (boucle).
+  const confirmerDeplacement = async () => {
+    const demande = deplacementEnAttente;
+    if (!demande) return;
+    setDeplacementEnAttente(null);
+    await moveCritereTo(demande.activeId, demande.destKey, demande.destIndex, true);
+  };
+
+  // Libellés du dialogue de confirmation, calculés sur l'état ACTUEL des
+  // colonnes (l'attente ne dure que le temps du clic, pas de dérive).
+  const titreOperationQuitee = (() => {
+    if (!deplacementEnAttente) return '';
+    const src = columns.find((c) => c.criteres.some((q) => q.id === deplacementEnAttente.activeId));
+    return src?.title ?? '';
+  })();
+  const libelleQuestionDeplacee = (() => {
+    if (!deplacementEnAttente) return '';
+    for (const c of columns) {
+      const q = c.criteres.find((x) => x.id === deplacementEnAttente.activeId);
+      if (q) return q.libelle_critere;
+    }
+    return '';
+  })();
+  const titreDestination = (() => {
+    if (!deplacementEnAttente) return '';
+    return columns.find((c) => c.key === deplacementEnAttente.destKey)?.title ?? '';
+  })();
+
   const handleDuplicate = async (critere: Critere) => {
     if (duplicatingId) return;
     setDuplicatingId(critere.id);
@@ -472,6 +544,27 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
           <AlertDialogAction variant="destructive" onClick={confirmerSuppression} disabled={deletingId !== null}>
             {deletingId !== null ? 'Suppression…' : 'Supprimer'}
           </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {/* Confirmation « opération vidée » : déplacer « {libelle} » viderait
+        « {titreOperationQuitee} » de sa dernière question — le QR de cette
+        opération afficherait « Questionnaire en préparation ». Un clic
+        explicite est exigé, aucun déplacement ne part seul. */}
+    <AlertDialog
+      open={deplacementEnAttente !== null}
+      onOpenChange={(open) => !open && setDeplacementEnAttente(null)}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>« {titreOperationQuitee} » n'aura plus de question</AlertDialogTitle>
+          <AlertDialogDescription>
+            « {libelleQuestionDeplacee} » est la dernière question de « {titreOperationQuitee} »{titreDestination ? ` — la déplacer vers « ${titreDestination} »` : ''} laissera cette opération vide. Son QR affichera « Questionnaire en préparation » au lieu d'un questionnaire. Continuer ?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setDeplacementEnAttente(null)}>Annuler</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmerDeplacement}>Déplacer quand même</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
