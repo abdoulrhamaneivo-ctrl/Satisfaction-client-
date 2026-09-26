@@ -196,8 +196,9 @@ Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
 |---|---|---|
 | `src/shared/branding.test.ts` | 16 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, **blanc sur aplat ≥ 4,5:1**, **texte sur aplat teinté à 10/15/25 % d'opacité**, hiérarchie primaire/secondaire, garde-fous white-label |
 | `src/client/pages/CollectePage.test.tsx` | +5 | radiogroup nommés, flèches, région live pré-montée, labels associés, cible 44 px |
+| `src/client/pages/CollectePage.a11y.test.tsx` | 4 | audit axe-core du parcours public (SMILEY, OUI_NON, commentaire) + un test témoin qui prouve que l'auditeur signale bien |
 
-Total après Vague 4 : **256 tests** répartis sur 21 fichiers, dont 18 sur le parcours
+Total après Vague 4 : **260 tests** répartis sur 21 fichiers, dont 18 sur le parcours
 de collecte (13 de flux + 5 d'accessibilité) et 11 de contraste/garde-fous.
 
 Ces tests protègent contre la régression silencieuse type : le parcours
@@ -214,7 +215,7 @@ inaccessible. C'est précisément ce que la Vague 4 cherche à empêcher.
 | ~~A2~~ | Carte de chaleur sans alternative | — | **corrigé** |
 | ~~A3~~ | Lignes de tableau cliquables sans `tabIndex` | — | **corrigé** |
 | ~~A5~~ | White-label : le tenant pouvait casser le contraste | — | **corrigé** (voir ci-dessous) |
-| A4 | Tests automatisés uniquement en jsdom, pas de test navigateur | `vitest.config.ts` | — |
+| A4 (partiel) | Audit axe-core automatisé en place ; reste le rendu réel (focus visible, taille de cible) | `src/client/pages/CollectePage.a11y.test.tsx` | — |
 
 ### A5 — le white-label pouvait déroger au contraste
 
@@ -244,11 +245,13 @@ réellement une couleur.
 
 ## 5. Décisions product restantes
 
-1. **Choix de l'outil de test a11y** (axe-core / Playwright) pour A4 — c'est
-   la seule chose qui bloque une certification « AA vérifiée » : tout le
-   reste est vérifié par le calcul et par des tests jsdom, mais la cible
-   tactile réelle et l'anneau de focus visible ne se mesurent que dans un
-   navigateur.
+1. **Playwright, ou non ?** axe-core tourne désormais sous jsdom et
+   contrôle automatiquement toutes les règles structurelles (nom, rôle,
+   valeur, association des labels, structure des titres) sur le parcours
+   public. Il ne peut pas contrôler ce qui est du RENDU : focus visible
+   (2.4.13) et taille de cible réelle (2.5.8) exigent un vrai navigateur.
+   Playwright les couvrirait, au prix du téléchargement du navigateur et
+   de la mise en route de l'app entière avec sa base pour les tests.
 2. **Revue visuelle du vert foncé** : aligner le primaire sur `#00843D`
    assombrit tous les aplats pleins (boutons, badges, cases cochées,
    pastilles de progression, curseur de l'onboarding). C'est conforme et
@@ -265,6 +268,6 @@ réellement une couleur.
 
 ```bash
 npx tsc --noEmit -p tsconfig.src.json     # 0 erreur
-npm test                                  # 256 tests / 21 fichiers
+npm test                                  # 260 tests / 22 fichiers
 set -a; source .env.server; set +a; timeout 600 wasp build
 ```
