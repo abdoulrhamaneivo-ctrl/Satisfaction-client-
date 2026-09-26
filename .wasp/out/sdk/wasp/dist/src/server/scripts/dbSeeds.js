@@ -161,7 +161,12 @@ export async function seedEntrepriseUnique(prismaClient) {
         console.log(`Compte CHEF_AGENCE créé avec succès.`);
         console.log(`Identifiants de première connexion (à noter et à changer ensuite) :`);
         console.log(`  E-mail   : ${EMAIL_CHEF}`);
-        console.log(`  Password : ${motDePasseInitial}`);
+        // CWE-532 assumé et borné : affiché UNE SEULE FOIS (branche création),
+        // jamais en cas de re-run. `mustChangePassword` force la rotation dès la
+        // première connexion, ce qui borne la fenêtre d'exposition aux logs.
+        // Alternative sans aucun log : `scripts/reset-superadmin-password.ts`
+        // avec un SUPER_PASS choisi par l'opérateur.
+        console.log(`  Password : ${motDePasseInitial} (noter maintenant — affiché une seule fois)`);
     }
     else {
         console.log(`Le compte CHEF_AGENCE (${EMAIL_CHEF}) existe déjà.`);
@@ -226,6 +231,7 @@ export async function seedSuperAdmin(prismaClient) {
         },
     });
     console.log(`SUPER_ADMIN créé : ${EMAIL}`);
-    console.log(`Password initial : ${motDePasse} (à changer dès la première connexion)`);
+    // Même traitement CWE-532 que ci-dessus : affichage unique + rotation forcée.
+    console.log(`Password initial : ${motDePasse} (noter maintenant — affiché une seule fois, à changer dès la première connexion)`);
 }
 //# sourceMappingURL=dbSeeds.js.map

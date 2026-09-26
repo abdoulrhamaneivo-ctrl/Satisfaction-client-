@@ -1950,14 +1950,14 @@
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.test.ts"
         ],
-        "0484a8949e11d720cbb5396864c27dbffed8e6f5d6bcb7249bd388a055c53aed"
+        "62d49d7c0f731928735b7a1e480732e7836e192807f513142d89c41883919f3c"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.tsx"
         ],
-        "367e358859f828dbc74fcc7bff49de8a36c08a69dc5bd0b495d889d771f48683"
+        "05505c906e15bc5fc80b93d09d82a4a778e02d633d176528baf7d20eb1585228"
     ],
     [
         [
@@ -2580,7 +2580,7 @@
             "file",
             "sdk/wasp/src/server/scripts/dbSeeds.ts"
         ],
-        "564884d7f2a0576c52ec738182f195eabb0fc51d9856b9613e9bb2056520f6d3"
+        "607dbeac0c143828959f4385201432c7cc42dc1959f5abcb3296e30efae455f2"
     ],
     [
         [

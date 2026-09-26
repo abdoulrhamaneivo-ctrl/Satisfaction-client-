@@ -68,6 +68,20 @@ function ListeBulles({ titre, items, icon: Icon, tone }) {
     </div>);
 }
 // ---------- Page ----------
+/**
+ * Intervalle de rafraîchissement de la liste des analyses.
+ *
+ * TanStack Query v4 : le 1er argument est la DONNÉE (TData | undefined), pas
+ * la query. La forme v5 `(q) => q.state.data…` lève `TypeError` au montage
+ * (données encore `undefined`) → page blanche /synthese, attrapée par le
+ * routeur. Testé ci-dessous : toute réintroduction de `q.state` doit faire
+ * échouer `SyntheseGlobalePage.test.ts`.
+ */
+export function intervalleActualisationSynthese(donnees) {
+    return Array.isArray(donnees) && donnees.some((a) => a?.status === 'PENDING')
+        ? 5000
+        : false;
+}
 export const SyntheseGlobalePage = () => {
     const { data: user } = useAuth();
     const { toast } = useToast();
@@ -77,7 +91,7 @@ export const SyntheseGlobalePage = () => {
     const [declenchement, setDeclenchement] = useState(false);
     const { data: analyses, isLoading, refetch } = useQuery(getAnalysesGlobales, { periode }, 
     // Rafraîchissement tant qu'une analyse est en file (job PgBoss).
-    { refetchInterval: (q) => (q.state.data?.some?.((a) => a.status === 'PENDING') ? 5000 : false) });
+    { refetchInterval: intervalleActualisationSynthese });
     const lignes = useMemo(() => analyses ?? [], [analyses]);
     const courante = useMemo(() => {
         const trouvee = selection ? lignes.find((l) => String(l.id) === selection) : undefined;

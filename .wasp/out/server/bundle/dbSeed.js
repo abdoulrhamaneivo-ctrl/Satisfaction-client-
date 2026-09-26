@@ -442,7 +442,7 @@ async function seedEntrepriseUnique(prismaClient) {
     console.log(`Compte CHEF_AGENCE cr\xE9\xE9 avec succ\xE8s.`);
     console.log(`Identifiants de premi\xE8re connexion (\xE0 noter et \xE0 changer ensuite) :`);
     console.log(`  E-mail   : ${EMAIL_CHEF}`);
-    console.log(`  Password : ${motDePasseInitial}`);
+    console.log(`  Password : ${motDePasseInitial} (noter maintenant \u2014 affich\xE9 une seule fois)`);
   } else {
     console.log(`Le compte CHEF_AGENCE (${EMAIL_CHEF}) existe d\xE9j\xE0.`);
   }
@@ -497,7 +497,7 @@ async function seedSuperAdmin(prismaClient) {
     }
   });
   console.log(`SUPER_ADMIN cr\xE9\xE9 : ${EMAIL}`);
-  console.log(`Password initial : ${motDePasse} (\xE0 changer d\xE8s la premi\xE8re connexion)`);
+  console.log(`Password initial : ${motDePasse} (noter maintenant \u2014 affich\xE9 une seule fois, \xE0 changer d\xE8s la premi\xE8re connexion)`);
 }
 
 const seeds = {
