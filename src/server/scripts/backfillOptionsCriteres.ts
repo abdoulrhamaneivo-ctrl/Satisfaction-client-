@@ -21,6 +21,7 @@
 // Usage : `npx tsx src/server/scripts/backfillOptionsCriteres.ts`
 // ============================================================================
 import { PrismaClient } from '@prisma/client';
+import type { ProvenanceScore } from '@prisma/client';
 import {
   parseOptionsCSV,
   parseScoresCSV,
@@ -63,7 +64,7 @@ export async function backfillOptionsCriteres(
       actif: boolean;
       est_scorable: boolean;
       score: number | null;
-      score_provenance: string | null;
+      score_provenance: ProvenanceScore | null;
     }[] = [];
 
     libelles.forEach((libelle, index) => {

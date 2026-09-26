@@ -13,21 +13,30 @@
 // casse donc la compilation ici tant que le domaine applicatif n'est pas
 // mis à jour — et l'inverse également.
 //
-// Ce qui n'est PAS ici, volontairement : les 14 autres jeux de valeurs du
-// schéma. Ceux-là n'ont pas de chemin d'écriture attesté, donc les
-// inventorier serait du bruit. Un jeu de valeurs n'entre ici que lorsqu'il
-// traverse une frontière non typée (client, CSV, IA).
+// Ce qui n'est PAS ici, volontairement : les libellés libres (`type_guichet`,
+// `nom_agence`…), les identifiants opaques et les horodatages textuels. Un jeu
+// de valeurs n'entre ici que lorsqu'il traverse une frontière non typée
+// (client, CSV, IA) avec un domaine fermé attesté en code.
 // ============================================================================
 import type {
+  CoherenceNote,
+  NiveauConfiance,
   NiveauGravite,
+  OrientationNote,
+  PeriodeAnalyse,
+  PlanEntreprise,
+  PlatformRole,
+  ProvenanceScore,
   RoleUtilisateur,
   ScoringMode,
+  SentimentAvis,
   StatutAlerte,
   StatutAvantTache,
   StatutEntreprise,
   StatutIa,
   StatutTache,
   TypeAlerte,
+  TypeCanal,
   TypeReponse,
 } from '@prisma/client';
 
@@ -100,6 +109,37 @@ export const estNiveauGravite = creerGarde(NIVEAUX_GRAVITE);
 export const estStatutTache = creerGarde(STATUTS_TACHE);
 export const estStatutAlerte = creerGarde(STATUTS_ALERTE);
 export const estTypeAlerte = creerGarde(TYPES_ALERTE);
+
+export const ROLES_PLATEFORME = ['NONE', 'SUPER_ADMIN', 'SUPPORT'] as const satisfies readonly PlatformRole[];
+
+export const PLANS_ENTREPRISE = ['STARTER', 'BUSINESS', 'ENTERPRISE'] as const satisfies readonly PlanEntreprise[];
+
+export const ORIENTATIONS_NOTE = ['HIGHER_BETTER', 'LOWER_BETTER'] as const satisfies readonly OrientationNote[];
+
+export const TYPES_CANAL = ['QR_WEB', 'USSD', 'IVR_VOCAL'] as const satisfies readonly TypeCanal[];
+
+export const SENTIMENTS_AVIS = ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'MIXED'] as const satisfies readonly SentimentAvis[];
+
+export const PERIODES_ANALYSE = ['SEMAINE', 'MOIS'] as const satisfies readonly PeriodeAnalyse[];
+
+export const NIVEAUX_CONFIANCE = ['FAIBLE', 'MOYENNE', 'ELEVEE'] as const satisfies readonly NiveauConfiance[];
+
+export const PROVENANCES_SCORE = ['EXPLICIT', 'INFERRED', 'MIGRATED'] as const satisfies readonly ProvenanceScore[];
+
+export const COHERENCES_NOTE = [
+  'NOTE_PLUS_HAUTE_QUE_TEXTE',
+  'NOTE_PLUS_BASSE_QUE_TEXTE',
+] as const satisfies readonly CoherenceNote[];
+
+export const estRolePlateforme = creerGarde(ROLES_PLATEFORME);
+export const estPlanEntreprise = creerGarde(PLANS_ENTREPRISE);
+export const estOrientationNote = creerGarde(ORIENTATIONS_NOTE);
+export const estTypeCanal = creerGarde(TYPES_CANAL);
+export const estSentimentAvis = creerGarde(SENTIMENTS_AVIS);
+export const estPeriodeAnalyse = creerGarde(PERIODES_ANALYSE);
+export const estNiveauConfiance = creerGarde(NIVEAUX_CONFIANCE);
+export const estProvenanceScore = creerGarde(PROVENANCES_SCORE);
+export const estCoherenceNote = creerGarde(COHERENCES_NOTE);
 
 /**
  * Modes de score admis pour chaque type de question.

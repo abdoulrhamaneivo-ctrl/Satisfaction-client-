@@ -38,7 +38,7 @@ model User {
   // platformRole = rôle ÉDITEUR de la plateforme (Yeba), indépendant du rôle
   // métier. NONE = compte client normal. SUPER_ADMIN/SUPPORT ont
   // id_entreprise = null (leur périmètre est la plateforme entière).
-  platformRole                  String                   @default("NONE") // SUPER_ADMIN | SUPPORT | NONE
+  platformRole                  PlatformRole             @default(NONE)
 
   // 2FA TOTP (audit F2) : secret TOTP chiffré AES-256-GCM avec JWT_SECRET
   // (via src/server/totp.ts). null = 2FA non activée. Obligatoire pour les
@@ -71,6 +71,7 @@ model User {
 
   // === RELATIONS PAR DÉFAUT D'OPEN SAAS ===
   files                         File[]
+  @@index([id_entreprise])
 }
 
 // ============================================================================
@@ -88,7 +89,7 @@ model Entreprise {
 
   // ── SAAS (Doc 11 §4) : statut, plan, limites — vérifiés côté serveur ──
   status              StatutEntreprise  @default(ACTIVE) // TRIAL | ACTIVE | SUSPENDED | CANCELLED
-  plan                String            @default("STARTER") // STARTER | BUSINESS | ENTERPRISE
+  plan                PlanEntreprise    @default(STARTER)
   date_debut_abonnement DateTime?
   date_fin_abonnement DateTime?
   limite_agences      Int               @default(5)
@@ -229,6 +230,7 @@ model Service {
   guichets            Guichet[]
   // Voir CritereService : relation explicite avec ordre d'affichage.
   criteresServices    CritereService[]
+  @@index([id_entreprise])
 }
 
 model Critere {
@@ -248,7 +250,7 @@ model Critere {
   scoring_mode        ScoringMode?
   // Orientation de la note : HIGHER_BETTER (défaut) ou LOWER_BETTER
   // (ex. « Avez-vous rencontré un problème ? » Oui = négatif).
-  orientation         String            @default("HIGHER_BETTER")
+  orientation         OrientationNote   @default(HIGHER_BETTER)
   // Version du scoring : incrémentée à chaque modification des options ou
   // du mode. Stampée sur Reponse.critere_version pour la traçabilité
   // historique (un questionnaire modifié ne réinterprète pas le passé).
@@ -291,6 +293,7 @@ model Critere {
   // OptionCritere ci-dessous). options_reponse/scores_reponse (CSV)
   // restent en lecture pour rétrocompatibilité.
   options             OptionCritere[]
+  @@index([id_entreprise])
 }
 
 // ============================================================================
@@ -324,7 +327,7 @@ model OptionCritere {
   // Provenance du score : EXPLICIT (saisi par l'admin) | INFERRED
   // (inférence lexicale) | MIGRATED (backfill CSV→options). NULL = non
   // scoré. Permet au moteur de stamp score_source honnêtement.
-  score_provenance  String?
+  score_provenance  ProvenanceScore?
 
   // CASES_WEIGHTED : poids + (atout) ou - (irritant), ex. -25.
   poids             Int?
@@ -405,7 +408,7 @@ model Objectif {
 
 model Canal {
   id                  Int               @id @default(autoincrement())
-  type_canal          String            // QR_WEB, USSD, IVR_VOCAL
+  type_canal          TypeCanal
   langue_utilisee     String
   
   reponses            Reponse[]
@@ -466,6 +469,10 @@ model Reponse {
   @@index([id_agence, date_reponse])
   @@index([id_guichet, date_reponse])
   @@index([id_soumission])
+  @@index([id_critere])
+  @@index([id_service])
+  @@index([id_canal])
+  @@index([id_agent])
 }
 
 // ============================================================================
@@ -575,6 +582,80 @@ enum TypeAlerte {
   IA_URGENCE
 }
 
+/// Rôle sur la console d'administration de la plateforme (Yeba), indépendant
+/// du rôle dans l'entreprise cliente (`RoleUtilisateur`). Valeurs extraites
+/// des contrôles `requirePlatformRole` et du seed.
+enum PlatformRole {
+  NONE
+  SUPER_ADMIN
+  SUPPORT
+}
+
+/// Plan tarifaire de l'entreprise cliente. Contrôlé par l'action
+/// `actionsPlatform.ts` (liste `STATUTS_VALIDES`-style) et le seed.
+enum PlanEntreprise {
+  STARTER
+  BUSINESS
+  ENTERPRISE
+}
+
+/// Sens de lecture d'une note. `HIGHER_BETTER` par défaut ; `LOWER_BETTER`
+/// pour les questions « problème » où Oui est négatif (`actions.ts:2513`,
+/// `resolutionSoumission.ts:95`). Utilisé par le moteur dans ~50 sites.
+enum OrientationNote {
+  HIGHER_BETTER
+  LOWER_BETTER
+}
+
+/// Canal de collecte d'un avis. Les 3 canaux sont créés au seed.
+enum TypeCanal {
+  QR_WEB
+  USSD
+  IVR_VOCAL
+}
+
+/// Sentiment produit par l'IA. Partagé par `sentiment` (brut) et
+/// `sentimentRetenu` (après croisement note ↔ texte) : le retenu « peut
+/// différer du brut » mais reste dans le même domaine.
+enum SentimentAvis {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  MIXED
+}
+
+/// Période couverte par une analyse d'expérience globale.
+enum PeriodeAnalyse {
+  SEMAINE
+  MOIS
+}
+
+/// Confiance affichée d'une analyse globale.
+enum NiveauConfiance {
+  FAIBLE
+  MOYENNE
+  ELEVEE
+}
+
+/// Origine d'un score d'option : saisi par l'admin (`EXPLICIT`) ou déduit
+/// par inférence lexicale (`INFERRED`). NULL = non scoré.
+/// `MIGRATED` est la troisième valeur, écrite uniquement par le backfill
+/// historique (`backfillOptionsCriteres.ts`) : ni saisi admin, ni inféré à
+/// la volée. En lecture, tout ce qui n'est pas `EXPLICIT` vaut `INFERRED`
+/// (`resolutionSoumission.ts`) — le domaine compte donc 3 valeurs, pas 2.
+enum ProvenanceScore {
+  EXPLICIT
+  INFERRED
+  MIGRATED
+}
+
+/// Résultat du croisement note ↔ commentaire (Doc IA-2). NULL = pas
+/// d'évaluation (pas de note ou pas de texte).
+enum CoherenceNote {
+  NOTE_PLUS_HAUTE_QUE_TEXTE
+  NOTE_PLUS_BASSE_QUE_TEXTE
+}
+
 model AnalyseAvisIA {
   id                 BigInt   @id @default(autoincrement())
   reponseId          BigInt   @unique
@@ -587,7 +668,7 @@ model AnalyseAvisIA {
   noteBrut           Int?
   
   status             StatutIa @default(PENDING)
-  sentiment          String?  // POSITIVE, NEUTRAL, NEGATIVE, MIXED
+  sentiment          SentimentAvis?
   sentimentScore     Float?   // 0.0 à 1.0
   themes             String?  // JSON Array des thèmes contrôlés
   // Vague 1 Phase F : analyse individuelle enrichie (§23).
@@ -608,10 +689,10 @@ model AnalyseAvisIA {
   // Cohérence note ↔ commentaire (croisement serveur, Doc IA-2) :
   // null = pas d'évaluation (pas de note ou pas de texte). Valeurs :
   // NOTE_PLUS_HAUTE_QUE_TEXTE (ex. 5/5 + texte rancunier), NOTE_PLUS_BASSE_QUE_TEXTE.
-  coherenceNote      String?
+  coherenceNote      CoherenceNote?
   // Sentiment RETENU après croisement (peut différer de "sentiment" brut) :
   // un 5/5 rancunier est compté NEGATIVE dans les statistiques.
-  sentimentRetenu    String?
+  sentimentRetenu    SentimentAvis?
   
   model              String   @default("deepseek-chat")
   provider           String   @default("deepseek")
@@ -641,7 +722,7 @@ model GlobalExperienceAnalysis {
   id_entreprise       Int
   entreprise          Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
 
-  periode             String   // SEMAINE | MOIS
+  periode             PeriodeAnalyse
   debut               DateTime
   fin                 DateTime
 
@@ -656,7 +737,7 @@ model GlobalExperienceAnalysis {
   tendances           String?  // JSON string[]
   anomalies           String?  // JSON string[]
   priorites           String?  // JSON string[] (actions recommandées ordonnées)
-  confiance           String?  // FAIBLE | MOYENNE | ELEVEE
+  confiance           NiveauConfiance?
   limites             String?  // JSON string[] (données manquantes, réserves)
 
   volumeAvis          Int      @default(0)

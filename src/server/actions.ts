@@ -8,7 +8,7 @@ import {
   sanitizeAndSerializeProviderData,
 } from 'wasp/server/auth';
 import crypto from 'node:crypto';
-import type { RoleUtilisateur, ScoringMode, TypeReponse } from '@prisma/client';
+import type { OrientationNote, RoleUtilisateur, ScoringMode, TypeReponse } from '@prisma/client';
 import { envoyerAlerteWhatsApp } from './notifications/gateway';
 import { checkRateLimit, extraireIp } from './rateLimit';
 import { journaliser } from './audit';
@@ -17,6 +17,7 @@ import {
   MODES_SCORING,
   TYPES_REPONSE,
   estScoringMode,
+  estOrientationNote,
   estTypeReponse,
   scoringModeAdmis,
 } from '../shared/domaines';
@@ -2509,13 +2510,15 @@ export const createCritere = async (
   }
   // Vague 1 : orientation (Oui = positif par défaut ; LOWER_BETTER pour les
   // questions « problème » où Oui est négatif).
-  let orientation =
+  const orientationBrute =
     args.orientation === undefined || args.orientation === null || args.orientation === ''
       ? 'HIGHER_BETTER'
       : String(args.orientation).trim().toUpperCase();
-  if (orientation !== 'HIGHER_BETTER' && orientation !== 'LOWER_BETTER') {
+  if (!estOrientationNote(orientationBrute)) {
     throw new HttpError(400, 'Orientation invalide (HIGHER_BETTER ou LOWER_BETTER).');
   }
+  // `let` et non `const` : le bloc CES ci-dessous force LOWER_BETTER.
+  let orientation: OrientationNote = orientationBrute;
   let optionsEchelle: string | null = null;
   if (typeReponse === 'ECHELLE') {
     const brut = args.options_reponse?.trim();
@@ -2722,7 +2725,7 @@ export const updateCritere = async (
     throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
   }
 
-  let typeReponse: string | undefined;
+  let typeReponse: TypeReponse | undefined;
   let optionsReponse: string | null | undefined;
 
   if (args.type_reponse !== undefined) {
@@ -2757,8 +2760,8 @@ export const updateCritere = async (
   }
 
   // Vague 1 : mode + orientation (validés, compatibles avec le type final).
-  const typeFinal = typeReponse ?? critere?.type_reponse ?? 'SMILEY';
-  let scoringMode: string | null | undefined;
+  const typeFinal: TypeReponse = typeReponse ?? critere?.type_reponse ?? 'SMILEY';
+  let scoringMode: ScoringMode | null | undefined;
   if (args.scoring_mode !== undefined) {
     if (args.scoring_mode === null || String(args.scoring_mode).trim() === '') {
       scoringMode = null;
@@ -2770,10 +2773,10 @@ export const updateCritere = async (
       scoringMode = m;
     }
   }
-  let orientation: string | undefined;
+  let orientation: OrientationNote | undefined;
   if (args.orientation !== undefined) {
     const o = String(args.orientation ?? '').trim().toUpperCase() || 'HIGHER_BETTER';
-    if (o !== 'HIGHER_BETTER' && o !== 'LOWER_BETTER') {
+    if (!estOrientationNote(o)) {
       throw new HttpError(400, 'Orientation invalide (HIGHER_BETTER ou LOWER_BETTER).');
     }
     orientation = o;
