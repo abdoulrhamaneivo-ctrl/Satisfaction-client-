@@ -1,12 +1,16 @@
 services:
   # ── SERVEUR API (Docker : bundle Wasp + migrations Prisma + jobs) ──
+  # NOTE (2026-09-26) : ce fichier est un GABARIT, pas une source synchronisée.
+  # Le service réel s'appelle `yebaProject` en région Oregon (créé à la main
+  # dans le dashboard). Ne pas renommer ici sans vérifier le Blueprint sync,
+  # et ne jamais supposer que ce fichier décrit l'état du dashboard.
   - type: web
-    name: yeba-server
+    name: yebaProject
     runtime: docker
     dockerfilePath: Dockerfile.render
     dockerContext: .
     plan: starter
-    region: frankfurt
+    region: oregon
     autoDeploy: true
     healthCheckPath: /
     envVars:
@@ -16,6 +20,11 @@ services:
         value: "10000"
       # URL du CLIENT statique (CORS + liens SMS/email)
       - key: WASP_WEB_CLIENT_URL
+        sync: false
+      # URL publique du SERVEUR lui-même (liens absolus emails, serverUrl).
+      # Doit être l'URL réelle du service, PAS un nom inventé : un nom inexistant
+      # ici = liens morts + confusion au debug (incident 2026-09-26).
+      - key: WASP_SERVER_URL
         sync: false
       # Variables sensibles (définies dans le dashboard Render) :
       # - DATABASE_URL (Neon)
