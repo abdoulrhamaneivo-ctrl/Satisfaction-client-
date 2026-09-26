@@ -283,7 +283,7 @@ export const SyntheseGlobalePage: React.FC = () => {
                     { label: 'NPS', valeur: indicateurs?.nps != null ? String(Math.round(Number(indicateurs.nps))) : 'N/A', icon: TrendingUp },
                     { label: 'CES moyen', valeur: snapshotCES && snapshotCES.note_moyenne != null ? `${snapshotCES.note_moyenne}/${snapshotCES.echelle}` : 'non mesuré', icon: Gauge },
                     { label: 'Avis analysés', valeur: snapshot?.volumeAvis != null ? String(snapshot.volumeAvis) : String(courante.volumeAvis ?? 0), icon: Users },
-                    { label: 'Qualité des données', valeur: courante.qualiteDonnees != null ? `${Math.round(Number(courante.qualiteDonnees) * 100)}%` : 'N/A', icon: CheckCircle2 },
+                    { label: 'Qualité des données', valeur: courante.qualiteDonnees != null ? `${Math.round(Number(courante.qualiteDonnees))}/100` : 'N/A', icon: CheckCircle2 },
                   ].map((k) => (
                     <div key={k.label} className="rounded-2xl border border-border/80 bg-card/70 p-4">
                       <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">

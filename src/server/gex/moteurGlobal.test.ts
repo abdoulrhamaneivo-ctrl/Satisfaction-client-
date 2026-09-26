@@ -209,6 +209,16 @@ describe('prompt déterministe + schéma synthèse', () => {
     evolutionVolumePct: 12,
     evolutionCsatPts: -2,
     qualiteDonnees: 87,
+    // Vague 6 : le score seul ne suffit plus à expliquer la métrique. Le
+    // détail est maintenant transporté jusqu'à l'affichage, donc présent
+    // dans le contrat des agrégats.
+    qualiteDonneesDetails: {
+      notables: 92,
+      commentaires: 41,
+      coherence: 88,
+      fraicheur_legacy: 97,
+      volume: 100,
+    },
     confiance: 'ELEVEE',
   };
 

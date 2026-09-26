@@ -322,6 +322,47 @@ endroits. Si un jour on veut le rétablir, le correctif est court (basculer
 le `findFirst` + 429 de T1 vers T2) ; il n'est pas fait parce qu'il changerait
 le comportement de collecte, ce qui est une décision produit.
 
+### Vague 6 — DATA_QUALITY_SCORE avait deux définitions, une seule affichée
+
+`src/shared/indicateurs.ts` est le catalogue des métriques : 24 indicateurs
+avec identifiant, libellé, formule, source et unité — une spécification
+testée. Le moteur global (`moteurGlobal.ts`) recalculait pourtant la
+qualité des données avec ses **propres** poids :
+
+| Définition | Poids | Utilisée |
+|---|---|---|
+| `moteurGlobal` (local) | 50 % notables + 30 % commentées + 20 % cohérence | **oui, affichée** |
+| `indicateurs.ts` (canonique) | 35 + 20 + 20 + 15 (fraîcheur) + 10 (volume) | **non, jamais appelée** |
+
+Le catalogue documentait donc une formule, et l'écran en affichait une
+autre — sans qu'aucun test ne le signale. C'est le défaut le plus
+trompeur du chantier : il ne produit pas une panne, il produit un chiffre
+inexpliqué.
+
+Corrigé : le moteur appelle `scoreQualiteDonnees`, la copie locale a
+disparu. **Le chiffre affiché change** (c'est une correction, pas un
+réglage) et devient explicable composante par composante — le détail est
+désormais transporté jusqu'à l'interface.
+
+Deux dépendances que la formule canonique a révélées :
+- `score_source` n'était pas dans le SELECT de la requête d'agrégats : la
+  composante « fraîcheur » (15 %) aurait été calculée sur une information
+  absente, donc toujours 1, donc invisible. Une colonne de plus.
+- l'affichage de la Synthèse globale faisait `valeur * 100` sur une valeur
+  déjà sur /100 : un score de 87 s'affichait **8700 %**. Le dashboard, lui,
+  affichait « 87/100 ». Deux rendus du même nombre, dont un faux.
+
+Garde-fous ajoutés : un test vérifie que le moteur produit exactement la
+valeur de la formule canonique (et son détail), un second interdit
+structurellement la réapparition d'une pondération de qualité hors du
+module canonique. Les deux échouent bien si la formule locale revient.
+
+Le reste du catalogue (24 indicateurs) n'est pas implémenté : ce sont des
+métriques spécifiées et non exposées. C'est désormais écrit dans le
+fichier, pour que personne ne prenne le catalogue pour un registre de
+ce qui est mesuré.
+
+
 ### P9 — 🟠 MOYEN — le budget de l'IA globale sature dès la 3ᵉ entreprise
 
 Budget = 5 appels/jour (`analyseGlobale.ts:26`), 2 lignes par entreprise et par
@@ -464,6 +505,7 @@ couverture le plus rentable qui reste.
 | **P8** anti-rejeu téléphone inopérant | MOYEN | ⛔ **écarté par décision** (2026-09-26) | comportement laissé tel quel ; le rate limiting T1/T2 reste la protection réelle. Analyse complète et conséquences consignées au §3 |
 | **V5-tests** surface publique sans test serveur | ÉLEVÉ | ✅ **corrigé** (vague 5) | 14 tests serveur sur `soumettreAvis`/`completerSoumission` : code opaque obligatoire, périmètre tenant, volume borné, 4xx vs 5xx, idempotence. La suite complète pouvait verdir pendant que P1 revenait en arrière — vérifié en réintroduisant `guichetId` |
 | **V5-couv** seuils de couverture sur RLS + surface publique | MOYEN | ✅ **corrigé** (vague 5) | seuils PAR FICHIER sur `rowLevelSecurity`, `rateLimit`, `validation`, `etatAnalyse`, `gex/budget`, `gex/moteurGlobal` ; garde vérifiée en abaissant la couverture |
+| **V6** DATA_QUALITY_SCORE à deux définitions | ÉLEVÉ | ✅ **corrigé** (vague 6) | le moteur affichait une formule que le catalogue ne documentait pas ; source unique + détail par composante + garde-fous. Corrige aussi un affichage « 8700 % » |
 | **P9** plafond du budget IA globale | MOYEN | ✅ **corrigé** (vague 5) | budget dimensionné sur les entreprises actives (plafond 20/jour), cron quotidien au lieu du lundi, SEMAINE traitée avant MOIS, reliquat journalisé. Réserve : le filtre `model: { not: null }` était déjà présent, le constat était erroné sur ce point |
 | **P10** priorité LLM inventée | MOYEN | ✅ **corrigé** (vague 5) | un irritant dont le thème est absent des mesures est ÉCARTÉ au lieu de conserver la priorité du modèle (`?? i.priorite`) — la valeur inventée disparaît au lieu de ressembler à une mesure. Schème Zod resserré (`min(1)`, entiers) |
 | **P11** surface publique (3 trous + 2 faiblessesses) | MOYEN | ✅ **corrigé** (vague 5) | rate limit sur la lecture publique et sur T2 ; borne haute sur `responses` ; erreur de saisie en 400 au lieu de 500 ; IP lue par Express (`trust proxy` déclaré, 3 copies de lecture supprimées) ; repli Redis signalé au démarrage en production |

@@ -9,6 +9,22 @@
 // - l'IA ne figure que comme source « analyse », jamais comme mesure.
 // ============================================================================
 
+/* STATUT DE CE MODULE (vague 6) — à lire avant de s'en servir.
+   Ce fichier est le CATALOGUE : la spécification des métriques
+   (identifiant, libellé, formule, source, unité). Toutes les formules ne
+   sont pas implémentées — seules le sont celles qui sont affichées.
+   État réel :
+     - CSAT, NPS, CES, VOLUME_*, COHERENCE_PCT, SENTIMENT_* et
+       DATA_QUALITY_SCORE sont produits par src/server/gex/moteurGlobal.ts ;
+     - DATA_QUALITY_SCORE appelle `scoreQualiteDonnees` ci-dessous : il
+       n'existe plus de seconde formule (vague 6) ;
+     - indiceGlobalExperience est appelé (queries.ts) ; tauxReponse,
+       mediane, distributionBandends et definitionIndicateur sont
+       disponibles mais non appelés par l'UI.
+   Une métrique du catalogue absente de l'UI n'est pas un bug : elle
+   n'est pas encore exposée. Volontaire — le catalogue décrit ce qui
+   POURRA être mesuré, pas ce qui l'est aujourd'hui. */
+
 export type SourceIndicateur = 'reponses' | 'analyse_ia' | 'mixte' | 'operationnel';
 
 export interface DefinitionIndicateur {

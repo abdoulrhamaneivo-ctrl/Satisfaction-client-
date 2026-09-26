@@ -114,3 +114,83 @@ describe('catalogue : chaque KPI est défini', () => {
     expect(definitionIndicateur('INCONNU')).toBeNull();
   });
 });
+
+/* ============================================================================
+ * VAGUE 6 — DATA_QUALITY_SCORE n'a qu'une seule définition.
+ * ============================================================================
+ * Le moteur global recalculait la qualité des données avec ses propres
+ * poids (50/30/20) pendant que le catalogue en documentait d'autres
+ * (35/20/20/15/10). Deux définitions, une seule affichée : le catalogue
+ * mentait sur la formule et rien ne le signalait.
+ *
+ * Ces tests rendent l'invariant impossible à contourner silencieusement.
+ */
+describe('Vague 6 — source unique de la qualité des données', () => {
+  test('le moteur global appelle la formule canonique', async () => {
+    // On observe l'effet, pas l'import : un calcul identique réécrit sur
+    // place donnerait le même résultat sans être la source unique. Ce que
+    // ce test interdit, c'est une valeur qui S'ÉCARTE de la formule.
+    const { calculerAgregats } = await import('../server/gex/moteurGlobal');
+    const reponses = Array.from({ length: 50 }, (_, i) => ({
+      id: i + 1,
+      id_soumission: `soumission-${Math.floor(i / 3)}`,
+      score_normalise: i % 5 === 0 ? null : 80,
+      score_officiel: i % 5 === 0 ? null : 4,
+      score_source: i % 5 === 0 ? 'LEGACY_POSITIONAL' : 'EXPLICIT',
+      commentaire_texte: i % 2 === 0 ? 'un commentaire' : null,
+      id_agence: 1,
+      id_guichet: 1,
+      id_service: null,
+      critere: { type_reponse: 'SMILEY', libelle_critere: 'Satisfaction', scoring_mode: 'NPS', options_reponse: [] },
+      guichet: { nom_guichet: 'G1' },
+      service: { libelle_service: null },
+      agence: { nom_agence: 'A1' },
+    }));
+
+    const db = {
+      agence: { findMany: async () => [{ id: 1, nom_agence: 'A1' }] },
+      reponse: { findMany: async () => reponses },
+      analyseAvisIA: { findMany: async () => [] },
+    } as any;
+
+    const agregats = await calculerAgregats(db, {
+      id_entreprise: 1,
+      debut: new Date('2026-01-01'),
+      fin: new Date('2026-01-31'),
+    });
+
+    // La même valeur, recalculée à la main avec la formule canonique.
+    const attendu = scoreQualiteDonnees({
+      totalReponses: 50,
+      notables: reponses.filter((r) => typeof r.score_normalise === 'number').length,
+      avecCommentaire: reponses.filter((r) => r.commentaire_texte).length,
+      incoherentes: 0,
+      legacy: reponses.filter((r) => r.score_source === 'LEGACY_POSITIONAL').length,
+      inferees: 0,
+    });
+
+    expect(agregats.qualiteDonnees).toBe(attendu.score);
+    expect(agregats.qualiteDonneesDetails).toEqual(attendu.details);
+  });
+
+  test('aucune formule de qualité en dur ailleurs que dans le module canonique', async () => {
+    // Garde-fou structurel : la pondération (35/20/20/15/10) ne doit
+    // exister qu'à un seul endroit du dépôt. Une duplication réintroduite
+    // avec les mêmes chiffres ferait diverger la documentation de la
+    // métrique — exactement le défaut que cette vague corrige.
+    const { readFileSync } = await import('node:fs');
+    const faux = readFileSync('src/server/gex/moteurGlobal.ts', 'utf8');
+    const canonique = readFileSync('src/shared/indicateurs.ts', 'utf8');
+
+    const poidsCanonique = [0.35, 0.2, 0.2, 0.15, 0.1];
+    for (const poids of poidsCanonique) {
+      expect(canonique).toContain(String(poids));
+      // Hors du module canonique, un poids de qualité isolé doit être absent.
+      // (0.2 est trop générique pour être assertion ; on vérifie les autres.)
+      if (poids !== 0.2) expect(faux).not.toContain(String(poids));
+    }
+    // Et l'ancienne pondération de trois termes a disparu.
+    expect(faux).not.toMatch(/0\.5 \* partNotables/);
+    expect(faux).not.toMatch(/0\.3 \* partCommentaires/);
+  });
+});

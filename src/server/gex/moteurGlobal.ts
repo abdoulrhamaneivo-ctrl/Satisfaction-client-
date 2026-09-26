@@ -11,6 +11,9 @@
 import { agregerNPS, type AgregationNPS } from '../../shared/scoringEngine';
 import { agregerCES, reconnaitreCES, type AgregationCES } from '../../shared/ces';
 import { estCritereSatisfaction } from '../../shared/noteSur5';
+// Vague 6 : DATA_QUALITY_SCORE n'est plus recalculé ici. La formule vit
+// dans le module canonique, avec ses cinq composantes documentées.
+import { scoreQualiteDonnees } from '../../shared/indicateurs';
 
 export interface PerimetreGlobal {
   id_entreprise: number;
@@ -62,7 +65,20 @@ export type AgregatsGlobaux = {
   guichetsFlop: { id: number; nom: string; volume: number; csat: number | null }[];
   evolutionVolumePct: number | null;
   evolutionCsatPts: number | null;
+  /** Score de qualité des données /100 — voir `qualiteDonneesDetails`. */
   qualiteDonnees: number;
+  /**
+   * Décomposition de la qualité, en points /100 par composante.
+   * Vague 6 : exposer le détail permet de répondre à « pourquoi 62 ? »
+   * sans deviner la formule — c'est tout l'intérêt de DATA_QUALITY_SCORE.
+   */
+  qualiteDonneesDetails: {
+    notables: number;
+    commentaires: number;
+    coherence: number;
+    fraicheur_legacy: number;
+    volume: number;
+  };
   confiance: 'FAIBLE' | 'MOYENNE' | 'ELEVEE';
 }
 
@@ -192,6 +208,13 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
       id_soumission: true,
       score_normalise: true,
       score_officiel: true,
+      // Vague 6 : la formule canonique de qualité des données
+      // (`scoreQualiteDonnees`) intègre une composante « fraîcheur » qui
+      // pénalise les lignes HÉRITÉES ou INFERÉES. Sans la colonne dans le
+      // SELECT, la composante serait calculée sur une information absente —
+      // c'est-à-dire toujours 1, donc invisible. Une colonne sélectionnée
+      // de plus, une métrique honnête.
+      score_source: true,
       commentaire_texte: true,
       id_agence: true,
       id_guichet: true,
@@ -449,13 +472,28 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
-  // Qualité des données (simple, documentée ; Phase H la raffine) :
-  // 50 % notables + 30 % commentées + 20 % cohérence.
-  const partNotables = reponses.length > 0 ? notables.length / reponses.length : 0;
-  const partCommentaires = reponses.length > 0 ? volumeCommentaires / reponses.length : 0;
-  const qualiteDonnees = arrondi1(
-    100 * (0.5 * partNotables + 0.3 * partCommentaires + 0.2 * (1 - tauxIncoherence)),
-  );
+  // Qualité des données — SOURCE UNIQUE.
+  //
+  // Avant, cette valeur était recalculée ici avec une formule locale
+  // (50 % notables + 30 % commentées + 20 % cohérence) alors que le
+  // module canonique `src/shared/indicateurs.ts` en documentait une autre
+  // (35/20/20/15/10, avec fraîcheur et volume). Deux définitions
+  // divergentes de la même métrique, dont une seule réellement affichée :
+  // le catalogue mentait sur la formule, et rien ne le signalait.
+  //
+  // On appelle désormais la fonction canonique. Conséquence : la valeur
+  // AFFICHÉE change (c'est une correction, pas un réglage) et devient
+  //终于 explicable composante par composante — voir `details`.
+  const { score: qualiteDonnees, details: qualiteDetails } = scoreQualiteDonnees({
+    totalReponses: reponses.length,
+    notables: notables.length,
+    avecCommentaire: volumeCommentaires,
+    incoherentes: incoherents,
+    legacy: reponses.filter(
+      (r: any) => r.score_source === 'LEGACY_POSITIONAL' || r.score_source === 'MIGRATED',
+    ).length,
+    inferees: reponses.filter((r: any) => r.score_source === 'INFERRED').length,
+  });
 
   return {
     volumeAvis,
@@ -480,6 +518,7 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
     evolutionVolumePct,
     evolutionCsatPts,
     qualiteDonnees,
+    qualiteDonneesDetails: qualiteDetails,
     confiance: niveauConfianceGlobal(volumeAvis, qualiteDonnees, tauxIncoherence),
   };
 }

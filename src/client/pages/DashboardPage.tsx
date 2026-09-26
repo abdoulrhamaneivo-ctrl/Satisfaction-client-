@@ -456,7 +456,21 @@ export const DashboardPage = () => {
                     trendDirection={(experience.agregats.evolutionVolumePct ?? 0) >= 0 ? 'up' : 'down'}
                   />
                 </div>
-                <div title={`Confiance : volume + qualité + cohérence. Qualité des données : ${experience.agregats.qualiteDonnees}/100.`}>
+                <div
+                  title={
+                    `Confiance : volume + qualité + cohérence. Qualité des données : ${experience.agregats.qualiteDonnees}/100.` +
+                    // Vague 6 : le détail était déjà calculé et transporté,
+                    // mais jamais montré. Un score sans ses composantes oblige
+                    // à deviner la formule pour répondre à « pourquoi ? ».
+                    (experience.agregats.qualiteDonneesDetails
+                      ? ` Détail : ${experience.agregats.qualiteDonneesDetails.notables} % notables · ` +
+                        `${experience.agregats.qualiteDonneesDetails.commentaires} % commentées · ` +
+                        `${experience.agregats.qualiteDonneesDetails.coherence} % cohérence · ` +
+                        `${experience.agregats.qualiteDonneesDetails.fraicheur_legacy} % fraîcheur · ` +
+                        `${experience.agregats.qualiteDonneesDetails.volume} % volume.`
+                      : '')
+                  }
+                >
                   <StatCard
                     title="Confiance"
                     value={loadingExperience ? '…' : experience.agregats.confiance === 'ELEVEE' ? 'Élevée' : experience.agregats.confiance === 'MOYENNE' ? 'Moyenne' : 'Faible'}
