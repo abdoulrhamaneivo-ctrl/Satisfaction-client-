@@ -244,36 +244,40 @@ radios de rattachement d'un critère à une opération, nommées par un
 ### Écart assumé : le tableau de bord n'est PAS audité
 
 Le tableau de bord est l'écran le plus utilisé de l'application, et il
-n'est **pas** couvert. L'audit automatisé y échoue sur un `TypeError`
-persistant, que l'élimination systématique n'a pas permis de localiser :
-neutraliser les QUATORZE requêtes du tableau de bord (toutes à `null` ou
-`[]`) laisse le crash intact, et le composant `ActionsPrioritaires` puis
-`RapportMensuelPrint` — les deux suspects statiques — reçoivent des
-données valides. Les numéros de ligne rapportés par la transformation JSX
-ne correspondent pas au source, ce qui interdit de viser directement.
+n'est **pas** couvert. Ce n'est pas un oubli : son montage en test
+échoue, et le diagnostic ci-dessous est transmis pour être repris.
 
-Aucun test rouge n'est livré à la place : l'écran est déclaré non
-couvert, avec la raison. Ce qu'il faudrait pour le débloquer :
-- un test de rendu du tableau de bord à blanc, sans aucune donnée, pour
-  isoler le chemin fautif ;
-- ou l'outillage navigateur (Playwright), qui auditerait l'écran réel
-  sans avoir à reproduire les quatorze formes de retour.
+**Ce qui est établi** (chaque point vérifié, pas supposé) :
 
-C'est aujourd'hui le plus grand angle mort de la couverture a11y.
+1. Le rendu **sans aucune donnée** ne plante pas : un rendu à blanc
+   passe. L'écran d'une entreprise neuve — l'état de la base lors de
+   l'audit V0 — n'est donc pas en cause.
+2. Le rendu **dès qu'une seule query résout** plante sur
+   `Cannot read properties of undefined (reading 'length')`.
+3. Neutraliser chacune des **quinze** requêtes du tableau de bord, une
+   par une, ne supprime pas le plantage : le défaut n'est donc lié à
+   aucune forme de retour en particulier.
+4. Les enfants montés systématiquement ont été vérifiés un par un et
+   sont correctement gardés : `ActionsPrioritaires` reçoit deux tableaux,
+   `RapportMensuelPrint` six props toutes gardées, les six graphiques
+   testent `!data || data.length === 0`, `HeatmapReponses` teste
+   `!data || data.total_avis === 0`.
+5. Les `useMemo` de la page (lignes 150-330) ne contiennent qu'un seul
+   `.length`, protégé par un `notes.length > 0`.
+6. Le numéro de ligne rapporté par la pile **ne correspond pas au
+   source** : la sourcemap esbuild ne contient aucun mapping vers la
+   ligne annoncée. C'est ce qui empêche de viser directement.
 
-L'élargissement a aussi nécessité deux correctifs de configuration, tous
-deux sighted comme des obstacles à l'audit lui-même :
-- les tests transformaient le JSX en runtime CLASSIQUE alors que
-  l'application utilise le runtime AUTOMATIQUE : tout composant qui
-  n'importe pas React explicitement échouait au rendu ;
-- `ResizeObserver` n'existe pas dans jsdom, alors que Recharts l'utilise
-  au montage : le test échouait sur une absence d'API, sans rapport avec
-  le code audité. Fourni une double muette.
+**Deux causes possibles, non départageables sans navigateur** : soit un
+enfant du tableau de bord lit une prop non gardée dans une branche que
+le rendu à blanc n'atteint pas, soit une bibliothèque d'impression
+(`react-to-print`, utilisée deux fois) lit une option absente au premier
+rendu réel.
 
-Délai de test relevé à 20 s pour le projet UI : un audit axe sur une page
-interne réelle dépasse régulièrement 5 s. À 5 s, le test échouait sur la
-charge de la machine, jamais sur le code — le pire signal possible, parce
-qu'on apprend à l'ignorer.
+**Pour débloquer** : le test de rendu à blanc, qui isole le chemin
+fautif, ou l'outillage navigateur (Playwright), qui auditerait l'écran
+réel sans avoir à reproduire les quinze formes de retour. C'est
+aujourd'hui le plus grand angle mort de la couverture a11y.
 
 ## 4. Restant connu (Vague 4b)
 
