@@ -497,7 +497,7 @@ dérivé autrement.
 | d | Score d'option accepté 1-20 par l'action, rejeté 1-5 par le parseur CSV → un score 6-20 produit un CSV que le parseur rejette en bloc et retombe sur l'inférence lexicale | `actions.ts:2235-2237` vs `scoringQCM.ts:45` |
 | e | `duplicateCritere` copie `options_reponse` mais pas `scores_reponse` | `actions.ts:2924-2938` |
 | f | Code mort : `resoudreScoreQCM`, `resoudreScoreCASES`, `estCritereNote`, `note5Vers100`, `resoudreTexte` (inatteignable), `verifierEntrepriseActive` | `scoringQCM.ts:279-346`, `scoringEngine.ts:108,446`, `rowLevelSecurity.ts:406` |
-| g | `SYSTEM_PROMPT` dupliqué en 3 copies à garder synchronisées ; `max_tokens` divergents (1500 / 1500 / 1000) ; `PROMPT_VERSION` = chaîne manuelle | `nvidiaProvider.ts:10-53`, `openrouterProvider.ts:6-49`, `deepseekProvider.ts:6-49,106` |
+| g | `SYSTEM_PROMPT` dupliqué en 3 copies à garder synchronisées ; `max_tokens` divergents (1500 / 1500 / 1000) ; `PROMPT_VERSION` = chaîne manuelle | ✅ **corrigé** (vague 7) — prompt unique dans `src/server/ai/prompts.ts` ; budgets centralisés (1500/1000 → 1500) ; test anti-divergence |
 | h | Sélection IA sans `orderBy` (backlog non FIFO) ; `attempts` incrémenté sans garde atomique | `analyserAvisIA.ts:111-130,270` |
 | i | `UserSession` + `SESSION_SECRET` déclarés, validés, jamais lus ; `StatistiquesMensuelles`, `Logs`, `Reponse.audio_url` morts ; `logo_dark_url` lu côté client sans colonne | `schema.prisma:824-837`, `src/env.ts:46`, `BrandLogo.tsx:21` |
 | j | Aucun `enum` en base : ~20 jeux de valeurs sont des `String` libres (`type_reponse`, `scoring_mode`, `status`, …) | ✅ **corrigé** (vague 7) — 10 enums sur 14 colonnes ; `MAGIQUE` et `EN_COURS` absents des commentaires du schéma mais réels dans le code |
