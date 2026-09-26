@@ -41,9 +41,5 @@ export const serverEnvValidationSchema = defineEnvValidationSchema(
             // Sans sel, hachage prévisible → ré-identification + contournement anti-rejeu.
             ANTI_REPLAY_SALT: secretFort('ANTI_REPLAY_SALT'),
             ANTI_REPLAY_SALT_PREVIOUS: z.string().min(32).optional(),
-            // C5 (J+30) : Clé de signature JWT pour sessions (revocables).
-            // OBLIGATOIRE ≥ 32 chars (openssl rand -hex 32). Séparation JWT_SECRET (auth) / SESSION_SECRET (sessions).
-            SESSION_SECRET: secretFort('SESSION_SECRET'),
-            SESSION_SECRET_PREVIOUS: z.string().min(32).optional(),
           }),
         );

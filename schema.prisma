@@ -61,10 +61,6 @@ model User {
   invitationsEmises             Invitation[]             @relation("InvitationEmetteur")
   auditLogs                     AuditLog[]               @relation("AuditActeur")
 
-    // C5 (J+30) : Sessions révocables applicatives. Modèle nommé
-    // UserSession (et non Session) car Wasp injecte déjà son propre modèle
-    // Session pour l'auth — un doublon de nom fait échouer le build.
-    sessions                      UserSession[]
 
     affectations                  AffectationGuichet[]
   modelesHoraires              ModeleHoraire[]          @relation("ModeleHoraireAgent")
@@ -139,7 +135,6 @@ model Agence {
   guichets            Guichet[]
   objectifs           Objectif[]
   reponses            Reponse[]
-  statistiques        StatistiquesMensuelles[]
   agencesCriteres     AgenceCritere[]
   modelesHoraires    ModeleHoraire[]
 }
@@ -168,7 +163,6 @@ model Guichet {
   modelesHoraires    ModeleHoraire[]
   reponses            Reponse[]
   alertes             Alerte[]
-  statistiques        StatistiquesMensuelles[]
   services            Service[]
 }
 
@@ -232,7 +226,6 @@ model Service {
   entreprise          Entreprise?       @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
 
   reponses            Reponse[]
-  statistiques        StatistiquesMensuelles[]
   guichets            Guichet[]
   // Voir CritereService : relation explicite avec ordre d'affichage.
   criteresServices    CritereService[]
@@ -288,7 +281,6 @@ model Critere {
 
   objectifs           Objectif[]
   reponses            Reponse[]
-  statistiques        StatistiquesMensuelles[]
   agencesCriteres     AgenceCritere[]
   // Relation explicite (et non plus many-to-many implicite) pour pouvoir
   // stocker un ordre d'affichage par opération : c'est ce qui permet de
@@ -443,7 +435,6 @@ model Reponse {
   score_source        String?
   // Version du critère au moment de la réponse (traçabilité historique).
   critere_version     Int?
-  audio_url           String?
   commentaire_texte   String?
   id_soumission       String?
   
@@ -791,26 +782,6 @@ model VoteAntiRejeu {
   @@index([date_vote])
 }
 
-model StatistiquesMensuelles {
-  id                  BigInt            @id @default(autoincrement())
-  annee               Int
-  mois                Int
-  nombre_reponses     Int               @default(0)
-  score_moyen         Decimal           @db.Decimal(5, 2)
-  niveau_conformite   String            @default("Informelle")
-  
-  id_agence           Int
-  agence              Agence            @relation(fields: [id_agence], references: [id], onDelete: Cascade)
-  
-  id_guichet          Int?
-  guichet             Guichet?          @relation(fields: [id_guichet], references: [id], onDelete: SetNull)
-  
-  id_service          Int?
-  service             Service?          @relation(fields: [id_service], references: [id], onDelete: SetNull)
-  
-  id_critere          Int
-  critere             Critere           @relation(fields: [id_critere], references: [id], onDelete: Cascade)
-}
 
 // ============================================================================
 // TABLES TECHNIQUES ET ANALYTICS REQUISES PAR LE TEMPLATE OPEN SAAS
@@ -921,24 +892,4 @@ model BrandingConfig {
   updated_by      String?
   updated_at      DateTime @updatedAt
   created_at      DateTime @default(now())
-}
-
-// ============================================================================
-// C5 (J+30) : Sessions révocables applicatives — table dédiée pour
-// révocation immédiate. Nommée UserSession car Wasp fournit déjà un modèle
-// Session (auth) : tout autre nom casserait `wasp build` (P1012).
-// ============================================================================
-model UserSession {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash       String   @unique
-  expiresAt       DateTime
-  revokedAt       DateTime?
-  ip              String?
-  userAgent       String?
-  createdAt       DateTime @default(now())
-
-  @@index([userId, revokedAt])
-  @@index([expiresAt])
 }
