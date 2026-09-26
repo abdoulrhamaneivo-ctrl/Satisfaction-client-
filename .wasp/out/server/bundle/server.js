@@ -2716,16 +2716,7 @@ const soumettreAvisImpl = async (args, context) => {
     const rattaches = new Set(rattachements.map((r) => r.id_critere));
     const orphelins = critereIds.filter((id) => !rattaches.has(id));
     if (orphelins.length > 0) {
-      const autresRattachements = await context.entities.CritereService.findMany({
-        where: {
-          id_critere: { in: orphelins },
-          service: { guichets: { some: { id: guichet.id } } }
-        },
-        select: { id_critere: true }
-      });
-      if (autresRattachements.length > 0) {
-        throw new HttpError(400, "Un ou plusieurs crit\xE8res ne font pas partie de l\u2019op\xE9ration s\xE9lectionn\xE9e.");
-      }
+      throw new HttpError(400, "Un ou plusieurs crit\xE8res ne font pas partie de l\u2019op\xE9ration s\xE9lectionn\xE9e.");
     }
   }
   const itemsToInsert = [];
@@ -3945,7 +3936,7 @@ const createCritere$2 = async (args, context) => {
   const idAgence = await resolveAgenceId(context, context.entities, args.id_agence);
   const serviceIds = args.serviceIds ? Array.from(new Set(args.serviceIds)) : [];
   if (serviceIds.length > 1) {
-    throw new HttpError(400, "Un crit\xE8re ne peut \xEAtre rattach\xE9 qu'\xE0 une seule op\xE9ration. D\xE9placez-le ensuite depuis l'\xE9cran d'organisation si n\xE9cessaire.");
+    throw new HttpError(400, "Un crit\xE8re ne peut \xEAtre rattach\xE9 qu'\xE0 une seule op\xE9ration. Pour la changer ou le retirer, d\xE9placez sa carte dans le Kanban \xAB Questions par op\xE9ration \xBB de l'\xE9cran /criteres.");
   }
   if (serviceIds.length > 0) {
     for (const idService of serviceIds) {
@@ -4186,6 +4177,12 @@ const moveCritereToService$2 = async (args, context) => {
       where: { id_service: idService },
       orderBy: { ordre: "asc" }
     });
+    const rattachementsSources = await tx.critereService.findMany({
+      where: { id_critere: idCritere, id_service: { not: idService } },
+      orderBy: [{ id_service: "asc" }, { ordre: "asc" }],
+      select: { id_service: true }
+    });
+    const servicesQuittes = [...new Set(rattachementsSources.map((r) => r.id_service))];
     const sansLaQuestion = existants.filter((cs) => cs.id_critere !== idCritere);
     const position = Math.max(0, Math.min(Math.round(ordreDemande), sansLaQuestion.length));
     const idsOrdonnes = [
@@ -4196,6 +4193,29 @@ const moveCritereToService$2 = async (args, context) => {
     await tx.critereService.deleteMany({
       where: { id_critere: idCritere, id_service: { not: idService } }
     });
+    if (servicesQuittes.length > 0) {
+      const restantes = await tx.critereService.findMany({
+        where: { id_service: { in: servicesQuittes } },
+        orderBy: [{ id_service: "asc" }, { ordre: "asc" }],
+        select: { id: true, id_service: true, ordre: true }
+      });
+      const parService = /* @__PURE__ */ new Map();
+      for (const r of restantes) {
+        const liste = parService.get(r.id_service) ?? [];
+        liste.push(r);
+        parService.set(r.id_service, liste);
+      }
+      for (const [, s\u0153urs] of parService) {
+        for (let index = 0; index < s\u0153urs.length; index++) {
+          if (s\u0153urs[index].ordre !== index) {
+            await tx.critereService.update({
+              where: { id: s\u0153urs[index].id },
+              data: { ordre: index }
+            });
+          }
+        }
+      }
+    }
     for (let index = 0; index < idsOrdonnes.length; index++) {
       const idCritereCourant = idsOrdonnes[index];
       await tx.critereService.upsert({
@@ -4229,16 +4249,25 @@ const removeCritereFromService$2 = async (args, context) => {
     await tx.critereService.deleteMany({
       where: { id_critere: idCritere }
     });
-    const parService = /* @__PURE__ */ new Map();
-    for (const r of rattachements) {
-      if (r.id_critere === idCritere) continue;
-      const liste = parService.get(r.id_service) ?? [];
-      liste.push(r);
-      parService.set(r.id_service, liste);
-    }
-    for (const [, restants] of parService) {
-      for (let index = 0; index < restants.length; index++) {
-        await tx.critereService.update({ where: { id: restants[index].id }, data: { ordre: index } });
+    const servicesTouches = [...new Set(rattachements.map((r) => r.id_service))];
+    if (servicesTouches.length > 0) {
+      const restantes = await tx.critereService.findMany({
+        where: { id_service: { in: servicesTouches } },
+        orderBy: [{ id_service: "asc" }, { ordre: "asc" }],
+        select: { id: true, id_service: true, ordre: true }
+      });
+      const parService = /* @__PURE__ */ new Map();
+      for (const r of restantes) {
+        const liste = parService.get(r.id_service) ?? [];
+        liste.push(r);
+        parService.set(r.id_service, liste);
+      }
+      for (const [, s\u0153urs] of parService) {
+        for (let index = 0; index < s\u0153urs.length; index++) {
+          if (s\u0153urs[index].ordre !== index) {
+            await tx.critereService.update({ where: { id: s\u0153urs[index].id }, data: { ordre: index } });
+          }
+        }
       }
     }
   });

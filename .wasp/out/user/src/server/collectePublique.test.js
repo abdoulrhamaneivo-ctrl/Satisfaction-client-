@@ -290,3 +290,58 @@ describe('Surface publique — T2 (compléter une soumission)', () => {
         expect(r.statusCode).toBe(410);
     });
 });
+describe('Surface publique — verrou opération (durcissement 26/09)', () => {
+    // L'ancien repli affichait les critères du vivier pour une opération SANS
+    // question, et le serveur les acceptait. Le repli n'existe plus : en mode
+    // opération, le client n'affiche ET n'envoie que les questions de
+    // l'opération. La tolérance est donc supprimée — tout critère non rattaché
+    // à l'opération choisie est un appel forgé ou un onglet désynchronisé.
+    const soumettreAvecOperation = (context, rattaches) => {
+        context.entities.Service.findFirst = async () => ({ id: 4 });
+        context.entities.CritereService.findMany = async () => rattaches;
+        return soumettreAvis({
+            code_public: CODE_VALIDE,
+            serviceId: 4,
+            responses: [{ critereId: 1, score: 4 }],
+        }, context);
+    };
+    test('un critère de l\'opération est accepté', async () => {
+        const { context, trace } = creerContexte();
+        // Ne jette pas : la soumission aboutit jusqu'à l'insertion en masse.
+        await soumettreAvecOperation(context, [{ id_critere: 1 }]);
+        expect(trace.appels.some((a) => a.modele === 'Reponse' && a.methode === 'createMany')).toBe(true);
+    });
+    test('un critère détaché du vivier est refusé 400, pas toléré', async () => {
+        const { context } = creerContexte();
+        const r = await refus(soumettreAvecOperation(context, []));
+        expect(r.statusCode).toBe(400);
+        expect(r.message).toMatch(/ne font pas partie de l’opération/);
+    });
+    test('un critère d\'une AUTRE opération du guichet est refusé 400', async () => {
+        // Avant comme après : un rattachement ailleurs ne sauve rien — ici le
+        // critère n'est rattaché qu'à l'opération 5, absente de la requête.
+        const { context } = creerContexte();
+        context.entities.Service.findFirst = async () => ({ id: 4 });
+        context.entities.CritereService.findMany = async () => [];
+        const r = await refus(soumettreAvis({
+            code_public: CODE_VALIDE,
+            serviceId: 4,
+            responses: [{ critereId: 1, score: 4 }],
+        }, context));
+        expect(r.statusCode).toBe(400);
+    });
+    test('une opération hors guichet est refusée avant toute lecture de rattachement', async () => {
+        const { context, trace } = creerContexte();
+        context.entities.Service.findFirst = async () => null;
+        const r = await refus(soumettreAvis({
+            code_public: CODE_VALIDE,
+            serviceId: 999,
+            responses: [{ critereId: 1, score: 4 }],
+        }, context));
+        expect(r.statusCode).toBe(400);
+        expect(r.message).toMatch(/pas disponible pour ce guichet/);
+        // Aucune lecture CritereService ne doit avoir eu lieu : on refuse
+        // l'opération avant de regarder ses questions.
+        expect(trace.appels.some((a) => a.modele === 'CritereService')).toBe(false);
+    });
+});

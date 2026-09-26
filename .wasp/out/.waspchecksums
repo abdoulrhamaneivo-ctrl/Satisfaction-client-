@@ -1409,9 +1409,16 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/components/QuestionsParOperation.test.ts"
+        ],
+        "ac8baa3693832d458e6a982325c0c8cf6911559c376a6c3c2d51f0ef0911e00f"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/components/QuestionsParOperation.tsx"
         ],
-        "730b29ba8ce41f4a3ac0007008c3420cb0272ae0b56fadfce8279349d0f3db60"
+        "6e98d365836ae4b6d568984eca1f11277b73e62f50e068012375410547444c05"
     ],
     [
         [
@@ -2265,7 +2272,7 @@
             "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "a10049d918d94bcce2c16d09c7b6a41f9191b77a8ad70ffa02689d7a2dda537f"
+        "3e7114eea8b369e3817414071b6c36375ac6c624ec538e9c12b89e8e2b90cc42"
     ],
     [
         [
@@ -2370,7 +2377,14 @@
             "file",
             "sdk/wasp/src/server/collectePublique.test.ts"
         ],
-        "cb54b9a330b4fccde30dbb70ff91dc5f015d72bfcd94f03525df5892cafed5a5"
+        "b14e4dc15bb68acaf6350c1fa12d6fbe6fd33dbe73a319d1be5aed2fe3bd0313"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/deplacementCriteres.test.ts"
+        ],
+        "e0e565b2f660b88e1ddddd7af5bcff695398280ef698ef251a789a1483dd66c2"
     ],
     [
         [
