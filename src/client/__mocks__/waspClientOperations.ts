@@ -37,6 +37,8 @@ export const getGuichets = vi.fn(async () => []);
 export const getReponses = inexistante;
 export const getAvisGroupes = vi.fn(async () => ({ avis: [], hasMore: false }));
 export const getAgences = vi.fn(async () => []);
+// Forme réelle de `getArchives` : { guichets, agences, alertes, taches }.
+export const getArchives = vi.fn(async () => ({ guichets: [], agences: [], alertes: [], taches: [] }));
 export const getAIStatus = inexistante;
 export const getAgents = vi.fn(async () => []);
 export const getAgentsByAgence = vi.fn(async () => []);

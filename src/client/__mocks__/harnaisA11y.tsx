@@ -25,9 +25,11 @@ import axe from 'axe-core';
 
 /** Mocks react-router / react-router-dom : la page DOIT les déclarer. */
 export const routerMock = () => ({
-  useParams: () => ({ code: 'ABCDEFGHJK' }),
+  useParams: () => ({ id: '1', code: 'ABCDEFGHJK' }),
   useLocation: () => ({ pathname: '/avis', search: '', hash: '' }),
   useNavigate: () => () => undefined,
+  // Les pages de gestion lisent l'URL (filtres dans la barre d'adresse).
+  useSearchParams: () => [new URLSearchParams(), () => undefined],
   Navigate: ({ to }: any) => <div data-testid="navigate" data-to={to} />,
   Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
   // NavLink sert aux onglets de PageShell.

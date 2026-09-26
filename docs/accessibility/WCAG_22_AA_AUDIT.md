@@ -225,11 +225,18 @@ les deux branches n'étaient pas d'accord sur la source, et celle du
 SMILEY reprenait la colonne que la migration avait marquée « legacy ».
 Même famille de défaut que la vague 6 : deux règles pour une même donnée.
 
-Trois pages internes supplémentaires ont depuis été auditées avec le même
-harnais (Guichets, Planning, Alertes & Tâches) : **aucune violation**.
-Le planning mérite d'être noté — c'est le seul écran construit comme une
-grille (7 jours × créneaux), donc celui où les sémantiques de tableau
-devraient porter l'information ; il est conforme.
+Huit écrans sont désormais audités : parcours public, Avis, Guichets,
+Planning, Alertes & Tâches, Personnel, Agences, Archives. **Aucune
+violation** sur les sept derniers. Deux mérite d'être notés :
+- le Planning est le seul écran construit comme une grille (7 jours ×
+  créneaux), donc celui où les sémantiques de tableau devraient porter
+  l'information ; il est conforme ;
+- les Archives rassemblent guichets, agences, alertes et tâches dans un
+  même écran — l'écran le plus hétérogène de l'application, et le plus
+  exposé au risque de listes ou filtres sans nom ; il est conforme.
+
+Les pages restantes (Configuration des critères, Réglages) et la page
+d'accueil relèvent du même harnais : ~30 lignes par écran.
 
 L'élargissement a aussi nécessité deux correctifs de configuration, tous
 deux sighted comme des obstacles à l'audit lui-même :
