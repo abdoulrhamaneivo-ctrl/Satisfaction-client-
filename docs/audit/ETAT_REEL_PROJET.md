@@ -363,6 +363,58 @@ fichier, pour que personne ne prenne le catalogue pour un registre de
 ce qui est mesuré.
 
 
+### Vague 6 (suite) — le CSAT ne respectait pas « 1 avis = 1 soumission »
+
+Même famille de défaut que la qualité des données, et plus grave : le
+catalogue et le moteur n'étaient pas en déaccord sur la règle, et le
+moteur ne s'accordait pas avec lui-même.
+
+`docs/logique-avis-uniques.md` §2 est explicite : compter des LIGNES au
+lieu de clients est « le bug que ce document a fait corriger ». Le moteur
+global respectait la règle pour son VOLUME (soumissions distinctes) mais
+pas pour sa MOYENNE :
+
+| Emplacement | Volume | CSAT | Exige la règle ? |
+|---|---|---|---|
+| CSAT global | par avis ✓ | moyenne par **ligne** ✗ | oui |
+| Ventilation par agence | par avis ✓ | moyenne par **ligne**, **sans filtre de satisfaction** ✗ | oui |
+| Ventilation par service | **par ligne** ✗ | moyenne par ligne, sans filtre ✗ | oui |
+| Ventilation par guichet | **par ligne** ✗ | moyenne par ligne, sans filtre ✗ | oui |
+
+Deux effets concrets, tous deux invisibles en recette :
+
+- **Le total ne se recoupeait pas avec ses parties.** Une soumission à
+  5 questions comptait 5 fois dans la moyenne du CSAT, et une seule fois
+  dans le volume affiché à côté. Deux agences ayant le même nombre de
+  clients pouvaient afficher des CSAT différents selon la longueur de
+  leurs formulaires — exactement ce que le document décrit avoir
+  corrigé ;
+- **La contamination CES résidait sous le radar.** Le filtre « seulement
+  de la satisfaction » avait été introduit en vague 1 (P2) pour qu’un
+  « très difficile » en CES ne fasse pas plummir un CSAT de 4,2 à 3,8.
+  Il s'appliquait au CSAT global mais pas aux ventilations : une agence
+  pouvait être classée basse à cause d'une question d'effort.
+
+Corrigé : toute la règle vit dans `src/shared/csat.ts`
+(`grouperParAvis`, `compterAvisDans`, `scoreAvis100`,
+`scoresAvisSatisfaction`, `distributionParAvis`) et le moteur l'appelle
+partout. Le module expose la LISTE des scores d'avis, pas seulement sa
+moyenne : une ventilation moyenne exactement la même liste que le total,
+ce qui rend toute divergence future visible par construction.
+
+Les chiffres affichés changent : CSAT, répartition, et les volumes par
+service et par guichet. C'est une correction, pas un réglage.
+
+**Une fixture de test était fausse** : elle donnait le même
+`id_soumission` à quatre réponses en croyant faire quatre avis. Invisible
+tant que la moyenne comptait les lignes ; dès l'application de la
+règle, la répartition tombait à 1. Corrigée, et un test dédié
+couvre maintenant le cas « un client, quatre questions, un avis ».
+
+12 tests sur la règle elle-même, plus les tests du moteur. Efficacité
+vérifiée : en remettant la moyenne par ligne, 2 tests échouent.
+
+
 ### P9 — 🟠 MOYEN — le budget de l'IA globale sature dès la 3ᵉ entreprise
 
 Budget = 5 appels/jour (`analyseGlobale.ts:26`), 2 lignes par entreprise et par
@@ -505,7 +557,7 @@ couverture le plus rentable qui reste.
 | **P8** anti-rejeu téléphone inopérant | MOYEN | ⛔ **écarté par décision** (2026-09-26) | comportement laissé tel quel ; le rate limiting T1/T2 reste la protection réelle. Analyse complète et conséquences consignées au §3 |
 | **V5-tests** surface publique sans test serveur | ÉLEVÉ | ✅ **corrigé** (vague 5) | 14 tests serveur sur `soumettreAvis`/`completerSoumission` : code opaque obligatoire, périmètre tenant, volume borné, 4xx vs 5xx, idempotence. La suite complète pouvait verdir pendant que P1 revenait en arrière — vérifié en réintroduisant `guichetId` |
 | **V5-couv** seuils de couverture sur RLS + surface publique | MOYEN | ✅ **corrigé** (vague 5) | seuils PAR FICHIER sur `rowLevelSecurity`, `rateLimit`, `validation`, `etatAnalyse`, `gex/budget`, `gex/moteurGlobal` ; garde vérifiée en abaissant la couverture |
-| **V6** DATA_QUALITY_SCORE à deux définitions | ÉLEVÉ | ✅ **corrigé** (vague 6) | le moteur affichait une formule que le catalogue ne documentait pas ; source unique + détail par composante + garde-fous. Corrige aussi un affichage « 8700 % » |
+| **V6** métriques à plusieurs définitions | ÉLEVÉ | ⌄ **corrigé** (vague 6) | qualite des données et CSAT : une seule formule, par avis, satisfaction seule. Corrige les volumes par service/guichet qui comptaient les lignes, la contamination CES dans les ventilations, et un affichage « 8700 % » |
 | **P9** plafond du budget IA globale | MOYEN | ✅ **corrigé** (vague 5) | budget dimensionné sur les entreprises actives (plafond 20/jour), cron quotidien au lieu du lundi, SEMAINE traitée avant MOIS, reliquat journalisé. Réserve : le filtre `model: { not: null }` était déjà présent, le constat était erroné sur ce point |
 | **P10** priorité LLM inventée | MOYEN | ✅ **corrigé** (vague 5) | un irritant dont le thème est absent des mesures est ÉCARTÉ au lieu de conserver la priorité du modèle (`?? i.priorite`) — la valeur inventée disparaît au lieu de ressembler à une mesure. Schème Zod resserré (`min(1)`, entiers) |
 | **P11** surface publique (3 trous + 2 faiblessesses) | MOYEN | ✅ **corrigé** (vague 5) | rate limit sur la lecture publique et sur T2 ; borne haute sur `responses` ; erreur de saisie en 400 au lieu de 500 ; IP lue par Express (`trust proxy` déclaré, 3 copies de lecture supprimées) ; repli Redis signalé au démarrage en production |

@@ -154,10 +154,16 @@ describe('calculerAgregats : CES (Phase L)', () => {
   });
 
   test('Vague 1 (P2) : le CSAT ne mélange PAS satisfaction, NPS et CES', async () => {
+    // Vague 6 : une soumission DISTINTE par avis. La fixture donnait `s80`
+    // aux quatre réponses — donc un seul avis de quatre questions, pas
+    // quatre avis. C'était invisible tant que la moyenne comptait les
+    // lignes ; avec la règle « 1 avis = 1 soumission », la répartition
+    // tombait à 1.
+    let numeroAvis = 0;
     const sat = (normalise: number) => ({
       ...ligneCES(1),
       id: Math.round(normalise),
-      id_soumission: `s${normalise}`,
+      id_soumission: `s${normalise}-${numeroAvis++}`,
       score_normalise: normalise,
       score_officiel: 5,
       critere: { type_reponse: 'SMILEY', libelle_critere: 'Satisfaction', scoring_mode: 'SMILEY', options_reponse: null },

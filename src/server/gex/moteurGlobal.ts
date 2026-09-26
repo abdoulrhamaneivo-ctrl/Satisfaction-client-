@@ -14,6 +14,13 @@ import { estCritereSatisfaction } from '../../shared/noteSur5';
 // Vague 6 : DATA_QUALITY_SCORE n'est plus recalculé ici. La formule vit
 // dans le module canonique, avec ses cinq composantes documentées.
 import { scoreQualiteDonnees } from '../../shared/indicateurs';
+// Vague 6 : règle unique du CSAT (par avis, satisfaction seule).
+import {
+  grouperParAvis,
+  scoreAvis100,
+  scoresAvisSatisfaction,
+  distributionParAvis,
+} from '../../shared/csat';
 
 export interface PerimetreGlobal {
   id_entreprise: number;
@@ -243,19 +250,23 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
   // recommandation (NPS 0-10) et les scores d'effort (CES, sens inversé) —
   // un « très difficile » 0/100 faisait ainsi plummir un CSAT de 4,2 à 3,8.
   // Ces deux familles ont leurs propres indicateurs (nps, ces ci-dessous).
-  const notesSatisfaction: number[] = [];
-  for (const r of notables) {
-    const c: any = r.critere;
-    if (!estCritereSatisfaction({ type_reponse: c?.type_reponse, scoring_mode: c?.scoring_mode })) continue;
-    notesSatisfaction.push(Number(r.score_normalise));
-  }
+  //
+  // Vague 6 — SOURCE UNIQUE : le calcul est celui de `src/shared/csat.ts`.
+  //   - moyenne par AVIS (soumission), pas par ligne. Le volume compte
+  //     déjà les soumissions distinctes (`volumeAvis` ci-dessus) : la moyenne
+  //     doit obéir à la même unité, sinon le total et ses ventilations ne se
+  //     recoupent pas ;
+  //   - uniquement les critères de satisfaction, comme ci-dessus.
+  // Avant, ce calcul était refait ici ET dans chaque ventilation, avec la
+  // moyenne par ligne. Deux agences ayant le même nombre de clients
+  // pouvaient donc afficher des CSAT différents selon le nombre de
+  // questions de leur formulaire.
+  // La LISTE des scores d'avis, pas seulement sa moyenne : les
+  // ventilations ci-dessous doivent moyenner exactement la même liste.
+  const notesSatisfaction = scoresAvisSatisfaction(reponses as any);
   const csat = notesSatisfaction.length > 0 ? arrondi1(moyenne(notesSatisfaction) as number) : null;
 
-  const distribution5: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
-  for (const n of notesSatisfaction) {
-    const b = Math.max(1, Math.min(5, Math.round(n / 20)));
-    distribution5[String(b)] += 1;
-  }
+  const distribution5: Record<string, number> = distributionParAvis(reponses as any);
 
   const notesNPS = reponses
     .filter((r: any) => r.critere?.type_reponse === 'NPS' && Number.isInteger(r.score_officiel))
@@ -355,63 +366,72 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
 
   const tauxIncoherence = analyses.length > 0 ? incoherents / analyses.length : 0;
 
+  // Vague 6 : même règle que le CSAT global — par avis, satisfaction
+  // seule. Le volume déjà comptait les soumissions, mais la moyenne
+  // comptait les lignes ET laissait entrer CES et NPS : une agence pouvait
+  // être tirée vers le bas par un « très difficile ».
   const parAgence: LigneAgence[] = agences.map((a: any) => {
     const lignes = reponses.filter((r: any) => r.id_agence === a.id);
-    const notes = lignes
-      .filter((r: any) => typeof r.score_normalise === 'number')
-      .map((r: any) => Number(r.score_normalise));
-    // Volume d'avis par agence (soumissions distinctes).
-    const subs = new Set<string>();
-    let orph = 0;
-    for (const r of lignes) {
-      if ((r as any).id_soumission) subs.add(String((r as any).id_soumission));
-      else orph += 1;
-    }
+    const parAvis = grouperParAvis(lignes as any);
+    const scores = scoresAvisSatisfaction(lignes as any);
     return {
       id: a.id,
       nom: a.nom_agence,
-      volume: subs.size + orph,
-      csat: notes.length > 0 ? arrondi1(moyenne(notes) as number) : null,
+      volume: parAvis.length,
+      csat: scores.length > 0 ? arrondi1(moyenne(scores) as number) : null,
     };
   });
 
-  const servicesMap = new Map<number | null, { nom: string; notes: number[]; volume: number }>();
+  // Vague 6 : le volume par service comptait les LIGNES — exactement le
+  // bug que docs/logique-avis-uniques.md déclare avoir corrigé. Deux
+  // services avec le même nombre de clients mais un nombre de questions
+  // différent affichaient des volumes différents. Le comptage passe par
+  // les avis distincts, comme partout ailleurs.
+  const servicesMap = new Map<number | null, { nom: string; lignes: any[] }>();
   for (const r of reponses) {
-    const e = servicesMap.get(r.id_service ?? null) ?? {
+    const cle = r.id_service ?? null;
+    const e = servicesMap.get(cle) ?? {
       nom: r.service?.libelle_service || 'Sans opération',
-      notes: [] as number[],
-      volume: 0,
+      lignes: [] as any[],
     };
-    e.volume += 1;
-    if (typeof r.score_normalise === 'number') e.notes.push(Number(r.score_normalise));
-    servicesMap.set(r.id_service ?? null, e);
+    e.lignes.push(r);
+    servicesMap.set(cle, e);
   }
-  const parService = [...servicesMap.entries()].map(([id, e]) => ({
-    id,
-    nom: e.nom,
-    volume: e.volume,
-    csat: e.notes.length > 0 ? arrondi1(moyenne(e.notes) as number) : null,
-  }));
+  const parService = [...servicesMap.entries()].map(([id, e]) => {
+    const parAvis = grouperParAvis(e.lignes as any);
+    const scores = scoresAvisSatisfaction(e.lignes as any);
+    return {
+      id,
+      nom: e.nom,
+      volume: parAvis.length,
+      csat: scores.length > 0 ? arrondi1(moyenne(scores) as number) : null,
+    };
+  });
 
-  const guichetsMap = new Map<number, { nom: string; notes: number[]; volume: number }>();
+  // Même correction que par service : volume par avis, CSAT par avis et
+  // satisfaction seule. Le seuil §39 (volume minimal 5) continue de
+  // porter sur le nombre d'AVIS, ce qui est l'unité affichée.
+  const guichetsMap = new Map<number, { nom: string; lignes: any[] }>();
   for (const r of reponses) {
     const e = guichetsMap.get(r.id_guichet) ?? {
       nom: r.guichet?.nom_guichet || `Guichet ${r.id_guichet}`,
-      notes: [] as number[],
-      volume: 0,
+      lignes: [] as any[],
     };
-    e.volume += 1;
-    if (typeof r.score_normalise === 'number') e.notes.push(Number(r.score_normalise));
+    e.lignes.push(r);
     guichetsMap.set(r.id_guichet, e);
   }
   // §39 : volume minimal 5 pour comparer (évite les faux champions).
   const guichetsNotables = [...guichetsMap.entries()]
-    .map(([id, e]) => ({
-      id,
-      nom: e.nom,
-      volume: e.volume,
-      csat: e.notes.length > 0 ? arrondi1(moyenne(e.notes) as number) : null,
-    }))
+    .map(([id, e]) => {
+      const parAvis = grouperParAvis(e.lignes as any);
+      const scores = scoresAvisSatisfaction(e.lignes as any);
+      return {
+        id,
+        nom: e.nom,
+        volume: parAvis.length,
+        csat: scores.length > 0 ? arrondi1(moyenne(scores) as number) : null,
+      };
+    })
     .filter((g) => g.csat !== null && g.volume >= 5)
     .sort((a, b) => (b.csat as number) - (a.csat as number));
   const guichetsTop = guichetsNotables.slice(0, 3);
