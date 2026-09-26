@@ -235,8 +235,31 @@ violation** sur les sept derniers. Deux mérite d'être notés :
   même écran — l'écran le plus hétérogène de l'application, et le plus
   exposé au risque de listes ou filtres sans nom ; il est conforme.
 
-Les pages restantes (Configuration des critères, Réglages) et la page
-d'accueil relèvent du même harnais : ~30 lignes par écran.
+Onze écrans sont audités : parcours public, Avis, Guichets, Planning,
+Alertes & Tâches, Personnel, Agences, Archives, Configuration des
+critères et Réglages. Un seul défaut a été trouvé sur cette série : les
+radios de rattachement d'un critère à une opération, nommées par un
+`<label>` qui n'associe rien (voir plus bas).
+
+### Écart assumé : le tableau de bord n'est PAS audité
+
+Le tableau de bord est l'écran le plus utilisé de l'application, et il
+n'est **pas** couvert. L'audit automatisé y échoue sur un `TypeError`
+persistant, que l'élimination systématique n'a pas permis de localiser :
+neutraliser les QUATORZE requêtes du tableau de bord (toutes à `null` ou
+`[]`) laisse le crash intact, et le composant `ActionsPrioritaires` puis
+`RapportMensuelPrint` — les deux suspects statiques — reçoivent des
+données valides. Les numéros de ligne rapportés par la transformation JSX
+ne correspondent pas au source, ce qui interdit de viser directement.
+
+Aucun test rouge n'est livré à la place : l'écran est déclaré non
+couvert, avec la raison. Ce qu'il faudrait pour le débloquer :
+- un test de rendu du tableau de bord à blanc, sans aucune donnée, pour
+  isoler le chemin fautif ;
+- ou l'outillage navigateur (Playwright), qui auditerait l'écran réel
+  sans avoir à reproduire les quatorze formes de retour.
+
+C'est aujourd'hui le plus grand angle mort de la couverture a11y.
 
 L'élargissement a aussi nécessité deux correctifs de configuration, tous
 deux sighted comme des obstacles à l'audit lui-même :

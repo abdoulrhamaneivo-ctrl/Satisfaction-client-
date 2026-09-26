@@ -813,20 +813,38 @@ export const ConfigurationCriteresPage = () => {
                     disponible dans le vivier « Non assignées » et fait partie des critères par défaut.
                   </p>
                   <div className="space-y-2 rounded-md border border-input p-3 bg-background/50">
+                    {/* Vague 6 : le <label> qui enveloppe la radio NE la
+                        nomme pas — un <button> (ce que rend RadioGroupItem)
+                        n'est pas un élément labelable, donc l'association
+                        HTML ne joue pas. Résultat : axe signalait
+                        `button-name` en CRITIQUE, et un lecteur d'écran
+                        annonçait « bouton radio, non coché » SANS dire
+                        quelle opération. L'aria-label reprend le texte
+                        visible — la règle « le nom accessible contient le
+                        texte visible » (2.5.3) reste respectée. */}
                     <RadioGroup
                       value={selectedServiceIds.length === 0 ? 'NONE' : String(selectedServiceIds[0])}
                       onValueChange={(v) => setSelectedServiceIds(v === 'NONE' ? [] : [Number(v)])}
                       className="space-y-2"
+                      aria-label="Rattacher la question à une opération"
                     >
-                      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                        <RadioGroupItem value="NONE" />
-                        Non assignée
-                      </label>
-                      {services?.map((s: any) => (
-                        <label key={s.id} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                          <RadioGroupItem value={String(s.id)} />
-                          {s.libelle_service}
+                      <div className="flex items-center gap-2 text-sm text-foreground">
+                        <RadioGroupItem value="NONE" aria-label="Non assignée à une opération" id="critere-service-none" />
+                        <label htmlFor="critere-service-none" className="cursor-pointer">
+                          Non assignée
                         </label>
+                      </div>
+                      {services?.map((s: any) => (
+                        <div key={s.id} className="flex items-center gap-2 text-sm text-foreground">
+                          <RadioGroupItem
+                            value={String(s.id)}
+                            id={`critere-service-${s.id}`}
+                            aria-label={`Rattacher à l’opération ${s.libelle_service}`}
+                          />
+                          <label htmlFor={`critere-service-${s.id}`} className="cursor-pointer">
+                            {s.libelle_service}
+                          </label>
+                        </div>
                       ))}
                     </RadioGroup>
                     {(!services || services.length === 0) && (
