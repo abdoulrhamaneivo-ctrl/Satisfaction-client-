@@ -267,7 +267,11 @@ export const ConfigurationCriteresPage = () => {
   /** Garde-fou CES : échelle 1-5 ou 1-7 (le serveur revalide de toute façon). */
   const echelleCESValide = Number(echelleMin) === 1 && (Number(echelleMax) === 5 || Number(echelleMax) === 7);
 
-  const activeIds: number[] = agenceCriteresIds || [];
+  // `|| []` ne protège que de `null`/`undefined` : si l'opération ne rend pas
+  // un tableau, `.includes` explose plus bas, à 260 lignes de la lecture, dans
+  // un rendu tardif — et l'erreur est rapportée contre la mauvaise ligne par la
+  // sourcemap. On exige donc le type plutôt que la simple présence.
+  const activeIds: number[] = Array.isArray(agenceCriteresIds) ? agenceCriteresIds : [];
 
   const [deletingCritereId, setDeletingCritereId] = useState<number | null>(null);
   const [duplicatingCritereId, setDuplicatingCritereId] = useState<number | null>(null);

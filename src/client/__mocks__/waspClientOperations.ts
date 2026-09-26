@@ -11,9 +11,30 @@ import { useQuery as useRQ, useMutation } from '@tanstack/react-query';
 // reproduit à l'identique pour que les composants se comportent comme en
 // production (isLoading, isError, data, refetch).
 export function useQuery(queryFn: any, args?: any, options?: any) {
+  if (typeof queryFn !== 'function') {
+    const origine = new Error().stack?.split('\n').slice(1, 4).join(' | ') ?? '';
+    throw new Error(
+      `useQuery a recu une operation qui n'est pas une fonction (recu: ${typeof queryFn}, ` +
+        `cle=${JSON.stringify(args ?? null)}). L'appel vient d'ici : ${origine}`
+    );
+  }
   return useRQ({
     queryKey: ['mock-query', queryFn, JSON.stringify(args ?? null)],
     queryFn: () => queryFn(args),
+    // Une opération qui lève ne doit pas être réessayée : en production le
+    // backoff de react-query est le bon comportement, ici il transformait un
+    // défaut de mock en test qui expire au bout de 20 s — donc un échec qui
+    // parle de « temps machine » au lieu du code. `retry: false` rend
+    // l'échec immédiat et nommé.
+    retry: false,
+    // Une page auditée ne doit pas se re-rendre en cours d'analyse axe-core :
+    // le DOM doit être stable pendant la mesure. `staleTime: Infinity` évite
+    // aussi qu'un cache partagé entre tests ne resserve la forme d'une autre
+    // page — ce qui produisait, par intermittence, un `.includes` sur un
+    // objet.
+    staleTime: Infinity,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
     ...(options ?? {}),
   } as any);
 }
@@ -36,6 +57,16 @@ export const getServices = vi.fn(async () => []);
 export const getGuichets = vi.fn(async () => []);
 export const getAvisGroupes = vi.fn(async () => ({ avis: [], hasMore: false }));
 export const getAgences = vi.fn(async () => []);
+// Forme de retour réelle (`queries.ts:958`) : `operations` et `nonAssignees`.
+// Cette opération était ABSENTE du mock. `QuestionsParOperation` — rendue par
+// `ConfigurationCriteresPage` — l'appelle donc en `undefined`, ce qui faisait
+// échouer l'audit axe de la page au TIMEOUT (20 s de retries react-query)
+// quand la suite entière sature la machine, et passer en silence quand elle
+// ne sature pas. Un test qui ne dépend pas de la charge n'est pas un test.
+export const getCriteresParOperation = vi.fn(async () => ({ operations: [], nonAssignees: [] }));
+// Idem : utilisée par `CommandPalette`. La query réelle court-circuite sous
+// 2 caractères et renvoie ces quatre listes vides.
+export const getRechercheGlobale = vi.fn(async () => ({ agences: [], guichets: [], agents: [], avis: [] }));
 // Forme réelle de `getArchives` : { guichets, agences, alertes, taches }.
 export const getArchives = vi.fn(async () => ({ guichets: [], agences: [], alertes: [], taches: [] }));
 export const getAIStatus = vi.fn(async () => ({ configured: false, provider: null, model: null, baseUrl: null, stats: { total: 0, done: 0, pending: 0, failed: 0 } }));
