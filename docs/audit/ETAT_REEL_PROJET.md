@@ -106,6 +106,7 @@ changée, pas le problème.
 Points positifs **confirmés par lecture**, à conserver lors des refontes :
 
 - CSP sans `unsafe-inline` pour les scripts, hash calculé au démarrage sur le HTML réellement servi ; `frame-ancestors 'none'` ; HSTS ; `nosniff` ; `x-powered-by` désactivé (`src/server/staticServing.ts:83-136`).
+  - Note 2026-09-26 : 3 violations CSP remontées en console prod (`script-src-elem` inline, `eval`, `style-src-elem`) viennent de **React 19.2.7** (injection de `<style>` pour la gestion de priorité des feuilles — vérifié dans le chunk compilé), pas du code applicatif. Le CSS s'affiche normalement : aucun effet. **Décision : on ne les « corrige » pas** — ajouter `'unsafe-inline'` à `style-src` annulerait le durcissement ci-dessus pour faire taire des warnings sans effet. Le hash `_R_` a été vérifié octet par octet : il est correct.
 - Inscription publique bloquée **avant** le routeur Wasp (`staticServing.ts:148-154`, testé dans `src/server/staticServing.test.ts`).
 - Secrets applicatifs validés ≥ 32 caractères au démarrage, **sans** repli `DEVJWTSECRET` (`src/env.ts:15-18,30-47`).
 - Clé TOTP dédiée, distincte de `JWT_SECRET`, avec rotation (`src/server/totp.ts`, 8 tests).
