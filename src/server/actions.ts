@@ -8,9 +8,18 @@ import {
   sanitizeAndSerializeProviderData,
 } from 'wasp/server/auth';
 import crypto from 'node:crypto';
+import type { RoleUtilisateur, ScoringMode, TypeReponse } from '@prisma/client';
 import { envoyerAlerteWhatsApp } from './notifications/gateway';
 import { checkRateLimit, extraireIp } from './rateLimit';
 import { journaliser } from './audit';
+import {
+  MODES_PAR_TYPE,
+  MODES_SCORING,
+  TYPES_REPONSE,
+  estScoringMode,
+  estTypeReponse,
+  scoringModeAdmis,
+} from '../shared/domaines';
 import {
   normaliserTelephoneE164,
   sanitiserCommentaire,
@@ -1790,7 +1799,7 @@ export const retirerAgencePilotee = async (_args: any, context: any) => {
 };
 
 export const inviteAgent = async (
-  args: { email?: string; nom: string; prenom: string; id_agence: number; role: string; telephone?: string },
+  args: { email?: string; nom: string; prenom: string; id_agence: number; role: RoleUtilisateur; telephone?: string },
   context: any
 ) => {
   requireAuth(context);
@@ -1801,11 +1810,13 @@ export const inviteAgent = async (
   // structure le réseau (chefs d'agence) ; le chef d'agence ne gère que SON
   // équipe de terrain (agents). (Le rôle auditeur QUALITE a été supprimé et
   // fusionné dans CHEF_AGENCE : il ne peut plus être attribué.)
-  const ROLES_PAR_INVITEUR: Record<string, string[]> = {
+  // `Record<RoleUtilisateur, …>` : un rôle oublié ici devient une erreur de
+  // compilation, plus un trou silencieux dans la matrice d'habilitation.
+  const ROLES_PAR_INVITEUR: Partial<Record<RoleUtilisateur, RoleUtilisateur[]>> = {
     DIRECTION: ['CHEF_AGENCE', 'AGENT'],
     CHEF_AGENCE: ['AGENT'],
   };
-  const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role ?? ''] || [];
+  const rolesAutorises = ROLES_PAR_INVITEUR[context.user.role as RoleUtilisateur] ?? [];
   if (!rolesAutorises.includes(args.role)) {
     throw new HttpError(
       403,
@@ -2346,20 +2357,7 @@ export const createService = async (
 //    scores_reponse = NULL si jeu partiellement scoré — honnête).
 // ============================================================================
 
-const MODES_SCORING_VALIDES = [
-  'ORDINAL', 'BINARY', 'NUMERIC', 'SMILEY', 'NPS',
-  'CASES_CATEGORICAL', 'CASES_WEIGHTED', 'CES', 'FREE_TEXT',
-];
 
-const MODES_PAR_TYPE: Record<string, Array<string | null>> = {
-  SMILEY: ['SMILEY', null],
-  OUI_NON: ['BINARY', null],
-  QCM: ['ORDINAL', null],
-  TEXTE: ['FREE_TEXT', null],
-  ECHELLE: ['NUMERIC', 'CES', null],
-  NPS: ['NPS', null],
-  CASES: ['CASES_CATEGORICAL', 'CASES_WEIGHTED', null],
-};
 
 /**
  * CES (Phase L) : échelle 1-5 ou 1-7 uniquement, et orientation IMPOSÉE
@@ -2494,16 +2492,17 @@ export const createCritere = async (
     throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
   }
 
-  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES', 'NPS'];
-  const typeReponse = args.type_reponse && typesValides.includes(args.type_reponse) ? args.type_reponse : 'SMILEY';
+  // `estTypeReponse` réduit le type : plus de variable `string` qui traîne
+  // jusqu'au `create`, donc plus de cast possible par megarde.
+  const typeReponse: TypeReponse = estTypeReponse(args.type_reponse) ? args.type_reponse : 'SMILEY';
   if ((typeReponse === 'QCM' || typeReponse === 'CASES') && !args.options?.length && !args.options_reponse?.trim()) {
     throw new HttpError(400, 'Les choix sont requis pour ce type de réponse.');
   }
   // Vague 1 : mode de scoring explicite (validé + compatible avec le type).
-  let scoringMode: string | null = null;
+  let scoringMode: ScoringMode | null = null;
   if (args.scoring_mode !== undefined && args.scoring_mode !== null && String(args.scoring_mode).trim()) {
     const m = String(args.scoring_mode).trim().toUpperCase();
-    if (!MODES_SCORING_VALIDES.includes(m) || !(MODES_PAR_TYPE[typeReponse] ?? []).includes(m)) {
+    if (!estScoringMode(m) || !scoringModeAdmis(typeReponse, m)) {
       throw new HttpError(400, `Mode de scoring invalide pour ce type de question (${typeReponse}).`);
     }
     scoringMode = m;
@@ -2723,12 +2722,11 @@ export const updateCritere = async (
     throw new HttpError(400, 'La description ne doit pas dépasser 1000 caractères.');
   }
 
-  const typesValides = ['SMILEY', 'OUI_NON', 'QCM', 'TEXTE', 'ECHELLE', 'CASES', 'NPS'];
   let typeReponse: string | undefined;
   let optionsReponse: string | null | undefined;
 
   if (args.type_reponse !== undefined) {
-    typeReponse = typesValides.includes(args.type_reponse) ? args.type_reponse : 'SMILEY';
+    typeReponse = estTypeReponse(args.type_reponse) ? args.type_reponse : 'SMILEY';
     if (typeReponse === 'QCM' || typeReponse === 'CASES') {
       const aDesOptionsExplicites = args.options !== undefined && args.options.length > 0;
       const brut = args.options_reponse?.trim();
@@ -2766,7 +2764,7 @@ export const updateCritere = async (
       scoringMode = null;
     } else {
       const m = String(args.scoring_mode).trim().toUpperCase();
-      if (!MODES_SCORING_VALIDES.includes(m) || !(MODES_PAR_TYPE[typeFinal] ?? []).includes(m)) {
+      if (!estScoringMode(m) || !scoringModeAdmis(typeFinal, m)) {
         throw new HttpError(400, `Mode de scoring invalide pour ce type de question (${typeFinal}).`);
       }
       scoringMode = m;

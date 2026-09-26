@@ -23,7 +23,7 @@ model User {
   nom                           String?                  @default("")
   prenom                        String?                  @default("")
   telephone                     String?                  @default("")
-  role                          String?                  @default("AGENT") // DIRECTION, CHEF_AGENCE, AGENT (QUALITE supprimé: fusionné dans CHEF_AGENCE)
+  role                          RoleUtilisateur?         @default(AGENT) // DIRECTION, CHEF_AGENCE, AGENT (QUALITE supprimé: fusionné dans CHEF_AGENCE)
   actif                         Boolean                  @default(true)
   // Force l'utilisateur à définir un nouveau mot de passe avant de pouvoir
   // utiliser l'application. Mis à `true` pour le tout premier compte créé
@@ -91,7 +91,7 @@ model Entreprise {
   date_creation_compte DateTime         @default(now())
 
   // ── SAAS (Doc 11 §4) : statut, plan, limites — vérifiés côté serveur ──
-  status              String            @default("ACTIVE") // TRIAL | ACTIVE | SUSPENDED | CANCELLED
+  status              StatutEntreprise  @default(ACTIVE) // TRIAL | ACTIVE | SUSPENDED | CANCELLED
   plan                String            @default("STARTER") // STARTER | BUSINESS | ENTERPRISE
   date_debut_abonnement DateTime?
   date_fin_abonnement DateTime?
@@ -247,12 +247,12 @@ model Critere {
   // SMILEY, OUI_NON, QCM (choix unique), TEXTE (texte libre),
   // CASES (choix multiples / checkboxes), ECHELLE (échelle linéaire, ex. 1-10),
   // NPS (0-10 : détracteurs/passifs/promoteurs)
-  type_reponse        String            @default("SMILEY")
+  type_reponse        TypeReponse       @default(SMILEY)
   // Mode de scoring fin (vague 1) : NULL = déduit du type_reponse.
   // Pour CASES : 'CATEGORICAL' (stats %, jamais noté) ou 'WEIGHTED'
   // (poids +/-, base 100 + Σ clampé 0-100). Valeurs : ORDINAL | BINARY |
   // NUMERIC | SMILEY | NPS | CASES_CATEGORICAL | CASES_WEIGHTED | FREE_TEXT.
-  scoring_mode        String?
+  scoring_mode        ScoringMode?
   // Orientation de la note : HIGHER_BETTER (défaut) ou LOWER_BETTER
   // (ex. « Avez-vous rencontré un problème ? » Oui = négatif).
   orientation         String            @default("HIGHER_BETTER")
@@ -481,6 +481,109 @@ model Reponse {
 // ANALYSE IA SÉMANTIQUE (DeepSeek — Async Job PgBoss)
 // ============================================================================
 
+/// Domaines de valeurs (audit P14 j).
+///
+/// Les valeurs viennent du CODE, jamais des commentaires de schéma — un
+/// commentaire finit par mentir, un enum non. Trois exemples de ce que la
+/// lecture des commentaires aurait raté, tous attrs par la compilation :
+///
+/// - `type_reponse` valait 5 valeurs dans mes premieres annotations ; le code en
+///   utilise 7 : `OUI_NON` et `NPS` sont réels (`moteurGlobal.ts:272`
+///   filtre sur `type_reponse === 'NPS'`). Source de vérité : les CLÉS de
+///   `MODES_PAR_TYPE` dans `actions.ts`.
+/// - `scoring_mode` : `MAGIQUE` figurait dans un commentaire de ce fichier.
+///   Il n'est dans aucune liste du code, donc ici il est REFUSÉ.
+/// - `statut_tache` : `EN_COURS` est produit par deux jobs et absent de ma
+///   première extraction, qui ne voyait pas les valeurs posées sur la ligne
+///   suivante.
+///
+/// `HIGH_BETTER`/`LOWER_BETTER` n'apparaissent pas ici : elles appartiennent
+/// au champ `orientation`, pas à `scoring_mode`.
+enum StatutIa {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+/// Gravité d'un problème remonté par l'analyse. Partagée par `severite` et
+/// `urgence` d'`AnalyseAvisIA` : même domaine, donc même contrainte.
+/// `MEDIUM` est documenté et accepté mais pas encore produit par le code.
+enum NiveauGravite {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RoleUtilisateur {
+  AGENT
+  CHEF_AGENCE
+  DIRECTION
+}
+
+enum StatutEntreprise {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+/// Type de question. Source de vérité : les clés de `MODES_PAR_TYPE`
+/// (`actions.ts`), qui associent chaque type à ses modes de score admis.
+enum TypeReponse {
+  SMILEY
+  OUI_NON
+  ECHELLE
+  QCM
+  CASES
+  TEXTE
+  NPS
+}
+
+/// Mode de score. Source de vérité : `MODES_SCORING_VALIDES` (`actions.ts`).
+/// `CASES_CATEGORICAL` (catégories) et `CASES_WEIGHTED` (poids par cas) sont
+/// deux modes distincts du même type de question.
+enum ScoringMode {
+  ORDINAL
+  BINARY
+  NUMERIC
+  SMILEY
+  NPS
+  CASES_CATEGORICAL
+  CASES_WEIGHTED
+  CES
+  FREE_TEXT
+}
+
+enum StatutTache {
+  A_FAIRE
+  EN_COURS
+  TERMINEE
+}
+
+/// `ancien_statut` est l'état AVANT une transition : pour une tâche créée,
+/// la réponse est `CREATION` — ce n'est pas un statut de tâche, mais une
+/// absence de statut. D'où un domaine distinct de `nouveau_statut`.
+enum StatutAvantTache {
+  CREATION
+  A_FAIRE
+  EN_COURS
+  TERMINEE
+}
+
+enum StatutAlerte {
+  NOUVELLE
+  TRAITEE
+}
+
+enum TypeAlerte {
+  NOTE_CRITIQUE
+  SILENCE_EVALUATION
+  IA_INCOHERENCE_NOTE
+  IA_URGENCE
+}
+
 model AnalyseAvisIA {
   id                 BigInt   @id @default(autoincrement())
   reponseId          BigInt   @unique
@@ -492,7 +595,7 @@ model AnalyseAvisIA {
   // recalculée si la Reponse source évolue.
   noteBrut           Int?
   
-  status             String   @default("PENDING") // PENDING, PROCESSING, DONE, FAILED
+  status             StatutIa @default(PENDING)
   sentiment          String?  // POSITIVE, NEUTRAL, NEGATIVE, MIXED
   sentimentScore     Float?   // 0.0 à 1.0
   themes             String?  // JSON Array des thèmes contrôlés
@@ -500,10 +603,10 @@ model AnalyseAvisIA {
   sousThemes         String?  // JSON Array (max 5) de précisions
   problemePrincipal  String?
   problemesSecondaires String? // JSON Array (max 3) de textes courts
-  severite           String?  // LOW, MEDIUM, HIGH, CRITICAL (gravité du pb)
+  severite           NiveauGravite?
   emotion            String?  // émotion dominante perçue (1-2 mots)
   confidence         Float?   // confiance globale 0.0-1.0 dans l'analyse
-  urgence            String?  // LOW, MEDIUM, HIGH, CRITICAL
+  urgence            NiveauGravite?
   resume             String?
   actionRecommandee  String?
   // Traçabilité modèle (vague 1, §47-48) : prompt + analyse versionnés
@@ -574,7 +677,7 @@ model GlobalExperienceAnalysis {
   promptVersion       String?
   analysisVersion     String   @default("1")
 
-  status              String   @default("PENDING") // PENDING | PROCESSING | DONE | FAILED
+  status              StatutIa @default(PENDING)
   // Vague 1 (P4) : compteur de tentatives. Sans lui, un échec de fournisseur
   // rendait la synthese definitive (le job ne traitait que PENDING) et le
   // declencheur manuel repondait « deja disponible » sur une ligne morte.
@@ -592,8 +695,8 @@ model GlobalExperienceAnalysis {
 model Alerte {
   id                  BigInt            @id @default(autoincrement())
   message             String
-  statut_alerte       String            @default("NOUVELLE")
-  type_alerte         String            // NOTE_CRITIQUE, SILENCE_EVALUATION
+  statut_alerte       StatutAlerte      @default(NOUVELLE)
+  type_alerte         TypeAlerte
   date_creation       DateTime          @default(now())
   date_traitement     DateTime?
 
@@ -622,7 +725,7 @@ model TacheCorrective {
   id                  BigInt            @id @default(autoincrement())
   titre               String
   description         String?
-  statut_tache        String            @default("A_FAIRE")
+  statut_tache        StatutTache       @default(A_FAIRE)
   date_creation       DateTime          @default(now())
   date_echeance       DateTime
   date_cloture        DateTime?
@@ -658,8 +761,8 @@ model TacheCorrective {
 model TacheCorrectiveHistorique {
   id              BigInt          @id @default(autoincrement())
   date_action     DateTime        @default(now())
-  ancien_statut   String
-  nouveau_statut  String
+  ancien_statut   StatutAvantTache
+  nouveau_statut  StatutTache
   commentaire     String?
 
   id_tache        BigInt

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import type { RoleUtilisateur } from '@prisma/client';
+import { estRoleUtilisateur } from '../../shared/domaines';
 import { useSearchParams } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import {
@@ -92,7 +94,16 @@ export const AdminPersonnelPage = () => {
   const [recherche, setRecherche] = useState('');
   const [filtreStatut, setFiltreStatut] = useState<'TOUS' | 'ACTIFS' | 'SUSPENDUS'>('ACTIFS');
   const formCardRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState({
+  // `role` est typé par l'enum Prisma : une faute de frappe dans une option
+  // de rôle, ou une valeur envoyée à `inviteAgent` qui n'existe pas, devient
+  // une erreur de compilation au lieu d'un 400 en production.
+  const [formData, setFormData] = useState<{
+    nom: string;
+    prenom: string;
+    email: string;
+    telephone: string;
+    role: RoleUtilisateur;
+  }>({
     nom: '',
     prenom: '',
     email: '',
@@ -111,7 +122,7 @@ export const AdminPersonnelPage = () => {
     { id: string; nom: string; prenom: string } | null
   >(null);
 
-  const roleOptions = user?.role === 'DIRECTION'
+  const roleOptions: Array<{ value: RoleUtilisateur; label: string }> = user?.role === 'DIRECTION'
     ? [
         { value: 'CHEF_AGENCE', label: "Chef d’Agence" },
         { value: 'AGENT', label: 'Agent de guichet' },
@@ -423,7 +434,13 @@ export const AdminPersonnelPage = () => {
 
                     <div className="space-y-1.5">
                       <Label htmlFor="agent-role">Rôle</Label>
-                      <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
+                      <Select
+                        value={formData.role}
+                        onValueChange={(value) => {
+                          if (!estRoleUtilisateur(value)) return;
+                          setFormData(prev => ({ ...prev, role: value }));
+                        }}
+                      >
                         <SelectTrigger id="agent-role" className="h-11 rounded-2xl border-border/80">
                           <SelectValue placeholder="Rôle" />
                         </SelectTrigger>
