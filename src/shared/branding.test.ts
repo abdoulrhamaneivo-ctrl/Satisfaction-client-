@@ -52,11 +52,50 @@ const ratio = (a: string, b: string): number => {
 const FOND_PAGE = BRANDING.color_background;
 const FOND_CARTE = BRANDING.color_card;
 
+/**
+ * Compose une couleur d'accent translucide sur un fond, comme le fait le
+ * navigateur pour `bg-primary/25`.
+ *
+ * Sans cette composition, le contraste des textes posés sur un fond
+ * TEINTÉ ne peut pas être vérifié : raisonner sur la teinte seule donne
+ * un fond imaginaire (100 % opaque) et conclude à tort que le texte passe.
+ * C'est exactement le trou qui laissait les options « Oui / Non »
+ * sélectionnées entre 3,85:1 et 4,30:1 sur la borne.
+ */
+const composerSur = (accent: string, alpha: number, fond: string): string => {
+  const a = hslVersRgb(accent);
+  const b = hslVersRgb(fond);
+  const melange = a.map((canal, i) => canal * alpha + b[i] * (1 - alpha));
+  // Retour en HSL : le ratio se calcule toujours sur un jeton.
+  const max = Math.max(...melange);
+  const min = Math.min(...melange);
+  const clarte = (max + min) / 2;
+  const delta = max - min;
+  const saturation = delta === 0 ? 0 : clarte > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+  let hue = 0;
+  if (delta !== 0) {
+    const [r, v, bl] = melange;
+    if (max === r) hue = ((v - bl) / delta) % 6;
+    else if (max === v) hue = (bl - r) / delta + 2;
+    else hue = (r - v) / delta + 4;
+    hue = (hue * 60 + 360) % 360;
+  }
+  return `${hue} ${(saturation * 100).toFixed(2)}% ${(clarte * 100).toFixed(2)}%`;
+};
+
 const VARIANTES_TEXTE = [
   ['color_primary_strong', 'texte principal'],
   ['color_success_strong', 'texte de succès'],
   ['color_warning_strong', "texte d'avertissement"],
   ['color_destructive_strong', "texte d'erreur"],
+] as const;
+
+/** Teintes d'accent correspondantes, pour composer les fonds teintés. */
+const TEINTES = [
+  ['color_primary', 'color_primary_strong', 'primaire'],
+  ['color_success', 'color_success_strong', 'succès'],
+  ['color_warning', 'color_warning_strong', 'avertissement'],
+  ['color_destructive', 'color_destructive_strong', 'erreur'],
 ] as const;
 
 describe('Charte — contrastes WCAG 2.2 AA (Vague 4)', () => {
@@ -190,5 +229,57 @@ describe('White-label — le contraste ne peut pas être contourné', () => {
     expect(ratioContrasteHsl(fg, primairePale)).toBeGreaterThanOrEqual(4.5);
     // Un aplat sombre conserve le blanc : au quotidien, rien ne change.
     expect(foregroundPourAplat(BRANDING.color_primary)).toBe('0 0% 100%');
+  });
+});
+
+/* ============================================================================
+ * Vague 4 — le cas qui manquait : le texte sur fond TEINTÉ
+ * ============================================================================
+ * L'option sélectionnée de la borne (« Oui », « Non », une note d'échelle)
+ * n'est pas un aplat de marque : c'est la teinte de l'accent à 25 %
+ * d'opacité sur la crème. Mesurer le contraste du texte sur la teinte
+ * PLEINE concluait à tort que tout passait — le fond réel est plus
+ * sombre, donc le texte l'est moins.
+ *
+ * Ces tests composent réellement l'opacité. Ils ont révélé un défaut
+ * préexistant : le texte des options sélectionnées était entre 3,85:1 et
+ * 4,30:1, sur le parcours public le plus fréquent de l'application.
+ */
+describe('Charte — texte sur fond teinté (le cas des options sélectionnées)', () => {
+  test('le texte d\'une option sélectionnée atteint 4,5:1 sur teinte /10, /15 et /25', () => {
+    for (const [teinte, texte, libelle] of TEINTES) {
+      for (const alpha of [0.1, 0.15, 0.25]) {
+        const fond = composerSur(BRANDING[teinte], alpha, FOND_PAGE);
+        const r = ratio(BRANDING[texte], fond);
+        expect(
+          r,
+          `${libelle} : texte sur ${teinte}/${Math.round(alpha * 100)} → ${r.toFixed(2)}:1`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  test('le texte d\'une option sélectionnée atteint 4,5:1 sur teinte /25 et fond blanc', () => {
+    // Une carte posée sur fond blanc (tableau, modale) compose la teinte
+    // sur du blanc, pas sur de la crème : slightly plus clair, donc un
+    // contrôle supplémentaire par sécurité.
+    for (const [teinte, texte, libelle] of TEINTES) {
+      const fond = composerSur(BRANDING[teinte], 0.25, FOND_CARTE);
+      const r = ratio(BRANDING[texte], fond);
+      expect(r, `${libelle} : texte sur ${teinte}/25 (blanc) → ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  test('la composition d\'opacité est elle-même correcte', () => {
+    // Garde-fou du garde-fou : si `composerSur` était faux, tous les
+    // tests ci-dessus passeraient à vide. On vérifie deux points
+    // calculables de tête : une couleur à 0 % ne change rien, et le
+    // halfway d'un noir sur du blanc tombe au milieu.
+    expect(composerSur('0 0% 0%', 0, FOND_CARTE)).toBe(composerSur(FOND_CARTE, 0, FOND_CARTE));
+    const moitie = composerSur('0 0% 0%', 0.5, FOND_CARTE);
+    const [r, g, b] = hslVersRgb(moitie).map((c) => Math.round(c * 255));
+    expect(Math.round(r)).toBe(128);
+    expect(Math.round(g)).toBe(128);
+    expect(Math.round(b)).toBe(128);
   });
 });

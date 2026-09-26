@@ -48,8 +48,8 @@ crème : sous le seuil. D'où les variantes réservées au texte :
 | Texte, icône, bordure sur fond clair ou teinté | `color_*_strong` | `text-primary-strong` |
 
 Quatre jetons ont été ajoutés dans `src/shared/branding.ts` :
-`color_primary_strong` (152 100% 22%), `color_success_strong` (147 85% 26%),
-`color_warning_strong` (39 100% 27%), `color_destructive_strong` (0 69% 41%).
+`color_primary_strong` (148 100% 20%), `color_success_strong` (147 76% 24%),
+`color_warning_strong` (39 100% 27%), `color_destructive_strong` (0 72% 38%).
 
 Ratios mesurés (luminance relative WCAG) :
 
@@ -57,17 +57,36 @@ Ratios mesurés (luminance relative WCAG) :
 |---|---|---|
 | `primary` (vert vif, avant) | 2,88:1 ✗ | 3,11:1 ✗ |
 | `primary` (Doc 04, aujourd'hui) | 4,41:1 — voir ci-dessus | **4,77:1** ✓ |
-| `primary-strong` | **5,73:1** ✓ | **6,19:1** ✓ |
+| `primary-strong` | **6,60:1** ✓ | **7,14:1** ✓ |
 | `success` (avant) | 3,29:1 ✗ | 3,55:1 ✗ |
-| `success-strong` | **4,99:1** ✓ | **5,39:1** ✓ |
+| `success-strong` | **6,05:1** ✓ | **6,54:1** ✓ |
 | `warning` (avant) | 1,53:1 ✗ | 1,65:1 ✗ |
 | `warning-strong` | **5,52:1** ✓ | **5,96:1** ✓ |
 | `destructive` (avant) | 4,44:1 ✗ | 4,80:1 ✓ |
-| `destructive-strong` | **6,28:1** ✓ | **6,79:1** ✓ |
+| `destructive-strong` | **6,91:1** ✓ | **7,47:1** ✓ |
 
 Ces valeurs sont verrouillées par `src/shared/branding.test.ts` : revenir
 au vert vif ferait échouer la suite, au lieu de casser silencieusement
 tous les boutons pleins.
+
+### Le cas que les premiers tests ne voyaient pas
+
+Une option sélectionnée n'est pas un aplat de marque : c'est la teinte de
+l'accent **à 25 % d'opacité sur la crème** (`bg-success/25`). Mesurer le
+contraste du texte sur la teinte *pleine* conclut à tort que tout passe —
+le fond réel est plus sombre, donc le texte l'est moins.
+
+En composant réellement l'opacité, la mesure a révélé un défaut
+**préexistant** que les premiers tests avaient laissé passer : le texte
+des options sélectionnées était à **4,01:1** (« Non » de l'option Oui/Non,
+4,01:1 ; « Oui », 4,46:1) — c'est-à-dire le parcours le plus fréquent de
+l'application, sur la borne du guichet. Les quatre variantes ont été
+recalibrées sur ce pire cas (et non sur le fond de page) : le minimum
+est passé à **4,69:1**.
+
+Le test compose désormais l'opacité au lieu de raisonner sur la teinte
+seule, et il est vérifié *en échec* : remit sur l'ancienne valeur de
+`success_strong`, il détecte bien 4,01:1.
 
 ---
 
@@ -175,10 +194,10 @@ Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
 
 | Fichier | Tests | Ce qui est verrouillé |
 |---|---|---|
-| `src/shared/branding.test.ts` | 13 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, **blanc sur aplat ≥ 4,5:1**, hiérarchie primaire/secondaire, garde-fous white-label |
+| `src/shared/branding.test.ts` | 16 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, **blanc sur aplat ≥ 4,5:1**, **texte sur aplat teinté à 10/15/25 % d'opacité**, hiérarchie primaire/secondaire, garde-fous white-label |
 | `src/client/pages/CollectePage.test.tsx` | +5 | radiogroup nommés, flèches, région live pré-montée, labels associés, cible 44 px |
 
-Total après Vague 4 : **253 tests** répartis sur 21 fichiers, dont 18 sur le parcours
+Total après Vague 4 : **256 tests** répartis sur 21 fichiers, dont 18 sur le parcours
 de collecte (13 de flux + 5 d'accessibilité) et 11 de contraste/garde-fous.
 
 Ces tests protègent contre la régression silencieuse type : le parcours
@@ -205,7 +224,7 @@ portaient que sur `BRANDING`, pas sur la valeur réellement injectée dans
 la feuille de style du guichet. Un fond sombre ou un primaire jaune pâle
 rendaient la page illisible sans qu'aucun test ne le voie.
 
-Trois garde-fous purs et testés (`src/shared/branding.ts`, 8 tests) :
+Trois garde-fous purs et testés (`src/shared/branding.ts`) :
 
 - `fondWhiteLabelRecevable(fond, texteParDefaut)` : un fond qui n'est pas une
   surface claire, ou qui n'atteint pas 4,5:1 avec le texte par défaut, est
@@ -246,6 +265,6 @@ réellement une couleur.
 
 ```bash
 npx tsc --noEmit -p tsconfig.src.json     # 0 erreur
-npm test                                  # 253 tests / 21 fichiers
+npm test                                  # 256 tests / 21 fichiers
 set -a; source .env.server; set +a; timeout 600 wasp build
 ```

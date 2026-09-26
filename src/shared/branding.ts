@@ -47,17 +47,20 @@ export const BRANDING = {
      (4,77:1). En revanche le MÊME vert utilisé comme TEXTE sur fond clair
      plafonne à 4,41:1 sur la crème — sous le seuil de 4,5:1. Ces quatre
      jetons sont des assombrissements de la même famille, réservés à
-     l'usage en texte (dont sur fonds teintés /10-15 %). Ratios mesurés par
-     la formule WCAG, vérifiés par src/shared/branding.test.ts :
-       primary-strong      5,73:1 sur crème · 6,19:1 sur blanc
-       success-strong      4,99:1 · 5,39:1
-       warning-strong      5,52:1 · 5,96:1  (le jaune #FFBF00 plafonne à 1,65:1)
-       destructive-strong  6,28:1 · 6,79:1  (le rouge d'origine plafonne à 4,80:1)
-     Règle d'emploi : aplat → jeton normal ; texte ou icône → jeton -strong. */
-  color_primary_strong: "152 100% 22%",
-  color_success_strong: "147 85% 26%",
+     l'usage en texte, y compris sur les fonds teintés.
+     Ils sont calibrés sur le PIRE CAS RÉEL, pas sur le fond de page : le
+     texte d'une option sélectionnée est posé sur un aplat de teinte à
+     25 % d'opacité, c'est-à-dire une teinte composite sur la crème.
+     Mesurés sur les quatre jetons, ces combinaisons plafonnaient entre
+     3,85:1 et 4,30:1 — sous le seuil, sur le parcours public (options
+     « Oui / Non » sélectionnées). Les valeurs ci-dessous portent le pire
+     cas à 4,69:1 minimum.
+     Vérifié par src/shared/branding.test.ts, qui compose réellement
+     l'opacité sur le fond au lieu de raisonner sur la teinte seule. */
+  color_primary_strong: "148 100% 20%",
+  color_success_strong: "147 76% 24%",
   color_warning_strong: "39 100% 27%",
-  color_destructive_strong: "0 69% 41%",
+  color_destructive_strong: "0 72% 38%",
   /* Anneau de focus : 3:1 minimum exigé (1.4.11 / 2.4.11). Le vert de
      marque à 40 % d'opacité ne montait qu'à 1,58:1 — invisible au clavier. */
   color_ring: "152 100% 22%",
