@@ -73,11 +73,22 @@
    export DATABASE_URL="postgresql://neondb_owner:XXXXXXX@ep-xxx.eu-west-1.aws.neon.tech/neondb?sslmode=require"
 
    # Appliquer toutes les migrations Prisma
-   npx prisma migrate deploy
+   npx prisma migrate deploy --schema .wasp/out/db/schema.prisma
 
    # Seeder la base (crée l'entreprise, l'agence, le compte CHEF_AGENCE)
    wasp db seed
    ```
+   > ⚠️ **Utilise la connexion DIRECTE de Neon, pas la pooler.**
+   > L'URL ci-dessus est volontairement celle sans `-pooler`. Avec l'URL
+   > pooler (`ep-xxx-pooler.…`), `migrate deploy` échoue en `P1002` (timeout) :
+   > Prisma a besoin de verrous consultatifs et d'une transaction longue, ce
+   > que le pooler de Neon ne fournit pas. Constaté sur la base de
+   > développement le 2026-09-26. Le `psql` et l'application, eux, foncent
+   > avec la pooler — c'est donc bien une contrainte propre aux migrations.
+   > Si le timeout survient malgré tout, la migration peut avoir été
+   > appliquée : vérifier `SELECT migration_name, finished_at FROM
+   > _prisma_migrations ORDER BY started_at DESC LIMIT 3;` avant de relancer,
+   > pour ne pas créer de doublon de ligne de bookkeeping.
 5. **NOTER** le mot de passe affiché en console (celui du compte CHEF_AGENCE seedé).
 
 ---
@@ -243,7 +254,8 @@ Dans les logs Render, tu devrais voir les jobs PgBoss s'exécuter :
 - [ ] JWT_SECRET généré (32 octets hex)
 - [ ] TELEPHONE_HASH_SALT généré (32 octets hex)
 - [ ] Projet Neon créé, DATABASE_URL récupérée
-- [ ] `npx prisma migrate deploy` exécuté sur Neon
+- [ ] `npx prisma migrate deploy --schema .wasp/out/db/schema.prisma` exécuté sur Neon
+      **avec l'URL directe** (sans `-pooler`), puis vérifié dans `_prisma_migrations`
 - [ ] `wasp db seed` exécuté, mot de passe noté
 - [ ] `bash scripts/deploy-build.sh` exécuté
 - [ ] Code poussé sur GitHub

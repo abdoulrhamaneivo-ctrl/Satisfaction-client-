@@ -501,8 +501,8 @@ dérivé autrement.
 | h | Sélection IA sans `orderBy` (backlog non FIFO) ; `attempts` incrémenté sans garde atomique | `analyserAvisIA.ts:111-130,270` |
 | i | `UserSession` + `SESSION_SECRET` déclarés, validés, jamais lus ; `StatistiquesMensuelles`, `Logs`, `Reponse.audio_url` morts ; `logo_dark_url` lu côté client sans colonne | `schema.prisma:824-837`, `src/env.ts:46`, `BrandLogo.tsx:21` |
 | j | Aucun `enum` en base : ~20 jeux de valeurs sont des `String` libres (`type_reponse`, `scoring_mode`, `status`, …) | `schema.prisma` (0 bloc `enum`) |
-| k | Migration `2026092700000x` modifie la table `Session` de Wasp puis `…00100` l'annule : appliqué seul sur une base non vide, `ADD COLUMN "tokenHash" NOT NULL` échoue ; si `…00000` passe et `…00100` échoue, **le login Wasp est cassé en production** | `migrations/20260927000000_drift_session_vote_totp/migration.sql:13-26` |
-| l | Conséquence de (k) : le couple est lié à un état « base vide » documenté dans un commentaire | `…/migration.sql:5` |
+| k | Migration `2026092700000x` modifie la table `Session` de Wasp puis `…00100` l'annule : appliqué seul sur une base non vide, `ADD COLUMN "tokenHash" NOT NULL` échoue ; si `…00000` passe et `…00100` échoue, **le login Wasp est cassé en production** | ✅ **corrigé** (vague 7) — `20260927000800` |
+| l | Conséquence de (k) : le couple est lié à un état « base vide » documenté dans un commentaire | ✅ **corrigé** (vague 7) — état final garanti par une migration rejouable |
 
 ---
 
