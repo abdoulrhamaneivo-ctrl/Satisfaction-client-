@@ -351,7 +351,7 @@ export const DashboardPage = () => {
               actions={
                 <div className="flex items-center gap-2 flex-wrap">
                   <Select value={String(periodeJours)} onValueChange={(v) => setPeriodeJours(Number(v))}>
-                    <SelectTrigger className="h-10 w-44 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm">
+                    <SelectTrigger className="h-10 w-44 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm" aria-label="Période analysée">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-border/80 shadow-premium">
@@ -784,6 +784,10 @@ export const DashboardPage = () => {
                       <DataTableRow
                         key={avis.id_soumission ?? premiere.id}
                         onClick={() => navigate(routes.AvisRoute.to)}
+                        // Vague 4 : la ligne devient focusable et activable
+                        // au clavier ; l'icône seule ne suffisait pas à
+                        // dire ce que fait la ligne.
+                        aria-label={`Ouvrir l’avis du ${premiere.guichet?.nom_guichet || 'guichet inconnu'}, note ${avis.score_moyen ?? 'non chiffrée'}/5`}
                       >
                         <td className="px-6 py-4">
                           <span

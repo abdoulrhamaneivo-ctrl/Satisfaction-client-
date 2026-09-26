@@ -72,3 +72,96 @@ export const BRANDING = {
 };
 
 export type BrandConfigType = typeof BRANDING;
+
+/* ============================================================================
+ * Vague 4 — Garde-fous de contraste pour le white-label (WCAG 2.2 AA 1.4.3)
+ * ============================================================================
+ * Un tenant peut surcharger `color_primary` et `color_background`
+ * (BrandingConfig, fusion contrôlée dans `src/server/queries.ts`). Sans
+ * garde-fou, ces deux champs dérogent implicitement aux mesures de
+ * contraste ci-dessus : un fond sombre, ou un primaire trop clair, rend
+ * tous les jetons texte — et l'anneau de focus — non conformes, sans
+ * qu'aucun test ne le voie (les tests de contraste portent sur BRANDING,
+ * pas sur la valeur effectivement injectée).
+ *
+ * Les deux fonctions ci-dessous sont pures et testées : elles rendent la
+ * règle de contraste vérifiable quelle que soit la valeur du tenant.
+ * */
+
+/** HSL « H S% L% » → luminance relative WCAG. */
+export function luminanceHsl(token: string): number {
+  const [h, s, l] = token.split(' ').map((partie) => parseFloat(partie));
+  const saturation = s / 100;
+  const clarte = l / 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = saturation * Math.min(clarte, 1 - clarte);
+  const f = (n: number) =>
+    clarte - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const [r, v, b] = [f(0), f(8), f(4)].map((canal) =>
+    canal <= 0.03928 ? canal / 12.92 : ((canal + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * r + 0.7152 * v + 0.0722 * b;
+}
+
+/** Ratio de contraste WCAG entre deux tokens HSL. */
+export function ratioContrasteHsl(a: string, b: string): number {
+  const [claire, sombre] = [luminanceHsl(a), luminanceHsl(b)].sort((x, y) => y - x);
+  return (claire + 0.05) / (sombre + 0.05);
+}
+
+/**
+ * Un fond de page white-label est accepté s'il reste une SURFACE CLAIRE
+ * capable de porter la palette mode clair.
+ *
+ * Deux conditions, toutes deux nécessaires :
+ *  - le texte par défaut (`color_foreground`, quasi noir) doit atteindre
+ *    4,5:1 sur ce fond, sinon lesLabels de l'entreprise deviennent
+ *    eux-mêmes illisibles ;
+ *  - le fond doit rester clair (luminance > 0,5). L'application ne
+ *    définit qu'une seule palette mode clair (le mode sombre du
+ *    dashboard est un thème local, jamais celui du formulaire public) :
+ *    un fond sombre casserait d'un coup les quatre variantes `-strong`,
+ *    l'anneau de focus et les bordures, sans qu'on puisse les recalculer
+ *    côté tenant.
+ *
+ * Un fond rejeté est ignoré : l'application retombe sur la charte Yéba.
+ * Mieux vaut ignorer une personnalisation non conforme que servir une
+ * page illisible — le contrat de lisibilité prime sur la personnalisation.
+ */
+export function fondWhiteLabelRecevable(
+  fond: string | null | undefined,
+  texteParDefaut: string,
+): boolean {
+  if (!fond || !/^\s*[\d.]+\s+[\d.]+%\s+[\d.]+%\s*$/.test(fond)) return false;
+  if (ratioContrasteHsl(texteParDefaut, fond) < 4.5) return false;
+  return luminanceHsl(fond) > 0.5;
+}
+
+/**
+ * Variante « texte » d'une couleur primaire personnalisée.
+ *
+ * Le tenant choisit sa teinte d'aplat ; l'application en déduit la
+ * variante d'usage en texte, en assombrissant la teinte jusqu'à atteindre
+ * le ratio visé sur le fond réel. La teinte de marque n'est donc jamais
+ * modifiée (l'aplat reste celui du client), mais tout texte porté par
+ * cette couleur redevient lisible — y compris l'anneau de focus, qui
+ * doit contraster à 3:1.
+ */
+export function varianteTextePourFond(
+  primaire: string,
+  fond: string,
+  ratioVise = 4.5,
+  clarteMinimale = 12,
+): string {
+  const [h, s, l] = primaire.split(' ').map((partie) => parseFloat(partie));
+  let clarte = l;
+  for (let i = 0; i < 60; i += 1) {
+    const candidat = `${h} ${s}% ${clarte.toFixed(2)}%`;
+    if (ratioContrasteHsl(candidat, fond) >= ratioVise) return candidat;
+    if (clarte <= clarteMinimale) break;
+    // Assombrissement progressif : on privilégie la teinte du client, on ne
+    // touche qu'à la clarté, et le plus petit changement possible.
+    clarte = Math.max(clarteMinimale, clarte * 0.92);
+  }
+  return `${h} ${s}% ${clarteMinimale}%`;
+}

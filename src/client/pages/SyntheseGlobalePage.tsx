@@ -187,7 +187,7 @@ export const SyntheseGlobalePage: React.FC = () => {
                 actions={
                   <div className="flex items-center gap-2 flex-wrap">
                     <Select value={periode} onValueChange={(v) => { setPeriode(v as any); setSelection(null); }}>
-                      <SelectTrigger className="h-10 w-40 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm">
+                      <SelectTrigger className="h-10 w-40 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm" aria-label="Période analysée">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">

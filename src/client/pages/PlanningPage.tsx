@@ -572,7 +572,7 @@ export const PlanningPage = () => {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guichet</label>
                     <Select value={typeGuichet} onValueChange={setTypeGuichet}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="Guichet…" /></SelectTrigger>
+                      <SelectTrigger className="h-10" aria-label="Agent"><SelectValue placeholder="Guichet…" /></SelectTrigger>
                       <SelectContent>
                         {(guichets ?? []).map((g: any) => (
                           <SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet}</SelectItem>
@@ -583,7 +583,7 @@ export const PlanningPage = () => {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent</label>
                     <Select value={typeAgent} onValueChange={setTypeAgent}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="Agent…" /></SelectTrigger>
+                      <SelectTrigger className="h-10" aria-label="Agent"><SelectValue placeholder="Agent…" /></SelectTrigger>
                       <SelectContent>
                         {(agents ?? []).map((a: any) => (
                           <SelectItem key={a.id} value={String(a.id)}>{a.prenom} {a.nom}</SelectItem>
@@ -743,7 +743,7 @@ export const PlanningPage = () => {
                         value={agentIdForGuichet}
                         onValueChange={(value) => setSelectedAgent((prev) => ({ ...prev, [g.id]: value }))}
                       >
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger className="h-10" aria-label="Affecter un agent à ce guichet">
                           <SelectValue placeholder="Sélectionner un agent..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -821,7 +821,7 @@ export const PlanningPage = () => {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent</label>
                 <Select value={editAgentId} onValueChange={setEditAgentId}>
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="h-10" aria-label="Agent">
                     <SelectValue placeholder="Sélectionner un agent..." />
                   </SelectTrigger>
                   <SelectContent>

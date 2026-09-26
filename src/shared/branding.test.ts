@@ -14,7 +14,12 @@
 // fonctionnel ne le détecterait.
 // ============================================================================
 import { describe, test, expect } from 'vitest';
-import { BRANDING } from './branding';
+import {
+  BRANDING,
+  fondWhiteLabelRecevable,
+  varianteTextePourFond,
+  ratioContrasteHsl,
+} from './branding';
 
 /** Convertit un token « H S% L% » en triplet RVB normalisé. */
 const hslVersRgb = (token: string): [number, number, number] => {
@@ -90,5 +95,68 @@ describe('Charte — contrastes WCAG 2.2 AA (Vague 4)', () => {
     expect(
       ratio(BRANDING.color_primary_foreground, BRANDING.color_primary_strong),
     ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/* ============================================================================
+ * Vague 4 — garde-fous white-label
+ * ============================================================================
+ * Un tenant peut surcharger `color_primary` / `color_background`. Ces
+ * tests prouvent que la personnalisation ne peut pas contourner la règle
+ * de contraste : sans eux, la feuille de style servait au guichet pouvait
+ * être illisible alors que tous les tests de contraste passaient — ils
+ * ne portent que sur BRANDING, pas sur la valeur réellement injectée.
+ */
+describe('White-label — le contraste ne peut pas être contourné', () => {
+  test('un fond clair conforme est accepté', () => {
+    expect(fondWhiteLabelRecevable('40 30% 96%', BRANDING.color_foreground)).toBe(true);
+    expect(fondWhiteLabelRecevable('0 0% 100%', BRANDING.color_foreground)).toBe(true);
+  });
+
+  test('un fond sombre est refusé (la palette mode clair s’y effondre)', () => {
+    // 216 40% 12% : le texte par défaut y devient invisible.
+    expect(fondWhiteLabelRecevable('216 40% 12%', BRANDING.color_foreground)).toBe(false);
+    // 0 0% 0% : noir pur, même cas.
+    expect(fondWhiteLabelRecevable('0 0% 0%', BRANDING.color_foreground)).toBe(false);
+  });
+
+  test('un fond qui avale le texte est refusé', () => {
+    // Gris moyen : luminance proche de celle du texte par défaut.
+    expect(fondWhiteLabelRecevable('0 0% 30%', BRANDING.color_foreground)).toBe(false);
+  });
+
+  test('une valeur absente ou malformée est refusée', () => {
+    expect(fondWhiteLabelRecevable(null, BRANDING.color_foreground)).toBe(false);
+    expect(fondWhiteLabelRecevable(undefined, BRANDING.color_foreground)).toBe(false);
+    expect(fondWhiteLabelRecevable('', BRANDING.color_foreground)).toBe(false);
+    expect(fondWhiteLabelRecevable('red', BRANDING.color_foreground)).toBe(false);
+    expect(fondWhiteLabelRecevable('#00A851', BRANDING.color_foreground)).toBe(false);
+  });
+
+  test('la variante texte d’un primaire personnalisé atteint 4,5:1', () => {
+    const fond = '0 0% 100%';
+    // Un jaune très clair, impossible à utiliser en texte.
+    const primaire = '45 100% 60%';
+    expect(ratioContrasteHsl(primaire, fond)).toBeLessThan(4.5);
+    const variante = varianteTextePourFond(primaire, fond);
+    expect(ratioContrasteHsl(variante, fond)).toBeGreaterThanOrEqual(4.5);
+    // La teinte du client est conservée : seule la clarté change.
+    expect(variante.split(' ')[0]).toBe(primaire.split(' ')[0]);
+    expect(variante.split(' ')[1]).toBe(primaire.split(' ')[1]);
+  });
+
+  test('l’anneau de focus d’un primaire personnalisé atteint 3:1', () => {
+    const fond = '40 30% 96%';
+    const variante = varianteTextePourFond('149 100% 33%', fond, 3);
+    expect(ratioContrasteHsl(variante, fond)).toBeGreaterThanOrEqual(3);
+  });
+
+  test('le blanc sur un primaire personnalisé pâle reste le seul écart possible', () => {
+    // Le contrôle porte sur ce qui est automatisable (texte, focus). Le
+    // couple blanc/aplat ne l'est pas : c'est le tenant qui choisit son
+    // aplat, et le transformer impliquerait de Trident le code couleur de
+    // la marque. Le test documente la limite au lieu de la masquer.
+    const primairePale = '45 100% 70%';
+    expect(ratioContrasteHsl('0 0% 100%', primairePale)).toBeLessThan(4.5);
   });
 });

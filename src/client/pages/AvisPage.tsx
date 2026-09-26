@@ -310,7 +310,7 @@ export const AvisPage = () => {
                       setSelectedGuichetId(undefined);
                     }}
                   >
-                    <SelectTrigger className="h-11 w-full font-semibold">
+                    <SelectTrigger className="h-11 w-full font-semibold" aria-label="Agence">
                       <SelectValue placeholder="Toutes les agences" />
                     </SelectTrigger>
                     <SelectContent>
@@ -333,7 +333,7 @@ export const AvisPage = () => {
                   onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)}
                   disabled={isDirection && !selectedAgenceId}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
                     <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'} />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,7 +354,7 @@ export const AvisPage = () => {
                   value={selectedServiceId ? String(selectedServiceId) : 'ALL'}
                   onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Opération ou service">
                     <SelectValue placeholder="Toutes les opérations" />
                   </SelectTrigger>
                   <SelectContent>
@@ -375,7 +375,7 @@ export const AvisPage = () => {
                   value={selectedScore ? String(selectedScore) : 'ALL'}
                   onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
                     <SelectValue placeholder="Tous les scores" />
                   </SelectTrigger>
                   <SelectContent>
@@ -398,7 +398,7 @@ export const AvisPage = () => {
                   value={selectedTheme ?? 'ALL'}
                   onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Étiquette IA">
                     <SelectValue placeholder="Toutes les étiquettes" />
                   </SelectTrigger>
                   <SelectContent>

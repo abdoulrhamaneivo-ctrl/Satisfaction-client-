@@ -12,7 +12,7 @@ import {
   voitVerbatim,
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
-import { BRANDING } from '../shared/branding';
+import { BRANDING, fondWhiteLabelRecevable, varianteTextePourFond } from '../shared/branding';
 import { decrireReponse } from '../shared/libelleReponse';
 import { calculerAgregats } from './gex/moteurGlobal';
 import { indiceGlobalExperience } from '../shared/indicateurs';
@@ -769,6 +769,32 @@ export const getFormDefinitionForGuichet = async (
 
   // Fusion contrôlée : les champs null héritent du thème Yéba (BRANDING).
   // Aucune donnée autre que ces champs ne quitte le serveur.
+  //
+  // Vague 4 (WCAG 2.2 AA 1.4.3) : la personnalisation ne peut pas déroger
+  // implicitement au contraste. Un `color_background` qui ne porterait pas
+  // le texte par défaut, ou qui ne serait pas une surface claire, est
+  // IGNORÉ (retour à la charte) ; un `color_primary` personnalisé voit sa
+  // variante « texte » et son anneau de focus recalculés sur le fond réel,
+  // pour que les usages texte de la couleur du client restent lisibles.
+  const fondRecu = brandingTenant?.color_background;
+  const fondApplique = fondWhiteLabelRecevable(fondRecu, BRANDING.color_foreground)
+    ? (fondRecu as string)
+    : BRANDING.color_background;
+
+  // La dérivation ne concerne que le tenant qui personnalise RÉELLEMENT une
+  // couleur. Un tenant qui ne touche qu'à son nom ou à ses libellés
+  // conserve exactement la charte Yéba — y compris ses valeurs d'anneau et
+  // de variante texte, qui sont plus contrastées que leur version dérivée
+  // (minimalement assombrie, elle s'arrête au seuil et pas au-delà).
+  const couleurPersonnalisee = Boolean(brandingTenant?.color_primary || fondRecu);
+  const primaireApplique = brandingTenant?.color_primary ?? BRANDING.color_primary;
+  const primaireStrongApplique = couleurPersonnalisee
+    ? varianteTextePourFond(brandingTenant?.color_primary ?? BRANDING.color_primary, fondApplique, 4.5)
+    : BRANDING.color_primary_strong;
+  const ringApplique = couleurPersonnalisee
+    ? varianteTextePourFond(brandingTenant?.color_primary ?? BRANDING.color_primary, fondApplique, 3)
+    : BRANDING.color_ring;
+
   const brandConfig = brandingTenant
     ? {
         ...BRANDING,
@@ -778,10 +804,12 @@ export const getFormDefinitionForGuichet = async (
         form_subtitle: brandingTenant.form_subtitle ?? BRANDING.form_subtitle,
         form_thank_you: brandingTenant.form_thank_you ?? BRANDING.form_thank_you,
         qr_slogan: brandingTenant.qr_slogan ?? BRANDING.qr_slogan,
-        ...(brandingTenant.color_primary ? { color_primary: brandingTenant.color_primary } : {}),
+        ...(brandingTenant.color_primary ? { color_primary: primaireApplique } : {}),
         ...(brandingTenant.color_secondary ? { color_secondary: brandingTenant.color_secondary } : {}),
         ...(brandingTenant.color_accent ? { color_accent: brandingTenant.color_accent } : {}),
-        ...(brandingTenant.color_background ? { color_background: brandingTenant.color_background } : {}),
+        color_background: fondApplique,
+        color_primary_strong: primaireStrongApplique,
+        color_ring: ringApplique,
         hide_yeba_branding: brandingTenant.hide_yeba_branding,
       }
     : BRANDING;

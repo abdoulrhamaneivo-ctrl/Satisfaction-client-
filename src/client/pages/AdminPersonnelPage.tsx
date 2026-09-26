@@ -342,7 +342,7 @@ export const AdminPersonnelPage = () => {
                       value={selectedAgenceId !== null ? String(selectedAgenceId) : undefined}
                       onValueChange={(v) => setSelectedAgenceId(Number(v))}
                     >
-                      <SelectTrigger className="h-10 min-w-56 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm">
+                      <SelectTrigger className="h-10 min-w-56 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm" aria-label="Filtrer par agence">
                         <SelectValue placeholder="Choisir l'agence" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/80 shadow-premium">
@@ -504,7 +504,7 @@ export const AdminPersonnelPage = () => {
                     />
                   </div>
                   <Select value={filtreStatut} onValueChange={(v: any) => setFiltreStatut(v)}>
-                    <SelectTrigger className="h-10 sm:w-48 rounded-xl border-border/60">
+                    <SelectTrigger className="h-10 sm:w-48 rounded-xl border-border/60" aria-label="Filtrer par statut">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-border/80">

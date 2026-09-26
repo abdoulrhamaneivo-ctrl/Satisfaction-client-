@@ -56,14 +56,17 @@ décider au niveau produit (voir §5).
 
 Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
 
-### 1.1.1 Contenus non textuels — 🟡
+### 1.1.1 Contenus non textuels — ✅
 - ✅ Les 5 graphiques de `src/client/components/DashboardCharts.tsx` sont
   exposés en `role="img"` avec un résumé chiffré, et accompagnés d'un vrai
   tableau HTML `.sr-only` portant les mêmes données (composant
   `TableauAccessible`).
-- ⛔ `HeatmapReponses.tsx` : la carte de chaleur n'a pas encore d'alternative
-  textuelle. Elle est tabulaire par nature : même traitement à apply
-  (tableau `sr-only`).
+- ✅ `HeatmapReponses.tsx` : la carte de chaleur est désormais un
+  tableau `sr-only` (jour × heure, score moyen ET volume). La grille
+  visuelle est `aria-hidden` et ses 168 cellules retirées du parcours de
+  tabulation : l'infobulle de score n'existait qu'au survol souris, et
+  le `aria-label` d'avant n'annonçait que le volume — la satisfaction
+  n'était inaccessible à un lecteur d'écran.
 
 ### 1.3.1 Info et relations — ✅
 - ✅ Les deux `<label>` décoratifs de l'étape commentaire étaient en fait
@@ -117,16 +120,16 @@ Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
 - 🟡 La mesure réelle relève d'un navigateur : le test jsdom vérifie la
   classe, pas le rendu.
 
-### 3.3.1 / 3.3.2 Étiquette et instructions — 🟡
+### 3.3.1 / 3.3.2 Étiquette et instructions — ✅
 - ✅ Champs commentaire et téléphone : nom accessible + `aria-describedby`
   pointant vers une aide réellement associée (le `<p>` d'explication du
   hachage n'était qu'un simple nœud voisin sans association).
-- ⛔ 26 `<SelectTrigger>` sur ~30 n'ont ni `aria-label` ni `<label>`
-  associé : `ConfigurationCriteresPage` (9), `AvisPage` (5),
-  `PlanningPage` (4), `AdminPersonnelPage` (3), `QuestionsParOperation` (3),
-  `GuichetsPage` (2), `AlertesTachesPage`, `DashboardPage`,
-  `SyntheseGlobalePage`, `EditeurOptions`. Inventaire exact à traiter en
-  Vague 4b.
+- ✅ Les 30 `<SelectTrigger>` portent maintenant un nom accessible
+  (`aria-label` reproduisant le libellé visible, ou `id` + `<Label htmlFor>`
+  quand il existait déjà) : `ConfigurationCriteresPage` (9), `AvisPage` (5),
+  `PlanningPage` (4), `AdminPersonnelPage` (2), `QuestionsParOperation` (1),
+  `GuichetsPage` (2), `DashboardPage`, `SyntheseGlobalePage`. Aucun
+  déclencheur sans nom ne subsiste.
 
 ### 4.1.2 Nom, rôle, valeur — ✅
 - ✅ Groupes d'options nommés (voir 2.1.1), tutoriel et palette nommés en
@@ -148,11 +151,11 @@ Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
 
 | Fichier | Tests | Ce qui est verrouillé |
 |---|---|---|
-| `src/shared/branding.test.ts` | 4 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, écart du blanc sur aplat documenté |
+| `src/shared/branding.test.ts` | 11 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, écart du blanc sur aplat documenté, garde-fous white-label |
 | `src/client/pages/CollectePage.test.tsx` | +5 | radiogroup nommés, flèches, région live pré-montée, labels associés, cible 44 px |
 
-Total après Vague 4 : **244 tests** répartis sur 21 fichiers, dont 18 sur le parcours
-de collecte (13 de flux + 5 d'accessibilité).
+Total après Vague 4 : **251 tests** répartis sur 21 fichiers, dont 18 sur le parcours
+de collecte (13 de flux + 5 d'accessibilité) et 11 de contraste/garde-fous.
 
 Ces tests protègent contre la régression silencieuse type : le parcours
 refonctionnerait (les 13 tests de flux passeraient) tout en redevenant
@@ -164,11 +167,32 @@ inaccessible. C'est précisément ce que la Vague 4 cherche à empêcher.
 
 | # | Constat | Chemin | Critère |
 |---|---|---|---|
-| A1 | 26 `<SelectTrigger>` sans nom accessible | voir §3.3.1 | 4.1.2 |
-| A2 | Carte de chaleur sans alternative | `components/HeatmapReponses.tsx` | 1.1.1 |
-| A3 | Lignes de tableau cliquables sans `role`/`tabIndex` | `components/ui/DataTable.tsx` | 2.1.1 |
+| ~~A1~~ | `<SelectTrigger>` sans nom accessible | — | **corrigé** |
+| ~~A2~~ | Carte de chaleur sans alternative | — | **corrigé** |
+| ~~A3~~ | Lignes de tableau cliquables sans `tabIndex` | — | **corrigé** |
+| ~~A5~~ | White-label : le tenant pouvait casser le contraste | — | **corrigé** (voir ci-dessous) |
 | A4 | Tests automatisés uniquement en jsdom, pas de test navigateur | `vitest.config.ts` | — |
-| A5 | White label : le nom de la plateforme dépend du tenant, à revérifier par client's couleurs | `context/BrandContext.tsx` | 1.4.3 |
+
+### A5 — le white-label pouvait déroger au contraste
+
+Un tenant peut surcharger `color_primary` et `color_background`. Ces
+valeurs échappaient à toute vérification : les tests de contraste ne
+portaient que sur `BRANDING`, pas sur la valeur réellement injectée dans
+la feuille de style du guichet. Un fond sombre ou un primaire jaune pâle
+rendaient la page illisible sans qu'aucun test ne le voie.
+
+Deux garde-fous purs et testés (`src/shared/branding.ts`, 7 tests) :
+
+- `fondWhiteLabelRecevable(fond, texteParDefaut)` : un fond qui n'est pas une
+  surface claire, ou qui n'atteint pas 4,5:1 avec le texte par défaut, est
+  **ignoré** — l'application retombe sur la charte Yéba ;
+- `varianteTextePourFond(primaire, fond, ratio)` : la teinte d'aplat du client
+  est conservée, mais sa variante « texte » et l'anneau de focus sont
+  assombris juste ce qu'il faut pour atteindre 4,5:1 (respectivement 3:1).
+
+Il reste un cas non automatisable : le blanc sur un aplat primaire très
+pâle choisi par le tenant. Corriger exigerait de dégrader le code couleur de
+la marque du client — arbitrage produit, pas technique.
 
 ## 5. Décisions produit attendues
 
@@ -187,6 +211,6 @@ inaccessible. C'est précisément ce que la Vague 4 cherche à empêcher.
 
 ```bash
 npx tsc --noEmit -p tsconfig.src.json     # 0 erreur
-npm test                                  # 244 tests / 21 fichiers
+npm test                                  # 251 tests / 21 fichiers
 set -a; source .env.server; set +a; timeout 600 wasp build
 ```

@@ -100,7 +100,17 @@ export const HeatmapReponses = ({ data, isLoading }: { data?: HeatmapData; isLoa
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[820px]">
+        {/* Vague 4 (WCAG 2.2 AA — 1.1.1) : la grille visuelle est une
+            REPRÉSENTATION, pas la donnée. Elle est donc masquée aux
+            technologies d'assistance (`aria-hidden`) et ses cellules
+            retirées du parcours de tabulation (168 boutons focusables
+            pour 168 créneaux : le clavier ne pouvait pas les parcourir
+            utilement, et l'infobulle de score n'existait qu'au survol
+            souris). L'information équivalente, elle, est fournie plus
+            bas sous forme de VRAI tableau, avec le score moyen — que
+            la seule couleur d'avant ne donnait
+            jamais (volume seul). */}
+        <div className="min-w-[820px]" aria-hidden="true">
           {/* En-tête des heures */}
           <div className="grid grid-cols-[3rem_repeat(24,minmax(0,1fr))] gap-1">
             <div />
@@ -123,8 +133,8 @@ export const HeatmapReponses = ({ data, isLoading }: { data?: HeatmapData; isLoa
                     <button
                       key={`${cellule.jour}-${cellule.heure}`}
                       type="button"
+                      tabIndex={-1}
                       onMouseEnter={() => setSurvol(cellule)}
-                      onFocus={() => setSurvol(cellule)}
                       onMouseLeave={() => setSurvol((s) => (s === cellule ? null : s))}
                       className="aspect-square w-full rounded-[4px] border border-border/40 transition-transform hover:scale-110 hover:z-10"
                       style={{
@@ -134,7 +144,6 @@ export const HeatmapReponses = ({ data, isLoading }: { data?: HeatmapData; isLoa
                             : 'var(--muted, #E5E7EB)',
                         opacity: cellule.nb > 0 ? opacite : 0.25,
                       }}
-                      aria-label={`${cellule.jour_label} ${cellule.heure}h : ${cellule.nb} avis`}
                     />
                   );
                 })}
@@ -143,6 +152,50 @@ export const HeatmapReponses = ({ data, isLoading }: { data?: HeatmapData; isLoa
           </div>
         </div>
       </div>
+
+      {/* Alternative textuelle : la même donnée, en tableau, avec le score
+          moyen ET le volume — les deux informations que la couleur et
+          l'infobulle reservaient aux souris. */}
+      <table className="sr-only">
+        <caption>
+          Affluence et satisfaction par jour et par heure, sur {data.nb_jours} jours
+          ({data.total_avis} avis au total).
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Jour</th>
+            {Array.from({ length: 24 }, (_, h) => (
+              <th key={h} scope="col">
+                {h}h
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {ORDRE_JOURS.map((jour) => {
+            const cellules = grilleParJour.get(jour) ?? [];
+            const parHeure = new Map(cellules.map((c) => [c.heure, c]));
+            return (
+              <tr key={jour}>
+                <th scope="row">{JOURS_ABREGES[jour]}</th>
+                {Array.from({ length: 24 }, (_, h) => {
+                  const cellule = parHeure.get(h);
+                  if (!cellule || cellule.nb === 0) {
+                    return <td key={h}>—</td>;
+                  }
+                  return (
+                    <td key={h}>
+                      {cellule.score_moyen === null
+                        ? `${cellule.nb} avis, sans note`
+                        : `${cellule.score_moyen}/5, ${cellule.nb} avis`}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
       <div className="mt-4 flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">

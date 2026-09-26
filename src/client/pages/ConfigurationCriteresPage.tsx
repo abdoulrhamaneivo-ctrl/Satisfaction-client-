@@ -442,7 +442,7 @@ export const ConfigurationCriteresPage = () => {
                 value={String(selectedAgenceId)}
                 onValueChange={(v) => setSelectedAgenceId(Number(v))}
               >
-                <SelectTrigger className="h-10 min-w-56">
+                <SelectTrigger className="h-10 min-w-56" aria-label="Filtrer par agence">
                   <SelectValue placeholder="Choisir l'agence" />
                 </SelectTrigger>
                 <SelectContent>
@@ -671,7 +671,7 @@ export const ConfigurationCriteresPage = () => {
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">Type de réponse</label>
                   <Select value={typeReponse} onValueChange={choisirType}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full" aria-label="Type de réponse">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -690,7 +690,7 @@ export const ConfigurationCriteresPage = () => {
                   <div>
                     <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de mesure</label>
                     <Select value={scoringModeCreation} onValueChange={setScoringModeCreation}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Mode de mesure">
                         <SelectValue placeholder="Note standard" />
                       </SelectTrigger>
                       <SelectContent>
@@ -712,7 +712,7 @@ export const ConfigurationCriteresPage = () => {
                   <div>
                     <label className="block text-xs font-semibold text-foreground uppercase mb-1">Orientation de la note</label>
                     <Select value={orientationCreation} onValueChange={setOrientationCreation}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Orientation de la note">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -752,7 +752,7 @@ export const ConfigurationCriteresPage = () => {
                       <div>
                         <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de scoring</label>
                         <Select value={scoringModeCreation} onValueChange={setScoringModeCreation}>
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-full" aria-label="Mode de scoring">
                             <SelectValue placeholder="Auto" />
                           </SelectTrigger>
                           <SelectContent>
@@ -899,7 +899,7 @@ export const ConfigurationCriteresPage = () => {
               <div>
                 <label className="block text-xs font-semibold text-foreground uppercase mb-1">Type de réponse</label>
                 <Select value={editType} onValueChange={changerTypeEdition}>
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full" aria-label="Type de réponse"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="SMILEY">⭐ Note / Smileys (1 à 5)</SelectItem>
                     <SelectItem value="OUI_NON">👍 Oui / Non</SelectItem>
@@ -922,7 +922,7 @@ export const ConfigurationCriteresPage = () => {
                   <div>
                     <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de mesure</label>
                     <Select value={editMode === 'CES' ? 'CES' : 'AUTO'} onValueChange={setEditMode}>
-                      <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full" aria-label="Mode de mesure"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {MODES_ECHELLE.map((m) => (
                           <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
@@ -977,7 +977,7 @@ export const ConfigurationCriteresPage = () => {
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">Orientation de la note</label>
                   <Select value={editOrientation} onValueChange={setEditOrientation}>
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full" aria-label="Orientation de la note"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="HIGHER_BETTER">Oui / haut = positif</SelectItem>
                       <SelectItem value="LOWER_BETTER">Oui / haut = négatif (ex. « Problème ? »)</SelectItem>
@@ -997,7 +997,7 @@ export const ConfigurationCriteresPage = () => {
                     <div>
                       <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de scoring</label>
                       <Select value={editMode} onValueChange={setEditMode}>
-                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-full" aria-label="Mode de scoring"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {MODES_CASES.map((m) => (
                             <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
