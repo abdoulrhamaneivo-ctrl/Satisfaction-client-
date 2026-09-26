@@ -264,15 +264,24 @@ n'est **pas** couvert. Ce n'est pas un oubli : son montage en test
    `!data || data.total_avis === 0`.
 5. Les `useMemo` de la page (lignes 150-330) ne contiennent qu'un seul
    `.length`, protégé par un `notes.length > 0`.
-6. Le numéro de ligne rapporté par la pile **ne correspond pas au
-   source** : la sourcemap esbuild ne contient aucun mapping vers la
-   ligne annoncée. C'est ce qui empêche de viser directement.
+6. Un ErrorBoundary autour du tableau de bord **capture le plantage** et
+   confirme qu'il survient dans le re-render de `DashboardPage` lui-même
+   (et non dans un enfant) — l'information que la pile JavaScript, qui
+   ne montrait qu'un frame, ne donnait pas.
+7. Le numéro de ligne rapporté par la pile est **prouvé faux** : la ligne
+   872 annoncée est `comparaisonAgences.agences.length`, et sa version
+   gardée (`?.length`) ne provoke aucun plantage. La sourcemap ne
+   contient par ailleurs aucun mapping vers la ligne annoncée. C'est ce
+   qui empêche de viser directement.
 
-**Deux causes possibles, non départageables sans navigateur** : soit un
-enfant du tableau de bord lit une prop non gardée dans une branche que
-le rendu à blanc n'atteint pas, soit une bibliothèque d'impression
-(`react-to-print`, utilisée deux fois) lit une option absente au premier
-rendu réel.
+**Point le plus probable, non confirmé** : l'un des tableaux passés au
+tableau de bord (`agentsList`, `guichetsList`, `objectifsList`,
+`tendanceList`) arrive sous une forme qui n'est pas un tableau — les
+quatre sont construits par `query || []`, ce qui protège contre `null`
+mais pas contre un objet. Un `IN (...)`-like côté serveur, ou une
+évolution de forme de retour, suffirait. C'est vérifiable en une
+lecture de plus des quatre requêtes concernées ; le gain ne justifiait
+pas de poursuivre à l'aveugle après l'élimination systématique.
 
 **Pour débloquer** : le test de rendu à blanc, qui isole le chemin
 fautif, ou l'outillage navigateur (Playwright), qui auditerait l'écran
