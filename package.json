@@ -86,6 +86,9 @@
     "vite": "^7.0.6",
     "vitest": "^4.0.16"
   },
+  "overrides": {
+    "nodemailer": "^9.1.1"
+  },
   "allowScripts": {
     "prisma@5.19.1": true,
     "@prisma/engines@5.19.1": true,
