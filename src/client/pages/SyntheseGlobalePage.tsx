@@ -59,8 +59,7 @@ export function parseJson<T>(brut: string | null | undefined, defaut: T): T {
   }
 }
 
-export function libellePeriode(ligne: any): string {
-  const debut = new Date(ligne.debut);
+export function libellePeriode(ligne: any): string {  const debut = new Date(ligne.debut);
   const fin = new Date(ligne.fin);
   const d = debut.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
   const f = fin.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -103,6 +102,21 @@ function ListeBulles({ titre, items, icon: Icon, tone }: { titre: string; items:
 
 // ---------- Page ----------
 
+/**
+ * Intervalle de rafraîchissement de la liste des analyses.
+ *
+ * TanStack Query v4 : le 1er argument est la DONNÉE (TData | undefined), pas
+ * la query. La forme v5 `(q) => q.state.data…` lève `TypeError` au montage
+ * (données encore `undefined`) → page blanche /synthese, attrapée par le
+ * routeur. Testé ci-dessous : toute réintroduction de `q.state` doit faire
+ * échouer `SyntheseGlobalePage.test.ts`.
+ */
+export function intervalleActualisationSynthese(donnees: unknown): number | false {
+  return Array.isArray(donnees) && donnees.some((a: any) => a?.status === 'PENDING')
+    ? 5000
+    : false;
+}
+
 export const SyntheseGlobalePage: React.FC = () => {
   const { data: user } = useAuth();
   const { toast } = useToast();
@@ -116,7 +130,7 @@ export const SyntheseGlobalePage: React.FC = () => {
     getAnalysesGlobales,
     { periode },
     // Rafraîchissement tant qu'une analyse est en file (job PgBoss).
-    { refetchInterval: (q: any) => (q.state.data?.some?.((a: any) => a.status === 'PENDING') ? 5000 : false) },
+    { refetchInterval: intervalleActualisationSynthese },
   );
 
   const lignes = useMemo(() => analyses ?? [], [analyses]);

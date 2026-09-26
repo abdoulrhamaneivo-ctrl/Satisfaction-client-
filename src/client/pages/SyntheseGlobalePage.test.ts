@@ -1,7 +1,7 @@
 // src/client/pages/SyntheseGlobalePage.test.ts — helpers purs (parsing JSON,
-// libellé de période) : aucune dépendance React.
+// libellé de période, intervalle de rafraîchissement) : aucune dépendance React.
 import { expect, test, describe } from 'vitest';
-import { parseJson, libellePeriode } from './SyntheseGlobalePage';
+import { parseJson, libellePeriode, intervalleActualisationSynthese } from './SyntheseGlobalePage';
 
 describe('parseJson : défensif', () => {
   test('JSON valide → valeur', () => {
@@ -25,5 +25,29 @@ describe('libellePeriode', () => {
 
   test('MOIS → mention du mois', () => {
     expect(libellePeriode({ periode: 'MOIS', debut: '2026-08-01T00:00:00Z', fin: '2026-08-31T00:00:00Z' })).toMatch(/^Mois /);
+  });
+});
+
+describe('intervalleActualisationSynthese (régression page blanche /synthese)', () => {
+  test('données absentes → pas de rafraîchissement, et surtout pas de crash', () => {
+    // C'est ce cas qui tuait la page : au montage, les données valent
+    // `undefined`. La forme v5 `(q) => q.state.data…` levait `TypeError`.
+    expect(intervalleActualisationSynthese(undefined)).toBe(false);
+    expect(intervalleActualisationSynthese(null)).toBe(false);
+    expect(intervalleActualisationSynthese('nimportequoi')).toBe(false);
+  });
+
+  test('aucune analyse en file → pas de rafraîchissement', () => {
+    expect(intervalleActualisationSynthese([])).toBe(false);
+    expect(intervalleActualisationSynthese([{ status: 'DONE' }, { status: 'FAILED' }])).toBe(false);
+  });
+
+  test('analyse en file → rafraîchissement toutes les 5 s', () => {
+    expect(intervalleActualisationSynthese([{ status: 'PENDING' }])).toBe(5000);
+    expect(intervalleActualisationSynthese([{ status: 'DONE' }, { status: 'PENDING' }])).toBe(5000);
+  });
+
+  test('lignes malformées → ignorées, pas de crash', () => {
+    expect(intervalleActualisationSynthese([null, undefined, 42, {}])).toBe(false);
   });
 });
