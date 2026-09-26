@@ -1845,14 +1845,14 @@
             "file",
             "sdk/wasp/src/client/pages/CollectePage.test.tsx"
         ],
-        "8f87b3ebe663c4369ed58b74be13e4bb878816c50224a9670cae5ab5c6f41eb2"
+        "8294dbe903a0ca2c34868aed288efb72b47e80339cd4af8b0d6d7027353ff25f"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/CollectePage.tsx"
         ],
-        "d7f8dd5ac1a3c21ed7ee5b25103c19db6d1df90568b43ab1ef28b2986d02d014"
+        "2d1dddeeb7b6fa030bbdb15ac115016d9b5be3c58e10cc1e9f60be91b249591e"
     ],
     [
         [
@@ -2629,14 +2629,14 @@
             "file",
             "sdk/wasp/src/server/staticServing.test.ts"
         ],
-        "6d59da6832c3136010be646872c8e2f4195b59b3d95f15f1fa008d7fdaa4e73c"
+        "1e33fd1070a5a4d487663d2e69cf19dd7da9bfcd0c45667d8a523e23083c095b"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/staticServing.ts"
         ],
-        "0ccd1a6dddd61ea79b9f5d16c3d77adc3e2fde453db84eaaba1371be52a1fe66"
+        "647beafd1f87ee75de19f8bb18043f249088e9aa548bacb935af77a480a66327"
     ],
     [
         [

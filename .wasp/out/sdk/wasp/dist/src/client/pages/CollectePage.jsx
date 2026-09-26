@@ -13,6 +13,24 @@ import { Card, Eyebrow } from '../components/ds';
 import { NOTE_CONFIG, visuelPourNote } from '../components/NoteVisuel';
 import { parseCollecteIdentifier } from '../collecte/routeParams';
 import { optionsAffichage, payloadSmiley, payloadOuiNon, payloadQCM, payloadTexte, payloadValeur, payloadCases, bornesEchelle, choixEchelle, } from '../collecte/payload';
+export function modeFormulaire(servicesDuGuichet, selectedService) {
+    if (selectedService && (selectedService.criteres?.length ?? 0) > 0)
+        return 'operation';
+    if (selectedService)
+        return 'operation-sans-questions';
+    if ((servicesDuGuichet?.length ?? 0) === 0)
+        return 'general';
+    // Guichet avec opérations mais aucune sélectionnée : l'étape SERVICE_SELECT
+    // est affichée, pas les questions. Valeur sûre par défaut.
+    return 'operation-sans-questions';
+}
+export function questionsPourMode(mode, selectedService, defaultCriteres) {
+    if (mode === 'operation')
+        return selectedService?.criteres ?? [];
+    if (mode === 'general')
+        return defaultCriteres;
+    return [];
+}
 // ---------- CONSTANTES HORS COMPOSANT (performance) ----------
 // Toute valeur recréée à chaque render devient un nouvel objet/la même valeur
 // mais une nouvelle FONCTION pour React → re-renders inutiles à chaque frappe.
@@ -296,9 +314,8 @@ export const CollectePage = () => {
         </div>
       </AmbientBackground>);
     }
-    const criteres = selectedService?.criteres?.length
-        ? selectedService.criteres
-        : defaultCriteres;
+    const mode = modeFormulaire(services, selectedService);
+    const criteres = questionsPourMode(mode, selectedService, defaultCriteres);
     const currentCritere = criteres[currentQuestionIndex];
     const questionnaireDisponible = criteres.length > 0;
     const messageErreurSubmit = (err) => {
@@ -595,14 +612,35 @@ export const CollectePage = () => {
 
             {step === 'QUESTIONS' && !questionnaireDisponible && (<motion.div key="questionnaire-indisponible" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
                 <Card className="w-full p-6 sm:p-8 text-center space-y-3 rounded-3xl">
-                  <h1 ref={titreRef} tabIndex={-1} className="text-xl font-bold text-foreground font-satoshi outline-none">Questionnaire momentanément indisponible</h1>
+                  <h1 ref={titreRef} tabIndex={-1} className="text-xl font-bold text-foreground font-satoshi">
+                    {mode === 'operation-sans-questions'
+                ? 'Questionnaire en préparation'
+                : 'Questionnaire indisponible'}
+                  </h1>
                   <p className="text-sm text-muted-foreground">
-                    Aucun critère n’est encore configuré pour ce guichet. Merci de contacter l’agence.
+                    {mode === 'operation-sans-questions'
+                ? `L'opération « ${selectedService?.libelle_service ?? ''} » n'a pas encore de questions. Merci de contacter l'agence.`
+                : 'Aucun critère n’est encore configuré pour ce guichet. Merci de contacter l’agence.'}
                   </p>
                 </Card>
               </motion.div>)}
 
             {step === 'QUESTIONS' && questionnaireDisponible && currentCritere && (<motion.div key={`question_${currentQuestionIndex}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={TRANSITION} className="w-full">
+                {/* MODE GÉNÉRAL : aucune opération rattachée au guichet. Le
+                client répond au vivier de l'agence, et ses réponses sont
+                enregistrées SANS opération. Ce bandeau rend visible ce que
+                le repli silencieux cachait : sans lui, l'agent croit
+                répondre à une opération. */}
+                {mode === 'general' && (<div role="status" className="mb-4 rounded-2xl border border-warning/40 bg-warning/10 p-3 text-center">
+                    <p className="text-xs font-bold text-foreground">
+                      Questionnaire général — aucune opération sélectionnée
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Ce guichet n'a pas d'opération rattachée : vos réponses seront
+                      enregistrées sans opération. Demandez à la direction de
+                      configurer le guichet.
+                    </p>
+                  </div>)}
                 <Card variant="feature" className="w-full p-6 sm:p-8 text-center space-y-6 shadow-premium-lg rounded-3xl bg-card">
                   {/* Progress bar */}
                   <div className="w-full bg-muted/80 h-2 rounded-full overflow-hidden border border-border/40" role="progressbar" aria-label="Progression du questionnaire" aria-valuemin={1} aria-valuemax={criteres.length} aria-valuenow={currentQuestionIndex + 1}>

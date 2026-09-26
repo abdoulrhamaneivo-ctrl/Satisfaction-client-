@@ -10928,16 +10928,24 @@ async function serveStaticClient({ app }) {
       maxAge: "1y",
       setHeaders(res, filePath) {
         if (filePath.endsWith(".html")) {
-          res.setHeader("Cache-Control", "no-cache");
+          res.setHeader("Cache-Control", "private, no-store");
         }
       }
     })
   );
+  const EXTENSIONS_STATIQUES = /\.(?:css|js|mjs|cjs|map|json|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|eot|otf|mp4|webm|txt|xml|pdf)$/i;
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    if (API_PREFIXES.some((p) => req.path.startsWith(p))) return next();
+    if (!EXTENSIONS_STATIQUES.test(req.path)) return next();
+    res.setHeader("Cache-Control", "no-store");
+    res.status(404).type("text/plain").send("Not found");
+  });
   app.use((req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
     if (API_PREFIXES.some((p) => req.path.startsWith(p))) return next();
     if (res.headersSent) return next();
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     fs.createReadStream(SPA_ENTRY).on("error", () => next()).pipe(res);
   });

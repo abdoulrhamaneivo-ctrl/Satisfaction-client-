@@ -156,15 +156,47 @@ export async function serveStaticClient({ app }) {
     }
     // 1. Fichiers statiques Vite (noms hashés → cache immuable 1 an).
     //    index:false : la racine / est gérée par le fallback ci-dessous.
+    //    Les `.html` servis directement (ex. `/200.html`) sont la coquille :
+    //    même `private, no-store` que le repli SPA (voir 1b).
     app.use(express.static(CLIENT_BUILD_DIR, {
         index: false,
         maxAge: '1y',
         setHeaders(res, filePath) {
             if (filePath.endsWith('.html')) {
-                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Cache-Control', 'private, no-store');
             }
         },
     }));
+    // 1b. CHEMIN IMPOSTEUR (web cache deception — audit Hackaiz 2026-09-26).
+    //
+    // Sans ce garde, `/hackaiz-304549a.css` recevait le HTML de l'application
+    // avec `Cache-Control: no-cache`. Or `no-cache` AUTORISE le stockage côté
+    // cache partagé : un CDN servait ensuite cette page à d'autres visiteurs,
+    // sous une adresse qui a l'air d'un fichier statique.
+    //
+    // Double effet, le second fait plus mal que le premier :
+    //   1. une page « visitable » devient rejouable sans session ;
+    //   2. un VRAI asset manquant renvoyait 200 au lieu de 404 — donc un
+    //      bundle cassé en production ne se voyait pas.
+    //
+    // Placement = la correction : APRÈS `express.static`, donc un vrai
+    // `/assets/200-….js` continue d'être servi et mis en cache 1 an. Seule une
+    // adresse SANS fichier derrière est refusée.
+    //
+    // Aucune route de l'application ne contient de point (`/dashboard`,
+    // `/q/:code`, `/platform/audit`… — vérifié sur les 20 routes), donc ce
+    // refus ne peut pas casser une page.
+    const EXTENSIONS_STATIQUES = /\.(?:css|js|mjs|cjs|map|json|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|eot|otf|mp4|webm|txt|xml|pdf)$/i;
+    app.use((req, res, next) => {
+        if (req.method !== 'GET' && req.method !== 'HEAD')
+            return next();
+        if (API_PREFIXES.some((p) => req.path.startsWith(p)))
+            return next();
+        if (!EXTENSIONS_STATIQUES.test(req.path))
+            return next();
+        res.setHeader('Cache-Control', 'no-store');
+        res.status(404).type('text/plain').send('Not found');
+    });
     // 2. Fallback SPA : toute requête GET non-API non résolue renvoie l'app
     //    (le routing des pages est géré côté client par react-router).
     //    NB : Express 5 (path-to-regexp v8) interdit le motif '*' — on utilise
@@ -176,7 +208,10 @@ export async function serveStaticClient({ app }) {
             return next();
         if (res.headersSent)
             return next();
-        res.setHeader('Cache-Control', 'no-cache');
+        // La coquille dépend du visiteur (session) : `no-store`, pas `no-cache`.
+        // `no-cache` autorise le stockage avec revalidation — un CDN a le droit
+        // de la garder, et Render l'a fait (`public, max-age=14400` observé).
+        res.setHeader('Cache-Control', 'private, no-store');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         // NB : res.sendFile d'Express 5 renvoie 404 sur ce chemin absolu (bug
         // path-to-regexp/serve-static interne) — fs.createReadStream marche.
