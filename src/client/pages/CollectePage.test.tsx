@@ -535,3 +535,46 @@ describe('Vague 4 — accessibilité du parcours public', () => {
     }
   });
 });
+
+describe('modeFormulaire : le repli silencieux est devenu explicite', () => {
+  // Régression du « gros soucis » : quand un guichet n'avait aucune opération,
+  // la page affichait tout le catalogue SANS LE DIRE, et les réponses
+  // partaient sans opération. Ces tests verrouillent les 3 états.
+  test('opération avec questions → ses questions, jamais le vivier', async () => {
+    const { modeFormulaire, questionsPourMode } = await import('./CollectePage');
+    const service = { id: 4, libelle_service: 'Retrait', criteres: [{ id: 11 }, { id: 12 }] };
+    const vivier = [{ id: 4 }, { id: 11 }, { id: 12 }];
+    expect(modeFormulaire([{ criteres: [] }, { criteres: [] }], service)).toBe('operation');
+    expect(questionsPourMode('operation', service, vivier)).toEqual(service.criteres);
+  });
+
+  test('opération SANS question → mode dédié, zéro question (plus de repli)', async () => {
+    const { modeFormulaire, questionsPourMode } = await import('./CollectePage');
+    const serviceVide = { id: 5, libelle_service: 'Depot', criteres: [] };
+    const vivier = [{ id: 4 }];
+    expect(modeFormulaire([{ criteres: [] }], serviceVide)).toBe('operation-sans-questions');
+    // Avant : le vivier s'affichait (Depot ressemblait à Retrait).
+    expect(questionsPourMode('operation-sans-questions', serviceVide, vivier)).toEqual([]);
+  });
+
+  test('aucune opération → questionnaire général sur le vivier', async () => {
+    const { modeFormulaire, questionsPourMode } = await import('./CollectePage');
+    const vivier = [{ id: 4 }, { id: 11 }];
+    expect(modeFormulaire([], null)).toBe('general');
+    expect(questionsPourMode('general', null, vivier)).toEqual(vivier);
+  });
+
+  test('opérations présentes mais aucune sélectionnée → pas de questions', async () => {
+    const { modeFormulaire, questionsPourMode } = await import('./CollectePage');
+    // C'est l'étape SERVICE_SELECT qui s'affiche, pas les questions.
+    expect(modeFormulaire([{ criteres: [{ id: 1 }] }], null)).toBe('operation-sans-questions');
+    expect(questionsPourMode('operation-sans-questions', null, [{ id: 9 }])).toEqual([]);
+  });
+
+  test('criteres null/undefined → jamais de crash', async () => {
+    const { modeFormulaire, questionsPourMode } = await import('./CollectePage');
+    expect(modeFormulaire([], undefined)).toBe('general');
+    expect(questionsPourMode('general', undefined, [])).toEqual([]);
+    expect(modeFormulaire([{ criteres: null }], { criteres: null })).toBe('operation-sans-questions');
+  });
+});
