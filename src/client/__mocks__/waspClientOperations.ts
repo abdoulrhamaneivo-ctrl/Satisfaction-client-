@@ -32,10 +32,10 @@ const inexistante = vi.fn(async () => {
 });
 
 export const getCriteres = inexistante;
-export const getServices = inexistante;
-export const getGuichets = inexistante;
+export const getServices = vi.fn(async () => []);
+export const getGuichets = vi.fn(async () => []);
 export const getReponses = inexistante;
-export const getAvisGroupes = inexistante;
-export const getAgences = inexistante;
+export const getAvisGroupes = vi.fn(async () => ({ avis: [], hasMore: false }));
+export const getAgences = vi.fn(async () => []);
 export const getAIStatus = inexistante;
 export const logout = vi.fn(async () => undefined);

@@ -196,6 +196,7 @@ Légende : ✅ Corrigé · 🟡 Partiel · ⛔ Restant
 |---|---|---|
 | `src/shared/branding.test.ts` | 16 | ratios ≥ 4,5:1 des variantes, anneau ≥ 3:1, **blanc sur aplat ≥ 4,5:1**, **texte sur aplat teinté à 10/15/25 % d'opacité**, hiérarchie primaire/secondaire, garde-fous white-label |
 | `src/client/pages/CollectePage.test.tsx` | +5 | radiogroup nommés, flèches, région live pré-montée, labels associés, cible 44 px |
+| `src/client/pages/AvisPage.a11y.test.tsx` | 1 | audit axe-core de la page « Avis » (back-office) dans son état CHARGÉ, + un jeu de données complet |
 | `src/client/pages/CollectePage.a11y.test.tsx` | 4 | audit axe-core du parcours public (SMILEY, OUI_NON, commentaire) + un test témoin qui prouve que l'auditeur signale bien |
 
 Total après Vague 4 : **260 tests** répartis sur 21 fichiers, dont 18 sur le parcours
@@ -207,6 +208,29 @@ inaccessible. C'est précisément ce que la Vague 4 cherche à empêcher.
 
 ---
 
+### Ce que l'élargissement de l'audit à une page interne a trouvé
+
+L'audit automatisé ne portait que sur le parcours public. Élargi à la page
+« Avis » — l'écran interne le plus consulté, monté dans son état CHARGÉ —
+il a trouvé deux défauts que personne n'avait vus :
+
+| Défaut | Effet | Critère |
+|---|---|---|
+| Les deux champs date du filtre avaient un `<label>` décoratif (aucun `htmlFor`) | Le lecteur d'écran annonçait « date » sans dire laquelle | 1.3.1 / 4.1.2 |
+| `LigneReponse` lisait `score_brut` (colonne héritée, nullable) dans sa branche SMILEY | **Un client ayant mis 4/5 pouvait s'afficher avec 1 étoile et une barre à 0/5** quand `score_brut` est NULL et `score_officiel` renseigné | — (intégrité de la donnée affichée) |
+
+Le second est le plus grave : la branche ECHELLE du même composant
+résolvait déjà la note canonique, avec un commentaire expliquant pourquoi —
+les deux branches n'étaient pas d'accord sur la source, et celle du
+SMILEY reprenait la colonne que la migration avait marquée « legacy ».
+Même famille de défaut que la vague 6 : deux règles pour une même donnée.
+
+L'élargissement a aussi nécessité un correctif de configuration : les
+tests transformaient le JSX en runtime CLASSIQUE alors que l'application
+utilise le runtime AUTOMATIQUE. Tout composant qui n'importe pas React
+explicitement échouait donc au rendu en test — ce qui aurait découragé
+d'auditer une page de plus.
+
 ## 4. Restant connu (Vague 4b)
 
 | # | Constat | Chemin | Critère |
@@ -215,7 +239,7 @@ inaccessible. C'est précisément ce que la Vague 4 cherche à empêcher.
 | ~~A2~~ | Carte de chaleur sans alternative | — | **corrigé** |
 | ~~A3~~ | Lignes de tableau cliquables sans `tabIndex` | — | **corrigé** |
 | ~~A5~~ | White-label : le tenant pouvait casser le contraste | — | **corrigé** (voir ci-dessous) |
-| A4 (partiel) | Audit axe-core automatisé en place ; reste le rendu réel (focus visible, taille de cible) | `src/client/pages/CollectePage.a11y.test.tsx` | — |
+| A4 (partiel) | axe-core couvre le parcours public et la page Avis ; restent les autres pages internes et le rendu réel (focus visible, taille de cible) | `vitest.config.ts` | — |
 
 ### A5 — le white-label pouvait déroger au contraste
 

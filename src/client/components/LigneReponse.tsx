@@ -143,17 +143,35 @@ export const LigneReponse = ({ r, texteGroupe }: { r: any; texteGroupe?: string 
   }
 
   // ── SMILEY (défaut) : vraie note sur 5 ───────────────────────────────────
+  //
+  // Vague 6 : cette branche lisait `r.score_brut` — la colonne HÉRITÉE,
+  // explicitly nullable — alors que la branche ECHELLE ci-dessus résout
+  // déjà la note canonique, avec un commentaire qui explique pourquoi.
+  // Les deux branches n'étaient donc pas d'accord sur la source.
+  //
+  // Conséquence réelle : sur une ligne où `score_brut` est NULL mais
+  // `score_officiel` renseigné, `visuelPourNote(null)` renvoie la
+  // NOTE 1 — un client ayant mis 4/5 s'affichait avec une étoile et une
+  // barre à 0/5. Le chemin d'affichage reprenait donc la colonne que la
+  // migration a explicitement marquée « legacy ».
+  //
+  // On applique partout la même règle que pour l'Echelle et que le reste
+  // de l'application : `score_normalise` (canonique) d'abord, puis
+  // `score_officiel`, et seulement en dernier recours `score_brut`.
+  const noteCanonique = scoreNormaliseSur5Client(r);
+  const noteAffichee = noteCanonique ?? Number(r.score_officiel ?? r.score_brut);
   return (
     <li className={coquille} title={libelle}>
       <span className="text-2xl leading-none" aria-hidden>
-        {visuelPourNote(r.score_brut).icon}
+        {Number.isFinite(noteAffichee) ? visuelPourNote(noteAffichee).icon : null}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-bold text-foreground">{libelle}</span>
-        <BarreNote score={r.score_brut} />
+        <BarreNote score={Number.isFinite(noteAffichee) ? noteAffichee : 0} />
       </span>
       <span className="shrink-0 text-sm font-bold text-foreground font-satoshi">
-        {r.score_brut}<span className="text-[11px] font-semibold text-muted-foreground">/5</span>
+        {Number.isFinite(noteAffichee) ? noteAffichee : '—'}
+        <span className="text-[11px] font-semibold text-muted-foreground">/5</span>
       </span>
     </li>
   );

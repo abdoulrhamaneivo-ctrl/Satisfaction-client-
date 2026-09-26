@@ -112,6 +112,16 @@ export default defineConfig({
           globals: false,
           setupFiles: [path.resolve(racine, 'src/client/__mocks__/setupUi.ts')],
         },
+        // Vague 6 : `tsconfig.src.json` déclare `jsx: "preserve"`, et
+        // esbuild retombe alors sur le runtime CLASSIQUE (React.createElement)
+        // — alors que l'application est compilée par Vite avec le runtime
+        // AUTOMATIQUE. Résultat : tout composant qui n'importe pas React
+        // explicitement (MotionCard, PageShell…) échoue au rendu en test
+        // avec « React is not defined », alors qu'il fonctionne en
+        // production. On aligne la transformation de test sur celle de
+        // l'app, plutôt que d'ajouter des imports React au code applicatif
+        // pour satisfaire un harnais.
+        esbuild: { jsx: 'automatic' },
         resolve: { alias },
       },
     ],

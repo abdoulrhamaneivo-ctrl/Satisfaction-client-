@@ -410,25 +410,33 @@ export const AvisPage = () => {
                 </Select>
               </div>
 
-              {/* Start Date Filter */}
+              {/* Start Date Filter — Vague 6 : le <label> était purement
+                  décoratif (aucun htmlFor), le champ n'avait donc AUCUN nom
+                  accessible : un lecteur d'écran annonçait « date » sans
+                  savoir laquelle des deux. Détecté par axe-core. */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} /> Date Début
-                </label>                <Input
+                <label htmlFor="avis-filtre-debut" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={12} aria-hidden /> Date Début
+                </label>
+                <Input
+                  id="avis-filtre-debut"
                   type="date"
+                  aria-label="Filtrer les avis à partir du"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="h-11 font-semibold"
                 />
               </div>
 
-              {/* End Date Filter */}
+              {/* End Date Filter — même correction. */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} /> Date Fin
+                <label htmlFor="avis-filtre-fin" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={12} aria-hidden /> Date Fin
                 </label>
                 <Input
+                  id="avis-filtre-fin"
                   type="date"
+                  aria-label="Filtrer les avis jusqu'au"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="h-11 font-semibold"
