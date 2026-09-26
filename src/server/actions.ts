@@ -510,7 +510,20 @@ const soumettreAvisImpl = async (args: any, context: any) => {
   }
 
   // --- ANTI-REJEU (C2) : HMAC-SHA256(sel, E.164) scoped par entreprise + jour ---
-    let hachageTelephone: string | undefined;
+  //
+  // ⚠️ ATTENTION — LECTEUR PRESSÉ : ce bloc resemble à une protection, il
+  // n'en est pas une. Le parcours public n'envoie le téléphone qu'en T2
+  // (`completerSoumission`) : ici `telephone` est toujours absent, donc le
+  // `if (telephone)` plus bas est faux et le rejet « déjà un avis
+  // aujourd'hui » ne s'exécute JAMAIS. La protection réelle est le rate
+  // limiting (plus haut) et la fenêtre de 30 min de T2, bornée par un
+  // `id_soumission` non devinable.
+  //
+  // Conséquence assumée : un même numéro peut déposer un nombre illimité
+  // d'avis dans la journée. Écarté par décision le 2026-09-26 — voir
+  // docs/audit/ETAT_REEL_PROJET.md §3, P8. Ne pas « corriger » ce bloc
+  // sans décision produit : cela changerait le comportement de collecte.
+  let hachageTelephone: string | undefined;
     let telephoneE164: string | undefined;
     if (telephone) {
       telephoneE164 = normaliserTelephoneE164(telephone);
@@ -526,6 +539,9 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       });
       if (!guichetPourEntreprise) throw new HttpError(404, 'Guichet introuvable.');
 
+      // Code inatteignable depuis le parcours public : T1 ne reçoit pas de
+      // téléphone (le client l'envoie en T2). Voir l'avertissement en tête
+      // de fonction — le rejet existe mais n'est jamais appelé.
       const existant = await context.entities.VoteAntiRejeu.findFirst({
         where: {
           id_entreprise: guichetPourEntreprise.agence.id_entreprise,
@@ -1192,6 +1208,16 @@ export const completerSoumission = async (
       throw new HttpError(400, 'Numéro de téléphone invalide.');
     }
     const hachage = hmacSHA256(getAntiReplaySalt(), telephoneE164);
+    // ENREGISTREMENT, PAS REJET — c'est le seul endroit du parcours public
+    // où le téléphone est traité. L'`upsert` ci-dessous ne peut pas
+    // matcher : sa clause `where` porte `new Date()` au milliseconde, alors
+    // que la clé unique est (entreprise, hachage, date_vote) et que le
+    // `create` qui suit utilise un autre `new Date()`. Chaque appel insère
+    // donc une ligne au lieu de mettre à jour. Effet voulu ici : le vote
+    // reste enregistré, le volume est borné par la purge de 24 h
+    // (`archivageAutomatique`). Ce qui manque, c'est le REJET d'un second
+    // avis le même jour : écarté par décision le 2026-09-26, voir
+    // docs/audit/ETAT_REEL_PROJET.md §3, P8.
     await context.entities.VoteAntiRejeu.upsert({
       where: {
         id_entreprise_hachage_tel_date_vote: {

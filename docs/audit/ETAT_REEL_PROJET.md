@@ -286,18 +286,41 @@ Le motif correct existe déjà dans le dépôt (`SettingsPage.tsx:322-365`,
 
 ---
 
-### P8 — 🟠 MOYEN — le garde anti-rejeu téléphone est inopérant
+### P8 — 🟠 MOYEN — garde anti-rejeu téléphone : ÉCARTÉ par décision (2026-09-26)
 
-Le bloc de rejet est conditionné à la réception d'un téléphone
-(`actions.ts:472` `if (telephone)`), et le client envoie `telephone: undefined`
-en T1 (`CollectePage.tsx:285-287`). Ni le `findFirst` + rejet 429
-(`actions.ts:486-496`) ni l'`upsert` (`:714-736`) ne sont donc jamais exécutés
-depuis le parcours public. La protection réelle repose uniquement sur le rate
-limiting. Aggravant : l'`upsert` ne peut de toute façon pas matcher (le `where`
-utilise `new Date()` au milliseconde près, différent du `create`) → croissance
-non bornée entre deux purges.
+**Décision : on laisse en l'état.** Le comportement n'est pas modifié.
+Ce qui suit consigne ce qui est réellement protégé et ce qui ne l'est
+pas, pour que personne ne redécouvre le sujet dans six mois.
 
----
+**Analyse corrigée** (le constat initial était partiellement faux) :
+
+- Le rejet « déjà un avis aujourd'hui » (`findFirst` + 429) vit dans **T1**
+  (`actions.ts:529`), qui ne reçoit pas de téléphone : le client envoie les
+  notes en T1 et le téléphone en T2 (`CollectePage.tsx:263`). Ce rejet ne
+  s'exécute donc **jamais** depuis le parcours public. Constat confirmé.
+- T2 dispose pourtant d'un enregistrement anti-rejeu
+  (`actions.ts:1195`) : le constat initial ne le mentionnait pas. Donc
+  l'enregistrement fonctionne, **le rejet n'existe pas en T2**.
+- L'`upsert` de T2 ne peut structurellement pas matcher : sa clause `where`
+  utilise `new Date()` au milliseconde, différente du `create` qui suit.
+  Chaque appel insère donc une ligne au lieu de mettre à jour.
+- La croissance n'est **pas** non bornée : `archivageAutomatique` purge
+  `VoteAntiRejeu` au-delà de 24 h (`archivageAutomatique.ts:56`). Le volume
+  est borné au trafic d'une journée. Le constat initial surestimait ce point.
+
+**Ce qui reste protégé :** le rate limiting sur T1 (8 avis/min par
+IP+guichet, 30/min par IP, 100/min par guichet) et la fenêtre de 30 min
+sur T2, bornée par un `id_soumission` non devinable.
+
+**Ce qui ne l'est pas :** un même numéro peut déposer un nombre illimité
+d'avis dans la journée. Aucun signal, aucun blocage.
+
+**Conséquence à assumer :** le bloc de rejet de T1 est du code mort qui
+*RESSEMBLE* à une protection. Un lecteur pressé peut croire l'anti-rejeu
+actif alors qu'il ne l'est pas — d'où les commentaires plantés aux deux
+endroits. Si un jour on veut le rétablir, le correctif est court (basculer
+le `findFirst` + 429 de T1 vers T2) ; il n'est pas fait parce qu'il changerait
+le comportement de collecte, ce qui est une décision produit.
 
 ### P9 — 🟠 MOYEN — le budget de l'IA globale sature dès la 3ᵉ entreprise
 
@@ -438,7 +461,7 @@ couverture le plus rentable qui reste.
 | **P6** libellé d'option depuis une position | MOYEN | ✅ **corrigé** (vague 2) | `src/shared/libelleReponse.ts` : identité `ReponseOption` seule source |
 | **P12** objectifs calculés hors moteur | MOYEN | ✅ **corrigé** | `getObjectifs` lit désormais le score canonique |
 | **P7** accessibilité (3 blocants) | MOYEN | ✅ **corrigé** (vague 4) | contrastes, clavier, focus, messages d’état — voir `docs/accessibility/WCAG_22_AA_AUDIT.md` |
-| **P8** anti-rejeu téléphone inopérant | MOYEN | ⬜ ouvert | à repenser (le garde dépend d’un champ que le client n’envoie pas) |
+| **P8** anti-rejeu téléphone inopérant | MOYEN | ⛔ **écarté par décision** (2026-09-26) | comportement laissé tel quel ; le rate limiting T1/T2 reste la protection réelle. Analyse complète et conséquences consignées au §3 |
 | **V5-tests** surface publique sans test serveur | ÉLEVÉ | ✅ **corrigé** (vague 5) | 14 tests serveur sur `soumettreAvis`/`completerSoumission` : code opaque obligatoire, périmètre tenant, volume borné, 4xx vs 5xx, idempotence. La suite complète pouvait verdir pendant que P1 revenait en arrière — vérifié en réintroduisant `guichetId` |
 | **V5-couv** seuils de couverture sur RLS + surface publique | MOYEN | ✅ **corrigé** (vague 5) | seuils PAR FICHIER sur `rowLevelSecurity`, `rateLimit`, `validation`, `etatAnalyse`, `gex/budget`, `gex/moteurGlobal` ; garde vérifiée en abaissant la couverture |
 | **P9** plafond du budget IA globale | MOYEN | ✅ **corrigé** (vague 5) | budget dimensionné sur les entreprises actives (plafond 20/jour), cron quotidien au lieu du lundi, SEMAINE traitée avant MOIS, reliquat journalisé. Réserve : le filtre `model: { not: null }` était déjà présent, le constat était erroné sur ce point |
