@@ -17,6 +17,7 @@ import { journaliser } from './audit';
 import { envoyerEmailBrevo } from './lib/emailBrevo';
 import { createUser, createProviderId, sanitizeAndSerializeProviderData, findAuthIdentity, updateAuthIdentityProviderData, getProviderDataWithPassword } from 'wasp/server/auth';
 import { canActivateTotpSetup, canStartTotpSetup, hasEnrolledTotp } from './security/platformMfa';
+import { verifierCodeTotp, calculerLockoutJusqua } from './totp';
 
 // ── Plans de référence (Doc 11 §4 — constant code, pas une table) ──
 export const PLANS: Record<string, { agences: number; utilisateurs: number; guichets: number }> = {
@@ -843,7 +844,6 @@ export const desactiverComptePlatform = async (args: { id_user_cible: string ; t
 import {
   genererSecretTotp,
   urlOtpauth,
-  verifierCodeTotp,
   chiffrerSecretTotp,
   dechiffrerSecretTotp,
 } from './totp';
@@ -965,13 +965,20 @@ export const activer2fa = async (args: { code: string }, context: any) => {
  * secret déchiffré. La "session 2FA validée" est portée par le front (état en
  * mémoire pendant la vie de l'onglet) — le vrai verrou reste le serveur qui
  * refuse les opérations sensibles sans preuve récente (voir exiger2faRecent).
+ * C5 (J+30) : lockout exponentiel + refus replay + timingSafeEqual.
  */
 export const verifier2fa = async (args: { code: string }, context: any) => {
   requireSuperAdmin(context);
 
   const compte = await context.entities.User.findUnique({
     where: { id: context.user.id },
-    select: { totp_secret: true, totp_actif: true },
+    select: { 
+      totp_secret: true, 
+      totp_actif: true,
+      totp_failed_attempts: true,
+      totp_locked_until: true,
+      totp_last_used_step: true,
+    },
   });
   if (!compte?.totp_actif || !compte.totp_secret) {
     // Le setup/activation reste le seul bootstrap autorisé.
@@ -979,9 +986,44 @@ export const verifier2fa = async (args: { code: string }, context: any) => {
   }
 
   const secret = dechiffrerSecretTotp(compte.totp_secret);
-  if (!verifierCodeTotp(args.code, secret)) {
+  const codeOk = verifierCodeTotp(args.code, secret, Date.now(), {
+    totp_failed_attempts: compte.totp_failed_attempts,
+    totp_locked_until: compte.totp_locked_until,
+    totp_last_used_step: compte.totp_last_used_step,
+  });
+
+  if (!codeOk) {
+    // Incrémenter compteur échecs + lockout exponentiel
+    const nouveauxEchecs = (compte.totp_failed_attempts || 0) + 1;
+    const lockoutJusqua = calculerLockoutJusqua(nouveauxEchecs);
+    await context.entities.User.update({
+      where: { id: context.user.id },
+      data: {
+        totp_failed_attempts: nouveauxEchecs,
+        totp_locked_until: lockoutJusqua,
+      },
+    });
+    await journaliser({
+      context,
+      action: '2fa.failed',
+      resource: 'User',
+      resource_id: context.user.id,
+      entreprise_id: null,
+      details: { attempts: nouveauxEchecs, lockedUntil: lockoutJusqua?.toISOString() },
+    });
     throw new HttpError(401, 'Code 2FA incorrect.');
   }
+
+  // Succès : reset compteur + mise à jour last_used_step
+  const compteurActuel = Math.floor(Date.now() / 1000 / 30);
+  await context.entities.User.update({
+    where: { id: context.user.id },
+    data: {
+      totp_failed_attempts: 0,
+      totp_locked_until: null,
+      totp_last_used_step: BigInt(compteurActuel),
+    },
+  });
 
   await journaliser({
     context,

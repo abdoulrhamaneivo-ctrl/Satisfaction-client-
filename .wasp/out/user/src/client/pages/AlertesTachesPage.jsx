@@ -197,7 +197,7 @@ export const AlertesTachesPage = () => {
         <section className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-            <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher une alerte, tâche, responsable ou guichet…" className="h-10 pl-9 rounded-xl border-border/60 focus-visible:ring-2 focus-visible:ring-ring/40" aria-label="Rechercher dans les alertes et tâches"/>
+            <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher une alerte, tâche, responsable ou guichet…" className="h-10 pl-9 rounded-xl border-border/60 focus-visible:ring-2 focus-visible:ring-ring" aria-label="Rechercher dans les alertes et tâches"/>
           </div>
           <div className="flex flex-wrap gap-2">
             {[
@@ -268,7 +268,7 @@ export const AlertesTachesPage = () => {
                 {COLONNES.map((col) => {
                 const nombre = tachesFiltrees.filter((t) => t.statut_tache === col.statut).length;
                 const actif = colonneMobile === col.statut;
-                return (<button key={col.statut} type="button" role="tab" aria-selected={actif} onClick={() => setColonneMobile(col.statut)} className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${actif ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/70 bg-card text-muted-foreground'}`}>
+                return (<button key={col.statut} type="button" role="tab" aria-selected={actif} onClick={() => setColonneMobile(col.statut)} className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${actif ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/70 bg-card text-muted-foreground'}`}>
                       {col.label}
                       <span className="rounded-full bg-current/20 px-1.5 py-0.5 text-[10px]">{nombre}</span>
                     </button>);

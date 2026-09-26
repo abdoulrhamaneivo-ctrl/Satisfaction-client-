@@ -9,6 +9,8 @@ import {
   type _ModeleHoraire,
   type _Reponse,
   type _Critere,
+  type _OptionCritere,
+  type _ReponseOption,
   type _AgenceCritere,
   type _CritereService,
   type _Alerte,
@@ -21,6 +23,7 @@ import {
   type _Objectif,
   type _TacheCorrective,
   type _TacheCorrectiveHistorique,
+  type _GlobalExperienceAnalysis,
   type AuthenticatedActionDefinition,
   type Payload,
 } from 'wasp/server/_types'
@@ -219,6 +222,8 @@ export type SoumettreAvis<Input extends Payload = never, Output extends Payload 
     [
       _Reponse,
       _Critere,
+      _OptionCritere,
+      _ReponseOption,
       _AgenceCritere,
       _CritereService,
       _Guichet,
@@ -229,6 +234,20 @@ export type SoumettreAvis<Input extends Payload = never, Output extends Payload 
       _User,
       _AnalyseAvisIA,
       _Canal,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type CompleterSoumission<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _Reponse,
+      _Guichet,
+      _Agence,
+      _VoteAntiRejeu,
+      _AnalyseAvisIA,
     ],
     Input,
     Output
@@ -853,6 +872,17 @@ export type Verifier2fa<Input extends Payload = never, Output extends Payload = 
     [
       _User,
       _AuditLog,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type DeclencherAnalyseGlobale<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedActionDefinition<
+    [
+      _GlobalExperienceAnalysis,
+      _Entreprise,
     ],
     Input,
     Output

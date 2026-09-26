@@ -37,9 +37,9 @@ export const SettingsPage = () => {
                         <AlertTriangle className="size-3.5"/> Clé manquante
                       </span>)}
                   </div>
-                  <h3 className="text-2xl font-bold text-foreground">
+                  <h2 className="text-2xl font-bold text-foreground">
                     {aiStatus?.configured ? `${aiStatus?.provider} connecté` : 'Non configurée'}
-                  </h3>
+                  </h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {aiStatus?.configured
                 ? 'Les avis soumis avec commentaires sont automatiquement analysés par le modèle IA.'
@@ -52,7 +52,7 @@ export const SettingsPage = () => {
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fournisseur & Modèle</span>
                     <Sparkles className="size-4 text-primary"/>
                   </div>
-                  <h3 className="text-2xl font-bold text-foreground">{aiStatus?.provider}</h3>
+                  <h2 className="text-2xl font-bold text-foreground">{aiStatus?.provider}</h2>
                   <p className="text-xs font-mono text-primary/90 bg-primary/10 p-2 rounded-lg truncate">
                     {aiStatus?.model}
                   </p>
@@ -81,7 +81,7 @@ export const SettingsPage = () => {
                     <Key className="size-5"/>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">Guide de Déploiement Railway (OpenRouter)</h3>
+                    <h2 className="text-lg font-bold text-foreground">Guide de Déploiement Railway (OpenRouter)</h2>
                     <p className="text-xs text-muted-foreground">
                       Configuration sécurisée des variables d’environnement du serveur.
                     </p>
@@ -250,7 +250,7 @@ function SectionPersonnalisation() {
           <Palette className="size-5"/>
         </div>
         <div>
-          <h3 className="text-lg font-bold text-foreground">Personnalisation client</h3>
+          <h2 className="text-lg font-bold text-foreground">Personnalisation client</h2>
           <p className="text-xs text-muted-foreground">Formulaires de collecte, kits QR et slogan. Vide = défaut Yéba.</p>
         </div>
       </div>

@@ -26,7 +26,13 @@ export function RequireAuth({ children }) {
             logout();
         }
     }, [isSuspended]);
-    if (isLoading && !user) {
+    // SÉCURITÉ (fix flash sans-auth) : ne JAMAIS rendre les enfants pendant le
+    // chargement — même si un user en cache (stale) est présent pendant la
+    // revalidation de session. Sinon le contenu protégé s'affiche quelques
+    // secondes avant la redirection /login (contournement par modification
+    // d'URL constaté). Seul le spinner est affiché tant que l'état auth
+    // n'est pas définitivement résolu.
+    if (isLoading) {
         return (<div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="size-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary"/>
@@ -34,7 +40,7 @@ export function RequireAuth({ children }) {
         </div>
       </div>);
     }
-    if (!isLoading && (!user || isSuspended)) {
+    if (!user || isSuspended) {
         return <Navigate to={routes.LoginRoute.to} replace/>;
     }
     if (mustChangePassword && location.pathname !== routes.AccountRoute.to) {

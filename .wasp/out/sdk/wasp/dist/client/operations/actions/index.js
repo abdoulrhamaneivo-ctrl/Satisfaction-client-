@@ -30,7 +30,9 @@ export const reconduirePlanning = createAction('operations/reconduire-planning',
 // PUBLIC API
 export const appliquerSuggestion = createAction('operations/appliquer-suggestion', ['AffectationGuichet', 'Guichet', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const soumettreAvis = createAction('operations/soumettre-avis', ['Reponse', 'Critere', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal']);
+export const soumettreAvis = createAction('operations/soumettre-avis', ['Reponse', 'Critere', 'OptionCritere', 'ReponseOption', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal']);
+// PUBLIC API
+export const completerSoumission = createAction('operations/completer-soumission', ['Reponse', 'Guichet', 'Agence', 'VoteAntiRejeu', 'AnalyseAvisIA']);
 // PUBLIC API
 export const createAgence = createAction('operations/create-agence', ['Agence', 'User', 'Entreprise']);
 // PUBLIC API
@@ -127,4 +129,6 @@ export const setup2fa = createAction('operations/setup2fa', ['User', 'AuditLog']
 export const activer2fa = createAction('operations/activer2fa', ['User', 'AuditLog']);
 // PUBLIC API
 export const verifier2fa = createAction('operations/verifier2fa', ['User', 'AuditLog']);
+// PUBLIC API
+export const declencherAnalyseGlobale = createAction('operations/declencher-analyse-globale', ['GlobalExperienceAnalysis', 'Entreprise']);
 //# sourceMappingURL=index.js.map

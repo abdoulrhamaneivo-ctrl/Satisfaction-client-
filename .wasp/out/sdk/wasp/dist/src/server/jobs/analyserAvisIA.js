@@ -6,8 +6,9 @@
 // ============================================================================
 import { prisma } from 'wasp/server';
 import { AIService } from '../ai/service';
-import { evaluerCoherenceNote } from '../ai/types';
-const MAX_ATTEMPTS = 3;
+import { evaluerCoherenceNote, PROMPT_VERSION } from '../ai/types';
+import { DELAI_OBSOLESCENCE_MINUTES, MAX_ATTEMPTS_ANALYSE } from '../ai/etatAnalyse';
+const MAX_ATTEMPTS = MAX_ATTEMPTS_ANALYSE;
 // Garde-fou budget IA : le modèle gratuit OpenRouter est plafonné
 // (~50 requêtes/jour). On limite le nombre d'analyses réellement envoyées
 // à l'API par jour ; au-delà, les analyses restent PENDING et seront
@@ -98,6 +99,20 @@ export const analyserAvisIAJob = async (_args, _context) => {
     if (!AIService.isConfigured()) {
         return { status: 'skipped', message: 'Clé IA non configurée (NVIDIA_API_KEY, OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
     }
+    // RÉCUPÉRATION (Vague 1, P3) : un traitement resté PROCESSING plus de
+    // DELAI_OBSOLESCENCE_MINUTES est mort (crash, OOM, redéploiement, worker
+    // tué) : sans ce rattrapage, la ligne restait coincée pour toujours et
+    // l'UI affichait « Analyse IA en cours… » indéfiniment. On remet en file
+    // avec la mention du recovered, jamais en silence.
+    const maintenant = new Date();
+    const perimeeAvant = new Date(maintenant.getTime() - DELAI_OBSOLESCENCE_MINUTES * 60_000);
+    const { count: recuperees } = await prisma.analyseAvisIA.updateMany({
+        where: { status: 'PROCESSING', updatedAt: { lt: perimeeAvant } },
+        data: {
+            status: 'PENDING',
+            error: `Traitement interrompu (statut PROCESSING depuis plus de ${DELAI_OBSOLESCENCE_MINUTES} min) — remis en file.`,
+        },
+    });
     // Sélectionne les analyses en attente ou en échec avec des tentatives restantes
     const pendingAnalyses = await prisma.analyseAvisIA.findMany({
         where: {
@@ -117,10 +132,11 @@ export const analyserAvisIAJob = async (_args, _context) => {
                 },
             },
         },
+        orderBy: { createdAt: 'asc' }, // backlog traité en FIFO (audit P14 h)
         take: 10, // Concurrence maîtrisée
     });
     if (pendingAnalyses.length === 0) {
-        return { status: 'idle', count: 0 };
+        return { status: 'idle', count: 0, recuperees };
     }
     // Budget quotidien : on compte les analyses déjà traitées aujourd'hui
     // (processedAt >= début du jour local) et on s'arrête au quota atteint.
@@ -144,14 +160,19 @@ export const analyserAvisIAJob = async (_args, _context) => {
         // Évite les doublons si déjà traitée entre-temps
         if (item.status === 'DONE')
             continue;
-        // Passage au statut PROCESSING
-        await prisma.analyseAvisIA.update({
-            where: { id: item.id },
+        // Prise en charge ATOMIQUE : `updateMany` filtré sur le statut constaté.
+        // Si un autre worker a traité la ligne entre-temps, count = 0 → on
+        // l'ignore au lieu de l'écraser (audit P14 h : le `update` classique
+        // réécrivait un statut peut-être déjà DONE et ré-incrémentait attempts).
+        const prise = await prisma.analyseAvisIA.updateMany({
+            where: { id: item.id, status: item.status },
             data: {
                 status: 'PROCESSING',
                 attempts: { increment: 1 },
             },
         });
+        if (prise.count === 0)
+            continue;
         const reponse = item.reponse;
         const commentaire = (item.commentaireTexte || reponse.commentaire_texte || '').trim();
         if (!commentaire) {
@@ -163,13 +184,19 @@ export const analyserAvisIAJob = async (_args, _context) => {
                     sentiment: 'NEUTRAL',
                     sentimentScore: 0.5,
                     themes: JSON.stringify(['AUTRE']),
+                    sousThemes: JSON.stringify([]),
                     problemePrincipal: null,
+                    problemesSecondaires: JSON.stringify([]),
+                    severite: 'LOW',
+                    emotion: null,
+                    confidence: 1,
                     urgence: 'LOW',
                     resume: "Aucun commentaire texte fourni par l'usager.",
                     actionRecommandee: null,
                     // Sans texte, pas de croisement possible
                     coherenceNote: null,
                     sentimentRetenu: null,
+                    promptVersion: PROMPT_VERSION,
                     processedAt: new Date(),
                 },
             });
@@ -178,7 +205,9 @@ export const analyserAvisIAJob = async (_args, _context) => {
         }
         const agentNom = reponse.agent ? `${reponse.agent.prenom || ''} ${reponse.agent.nom || ''}`.trim() : null;
         try {
-            const result = await AIService.analyserAvis(commentaire, {
+            // Vague 1 Phase F : le service renvoie provider/modèle effectifs
+            // (secours inclus) pour traçabilité.
+            const { result, provider, model } = await AIService.analyserAvis(commentaire, {
                 score: reponse.score_brut,
                 agence: reponse.agence?.nom_agence,
                 guichet: reponse.guichet?.nom_guichet,
@@ -200,13 +229,24 @@ export const analyserAvisIAJob = async (_args, _context) => {
                     sentiment: result.sentiment,
                     sentimentScore: result.sentiment_score,
                     themes: JSON.stringify(result.themes),
+                    // Champs étendus v2 (replis si le modèle ne les renvoie pas) :
+                    // severite ← urgence (même échelle), confidence ← sentiment_score.
+                    sousThemes: JSON.stringify(result.sous_themes ?? []),
                     problemePrincipal: result.probleme_principal || null,
+                    problemesSecondaires: JSON.stringify(result.problemes_secondaires ?? []),
+                    severite: result.severite ?? result.urgence,
+                    emotion: result.emotion ?? null,
+                    confidence: result.confidence ?? result.sentiment_score,
                     urgence: result.urgence,
                     resume: result.resume,
                     actionRecommandee: result.action_recommandee || null,
                     // Verdict de cohérence + sentiment retenu pour les statistiques
                     coherenceNote: coherence.type,
                     sentimentRetenu: coherence.sentiment_retenu,
+                    // Traçabilité modèle (§47-48) : fini les défauts deepseek figés.
+                    model,
+                    provider,
+                    promptVersion: PROMPT_VERSION,
                     error: null,
                     processedAt: new Date(),
                 },

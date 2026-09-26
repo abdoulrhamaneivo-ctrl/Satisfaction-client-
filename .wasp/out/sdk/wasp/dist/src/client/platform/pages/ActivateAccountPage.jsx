@@ -78,7 +78,7 @@ export default function ActivateAccountPage() {
                   Nouveau mot de passe
                 </label>
                 <div className="relative mt-1.5">
-                  <input id="act-mdp" type={voirMdp ? 'text' : 'password'} value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-ring/40" placeholder="8 caractères minimum" autoComplete="new-password"/>
+                  <input id="act-mdp" type={voirMdp ? 'text' : 'password'} value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-ring" placeholder="8 caractères minimum" autoComplete="new-password"/>
                   <button type="button" onClick={() => setVoirMdp((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={voirMdp ? 'Masquer' : 'Afficher'}>
                     {voirMdp ? <EyeOff className="size-4"/> : <Eye className="size-4"/>}
                   </button>
@@ -89,7 +89,7 @@ export default function ActivateAccountPage() {
                 <label htmlFor="act-conf" className="block text-xs font-black uppercase tracking-widest text-muted-foreground">
                   Confirmer
                 </label>
-                <input id="act-conf" type={voirMdp ? 'text' : 'password'} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40" autoComplete="new-password"/>
+                <input id="act-conf" type={voirMdp ? 'text' : 'password'} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" autoComplete="new-password"/>
               </div>
 
               <button onClick={soumettre} disabled={!valide || envoi} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50">

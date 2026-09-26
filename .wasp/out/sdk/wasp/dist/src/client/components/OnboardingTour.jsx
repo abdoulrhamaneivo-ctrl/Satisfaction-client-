@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, ArrowLeft, X, CheckCircle2, HelpCircle } from 'lucide-react';
 import { Button } from './ds';
@@ -41,6 +41,7 @@ const DEFAULT_STEPS = [
 export function OnboardingTour() {
     const [isOpen, setIsOpen] = useState(false);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    const dialogueRef = useRef(null);
     useEffect(() => {
         // Vérifie si c'est la 1ère connexion
         const hasSeenTour = localStorage.getItem('yeba_onboarding_completed');
@@ -60,6 +61,49 @@ export function OnboardingTour() {
         window.addEventListener('yeba:start-tour', handleStartTour);
         return () => window.removeEventListener('yeba:start-tour', handleStartTour);
     }, []);
+    /* Vague 4 (WCAG 2.2 AA — 4.1.2 nom/rôle/valeur, 2.1.2 sans piège clavier,
+       2.4.3 ordre de focus) : le tutoriel est un dialogue modal.
+       - `role="dialog"` + `aria-modal` + `aria-labelledby` le désignent comme tel ;
+       - le focus entre dans le dialogue à l'ouverture et y reste (piégé) ;
+       - Échap ferme, comme un dialogue natif ;
+       - le focus revient sur l'élément précédent à la fermeture.
+       L'effet est déclaré AVANT le retour anticipé `if (!isOpen) return null` :
+       un hook conditionnel changerait l'ordre des hooks d'un rendu à l'autre. */
+    useEffect(() => {
+        if (!isOpen)
+            return;
+        const previous = document.activeElement;
+        const node = dialogueRef.current;
+        const focusables = () => Array.from(node?.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? []).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+        focusables()[0]?.focus();
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setIsOpen(false);
+                return;
+            }
+            if (event.key !== 'Tab')
+                return;
+            const elements = focusables();
+            if (elements.length === 0)
+                return;
+            const first = elements[0];
+            const last = elements[elements.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            }
+            else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            previous?.focus?.();
+        };
+    }, [isOpen]);
     if (!isOpen)
         return null;
     const currentStep = DEFAULT_STEPS[currentStepIndex];
@@ -88,7 +132,7 @@ export function OnboardingTour() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/75 " onClick={handleComplete}/>
 
         {/* Modal / Bulle du tutoriel pas-à-pas */}
-        <motion.div key={currentStepIndex} initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.2 }} className="relative z-10 w-full max-w-lg rounded-3xl border border-primary/40 bg-card p-6 sm:p-8 shadow-2xl ring-1 ring-white/10">
+        <motion.div key={currentStepIndex} ref={dialogueRef} role="dialog" aria-modal="true" aria-labelledby="tour-titre" aria-describedby="tour-description" initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.2 }} className="relative z-10 w-full max-w-lg rounded-3xl border border-primary/40 bg-card p-6 sm:p-8 shadow-2xl ring-1 ring-white/10">
           {/* Bouton Fermer */}
           <button onClick={handleComplete} className="absolute right-5 top-5 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Passer le tutoriel">
             <X className="size-4"/>
@@ -112,10 +156,10 @@ export function OnboardingTour() {
 
           {/* Titre & Description */}
           <div className="space-y-2 mb-6">
-            <h3 className="text-xl font-bold font-satoshi text-foreground leading-snug">
+            <h3 id="tour-titre" className="text-xl font-bold font-satoshi text-foreground leading-snug">
               {currentStep.title}
             </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+            <p id="tour-description" className="text-sm text-muted-foreground leading-relaxed font-medium">
               {currentStep.description}
             </p>
           </div>

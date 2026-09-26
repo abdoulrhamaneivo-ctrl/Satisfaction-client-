@@ -12,6 +12,7 @@
 // direct qui l'omettrait) ont `id_soumission = null`. On ne les fusionne
 // jamais entre eux : chaque ligne sans id_soumission reste son propre avis
 // (fallback sur son `id` de ligne comme clé de regroupement unique).
+import { noteSur5 } from '../shared/noteSur5';
 /**
  * Regroupe une liste de lignes Reponse en avis distincts.
  * Conserve l'ordre de première apparition.
@@ -56,21 +57,16 @@ export function compterAvis(reponses) {
  * Ramène les réponses quantitatives sur une échelle commune de 1 à 5.
  * Les réponses de collecte libre ne sont pas des mesures de satisfaction :
  * les inclure dans une moyenne créerait un score artificiel.
+ *
+ * Vague 1 (P2) : la règle est désormais UNIQUE et vit dans
+ * `src/shared/noteSur5.ts` — elle exclut explicitement le NPS et le CES
+ * (indicateurs dédiés, sens d'effort inversé) au lieu de les laisser entrer
+ * dans la moyenne. Les quatre implémentations divergentes qui coexistaient
+ * (celle-ci, `client/utils.ts`, `DashboardCharts.normaliserScoreSur5` et
+ * celle supprimée de `LigneReponse`) passent désormais toutes par ici.
  */
 export function scoreNormaliseSur5(reponse) {
-    const type = reponse.critere?.type_reponse;
-    if (type === 'TEXTE' || type === 'CASES' || type === 'QCM')
-        return null;
-    if (type === 'ECHELLE') {
-        const [minBrut, maxBrut] = (reponse.critere?.options_reponse || '1,5').split(',');
-        const min = Number(minBrut);
-        const max = Number(maxBrut);
-        if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
-            const ratio = (reponse.score_brut - min) / (max - min);
-            return Math.max(1, Math.min(5, 1 + ratio * 4));
-        }
-    }
-    return reponse.score_brut >= 1 && reponse.score_brut <= 5 ? reponse.score_brut : null;
+    return noteSur5(reponse);
 }
 /**
  * Score moyen PAR AVIS : chaque soumission compte pour 1, quel que soit son

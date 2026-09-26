@@ -73,9 +73,28 @@ const fileUploadEnvSchema = z.object({
   AWS_S3_FILES_BUCKET: z.string().optional()
 });
 
+const secretFort = (nom) => z.string(`${nom} manquant \u2014 g\xE9n\xE9rez-le avec : openssl rand -hex 32`).min(32, `${nom} doit faire au moins 32 caract\xE8res (openssl rand -hex 32)`);
 const serverEnvValidationSchema = defineEnvValidationSchema(z.object({
   ...authEnvSchema.shape,
-  ...fileUploadEnvSchema.shape
+  ...fileUploadEnvSchema.shape,
+  // C6a : JWT_SECRET exigé ici aussi (le défaut DEVJWTSECRET du socle Wasp
+  // ne doit jamais servir) + clé DÉDIÉE au chiffrement des secrets TOTP
+  // (séparation des usages : JWT = sessions, TOTP_ENCRYPTION_KEY = 2FA).
+  // Rotation : *_PREVIOUS (optionnelles) = anciennes clés acceptées en
+  // déchiffrement seul le temps du rechiffrement (voir
+  // src/server/scripts/rotationCleTotp.ts).
+  JWT_SECRET: secretFort("JWT_SECRET"),
+  JWT_SECRET_PREVIOUS: z.string().min(32).optional(),
+  TOTP_ENCRYPTION_KEY: secretFort("TOTP_ENCRYPTION_KEY"),
+  TOTP_ENCRYPTION_KEY_PREVIOUS: z.string().min(32).optional(),
+  // C1 (J+30) : Redis pour rate-limit partagé multi-instance.
+  // Optionnel en dev (MemoryStore), obligatoire en prod (Railway/Render multi-instance).
+  REDIS_URL: z.string().url("REDIS_URL doit \xEAtre une URL Redis valide (ex. redis://user:pass@host:6379)").optional(),
+  // C2 (J+30) : Sel anti-rejeu téléphone — OBLIGATOIRE ≥ 32 chars (openssl rand -hex 32).
+  // Utilisé pour HMAC-SHA256 du téléphone E.164 dans VoteAntiRejeu.
+  // Sans sel, hachage prévisible → ré-identification + contournement anti-rejeu.
+  ANTI_REPLAY_SALT: secretFort("ANTI_REPLAY_SALT"),
+  ANTI_REPLAY_SALT_PREVIOUS: z.string().min(32).optional()
 }));
 
 const userServerEnvSchema = serverEnvValidationSchema;

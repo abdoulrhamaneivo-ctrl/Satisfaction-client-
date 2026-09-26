@@ -9,6 +9,8 @@ export default async function (args, context) {
     entities: {
       Reponse: prisma.reponse,
       Critere: prisma.critere,
+      OptionCritere: prisma.optionCritere,
+      ReponseOption: prisma.reponseOption,
       AgenceCritere: prisma.agenceCritere,
       CritereService: prisma.critereService,
       Guichet: prisma.guichet,

@@ -126,6 +126,7 @@ export declare const activer2fa: (args: {
  * secret déchiffré. La "session 2FA validée" est portée par le front (état en
  * mémoire pendant la vie de l'onglet) — le vrai verrou reste le serveur qui
  * refuse les opérations sensibles sans preuve récente (voir exiger2faRecent).
+ * C5 (J+30) : lockout exponentiel + refus replay + timingSafeEqual.
  */
 export declare const verifier2fa: (args: {
     code: string;

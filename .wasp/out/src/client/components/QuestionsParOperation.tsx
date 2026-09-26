@@ -495,7 +495,7 @@ export const QuestionsParOperation = ({ selectedAgenceId }: { selectedAgenceId: 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-muted-foreground">Type de réponse attendu</label>
             <Select value={editType} onValueChange={setEditType}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full" aria-label="Type de réponse attendu"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {allTypeReponseOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>

@@ -24,7 +24,11 @@ export const ObjectifsPanel = ({ selectedAgenceId }) => {
     // Remplace l'ancien window.confirm() natif (audit UX 2.2) par une
     // confirmation cohérente avec le reste du design system.
     const [objectifAConfirmer, setObjectifAConfirmer] = useState(null);
-    const activeIds = critereIdsActifs || [];
+    // Même garde que dans `ConfigurationCriteresPage` : `|| []` ne protège que
+    // de `null`/`undefined`. Un rendu tardif, après le démontage du test, a
+    // produit `activeIds.includes is not a function` ici — et la sourcemap
+    // désigne un autre fichier, ce qui a coûté cher à diagnostiquer.
+    const activeIds = Array.isArray(critereIdsActifs) ? critereIdsActifs : [];
     const objectifsList = objectifs || [];
     const criteresList = criteres || [];
     const activeCriteres = criteresList.filter((c) => activeIds.includes(c.id));

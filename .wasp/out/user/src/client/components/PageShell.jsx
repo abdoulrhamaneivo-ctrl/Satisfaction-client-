@@ -24,7 +24,7 @@ export const PageTopNav = ({ racine, agence, actuel, onglets }) => (<nav aria-la
       {/* NavLink pose aria-current="page" automatiquement sur l'onglet actif. */}
       {onglets.map((o) => (<NavLink key={o.to} to={o.to} end className={({ isActive }) => isActive
             ? 'text-primary border-b-2 border-primary py-2 font-bold'
-            : 'text-muted-foreground hover:text-foreground py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm'}>
+            : 'text-muted-foreground hover:text-foreground py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm'}>
           {o.label}
         </NavLink>))}
     </div>

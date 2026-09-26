@@ -15,6 +15,7 @@ import {
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '../utils';
+import { noteSur5 } from '../../shared/noteSur5';
 
 type ChartSkeletonVariant = 'bar' | 'radar' | 'area' | 'horizontalBar' | 'heatmap';
 
@@ -93,6 +94,55 @@ function ChartSkeletonBars({ variant }: { variant: ChartSkeletonVariant }) {
     </div>
   );
 }
+
+/* ============================================================================
+ * Vague 4 — WCAG 2.2 AA 1.1.1 (Contenus non textuels)
+ * ============================================================================
+ * Un graphique Recharts est une image : sans alternative, il n'existe
+ * pour un lecteur d'écran qu'une suite de nombres dans le vide. Chaque
+ * graphique de ce fichier est donc exposé comme `role="img"` avec un
+ * résumé, et accompagné d'un VRAI tableau HTML (`.sr-only`, donc lu par
+ * les technologies d'assistance sans alourdir la maquette) portant les
+ * mêmes chiffres. Le tableau reste la source de vérité : l'image n'est
+ * qu'une représentation visuelle de la même donnée.
+ */
+const TableauAccessible = ({
+  legende,
+  entetes,
+  lignes,
+}: {
+  legende: string;
+  entetes: string[];
+  lignes: (string | number)[][];
+}) => (
+  <table className="sr-only">
+    <caption>{legende}</caption>
+    <thead>
+      <tr>
+        {entetes.map((entete) => (
+          <th key={entete} scope="col">
+            {entete}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {lignes.map((ligne, index) => (
+        <tr key={index}>
+          {ligne.map((cellule, colonne) =>
+            colonne === 0 ? (
+              <th key={colonne} scope="row">
+                {cellule}
+              </th>
+            ) : (
+              <td key={colonne}>{cellule}</td>
+            ),
+          )}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
 
 export function ChartSkeleton({
   variant = 'bar',
@@ -182,22 +232,11 @@ const CSAT_COLORS = [
 ];
 
 export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
-  const normaliserScoreSur5 = (reponse: any): number | null => {
-    const type = reponse.critere?.type_reponse;
-    if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
-    if (type === 'ECHELLE') {
-      const [minBrut, maxBrut] = (reponse.critere?.options_reponse || '1,5').split(',');
-      const min = Number(minBrut);
-      const max = Number(maxBrut);
-      if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
-        return Math.max(1, Math.min(5, 1 + ((reponse.score_brut - min) / (max - min)) * 4));
-      }
-    }
-    return reponse.score_brut >= 1 && reponse.score_brut <= 5 ? reponse.score_brut : null;
-  };
-
+  // Vague 1 (P2) : la normalisation n'est plus réimplémentée ici. Cette copie
+  // locale n'avait AUCUNE branche `score_normalise` et laissait un NPS 3/10
+  // entrer dans l'histogramme comme un 3 étoiles.
   const scores = data
-    .map(normaliserScoreSur5)
+    .map((reponse) => noteSur5(reponse))
     .filter((score): score is number => score !== null);
   const counts = [1, 2, 3, 4, 5].map((note) => ({
     name: `${note} ⭐`,
@@ -212,29 +251,40 @@ export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
     );
   }
 
+  const resume = `Répartition de ${scores.length} réponses chiffrées : ${counts
+    .map((c) => `${c.count} note(s) ${c.name}`)
+    .join(', ')}.`;
+
   return (
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-1 text-sm font-bold text-foreground">Répartition des notes</h3>
       <p className="mb-3 text-xs text-muted-foreground">Scores normalisés sur 5 — réponses qualitatives exclues</p>
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <BarChart data={counts}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
-          <XAxis dataKey="name" className="fill-muted-foreground" tick={{ fontSize: 12 }} />
-          <YAxis className="fill-muted-foreground" tick={{ fontSize: 12 }} />
-          <Tooltip
-            contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
-            labelStyle={{ fontWeight: 700 }}
-          />
-          <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-            {counts.map((_entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={CSAT_COLORS[index]}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div role="img" aria-label={resume}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <BarChart data={counts}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+            <XAxis dataKey="name" className="fill-muted-foreground" tick={{ fontSize: 12 }} />
+            <YAxis className="fill-muted-foreground" tick={{ fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
+              labelStyle={{ fontWeight: 700 }}
+            />
+            <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+              {counts.map((_entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={CSAT_COLORS[index]}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <TableauAccessible
+        legende="Répartition des notes sur 5"
+        entetes={['Note', 'Nombre de réponses']}
+        lignes={counts.map((c) => [c.name, c.count])}
+      />
     </div>
   );
 };
@@ -244,21 +294,33 @@ export const RadarQualite = ({ data }: { data: any[] }) => {
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-1 text-sm font-bold text-foreground">Maturité du pilotage</h3>
       <p className="mb-3 text-xs text-muted-foreground">Planification, collecte récente et traitement des alertes</p>
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <RadarChart cx="50%" cy="50%" data={data}>
-          <PolarGrid className="stroke-border" />
-          <PolarAngleAxis dataKey="subject" className="fill-foreground text-xs font-semibold" />
-          <PolarRadiusAxis angle={30} domain={[0, 100]} className="text-[10px]" />
-          <Radar
-            name="Conformité"
-            dataKey="A"
-            stroke="hsl(var(--secondary))"
-            fill="hsl(var(--secondary))"
-            fillOpacity={0.35}
-          />
-          <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }} />
-        </RadarChart>
-      </ResponsiveContainer>
+      <div
+        role="img"
+        aria-label={`Maturité du pilotage, notée de 0 à 100 : ${data
+          .map((d: any) => `${d.subject} : ${d.A ?? d.valeur ?? 0}`)
+          .join(', ')}.`}
+      >
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <RadarChart cx="50%" cy="50%" data={data}>
+            <PolarGrid className="stroke-border" />
+            <PolarAngleAxis dataKey="subject" className="fill-foreground text-xs font-semibold" />
+            <PolarRadiusAxis angle={30} domain={[0, 100]} className="text-[10px]" />
+            <Radar
+              name="Conformité"
+              dataKey="A"
+              stroke="hsl(var(--secondary))"
+              fill="hsl(var(--secondary))"
+              fillOpacity={0.35}
+            />
+            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }} />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+      <TableauAccessible
+        legende="Maturité du pilotage, sur 100"
+        entetes={['Axe', 'Score']}
+        lignes={(data ?? []).map((d: any) => [d.subject, d.A ?? d.valeur ?? 0])}
+      />
     </div>
   );
 };
@@ -293,45 +355,57 @@ export const TendanceMensuelle = ({ data }: { data: any[] }) => {
           'Évolution du score moyen des avis, mois par mois'
         )}
       </p>
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-          <defs>
-            <linearGradient id="tendanceGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.4}/>
-              <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
-          <XAxis dataKey="mois" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-          {/* L'axe commence à la note minimale possible (1/5) : une courbe qui
-              démarre à 0 exagérait visuellement les variations. */}
-          <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-          <Tooltip
-            contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
-            formatter={(value: any, _name: any, item: any) => [`${value}/5`, `Score moyen (${item?.payload?.nb_avis ?? 0} avis)`]}
-          />
-          <Legend />
-          <Area
-            type="monotone"
-            dataKey="score_moyen"
-            name="Score moyen"
-            stroke="hsl(var(--secondary))"
-            strokeWidth={3}
-            fill="url(#tendanceGrad)"
-            dot={(props: any) => {
-              // Chaque point est coloré selon le niveau de satisfaction :
-              // vert ≥ 4 (bien), jaune ≥ 3 (moyen), rouge < 3 (problème).
-              const { cx, cy, payload, index } = props;
-              const fill =
-                payload.score_moyen >= 4 ? 'hsl(var(--success))'
-                : payload.score_moyen >= 3 ? 'hsl(var(--warning))'
-                : 'hsl(var(--destructive))';
-              return <circle key={`dot-${index}`} cx={cx} cy={cy} r={4} fill={fill} />;
-            }}
-            activeDot={{ r: 6 }}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+      <div
+        role="img"
+        aria-label={`Tendance mensuelle du score moyen sur 5 : ${data
+          .map((d: any) => `${d.mois} ${d.score_moyen}/5 (${d.nb_avis} avis)`)
+          .join(', ')}.`}
+      >
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+            <defs>
+              <linearGradient id="tendanceGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+            <XAxis dataKey="mois" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            {/* L'axe commence à la note minimale possible (1/5) : une courbe qui
+                démarre à 0 exagérait visuellement les variations. */}
+            <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
+              formatter={(value: any, _name: any, item: any) => [`${value}/5`, `Score moyen (${item?.payload?.nb_avis ?? 0} avis)`]}
+            />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="score_moyen"
+              name="Score moyen"
+              stroke="hsl(var(--secondary))"
+              strokeWidth={3}
+              fill="url(#tendanceGrad)"
+              dot={(props: any) => {
+                // Chaque point est coloré selon le niveau de satisfaction :
+                // vert ≥ 4 (bien), jaune ≥ 3 (moyen), rouge < 3 (problème).
+                const { cx, cy, payload, index } = props;
+                const fill =
+                  payload.score_moyen >= 4 ? 'hsl(var(--success))'
+                  : payload.score_moyen >= 3 ? 'hsl(var(--warning))'
+                  : 'hsl(var(--destructive))';
+                return <circle key={`dot-${index}`} cx={cx} cy={cy} r={4} fill={fill} />;
+              }}
+              activeDot={{ r: 6 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      <TableauAccessible
+        legende="Score moyen par mois, sur 5"
+        entetes={['Mois', 'Score moyen sur 5', "Nombre d'avis"]}
+        lignes={data.map((d: any) => [d.mois, d.score_moyen, d.nb_avis])}
+      />
     </div>
   );
 };
@@ -357,34 +431,46 @@ export const ClassementGuichets = ({ data }: { data: any[] }) => {
     <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-premium" style={{ height: hauteur }}>
       <h3 className="mb-1 text-sm font-bold text-foreground">Classement des guichets</h3>
       <p className="mb-3 text-xs text-muted-foreground">Du plus faible au plus performant</p>
-      <ResponsiveContainer width="100%" height="88%" minWidth={0} minHeight={0}>
-        <BarChart data={data} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
-          <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-          <YAxis type="category" dataKey="nom" width={120} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-          <Tooltip
-            contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
-            formatter={(value: any, _name: any, item: any) => [
-              `${value}/5 (${item?.payload?.nb_avis ?? 0} avis)`,
-              item?.payload?.agence || 'Score moyen',
-            ]}
-          />
-          <Bar dataKey="score_moyen" name="Score moyen" radius={[0, 6, 6, 0]}>
-            {data.map((entry, index) => (
-              <Cell
-                key={`guichet-${index}`}
-                fill={
-                  entry.score_moyen >= 4.0
-                    ? 'hsl(var(--success))'
-                    : entry.score_moyen >= 3.0
-                    ? 'hsl(var(--warning))'
-                    : 'hsl(var(--destructive))'
-                }
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div
+        role="img"
+        aria-label={`Classement des guichets, du plus faible au plus performant : ${data
+          .map((d) => `${d.nom} ${d.score_moyen}/5 sur ${d.nb_avis ?? 0} avis`)
+          .join(', ')}.`}
+      >
+        <ResponsiveContainer width="100%" height="88%" minWidth={0} minHeight={0}>
+          <BarChart data={data} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+            <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            <YAxis type="category" dataKey="nom" width={120} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
+              formatter={(value: any, _name: any, item: any) => [
+                `${value}/5 (${item?.payload?.nb_avis ?? 0} avis)`,
+                item?.payload?.agence || 'Score moyen',
+              ]}
+            />
+            <Bar dataKey="score_moyen" name="Score moyen" radius={[0, 6, 6, 0]}>
+              {data.map((entry, index) => (
+                <Cell
+                  key={`guichet-${index}`}
+                  fill={
+                    entry.score_moyen >= 4.0
+                      ? 'hsl(var(--success))'
+                      : entry.score_moyen >= 3.0
+                      ? 'hsl(var(--warning))'
+                      : 'hsl(var(--destructive))'
+                  }
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <TableauAccessible
+        legende="Classement des guichets par score moyen"
+        entetes={['Guichet', 'Score moyen sur 5', "Nombre d'avis"]}
+        lignes={data.map((d) => [d.nom, d.score_moyen, d.nb_avis ?? 0])}
+      />
     </div>
   );
 };
@@ -405,31 +491,43 @@ export const ComparaisonAgents = ({ data }: { data: any[] }) => {
   return (
     <div className="h-64 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-4 text-sm font-bold text-foreground">Scores de satisfaction par agent</h3>
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-        <BarChart data={data} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
-          <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-          <YAxis type="category" dataKey="nom" width={110} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-          <Tooltip
-            contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
-            formatter={(value: any) => [`${value}/5`, 'Score moyen']}
-          />
-          <Bar dataKey="score_moyen" name="Score moyen" radius={[0, 6, 6, 0]}>
-            {data.map((entry, index) => (
-              <Cell
-                key={`agent-${index}`}
-                fill={
-                  entry.score_moyen >= 4.0
-                    ? 'hsl(var(--success))'
-                    : entry.score_moyen >= 3.0
-                    ? 'hsl(var(--warning))'
-                    : 'hsl(var(--destructive))'
-                }
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div
+        role="img"
+        aria-label={`Scores de satisfaction par agent : ${data
+          .map((d) => `${d.nom} ${d.score_moyen}/5`)
+          .join(', ')}.`}
+      >
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <BarChart data={data} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+            <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            <YAxis type="category" dataKey="nom" width={110} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+            <Tooltip
+              contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))' }}
+              formatter={(value: any) => [`${value}/5`, 'Score moyen']}
+            />
+            <Bar dataKey="score_moyen" name="Score moyen" radius={[0, 6, 6, 0]}>
+              {data.map((entry, index) => (
+                <Cell
+                  key={`agent-${index}`}
+                  fill={
+                    entry.score_moyen >= 4.0
+                      ? 'hsl(var(--success))'
+                      : entry.score_moyen >= 3.0
+                      ? 'hsl(var(--warning))'
+                      : 'hsl(var(--destructive))'
+                  }
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <TableauAccessible
+        legende="Scores de satisfaction par agent"
+        entetes={['Agent', 'Score moyen sur 5']}
+        lignes={data.map((d) => [d.nom, d.score_moyen])}
+      />
     </div>
   );
 };

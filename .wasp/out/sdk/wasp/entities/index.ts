@@ -7,17 +7,19 @@ import {
   type ModeleHoraire,
   type Service,
   type Critere,
+  type OptionCritere,
+  type ReponseOption,
   type CritereService,
   type AgenceCritere,
   type Objectif,
   type Canal,
   type Reponse,
   type AnalyseAvisIA,
+  type GlobalExperienceAnalysis,
   type Alerte,
   type TacheCorrective,
   type TacheCorrectiveHistorique,
   type VoteAntiRejeu,
-  type StatistiquesMensuelles,
   type File,
   type Logs,
   type Invitation,
@@ -34,17 +36,19 @@ export {
   type ModeleHoraire,
   type Service,
   type Critere,
+  type OptionCritere,
+  type ReponseOption,
   type CritereService,
   type AgenceCritere,
   type Objectif,
   type Canal,
   type Reponse,
   type AnalyseAvisIA,
+  type GlobalExperienceAnalysis,
   type Alerte,
   type TacheCorrective,
   type TacheCorrectiveHistorique,
   type VoteAntiRejeu,
-  type StatistiquesMensuelles,
   type File,
   type Logs,
   type Invitation,
@@ -63,17 +67,19 @@ export type Entity =
   | ModeleHoraire
   | Service
   | Critere
+  | OptionCritere
+  | ReponseOption
   | CritereService
   | AgenceCritere
   | Objectif
   | Canal
   | Reponse
   | AnalyseAvisIA
+  | GlobalExperienceAnalysis
   | Alerte
   | TacheCorrective
   | TacheCorrectiveHistorique
   | VoteAntiRejeu
-  | StatistiquesMensuelles
   | File
   | Logs
   | Invitation
@@ -90,17 +96,19 @@ export type EntityName =
   | "ModeleHoraire"
   | "Service"
   | "Critere"
+  | "OptionCritere"
+  | "ReponseOption"
   | "CritereService"
   | "AgenceCritere"
   | "Objectif"
   | "Canal"
   | "Reponse"
   | "AnalyseAvisIA"
+  | "GlobalExperienceAnalysis"
   | "Alerte"
   | "TacheCorrective"
   | "TacheCorrectiveHistorique"
   | "VoteAntiRejeu"
-  | "StatistiquesMensuelles"
   | "File"
   | "Logs"
   | "Invitation"

@@ -65,9 +65,9 @@ export const routes = {
         to: "/criteres",
         build: (options) => interpolatePath("/criteres", undefined, options?.search, options?.hash),
     },
-    CollecteRoute: {
-        to: "/q/:guichetId",
-        build: (options) => interpolatePath("/q/:guichetId", options.params, options?.search, options?.hash),
+    SyntheseGlobaleRoute: {
+        to: "/synthese",
+        build: (options) => interpolatePath("/synthese", undefined, options?.search, options?.hash),
     },
     CollecteCodeRoute: {
         to: "/q/:code",

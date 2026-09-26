@@ -51,7 +51,7 @@ export const PageTopNav = ({ racine, agence, actuel, onglets }: PageTopNavProps)
           className={({ isActive }: { isActive: boolean }) =>
             isActive
               ? 'text-primary border-b-2 border-primary py-2 font-bold'
-              : 'text-muted-foreground hover:text-foreground py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm'
+              : 'text-muted-foreground hover:text-foreground py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm'
           }
         >
           {o.label}

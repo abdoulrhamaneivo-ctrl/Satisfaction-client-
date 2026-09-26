@@ -24,7 +24,10 @@ async function calculeStatsAgence(idAgence, debutMois, finMois) {
             id: true,
             id_soumission: true,
             score_brut: true,
-            critere: { select: { type_reponse: true, options_reponse: true } },
+            // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+            // et inversait le CES / comptait le NPS en étoiles.
+            score_normalise: true,
+            critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
         },
     });
     const alertesCritiques = await prisma.alerte.count({
@@ -74,109 +77,112 @@ function genererHtmlRapport(stats, moisLabel, estDirection) {
             : stats.tauxSatisfaction >= 40
                 ? 'Informelle 🟠'
                 : 'Insuffisante 🔴';
-    return `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; margin: 0; padding: 20px;">
-  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 32px rgba(0,0,0,0.1);">
-    
-    <!-- En-tête -->
-    <div style="background: linear-gradient(135deg, #0f2240 0%, #1a3a5c 50%, #c47a20 100%); padding: 36px 40px; text-align: center;">
-      <div style="font-size: 36px; margin-bottom: 8px;">📊</div>
-      <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px;">
-        Rapport de Satisfaction
-      </h1>
-      <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
-        ${moisLabel} · ${stats.agenceNom}${estDirection ? ' — Vue Consolidée' : ''}
-      </p>
-      <p style="color: rgba(255,255,255,0.5); margin: 4px 0 0; font-size: 12px;">${stats.commune}</p>
-    </div>
-
-    <!-- Badge conformité -->
-    <div style="background: #f8fafc; padding: 16px 40px; border-bottom: 1px solid #e2e8f0; text-align: center;">
-      <span style="
-        font-size: 13px; font-weight: 800; letter-spacing: 0.5px;
-        background: ${couleurTaux}20; color: ${couleurTaux};
-        padding: 6px 16px; border-radius: 999px; border: 1px solid ${couleurTaux}40;
-      ">
-        Niveau FD X50-167 : ${niveauConformite}
-      </span>
-    </div>
-
-    <!-- KPIs principaux -->
-    <div style="padding: 32px 40px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
-      
-      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; text-align: center;">
-        <div style="font-size: 32px; font-weight: 900; color: #059669;">${stats.tauxSatisfaction.toFixed(0)}%</div>
-        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Taux satisfaction</div>
-      </div>
-
-      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; text-align: center;">
-        <div style="font-size: 32px; font-weight: 900; color: #1d4ed8;">${stats.totalAvis}</div>
-        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Avis collectés</div>
-      </div>
-
-      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; text-align: center;">
-        <div style="font-size: 32px; font-weight: 900; color: #d97706;">${stats.noteMoyenne.toFixed(1)}<span style="font-size: 16px;">/5</span></div>
-        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Note moyenne</div>
-      </div>
-
-      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; text-align: center;">
-        <div style="font-size: 32px; font-weight: 900; color: #dc2626;">${stats.alertesCritiques}</div>
-        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Alertes critiques</div>
-      </div>
-    </div>
-
-    <!-- Tâches ouvertes -->
-    ${stats.tachesOuvertes > 0 ? `
-    <div style="margin: 0 40px 24px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-      <span style="font-size: 20px;">⚠️</span>
-      <div>
-        <strong style="color: #c2410c; font-size: 14px;">${stats.tachesOuvertes} tâche${stats.tachesOuvertes > 1 ? 's' : ''} corrective${stats.tachesOuvertes > 1 ? 's' : ''} encore ouverte${stats.tachesOuvertes > 1 ? 's' : ''}</strong>
-        <p style="margin: 2px 0 0; color: #9a3412; font-size: 12px;">Des actions correctives nécessitent votre attention.</p>
-      </div>
-    </div>` : `
-    <div style="margin: 0 40px 24px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
-      <span style="font-size: 20px;">✅</span>
-      <div>
-        <strong style="color: #15803d; font-size: 14px;">Toutes les tâches correctives sont clôturées</strong>
-        <p style="margin: 2px 0 0; color: #166534; font-size: 12px;">Excellent travail de votre équipe !</p>
-      </div>
-    </div>`}
-
-    <!-- CTA -->
-    <div style="padding: 8px 40px 36px; text-align: center;">
-      <a href="${FRONTEND_URL}/dashboard"
-         style="
-           display: inline-block;
-           background: linear-gradient(135deg, #1a3a5c, #c47a20);
-           color: white;
-           text-decoration: none;
-           padding: 14px 32px;
-           border-radius: 10px;
-           font-weight: 800;
-           font-size: 15px;
-           letter-spacing: -0.2px;
-         ">
-        Voir le tableau de bord complet →
-      </a>
-    </div>
-
-    <!-- Footer -->
-    <div style="background: #f8fafc; padding: 20px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
-      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-        Ce rapport est généré automatiquement par <strong>Yeba</strong> — Plateforme de satisfaction client
-        <br>Norme FD X50-167 · Conformité ARTCI ·
-        <a href="${FRONTEND_URL}" style="color: #c47a20; text-decoration: none;">yeba.ci</a>
-      </p>
-    </div>
-  </div>
-</body>
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; margin: 0; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 32px rgba(0,0,0,0.1);">
+    
+    <!-- En-tête -->
+    <div style="background: linear-gradient(135deg, #0f2240 0%, #1a3a5c 50%, #c47a20 100%); padding: 36px 40px; text-align: center;">
+      <div style="font-size: 36px; margin-bottom: 8px;">📊</div>
+      <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px;">
+        Rapport de Satisfaction
+      </h1>
+      <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
+        ${moisLabel} · ${stats.agenceNom}${estDirection ? ' — Vue Consolidée' : ''}
+      </p>
+      <p style="color: rgba(255,255,255,0.5); margin: 4px 0 0; font-size: 12px;">${stats.commune}</p>
+    </div>
+
+    <!-- Badge conformité -->
+    <div style="background: #f8fafc; padding: 16px 40px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+      <span style="
+        font-size: 13px; font-weight: 800; letter-spacing: 0.5px;
+        background: ${couleurTaux}20; color: ${couleurTaux};
+        padding: 6px 16px; border-radius: 999px; border: 1px solid ${couleurTaux}40;
+      ">
+        Niveau FD X50-167 : ${niveauConformite}
+      </span>
+    </div>
+
+    <!-- KPIs principaux -->
+    <div style="padding: 32px 40px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+      
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; text-align: center;">
+        <div style="font-size: 32px; font-weight: 900; color: #059669;">${stats.tauxSatisfaction.toFixed(0)}%</div>
+        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Taux satisfaction</div>
+      </div>
+
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; text-align: center;">
+        <div style="font-size: 32px; font-weight: 900; color: #1d4ed8;">${stats.totalAvis}</div>
+        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Avis collectés</div>
+      </div>
+
+      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; text-align: center;">
+        <div style="font-size: 32px; font-weight: 900; color: #d97706;">${stats.noteMoyenne.toFixed(1)}<span style="font-size: 16px;">/5</span></div>
+        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Note moyenne</div>
+      </div>
+
+      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; text-align: center;">
+        <div style="font-size: 32px; font-weight: 900; color: #dc2626;">${stats.alertesCritiques}</div>
+        <div style="font-size: 12px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-top: 4px;">Alertes critiques</div>
+      </div>
+    </div>
+
+    <!-- Tâches ouvertes -->
+    ${stats.tachesOuvertes > 0 ? `
+    <div style="margin: 0 40px 24px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 20px;">⚠️</span>
+      <div>
+        <strong style="color: #c2410c; font-size: 14px;">${stats.tachesOuvertes} tâche${stats.tachesOuvertes > 1 ? 's' : ''} corrective${stats.tachesOuvertes > 1 ? 's' : ''} encore ouverte${stats.tachesOuvertes > 1 ? 's' : ''}</strong>
+        <p style="margin: 2px 0 0; color: #9a3412; font-size: 12px;">Des actions correctives nécessitent votre attention.</p>
+      </div>
+    </div>` : `
+    <div style="margin: 0 40px 24px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 20px;">✅</span>
+      <div>
+        <strong style="color: #15803d; font-size: 14px;">Toutes les tâches correctives sont clôturées</strong>
+        <p style="margin: 2px 0 0; color: #166534; font-size: 12px;">Excellent travail de votre équipe !</p>
+      </div>
+    </div>`}
+
+    <!-- CTA -->
+    <div style="padding: 8px 40px 36px; text-align: center;">
+      <a href="${FRONTEND_URL}/dashboard"
+         style="
+           display: inline-block;
+           background: linear-gradient(135deg, #1a3a5c, #c47a20);
+           color: white;
+           text-decoration: none;
+           padding: 14px 32px;
+           border-radius: 10px;
+           font-weight: 800;
+           font-size: 15px;
+           letter-spacing: -0.2px;
+         ">
+        Voir le tableau de bord complet →
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div style="background: #f8fafc; padding: 20px 40px; border-top: 1px solid #e2e8f0; text-align: center;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+        Ce rapport est généré automatiquement par <strong>Yeba</strong> — Plateforme de satisfaction client
+        <br>Norme FD X50-167 · Conformité ARTCI ·
+        <a href="${FRONTEND_URL}" style="color: #c47a20; text-decoration: none;">yeba.ci</a>
+      </p>
+    </div>
+  </div>
+</body>
 </html>`;
 }
 /**
+
  * Handler principal du job de rapport mensuel.
+
  * Appelé par Wasp le 1er du mois à 07:00 (cron "0 7 1 * *").
+
  */
 export const envoyerRapportsMensuels = async (_args, _context) => {
     const maintenant = new Date();

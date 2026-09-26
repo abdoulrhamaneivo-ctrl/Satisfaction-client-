@@ -1,9 +1,11 @@
 export type ReponseAvecSoumission = {
     id: number | string | bigint;
     id_soumission?: string | null;
-    score_brut: number;
+    score_brut: number | null;
+    score_normalise?: number | null;
     critere?: {
         type_reponse?: string | null;
+        scoring_mode?: string | null;
         options_reponse?: string | null;
     } | null;
     commentaire_texte?: string | null;
@@ -35,6 +37,13 @@ export declare function compterAvis<T extends ReponseAvecSoumission>(reponses: T
  * Ramène les réponses quantitatives sur une échelle commune de 1 à 5.
  * Les réponses de collecte libre ne sont pas des mesures de satisfaction :
  * les inclure dans une moyenne créerait un score artificiel.
+ *
+ * Vague 1 (P2) : la règle est désormais UNIQUE et vit dans
+ * `src/shared/noteSur5.ts` — elle exclut explicitement le NPS et le CES
+ * (indicateurs dédiés, sens d'effort inversé) au lieu de les laisser entrer
+ * dans la moyenne. Les quatre implémentations divergentes qui coexistaient
+ * (celle-ci, `client/utils.ts`, `DashboardCharts.normaliserScoreSur5` et
+ * celle supprimée de `LigneReponse`) passent désormais toutes par ici.
  */
 export declare function scoreNormaliseSur5(reponse: ReponseAvecSoumission): number | null;
 /**

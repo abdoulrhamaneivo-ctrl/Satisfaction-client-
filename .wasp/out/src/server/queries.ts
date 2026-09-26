@@ -12,7 +12,17 @@ import {
   voitVerbatim,
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
-import { BRANDING } from '../shared/branding';
+import {
+  BRANDING,
+  fondWhiteLabelRecevable,
+  varianteTextePourFond,
+  foregroundPourAplat,
+} from '../shared/branding';
+import { decrireReponse } from '../shared/libelleReponse';
+import { calculerAgregats } from './gex/moteurGlobal';
+import { indiceGlobalExperience } from '../shared/indicateurs';
+import { checkRateLimit, extraireIp } from './rateLimit';
+import { journaliser } from './audit';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
 // PAS validé au runtime par Wasp. On le vérifie explicitement partout où on
@@ -174,6 +184,10 @@ export const getReponses = async (args: GetReponsesArgs, context: any) => {
       critere: true,
       service: true,
       analyseIA: true,
+      // Vague 2 : identité des options choisies — SEULE source autorisée pour
+      // afficher le libellé d'un QCM/CASES (plus aucune reconstruction par
+      // position). `select` minimal : un libellé et un id.
+      optionsChoisies: { select: { id_option: true, option: { select: { id: true, libelle: true } } } },
       agence: {
         select: { id: true, nom_agence: true, commune: true },
       },
@@ -268,6 +282,8 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
         critere: true,
         service: true,
         analyseIA: true,
+        // Vague 2 : identité des options choisies (voir getReponses).
+        optionsChoisies: { select: { id_option: true, option: { select: { id: true, libelle: true } } } },
         agence: { select: { id: true, nom_agence: true, commune: true } },
         agent: { select: { id: true, username: true, email: true, nom: true, prenom: true } },
       },
@@ -401,6 +417,9 @@ export const exportAvisGroupes = async (args: GetReponsesArgs & { curseurId?: nu
       guichet: true,
       critere: true,
       service: true,
+      // Vague 2 : identité des options choisies pour restituer les libellés
+      // QCM/CASES en clair (plus de `options[score_brut - 1]`).
+      optionsChoisies: { select: { id_option: true, option: { select: { id: true, libelle: true } } } },
       agence: { select: { id: true, nom_agence: true, commune: true } },
       agent: { select: { id: true, nom: true, prenom: true } },
     },
@@ -418,24 +437,10 @@ export const exportAvisGroupes = async (args: GetReponsesArgs & { curseurId?: nu
         ? parseFloat((scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toFixed(2))
         : null;
       const texteGroupe = commentairesDeGroupe(g.reponses);
-      const decrire = (r: any): string => {
-        const lib = r.critere?.libelle_critere || 'Critère';
-        const type = r.critere?.type_reponse;
-        const texte = String(r.commentaire_texte || '').trim();
-        const specifique = texte && texte !== texteGroupe ? texte : null;
-        if (type === 'TEXTE') return `${lib}: ${specifique || texte || '—'}`;
-        if (type === 'CASES') return `${lib}: ${specifique || texte || '—'}`;
-        if (type === 'QCM') {
-          const options = String(r.critere?.options_reponse || '').split(',').map((o: string) => o.trim()).filter(Boolean);
-          return `${lib}: ${specifique || options[r.score_brut - 1] || `Option n°${r.score_brut}`}`;
-        }
-        if (type === 'OUI_NON') return `${lib}: ${r.score_brut >= 4 ? 'Oui' : 'Non'}`;
-        if (type === 'ECHELLE') {
-          const max = Number(String(r.critere?.options_reponse || '1,5').split(',')[1]) || 5;
-          return `${lib}: ${r.score_brut}/${max}`;
-        }
-        return `${lib}:${r.score_brut}`;
-      };
+      // Vague 2 : restitution centralisée (src/shared/libelleReponse.ts).
+      // L'export ne doit JAMAIS montrer un libellé déduit d'une position —
+      // si l'identité de l'option est absente, la cellule vaut « — ».
+      const decrire = (r: any): string => decrireReponse(r, { texteGroupe });
       return {
         id_soumission: g.id_soumission ?? g.cle,
         date_reponse: premiere.date_reponse,
@@ -564,6 +569,14 @@ export const getCriteres = async (_args: void, context: any) => {
       ],
     },
     orderBy: { id: 'asc' },
+    // Vague 1 (écran d'administration) : options actives pour l'éditeur
+    // (scores/poids/ordre). Pas de secret : c'est la config de l'entreprise.
+    include: {
+      options: {
+        where: { actif: true },
+        orderBy: { ordre_affichage: 'asc' },
+      },
+    },
   });
 };
 
@@ -614,14 +627,62 @@ export const getBranding = async (_args: void, context: any) => {
 
 // Route PUBLIQUE volontairement (formulaire de collecte scanné par un client
 // anonyme via QR code) : pas d'authentification requise ici par design.
-// Résolution par code_public OPAQUE (Doc 11 §7) : le QR n'expose jamais
-// l'ID séquentiel interne. On accepte aussi l'id numérique pour compatibilité
-// avec les QR déjà imprimés — le code devient la voie normale.
+// C4 : résolution UNIQUEMENT par code_public OPAQUE (10 caractères,
+// alphabet sans 0/O/1/I). La branche id_guichet (ID séquentiel énumérable +
+// oracle existe/n'existe pas) est supprimée. Réponse uniforme : null dans
+// tous les cas d'échec, avec temps de réponse normalisé (pas d'oracle
+// temporel entre code inexistant, guichet désactivé et format invalide).
+const DUREE_MINIMALE_COLLECTE_MS = 250;
+const delai = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export const getFormDefinitionForGuichet = async (
-  args: { code_public?: string; id_guichet?: number },
+  args: { code_public?: string },
   context: any
 ) => {
-  if (!args.code_public && !args.id_guichet) return null;
+  const debut = Date.now();
+  // Jitter anti-chronométrage : empêche de distinguer les chemins d'échec
+  // au temps près (±50 ms autour du plancher commun).
+  const normaliserTempsReponse = async () => {
+    const ecoule = Date.now() - debut;
+    const cible = DUREE_MINIMALE_COLLECTE_MS + Math.floor(Math.random() * 100);
+    if (ecoule < cible) await delai(cible - ecoule);
+  };
+
+  const brut = typeof args?.code_public === 'string' ? args.code_public.toUpperCase().trim() : '';
+  // Format strict du code opaque ; un ID numérique (« 42 ») ou tout autre
+  // format est rejeté comme un code inconnu : même valeur (null), même délai.
+  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{10}$/.test(brut)) {
+    await normaliserTempsReponse();
+    return null;
+  }
+
+  /* Vague 5, P11 — anti-bot sur la lecture publique.
+     Cette query est le point d'entrée du parcours : elle est anonyme, elle
+     interroge la base à chaque appel (guichet, branding, critères, services)
+     et rien n'en limitait la fréquence. La garde temporelle de 250 ms
+     gêne un script, mais 4 requêtes/seconde restent un amplificateur
+     de charge sur la base et un moyen de fatiguer une connexion.
+     La limite est volontairement large (30/min, 15/min de recharge) : un
+     agent qui aide plusieurs clients au guichet, ou qui recharge la page
+     plusieurs fois, ne la rencontre jamais. Elle est posée sur l'IP seule
+     et AVANT toute lecture en base, donc elle ne peut pas servir d'oracle
+     d'existence de code. Comme pour l'écriture, un dépassement est
+     journalisé pour rester traçable. */
+  const ipLecture = extraireIp(context);
+  const rlLecture = await checkRateLimit(`form-def:${ipLecture}`, {
+    capacity: 30,
+    refillPerMinute: 15,
+  });
+  if (!rlLecture.allowed) {
+    await journaliser({
+      context,
+      action: 'rateLimit.exceeded',
+      resource: 'getFormDefinitionForGuichet',
+      details: { cle: `ip:${ipLecture}`, retryAfter: rlLecture.retryAfterSeconds },
+    });
+    throw new HttpError(429, "Trop de consultations. Réessayez dans un instant.", {
+      headers: { 'Retry-After': String(rlLecture.retryAfterSeconds) },
+    });
+  }
 
   // PERFORMANCE QR (Doc 00-INDEX §4, E1) : select explicite au lieu d'include
   // « critere: true » entier. La page publique ne reçoit QUE les champs
@@ -629,9 +690,7 @@ export const getFormDefinitionForGuichet = async (
   // surtout aucune fuite accidentelle de champs internes (id_entreprise,
   // archivage, etc.) sur une route publique sans authentification.
   const guichet = await context.entities.Guichet.findUnique({
-    where: args.code_public
-      ? { code_public: args.code_public.toUpperCase().trim() }
-      : { id: Number(args.id_guichet) },
+    where: { code_public: brut },
     select: {
       id: true,
       nom_guichet: true,
@@ -662,8 +721,21 @@ export const getFormDefinitionForGuichet = async (
                   description: true,
                   type_reponse: true,
                   options_reponse: true,
+                  // Phase L : le formulaire public doit savoir qu'une échelle
+                  // est un CES pour afficher « Très facile / Très difficile »
+                  // au lieu de 1..7. AUCUN score ni poids n'est exposé.
+                  scoring_mode: true,
                   obligatoire: true,
                   archive: true,
+                  // Vague 1 Phase E : identifiants stables des options pour
+                  // QCM/CASES (le client envoie des optionIds, jamais de
+                  // position). Actives seules, ordre d'affichage. AUCUN
+                  // score/poids ne quitte le serveur (résolution serveur).
+                  options: {
+                    where: { actif: true },
+                    orderBy: { ordre_affichage: 'asc' },
+                    select: { id: true, libelle: true },
+                  },
                 },
               },
             },
@@ -685,8 +757,17 @@ export const getFormDefinitionForGuichet = async (
                   description: true,
                   type_reponse: true,
                   options_reponse: true,
+                  // Phase L : idem — libellés d'effort sur le formulaire public.
+                  scoring_mode: true,
                   obligatoire: true,
                   archive: true,
+                  // Vague 1 Phase E : voir commentaire ci-dessus (même règle
+                  // sur le vivier des critères d'agence).
+                  options: {
+                    where: { actif: true },
+                    orderBy: { ordre_affichage: 'asc' },
+                    select: { id: true, libelle: true },
+                  },
                 },
               },
             },
@@ -698,8 +779,12 @@ export const getFormDefinitionForGuichet = async (
 
   // Un QR code ne doit jamais réactiver une collecte sur un guichet ou une
   // agence retirée du service. Cette query est publique, donc elle constitue
-  // la première barrière côté client.
-  if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) return null;
+  // la première barrière côté client. Même valeur + même délai que le cas
+  // « code inexistant » : aucun oracle.
+  if (!guichet || !guichet.actif || guichet.archive || guichet.agence.archive) {
+    await normaliserTempsReponse();
+    return null;
+  }
 
   const brandingTenant = await context.entities.BrandingConfig.findUnique({
     where: { id_entreprise: guichet.agence.id_entreprise },
@@ -720,6 +805,32 @@ export const getFormDefinitionForGuichet = async (
 
   // Fusion contrôlée : les champs null héritent du thème Yéba (BRANDING).
   // Aucune donnée autre que ces champs ne quitte le serveur.
+  //
+  // Vague 4 (WCAG 2.2 AA 1.4.3) : la personnalisation ne peut pas déroger
+  // implicitement au contraste. Un `color_background` qui ne porterait pas
+  // le texte par défaut, ou qui ne serait pas une surface claire, est
+  // IGNORÉ (retour à la charte) ; un `color_primary` personnalisé voit sa
+  // variante « texte » et son anneau de focus recalculés sur le fond réel,
+  // pour que les usages texte de la couleur du client restent lisibles.
+  const fondRecu = brandingTenant?.color_background;
+  const fondApplique = fondWhiteLabelRecevable(fondRecu, BRANDING.color_foreground)
+    ? (fondRecu as string)
+    : BRANDING.color_background;
+
+  // La dérivation ne concerne que le tenant qui personnalise RÉELLEMENT une
+  // couleur. Un tenant qui ne touche qu'à son nom ou à ses libellés
+  // conserve exactement la charte Yéba — y compris ses valeurs d'anneau et
+  // de variante texte, qui sont plus contrastées que leur version dérivée
+  // (minimalement assombrie, elle s'arrête au seuil et pas au-delà).
+  const couleurPersonnalisee = Boolean(brandingTenant?.color_primary || fondRecu);
+  const primaireApplique = brandingTenant?.color_primary ?? BRANDING.color_primary;
+  const primaireStrongApplique = couleurPersonnalisee
+    ? varianteTextePourFond(brandingTenant?.color_primary ?? BRANDING.color_primary, fondApplique, 4.5)
+    : BRANDING.color_primary_strong;
+  const ringApplique = couleurPersonnalisee
+    ? varianteTextePourFond(brandingTenant?.color_primary ?? BRANDING.color_primary, fondApplique, 3)
+    : BRANDING.color_ring;
+
   const brandConfig = brandingTenant
     ? {
         ...BRANDING,
@@ -729,10 +840,18 @@ export const getFormDefinitionForGuichet = async (
         form_subtitle: brandingTenant.form_subtitle ?? BRANDING.form_subtitle,
         form_thank_you: brandingTenant.form_thank_you ?? BRANDING.form_thank_you,
         qr_slogan: brandingTenant.qr_slogan ?? BRANDING.qr_slogan,
-        ...(brandingTenant.color_primary ? { color_primary: brandingTenant.color_primary } : {}),
+        ...(brandingTenant.color_primary ? { color_primary: primaireApplique } : {}),
+        // Libellé de l'aplat : blanc si le tenant le permet, noir sinon.
+        // On ne peut pas assombrir son aplat sans casser son identité —
+        // c'est donc l'autre terme du couple qui s'adapte.
+        ...(brandingTenant.color_primary
+          ? { color_primary_foreground: foregroundPourAplat(brandingTenant.color_primary) }
+          : {}),
         ...(brandingTenant.color_secondary ? { color_secondary: brandingTenant.color_secondary } : {}),
         ...(brandingTenant.color_accent ? { color_accent: brandingTenant.color_accent } : {}),
-        ...(brandingTenant.color_background ? { color_background: brandingTenant.color_background } : {}),
+        color_background: fondApplique,
+        color_primary_strong: primaireStrongApplique,
+        color_ring: ringApplique,
         hide_yeba_branding: brandingTenant.hide_yeba_branding,
       }
     : BRANDING;
@@ -743,12 +862,16 @@ export const getFormDefinitionForGuichet = async (
   const criteresActifsAgence = new Set(agencyCriteres.map((c: any) => c.id));
   const criteresDejaRattaches = new Set<number>();
 
+  // Succès : même plancher temporel que les échecs (pas d'oracle temporel).
+  await normaliserTempsReponse();
+
   return {
     guichetName: guichet.nom_guichet,
-    // FIX QR OPAQUE (05/09) : la page de collecte par code a besoin de l'id
-    // numérique pour la soumission — le code public ne suffit pas.
-    id_guichet: guichet.id,
-    id_agence: guichet.id_agence,
+    // SÉCURITÉ (Vague 1, P1) : plus aucun identifiant numérique de guichet ni
+    // d'agence n'est exposé publiquement. La page de collecte n'en a plus
+    // besoin — la soumission se fait par `code_public` (action
+    // `soumettreAvis`). Exposer `id_guichet` rendait l'énumération triviale
+    // et contournait le QR opaque côté serveur.
     services: guichet.services.map((s: any) => ({
       id: s.id,
       libelle_service: s.libelle_service,
@@ -994,7 +1117,10 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
           id_critere: true,
           date_reponse: true,
           score_brut: true,
-          critere: { select: { type_reponse: true, options_reponse: true } },
+          // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+          // et inversait le CES / comptait le NPS en étoiles.
+          score_normalise: true,
+          critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
         },
       })
     : [];
@@ -1029,6 +1155,14 @@ export const getObjectifs = async (args: { id_agence?: number }, context: any) =
           return { ...obj, nb_avis: nb, cible_pct, realise_pct, ecart, statut };
         }
         const moyenne = scores.reduce((s: number, score: number) => s + score, 0) / scores.length;
+        // Vague 1 (P12) : la cible saisie par l'admin est un pourcentage 0-100.
+        // `moyenne` est sur 1-5, donc (moyenne/5)×100 est la conversion
+        // correcte — mais elle ne vaut que si les notes viennent du MOTEUR.
+        // C'est désormais le cas : le `select` demande `score_normalise` et la
+        // règle partagée exclut NPS/CES. Avant, la valeur comparée à la cible
+        // venait d'un recalcul legacy — donc d'un autre nombre que celui
+        // affiché au client. L'autre implémentation, getObjectifsParAgence
+        // (_avg SQL sur score_normalise), n'est toujours appelée par personne.
         realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
         ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
         statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
@@ -1205,8 +1339,11 @@ export const getTendanceMensuelle = async (args: { id_agence?: number }, context
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       date_reponse: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
     orderBy: { date_reponse: 'asc' },
   });
@@ -1272,8 +1409,11 @@ export const getStatsByAgent = async (args: { id_agence?: number; nbJours?: numb
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       id_agent: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 
@@ -1339,8 +1479,11 @@ export const getStatsByGuichet = async (args: { id_agence?: number; nbJours?: nu
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       id_guichet: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 
@@ -1475,7 +1618,10 @@ export const getKPIsPeriode = async (args: { nbJours?: number } | void, context:
         id: true,
         id_soumission: true,
         score_brut: true,
-        critere: { select: { type_reponse: true, options_reponse: true } },
+        // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+        // et inversait le CES / comptait le NPS en étoiles.
+        score_normalise: true,
+        critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
         // SÉPARATION OPÉRATIONS (FIX 05/09) : ventiler les KPI par opération
         // (par_operation ci-dessous). Sans l'opération sur chaque ligne, les
         // notes restaient mélangées toutes opérations confondues.
@@ -1489,7 +1635,10 @@ export const getKPIsPeriode = async (args: { nbJours?: number } | void, context:
         id: true,
         id_soumission: true,
         score_brut: true,
-        critere: { select: { type_reponse: true, options_reponse: true } },
+        // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+        // et inversait le CES / comptait le NPS en étoiles.
+        score_normalise: true,
+        critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
       },
     }),
   ]);
@@ -1720,9 +1869,12 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
       id: true,
       id_soumission: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       date_reponse: true,
       id_agence: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 
@@ -1778,8 +1930,11 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
         id: true,
         id_soumission: true,
         score_brut: true,
+        // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+        // et inversait le CES / comptait le NPS en étoiles.
+        score_normalise: true,
         id_agence: true,
-        critere: { select: { type_reponse: true, options_reponse: true } },
+        critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
       },
     });
     const parSoumPrec = new Map<string, { id_agence: number; scores: number[] }>();
@@ -1852,8 +2007,11 @@ export const getHeatmapReponses = async (args: { id_agence?: number; nbJours?: n
       id_soumission: true,
       id: true,
       score_brut: true,
+      // Vague 1 (P2) : sans ce champ, l'agrégat recalculait depuis score_brut
+      // et inversait le CES / comptait le NPS en étoiles.
+      score_normalise: true,
       date_reponse: true,
-      critere: { select: { type_reponse: true, options_reponse: true } },
+      critere: { select: { type_reponse: true, options_reponse: true, scoring_mode: true } },
     },
   });
 
@@ -1993,7 +2151,11 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
 
   // Agrégat SQL : { id_agence, id_critere } → moyenne + nombre. Plus aucun
   // chargement de lignes Reponse vers Node — PostgreSQL fait le travail.
-  const agregats: Array<{ id_agence: number; id_critere: number; _avg: { score_brut: number | null }; _count: { id: number } }> = await context.entities.Reponse.groupBy({
+  // Vague 1 : moyenne du score_normalise STOCKÉ (/100, moteur Phase C/D) —
+  // jamais AVG(score_brut) : le brut mélange TEXTE=3 fantômes, index QCM
+  // positionnels et échelles non normalisées. AVG SQL ignore les NULL :
+  // les non notables (TEXTE, CASES catégoriel) sont exclus d'office.
+  const agregats: Array<{ id_agence: number; id_critere: number; _avg: { score_normalise: number | null }; _count: { id: number } }> = await context.entities.Reponse.groupBy({
     by: ['id_agence', 'id_critere'],
     where: {
       id_agence: { in: agencesIds },
@@ -2006,7 +2168,7 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
         },
       })),
     },
-    _avg: { score_brut: true },
+    _avg: { score_normalise: true },
     _count: { id: true },
   });
   const agregatKey = (idAgence: number, idCritere: number) => `${idAgence}:${idCritere}`;
@@ -2025,9 +2187,9 @@ export const getObjectifsParAgence = async (_args: void, context: any) => {
       let ecart: number | null = null;
       let statut: 'ATTEINT' | 'EN_RETARD' | 'PAS_DE_DONNEES' = 'PAS_DE_DONNEES';
 
-      if (nb > 0 && g?._avg?.score_brut != null) {
-        const moyenne = g._avg.score_brut;
-        realise_pct = parseFloat(((moyenne / 5) * 100).toFixed(1));
+      if (nb > 0 && g?._avg?.score_normalise != null) {
+        // score_normalise est déjà /100 : pas de conversion /5.
+        realise_pct = parseFloat(Number(g._avg.score_normalise).toFixed(1));
         ecart = parseFloat((realise_pct - cible_pct).toFixed(1));
         statut = ecart >= 0 ? 'ATTEINT' : 'EN_RETARD';
       }
@@ -2099,8 +2261,14 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
         id: true,
         commentaire_texte: true,
         score_brut: true,
+        score_officiel: true,
         date_reponse: true,
         guichet: { select: { nom_guichet: true } },
+        // Vague 2 : pour restituer le libellé réel du choix (QCM/CASES) et le
+        // sens d'un Oui/Non, la palette a besoin de l'identité de l'option et
+        // de l'orientation du critère — jamais d'un score deviné.
+        optionsChoisies: { select: { option: { select: { libelle: true } } } },
+        critere: { select: { type_reponse: true, libelle_critere: true, orientation: true, scoring_mode: true, options_reponse: true } },
       },
       orderBy: { date_reponse: 'desc' },
       take: 5,
@@ -2125,8 +2293,11 @@ export const getRechercheGlobale = async (args: { q: string }, context: any) => 
           id: r.id.toString(),
           commentaire_texte: r.commentaire_texte,
           score_brut: r.score_brut,
+          score_officiel: r.score_officiel,
           date_reponse: r.date_reponse,
           guichet: r.guichet?.nom_guichet ?? null,
+          optionsChoisies: r.optionsChoisies,
+          critere: r.critere,
         })),
   };
 };
@@ -2230,4 +2401,85 @@ export const getThemesStats = async (args: { nbJours?: number }, context: any) =
     .sort((a, b) => b.count - a.count);
 
   return { total, topThemes };
+};
+// ============================================================================
+// INDICATEURS D'EXPÉRIENCE (vague 1, Phase I — §49) : zone décisionnelle.
+// Une seule source (moteurGlobal.calculerAgregats) + indice global documenté
+// + dernière synthèse IA. Scopé : DIRECTION = réseau, CHEF/AGENT = agence(s) ;
+// la synthèse globale (multi-agences) n'est exposée qu'à la DIRECTION.
+// ============================================================================
+
+// Note Wasp : signature volontairement simple (args objet typé inline, sans
+// virgule traînante) — le codegen extrait Input/Output textuellement et une
+// forme inhabituelle fait retomber Input sur never (build P1012-like TS2344).
+export const getIndicateursExperience = async (args: { nbJours?: number }, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const idEntreprise = (context.user as any)?.id_entreprise ?? null;
+  if (!idEntreprise) return null; // comptes plateforme : espace /platform
+
+  const demandes = (args as any)?.nbJours;
+  const nbJours = Number.isFinite(demandes)
+    ? Math.min(90, Math.max(1, Math.round(demandes)))
+    : 30;
+  const fin = new Date();
+  const debut = new Date(fin);
+  debut.setDate(debut.getDate() - nbJours);
+
+  const filtre = await buildAgenceFilter(context, context.entities);
+  const brut = (filtre as any).id_agence;
+  const idsAgences = typeof brut === 'number' ? [brut] : Array.isArray(brut?.in) ? brut.in : undefined;
+
+  const agregats = await calculerAgregats(context.entities, {
+    id_entreprise: idEntreprise,
+    debut,
+    fin,
+    ...(idsAgences ? { idsAgences } : {}),
+  });
+
+  const estDirection = (context.user as any)?.role === 'DIRECTION';
+  const indice =
+    agregats.csat === null
+      ? { indice: null as number | null, formule: 'Données insuffisantes (aucune réponse notable sur la période)' }
+      : indiceGlobalExperience({
+          csat: agregats.csat,
+          nps: agregats.nps ? agregats.nps.nps : null,
+        });
+
+  let derniereAnalyse: any = null;
+  if (estDirection) {
+    const ligne = await context.entities.GlobalExperienceAnalysis.findFirst({
+      where: { id_entreprise: idEntreprise, status: 'DONE' },
+      orderBy: { fin: 'desc' },
+    });
+    if (ligne) {
+      let irritants: any[] = [];
+      try {
+        const lus = JSON.parse(String(ligne.irritants || '[]'));
+        if (Array.isArray(lus)) {
+          irritants = lus
+            .sort((a: any, b: any) => Number(b?.priorite ?? 0) - Number(a?.priorite ?? 0))
+            .slice(0, 3);
+        }
+      } catch {
+        irritants = [];
+      }
+      derniereAnalyse = {
+        id: String(ligne.id),
+        periode: ligne.periode,
+        fin: ligne.fin,
+        resumeExecutif: ligne.resumeExecutif,
+        irritants,
+        confiance: ligne.confiance,
+        volumeAvis: ligne.volumeAvis,
+      };
+    }
+  }
+
+  return {
+    periode: { debut, fin, nbJours },
+    agregats,
+    indice,
+    derniereAnalyse,
+  };
 };

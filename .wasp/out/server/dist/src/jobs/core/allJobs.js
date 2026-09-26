@@ -6,4 +6,5 @@ import '../envoyerRapportsMensuels.js';
 import '../archiverElementsResolusAnciens.js';
 import '../analyserAvisIAJob.js';
 import '../genererPlanningAutoJob.js';
+import '../analyserGlobaleJob.js';
 //# sourceMappingURL=allJobs.js.map

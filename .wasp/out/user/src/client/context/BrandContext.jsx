@@ -121,6 +121,10 @@ function AppliqueThemeMarque({ brandConfig, children }) {
         --success-foreground: ${BRANDING.color_success_foreground};
         --warning: ${BRANDING.color_warning};
         --warning-foreground: ${BRANDING.color_warning_foreground};
+        --primary-strong: ${BRANDING.color_primary_strong};
+        --success-strong: ${BRANDING.color_success_strong};
+        --warning-strong: ${BRANDING.color_warning_strong};
+        --destructive-strong: ${BRANDING.color_destructive_strong};
         --border: ${BRANDING.color_border};
         --input: ${BRANDING.color_input};
         --ring: ${BRANDING.color_ring};

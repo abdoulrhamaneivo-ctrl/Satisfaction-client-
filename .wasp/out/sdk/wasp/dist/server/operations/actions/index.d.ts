@@ -15,6 +15,7 @@ import { genererPlanning as genererPlanning_ext } from 'wasp/src/server/planning
 import { reconduirePlanning as reconduirePlanning_ext } from 'wasp/src/server/planning';
 import { appliquerSuggestion as appliquerSuggestion_ext } from 'wasp/src/server/planning';
 import { soumettreAvis as soumettreAvis_ext } from 'wasp/src/server/actions';
+import { completerSoumissionPublic as completerSoumission_ext } from 'wasp/src/server/actions';
 import { createAgence as createAgence_ext } from 'wasp/src/server/actions';
 import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions';
 import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions';
@@ -63,6 +64,7 @@ import { desactiverComptePlatform as desactiverComptePlatform_ext } from 'wasp/s
 import { setup2fa as setup2fa_ext } from 'wasp/src/server/actionsPlatform';
 import { activer2fa as activer2fa_ext } from 'wasp/src/server/actionsPlatform';
 import { verifier2fa as verifier2fa_ext } from 'wasp/src/server/actionsPlatform';
+import { declencherAnalyseGlobale as declencherAnalyseGlobale_ext } from 'wasp/src/server/globalExperience';
 export type UpdateProfile_ext = typeof updateProfile_ext;
 export declare const updateProfile: AuthenticatedOperationFor<UpdateProfile_ext>;
 export type ChangePassword_ext = typeof changePassword_ext;
@@ -95,6 +97,8 @@ export type AppliquerSuggestion_ext = typeof appliquerSuggestion_ext;
 export declare const appliquerSuggestion: AuthenticatedOperationFor<AppliquerSuggestion_ext>;
 export type SoumettreAvis_ext = typeof soumettreAvis_ext;
 export declare const soumettreAvis: AuthenticatedOperationFor<SoumettreAvis_ext>;
+export type CompleterSoumission_ext = typeof completerSoumission_ext;
+export declare const completerSoumission: AuthenticatedOperationFor<CompleterSoumission_ext>;
 export type CreateAgence_ext = typeof createAgence_ext;
 export declare const createAgence: AuthenticatedOperationFor<CreateAgence_ext>;
 export type UpdateAgent_ext = typeof updateAgent_ext;
@@ -191,4 +195,6 @@ export type Activer2fa_ext = typeof activer2fa_ext;
 export declare const activer2fa: AuthenticatedOperationFor<Activer2fa_ext>;
 export type Verifier2fa_ext = typeof verifier2fa_ext;
 export declare const verifier2fa: AuthenticatedOperationFor<Verifier2fa_ext>;
+export type DeclencherAnalyseGlobale_ext = typeof declencherAnalyseGlobale_ext;
+export declare const declencherAnalyseGlobale: AuthenticatedOperationFor<DeclencherAnalyseGlobale_ext>;
 //# sourceMappingURL=index.d.ts.map

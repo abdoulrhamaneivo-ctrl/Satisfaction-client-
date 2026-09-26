@@ -18,6 +18,7 @@ import {
   type _TacheCorrectiveHistorique,
   type _ModeleHoraire,
   type _AnalyseAvisIA,
+  type _GlobalExperienceAnalysis,
   type _Invitation,
   type _AuditLog,
   type AuthenticatedQueryDefinition,
@@ -536,6 +537,34 @@ export type GetThemesStats<Input extends Payload = never, Output extends Payload
       _AnalyseAvisIA,
       _Agence,
       _Reponse,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type GetIndicateursExperience<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _Reponse,
+      _AnalyseAvisIA,
+      _Agence,
+      _Guichet,
+      _Service,
+      _Critere,
+      _GlobalExperienceAnalysis,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type GetAnalysesGlobales<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _GlobalExperienceAnalysis,
       _Entreprise,
     ],
     Input,

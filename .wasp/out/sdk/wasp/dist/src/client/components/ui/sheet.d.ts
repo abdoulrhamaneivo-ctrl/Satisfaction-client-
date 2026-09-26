@@ -7,7 +7,7 @@ declare function SheetClose({ ...props }: React.ComponentProps<typeof SheetPrimi
 declare function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Portal>): React.JSX.Element;
 declare function SheetOverlay({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Overlay>): React.JSX.Element;
 declare const sheetVariants: (props?: ({
-    side?: "left" | "right" | "bottom" | "top" | null | undefined;
+    side?: "top" | "left" | "right" | "bottom" | null | undefined;
 } & import("class-variance-authority/types").ClassProp) | undefined) => string;
 declare function SheetContent({ side, className, children, ...props }: React.ComponentProps<typeof SheetPrimitive.Content> & VariantProps<typeof sheetVariants>): React.JSX.Element;
 declare function SheetHeader({ className, ...props }: React.ComponentProps<"div">): React.JSX.Element;

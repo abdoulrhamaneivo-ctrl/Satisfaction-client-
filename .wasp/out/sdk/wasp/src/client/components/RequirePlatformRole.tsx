@@ -22,7 +22,9 @@ export function RequirePlatformRole({ children }: RequirePlatformRoleProps) {
   const { data: user, isLoading } = useAuth();
   const location = useLocation();
 
-  if (isLoading && !user) {
+  // SÉCURITÉ (fix flash sans-auth, miroir de RequireAuth) : spinner tant que
+  // l'état auth n'est pas résolu — jamais d'enfants avec un user stale.
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

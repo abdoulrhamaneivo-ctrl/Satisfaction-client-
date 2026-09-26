@@ -1,3 +1,4 @@
+import type { RoleUtilisateur } from '@prisma/client';
 type CreateGuichetArgs = {
     nomGuichet: string;
     typeGuichet: string;
@@ -33,12 +34,50 @@ export declare const deleteAffectationGuichet: (args: any, context: any) => Prom
     success: boolean;
 }>;
 /**
+ * Vérifie le nombre de réponses d'un avis (Vague 5, P11).
+ *
+ * Fonction pure et exportée pour être testée sans contexte serveur : chaque entrée
+ * était déjà bornée (50 `optionIds`), mais la LONGUEUR DU TABLEAU ne
+ * l'était pas. Un appel public unique pouvait envoyer 100 000 réponses et
+ * transformer la vérification des critères — un `id IN (...)` — en requête
+ * énorme, en mémoire et en temps base.
+ *
+ * La borne est sur le TOTAL. Elle est posée avant toute lecture en base :
+ * un appel abusif doit être refusé sans coût.
+ *
+ * @returns un message d'erreur, ou `null` si le volume est acceptable.
+ */
+export declare function verifierVolumeReponses(responses: unknown, max?: number): string | null;
+/**
  * La collecte est une route publique : aucune exception technique ne doit y
  * parvenir telle quelle. Les erreurs métier gardent leur code (400, 404,
  * 429) ; les erreurs imprévues restent tracées dans Railway avec leur cause,
  * mais le client reçoit une réponse exploitable et sans URL interne.
  */
 export declare const soumettreAvis: (args: any, context: any) => Promise<any>;
+export declare const completerSoumission: (args: {
+    id_soumission?: string;
+    commentaire?: string;
+    telephone?: string;
+}, context: any) => Promise<{
+    ok: true;
+}>;
+/**
+ * Wrapper public de `completerSoumission` (Vague 5, P11).
+ *
+ * L'action n'avait AUCUN filet : une erreur de saisie — un commentaire
+ * au-delà de 1000 caractères, say — remontait jusqu'au framework et
+ * devenait un 500 sans message. Or T2 est précisément l'étape où le
+ * client tape librement : c'est le chemin le plus susceptible de
+ * déclencher une refus de saisie, et donc le moins outillé pour l'expliquer.
+ *
+ * Le comportement métier est inchangé ; seul le contrat d'erreur est
+ * explicite. `id_soumission` reste non devinable (UUID v4) et la fenêtre
+ * de 30 minutes borne toujours le risque.
+ */
+export declare const completerSoumissionPublic: (args: any, context: any) => Promise<{
+    ok: true;
+}>;
 export declare const updateAgent: (args: {
     id: string;
     nom?: string;
@@ -93,7 +132,7 @@ export declare const inviteAgent: (args: {
     nom: string;
     prenom: string;
     id_agence: number;
-    role: string;
+    role: RoleUtilisateur;
     telephone?: string;
 }, context: any) => Promise<any>;
 export declare const renvoyerInvitationAgent: (args: {
@@ -115,11 +154,22 @@ export declare const toggleCritereAgence: (args: {
 export declare const createService: (args: {
     libelle_service: string;
 }, context: any) => Promise<any>;
+type EntreeOption = {
+    libelle: string;
+    score?: number | null;
+    poids?: number | null;
+    est_scorable?: boolean;
+    code_metier?: string;
+    valeur_metier?: string;
+};
 export declare const createCritere: (args: {
     libelle_critere: string;
     description?: string;
     type_reponse?: string;
     options_reponse?: string;
+    options?: EntreeOption[];
+    scoring_mode?: string;
+    orientation?: string;
     obligatoire?: boolean;
     id_agence?: number;
     serviceIds?: number[];
@@ -127,8 +177,12 @@ export declare const createCritere: (args: {
     id: number;
     libelle_critere: string;
     description: string | null;
-    type_reponse: string;
+    type_reponse: import(".prisma/client").$Enums.TypeReponse;
+    scoring_mode: import(".prisma/client").$Enums.ScoringMode | null;
+    orientation: import(".prisma/client").$Enums.OrientationNote;
+    version: number;
     options_reponse: string | null;
+    scores_reponse: string | null;
     obligatoire: boolean;
     archive: boolean;
     date_archivage: Date | null;
@@ -146,6 +200,9 @@ export declare const updateCritere: (args: {
     description?: string;
     type_reponse?: string;
     options_reponse?: string;
+    options?: EntreeOption[];
+    scoring_mode?: string | null;
+    orientation?: string;
     obligatoire?: boolean;
 }, context: any) => Promise<any>;
 /**
@@ -197,8 +254,12 @@ export declare const duplicateCritere: (args: {
     id: number;
     libelle_critere: string;
     description: string | null;
-    type_reponse: string;
+    type_reponse: import(".prisma/client").$Enums.TypeReponse;
+    scoring_mode: import(".prisma/client").$Enums.ScoringMode | null;
+    orientation: import(".prisma/client").$Enums.OrientationNote;
+    version: number;
     options_reponse: string | null;
+    scores_reponse: string | null;
     obligatoire: boolean;
     archive: boolean;
     date_archivage: Date | null;

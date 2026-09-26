@@ -1,15 +1,10 @@
-const decimalIntegerPattern = /^\d+$/;
+// Alphabet QR public (sans 0/O/1/I) — 10 caractères, cf. genererCodePublic().
+const CODE_PUBLIC_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{10}$/;
 export function parseCollecteIdentifier(identifiant) {
-    if (identifiant === '') {
+    const code = identifiant.trim().toUpperCase();
+    if (!CODE_PUBLIC_PATTERN.test(code)) {
         return null;
     }
-    if (!decimalIntegerPattern.test(identifiant)) {
-        return { kind: 'publicCode', code: identifiant };
-    }
-    const guichetId = Number.parseInt(identifiant, 10);
-    if (guichetId <= 0 || !Number.isSafeInteger(guichetId)) {
-        return null;
-    }
-    return { kind: 'guichetId', guichetId };
+    return { kind: 'publicCode', code };
 }
 //# sourceMappingURL=routeParams.js.map

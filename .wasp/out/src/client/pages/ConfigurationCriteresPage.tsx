@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
 import { useAuth } from 'wasp/client/auth';
-import { 
-  useQuery, 
-  getCriteres, 
-  getAgenceCriteres, 
-  getAgences, 
-  toggleCritereAgence, 
-  createCritere, 
-  getServices, 
-  createService, 
-  deleteCritere, 
-  duplicateCritere, 
-  archiverCritere, 
-  desarchiverCritere 
+import {
+  useQuery,
+  getCriteres,
+  getAgenceCriteres,
+  getAgences,
+  toggleCritereAgence,
+  createCritere,
+  updateCritere,
+  getServices,
+  createService,
+  deleteCritere,
+  duplicateCritere,
+  archiverCritere,
+  desarchiverCritere
 } from 'wasp/client/operations';
+import { EditeurOptions } from '../components/EditeurOptions';
+import {
+  optionVide,
+  csvVersOptions,
+  baseVersOptions,
+  optionsVersPayload,
+  type OptionForm,
+} from '../criteres/optionsForm';
+import { normaliserLibelle } from '../../shared/scoringQCM';
 import { motion } from 'framer-motion';
 import {
   Settings2,
@@ -26,7 +36,8 @@ import {
   HelpCircle,
   Sliders,
   Sparkles,
-  Layers
+  Layers,
+  Pencil
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -68,8 +79,22 @@ const typeReponseLabel: Record<string, string> = {
   QCM: '📝 Choix unique',
   CASES: '☑️ Choix multiples',
   ECHELLE: '🔢 Échelle',
+  NPS: '📊 NPS (0-10)',
   TEXTE: '✍️ Texte',
 };
+
+// 'AUTO' = champ vide côté serveur (comportement legacy/catégoriel par défaut).
+const MODES_CASES = [
+  { id: 'AUTO', label: 'Auto (catégoriel si non noté)' },
+  { id: 'CASES_CATEGORICAL', label: 'Catégoriel (jamais noté, stats %)' },
+  { id: 'CASES_WEIGHTED', label: 'Pondéré (poids ±, base 100)' },
+];
+
+// Phase L — question d'effort : échelle 1-5 ou 1-7, 1 = très facile.
+const MODES_ECHELLE = [
+  { id: 'AUTO', label: 'Note standard (plus = mieux)' },
+  { id: 'CES', label: 'Effort client — CES (1 = très facile)' },
+];
 
 export const ConfigurationCriteresPage = () => {
   const { data: user } = useAuth();
@@ -110,7 +135,10 @@ export const ConfigurationCriteresPage = () => {
   const [nouveauLibelle, setNomLibelle] = useState('');
   const [nouvelleDesc, setNouvelleDesc] = useState('');
   const [typeReponse, setTypeReponse] = useState('SMILEY');
-  const [optionsReponse, setOptionsReponse] = useState('');
+  // Vague 1 : éditeur de choix (remplace le CSV). Vide = formulaire vierge.
+  const [optionsCreation, setOptionsCreation] = useState<OptionForm[]>([]);
+  const [scoringModeCreation, setScoringModeCreation] = useState('AUTO');
+  const [orientationCreation, setOrientationCreation] = useState('HIGHER_BETTER');
   const [echelleMin, setEchelleMin] = useState('1');
   const [echelleMax, setEchelleMax] = useState('10');
   const [obligatoire, setObligatoire] = useState(true);
@@ -118,8 +146,132 @@ export const ConfigurationCriteresPage = () => {
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [newServiceName, setNewServiceName] = useState('');
   const [creatingService, setCreatingService] = useState(false);
+  // Édition d'un critère existant (dialog). Les avis passés gardent
+  // l'ancienne version du scoring (critere_version) — modifier ici ne
+  // réécrit jamais l'historique.
+  const [critereEnEdition, setCritereEnEdition] = useState<any | null>(null);
+  const [editLibelle, setEditLibelle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editType, setEditType] = useState('SMILEY');
+  const [editOptions, setEditOptions] = useState<OptionForm[]>([]);
+  const [editMode, setEditMode] = useState('AUTO');
+  const [editEchelleMin, setEditEchelleMin] = useState('1');
+  const [editEchelleMax, setEditEchelleMax] = useState('5');
+  const [editOrientation, setEditOrientation] = useState('HIGHER_BETTER');
+  const [editObligatoire, setEditObligatoire] = useState(true);
+  const [savingEdition, setSavingEdition] = useState(false);
 
-  const activeIds: number[] = agenceCriteresIds || [];
+  const ouvrirEdition = (critere: any) => {
+    setCritereEnEdition(critere);
+    setEditLibelle(critere.libelle_critere || '');
+    setEditDesc(critere.description || '');
+    setEditType(critere.type_reponse || 'SMILEY');
+    setEditOptions(
+      critere.options?.length
+        ? baseVersOptions(critere.options)
+        : csvVersOptions(critere.options_reponse || ''),
+    );
+    setEditMode(critere.scoring_mode || 'AUTO');
+    const [min0, max0] = String(critere.options_reponse || '1,5').split(',').map((v) => String(v).trim());
+    setEditEchelleMin(min0 || '1');
+    setEditEchelleMax(max0 || '5');
+    setEditOrientation(critere.orientation || 'HIGHER_BETTER');
+    setEditObligatoire(critere.obligatoire !== false);
+  };
+
+  const changerTypeEdition = (t: string) => {
+    setEditType(t);
+    if ((t === 'QCM' || t === 'CASES') && editOptions.length < 2) {
+      setEditOptions([optionVide(), optionVide()]);
+    }
+  };
+
+  const sauvegarderEdition = async () => {
+    const original = critereEnEdition;
+    if (!original || savingEdition) return;
+    if (!editLibelle.trim()) {
+      toast({ variant: 'destructive', title: 'Libellé requis', description: 'La question ne peut pas être vide.' });
+      return;
+    }
+    const typeChange = editType !== original.type_reponse;
+    const payloadOptions =
+      (editType === 'QCM' || editType === 'CASES') ? optionsVersPayload(editOptions) : undefined;
+    if ((editType === 'QCM' || editType === 'CASES') && (payloadOptions?.length ?? 0) < 2) {
+      toast({ variant: 'destructive', title: 'Choix incomplets', description: 'Renseignez au moins 2 choix (libellé requis).' });
+      return;
+    }
+    // Envoi des options seulement si réellement modifiées (évite un bump
+    // de version de scoring pour une simple retouche de libellé).
+    const signatureOptions = (liste: Array<{ libelle: string; score: number | null; poids: number | null; code_metier?: string }>) =>
+      liste.map((o) => `${normaliserLibelle(o.libelle)}|${o.score ?? ''}|${o.poids ?? ''}|${(o.code_metier || '').toUpperCase()}`).join(';');
+    const avantOptions = signatureOptions(
+      (original.options?.length ? baseVersOptions(original.options) : csvVersOptions(original.options_reponse || ''))
+        .map((o) => ({ libelle: o.libelle, score: o.score, poids: o.poids, code_metier: o.code_metier })),
+    );
+    const optionsModifiees = typeChange || (payloadOptions ? signatureOptions(payloadOptions) !== avantOptions : false);
+    // Échelle (min,max) : envoyée seulement si modifiée, et seulement avec le
+    // type (updateCritere ne recalcule `options_reponse` que dans ce cas).
+    const echelleActuelle = String(original.options_reponse || '1,5').trim();
+    const echelleNouvelle = `${editEchelleMin.trim()},${editEchelleMax.trim()}`;
+    const echelleModifiee = editType === 'ECHELLE' && echelleNouvelle !== echelleActuelle;
+    if (echelleModifiee) {
+      const min = Number(editEchelleMin);
+      const max = Number(editEchelleMax);
+      if (!Number.isInteger(min) || !Number.isInteger(max) || max <= min) {
+        toast({ variant: 'destructive', title: 'Échelle invalide', description: 'Le maximum doit être un entier supérieur au minimum.' });
+        return;
+      }
+      if (editMode === 'CES' && !(min === 1 && (max === 5 || max === 7))) {
+        toast({ variant: 'destructive', title: 'Échelle d\'effort invalide', description: 'Un CES se mesure sur 1-5 ou 1-7 (1 = très facile).' });
+        return;
+      }
+    }
+    const modeModifie = editMode !== (original.scoring_mode || 'AUTO');
+    setSavingEdition(true);
+    try {
+      await updateCritere({
+        id_critere: original.id,
+        libelle_critere: editLibelle.trim(),
+        description: editDesc.trim(),
+        // Type/mode/orientation/options : envoyés seulement si modifiés
+        // (évite de bumper la version de scoring pour une simple retouche).
+        ...(typeChange ? { type_reponse: editType } : {}),
+        ...(echelleModifiee ? { type_reponse: editType, options_reponse: echelleNouvelle } : {}),
+        ...(optionsModifiees && payloadOptions ? { options: payloadOptions } : {}),
+        ...((editType === 'CASES' && modeModifie) ? { scoring_mode: editMode === 'AUTO' ? null : editMode } : {}),
+        ...(editType === 'ECHELLE' && (modeModifie || typeChange || echelleModifiee)
+          ? { scoring_mode: editMode === 'AUTO' ? null : editMode }
+          : {}),
+        ...(editType === 'ECHELLE' && editMode === 'CES' ? {} : editOrientation !== (original.orientation || 'HIGHER_BETTER') ? { orientation: editOrientation } : {}),
+        obligatoire: editObligatoire,
+      } as any);
+      setCritereEnEdition(null);
+      toast({ variant: 'success', title: 'Question mise à jour', description: typeChange || optionsModifiees || echelleModifiee || modeModifie ? 'Nouvelle version de scoring : les avis passés gardent l’ancienne.' : 'Modifications enregistrées.' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Mise à jour impossible', description: err.message || 'Erreur inconnue' });
+    } finally {
+      setSavingEdition(false);
+    }
+  };
+
+  const choisirType = (t: string) => {
+    setTypeReponse(t);
+    // À l'ouverture de QCM/CASES : 2 lignes vierges (minimum serveur).
+    if ((t === 'QCM' || t === 'CASES') && optionsCreation.length === 0) {
+      setOptionsCreation([optionVide(), optionVide()]);
+    }
+    // Le mode de scoring n'a de sens que pour CASES et ECHELLE.
+    if (t !== 'CASES' && t !== 'ECHELLE') setScoringModeCreation('AUTO');
+  };
+
+  /** Garde-fou CES : échelle 1-5 ou 1-7 (le serveur revalide de toute façon). */
+  const echelleCESValide = Number(echelleMin) === 1 && (Number(echelleMax) === 5 || Number(echelleMax) === 7);
+
+  // `|| []` ne protège que de `null`/`undefined` : si l'opération ne rend pas
+  // un tableau, `.includes` explose plus bas, à 260 lignes de la lecture, dans
+  // un rendu tardif — et l'erreur est rapportée contre la mauvaise ligne par la
+  // sourcemap. On exige donc le type plutôt que la simple présence.
+  const activeIds: number[] = Array.isArray(agenceCriteresIds) ? agenceCriteresIds : [];
 
   const [deletingCritereId, setDeletingCritereId] = useState<number | null>(null);
   const [duplicatingCritereId, setDuplicatingCritereId] = useState<number | null>(null);
@@ -198,6 +350,23 @@ export const ConfigurationCriteresPage = () => {
         toast({ variant: 'destructive', title: 'Échelle invalide', description: 'Le maximum doit être un entier supérieur au minimum.' });
         return;
       }
+      if (scoringModeCreation === 'CES' && !echelleCESValide) {
+        toast({
+          variant: 'destructive',
+          title: 'Échelle d\'effort invalide',
+          description: 'Un CES se mesure sur 5 (1-5) ou 7 (1-7) niveaux, en partant de 1 = très facile.',
+        });
+        return;
+      }
+    }
+    // Vague 1 : jeu d'options explicite (notes = provenance EXPLICIT).
+    const payloadOptions =
+      typeReponse === 'QCM' || typeReponse === 'CASES'
+        ? optionsVersPayload(optionsCreation)
+        : undefined;
+    if ((typeReponse === 'QCM' || typeReponse === 'CASES') && (payloadOptions?.length ?? 0) < 2) {
+      toast({ variant: 'destructive', title: 'Choix incomplets', description: 'Renseignez au moins 2 choix (libellé requis).' });
+      return;
     }
     setLoadingCreation(true);
     try {
@@ -205,19 +374,25 @@ export const ConfigurationCriteresPage = () => {
         libelle_critere: nouveauLibelle,
         description: nouvelleDesc,
         type_reponse: typeReponse,
-        options_reponse:
-          typeReponse === 'QCM' || typeReponse === 'CASES'
-            ? optionsReponse
-            : typeReponse === 'ECHELLE'
-            ? `${echelleMin},${echelleMax}`
-            : undefined,
+        ...(payloadOptions ? { options: payloadOptions } : {}),
+        ...(typeReponse === 'CASES' && scoringModeCreation !== 'AUTO' ? { scoring_mode: scoringModeCreation } : {}),
+        ...(typeReponse === 'ECHELLE' && scoringModeCreation === 'CES' ? { scoring_mode: 'CES' } : {}),
+        ...(typeReponse === 'ECHELLE' && scoringModeCreation !== 'CES' && orientationCreation !== 'HIGHER_BETTER'
+          ? { orientation: orientationCreation }
+          : {}),
+        ...(typeReponse === 'OUI_NON' && orientationCreation !== 'HIGHER_BETTER'
+          ? { orientation: orientationCreation }
+          : {}),
+        ...(typeReponse === 'ECHELLE' ? { options_reponse: `${echelleMin},${echelleMax}` } : {}),
         obligatoire,
         id_agence: selectedAgenceId,
         serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
-      });
+      } as any);
       setNomLibelle('');
       setNouvelleDesc('');
-      setOptionsReponse('');
+      setOptionsCreation([]);
+      setScoringModeCreation('AUTO');
+      setOrientationCreation('HIGHER_BETTER');
       setTypeReponse('SMILEY');
       setEchelleMin('1');
       setEchelleMax('10');
@@ -271,7 +446,7 @@ export const ConfigurationCriteresPage = () => {
                 value={String(selectedAgenceId)}
                 onValueChange={(v) => setSelectedAgenceId(Number(v))}
               >
-                <SelectTrigger className="h-10 min-w-56">
+                <SelectTrigger className="h-10 min-w-56" aria-label="Filtrer par agence">
                   <SelectValue placeholder="Choisir l'agence" />
                 </SelectTrigger>
                 <SelectContent>
@@ -413,6 +588,19 @@ export const ConfigurationCriteresPage = () => {
                       >
                         {critere.archive ? <RotateCcw className="size-4" /> : <Archive className="size-4" />}
                       </Button>
+                      {critere.id_entreprise !== null && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => ouvrirEdition(critere)}
+                          aria-label={`Modifier « ${critere.libelle_critere} »`}
+                          title="Modifier la question (libellé, choix, notes, mode)"
+                          className="min-h-11 min-w-11"
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"
@@ -486,8 +674,8 @@ export const ConfigurationCriteresPage = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">Type de réponse</label>
-                  <Select value={typeReponse} onValueChange={setTypeReponse}>
-                    <SelectTrigger className="w-full">
+                  <Select value={typeReponse} onValueChange={choisirType}>
+                    <SelectTrigger className="w-full" aria-label="Type de réponse">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -496,31 +684,89 @@ export const ConfigurationCriteresPage = () => {
                       <SelectItem value="QCM">📝 Choix unique (QCM)</SelectItem>
                       <SelectItem value="CASES">☑️ Choix multiples (cases à cocher)</SelectItem>
                       <SelectItem value="ECHELLE">🔢 Échelle linéaire (ex. note sur 10)</SelectItem>
+                      <SelectItem value="NPS">📊 NPS (0 à 10)</SelectItem>
                       <SelectItem value="TEXTE">✍️ Texte libre / Suggestion</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
+                {typeReponse === 'ECHELLE' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de mesure</label>
+                    <Select value={scoringModeCreation} onValueChange={setScoringModeCreation}>
+                      <SelectTrigger className="w-full" aria-label="Mode de mesure">
+                        <SelectValue placeholder="Note standard" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MODES_ECHELLE.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {scoringModeCreation === 'CES' && (
+                      <p className="mt-1.5 rounded-xl border border-info/25 bg-info/5 p-2.5 text-[11px] font-medium leading-5 text-info">
+                        Question d'effort : 1 = très facile, 5 ou 7 = très difficile. Le sens est inversé
+                        automatiquement (effort 1 = 100/100) et l'échelle doit être 1-5 ou 1-7.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {(typeReponse === 'OUI_NON' || (typeReponse === 'ECHELLE' && scoringModeCreation !== 'CES')) && (
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Orientation de la note</label>
+                    <Select value={orientationCreation} onValueChange={setOrientationCreation}>
+                      <SelectTrigger className="w-full" aria-label="Orientation de la note">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="HIGHER_BETTER">
+                          {typeReponse === 'OUI_NON' ? 'Oui = positif (ex. « Satisfait ? »)' : 'Croissante (plus = mieux)'}
+                        </SelectItem>
+                        <SelectItem value="LOWER_BETTER">
+                          {typeReponse === 'OUI_NON' ? 'Oui = négatif (ex. « Problème ? »)' : 'Décroissante (moins = mieux)'}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {(typeReponse === 'QCM' || typeReponse === 'CASES') && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-3"
                   >
-                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">
-                      {typeReponse === 'CASES' ? 'Cases proposées (séparées par des virgules)' : 'Choix possibles (séparés par des virgules)'}
-                    </label>
-                    <Input
-                      type="text"
-                      required
-                      value={optionsReponse}
-                      onChange={(e) => setOptionsReponse(e.target.value)}
-                      placeholder="Ex: Trop d'attente, Personnel absent, Autre"
-                    />
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      {typeReponse === 'CASES'
-                        ? 'Le client pourra cocher plusieurs cases à la fois.'
-                        : 'Le client ne pourra choisir qu\'une seule réponse.'}
-                    </p>
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground uppercase mb-1">
+                        {typeReponse === 'CASES' ? 'Cases proposées' : 'Choix possibles'}
+                      </label>
+                      <EditeurOptions
+                        options={optionsCreation}
+                        onChange={setOptionsCreation}
+                        pondere={typeReponse === 'CASES' && scoringModeCreation === 'CASES_WEIGHTED'}
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {typeReponse === 'CASES'
+                          ? 'Le client pourra cocher plusieurs cases à la fois.'
+                          : 'Le client ne pourra choisir qu\'une seule réponse.'}
+                      </p>
+                    </div>
+                    {typeReponse === 'CASES' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de scoring</label>
+                        <Select value={scoringModeCreation} onValueChange={setScoringModeCreation}>
+                          <SelectTrigger className="w-full" aria-label="Mode de scoring">
+                            <SelectValue placeholder="Auto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MODES_CASES.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>{m.label || 'Auto'}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -571,20 +817,38 @@ export const ConfigurationCriteresPage = () => {
                     disponible dans le vivier « Non assignées » et fait partie des critères par défaut.
                   </p>
                   <div className="space-y-2 rounded-md border border-input p-3 bg-background/50">
+                    {/* Vague 6 : le <label> qui enveloppe la radio NE la
+                        nomme pas — un <button> (ce que rend RadioGroupItem)
+                        n'est pas un élément labelable, donc l'association
+                        HTML ne joue pas. Résultat : axe signalait
+                        `button-name` en CRITIQUE, et un lecteur d'écran
+                        annonçait « bouton radio, non coché » SANS dire
+                        quelle opération. L'aria-label reprend le texte
+                        visible — la règle « le nom accessible contient le
+                        texte visible » (2.5.3) reste respectée. */}
                     <RadioGroup
                       value={selectedServiceIds.length === 0 ? 'NONE' : String(selectedServiceIds[0])}
                       onValueChange={(v) => setSelectedServiceIds(v === 'NONE' ? [] : [Number(v)])}
                       className="space-y-2"
+                      aria-label="Rattacher la question à une opération"
                     >
-                      <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                        <RadioGroupItem value="NONE" />
-                        Non assignée
-                      </label>
-                      {services?.map((s: any) => (
-                        <label key={s.id} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                          <RadioGroupItem value={String(s.id)} />
-                          {s.libelle_service}
+                      <div className="flex items-center gap-2 text-sm text-foreground">
+                        <RadioGroupItem value="NONE" aria-label="Non assignée à une opération" id="critere-service-none" />
+                        <label htmlFor="critere-service-none" className="cursor-pointer">
+                          Non assignée
                         </label>
+                      </div>
+                      {services?.map((s: any) => (
+                        <div key={s.id} className="flex items-center gap-2 text-sm text-foreground">
+                          <RadioGroupItem
+                            value={String(s.id)}
+                            id={`critere-service-${s.id}`}
+                            aria-label={`Rattacher à l’opération ${s.libelle_service}`}
+                          />
+                          <label htmlFor={`critere-service-${s.id}`} className="cursor-pointer">
+                            {s.libelle_service}
+                          </label>
+                        </div>
                       ))}
                     </RadioGroup>
                     {(!services || services.length === 0) && (
@@ -630,6 +894,159 @@ export const ConfigurationCriteresPage = () => {
             )}
           </div>
         </div>
+
+        {/* Dialogue de modification (vague 1) : libellé, choix/notes, mode. */}
+        {critereEnEdition !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Modifier la question">
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => !savingEdition && setCritereEnEdition(null)} />
+            <div className="relative w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-premium-lg space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Modifier la question</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Version actuelle : {critereEnEdition.version ?? 1} · Modifier les choix ou le mode crée une
+                  nouvelle version — les avis déjà collectés gardent l'ancienne.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground uppercase mb-1">Question</label>
+                <Input value={editLibelle} onChange={(e) => setEditLibelle(e.target.value)} maxLength={300} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground uppercase mb-1">Description (optionnel)</label>
+                <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} maxLength={1000} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground uppercase mb-1">Type de réponse</label>
+                <Select value={editType} onValueChange={changerTypeEdition}>
+                  <SelectTrigger className="w-full" aria-label="Type de réponse"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SMILEY">⭐ Note / Smileys (1 à 5)</SelectItem>
+                    <SelectItem value="OUI_NON">👍 Oui / Non</SelectItem>
+                    <SelectItem value="QCM">📝 Choix unique (QCM)</SelectItem>
+                    <SelectItem value="CASES">☑️ Choix multiples (cases à cocher)</SelectItem>
+                    <SelectItem value="ECHELLE">🔢 Échelle linéaire</SelectItem>
+                    <SelectItem value="NPS">📊 NPS (0 à 10)</SelectItem>
+                    <SelectItem value="TEXTE">✍️ Texte libre / Suggestion</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editType !== critereEnEdition.type_reponse && (
+                  <p className="text-[11px] font-bold text-warning mt-1">
+                    Changer de type désactive les anciens choix (jamais supprimés : historique préservé).
+                  </p>
+                )}
+              </div>
+
+              {editType === 'ECHELLE' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de mesure</label>
+                    <Select value={editMode === 'CES' ? 'CES' : 'AUTO'} onValueChange={setEditMode}>
+                      <SelectTrigger className="w-full" aria-label="Mode de mesure"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {MODES_ECHELLE.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {editMode === 'CES' && (
+                      <p className="mt-1.5 rounded-xl border border-info/25 bg-info/5 p-2.5 text-[11px] font-medium leading-5 text-info">
+                        1 = très facile, 5 ou 7 = très difficile ; le sens est inversé automatiquement.
+                        L'échelle doit être 1-5 ou 1-7.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground uppercase mb-1">Échelle</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={editEchelleMin}
+                        onChange={(e) => setEditEchelleMin(e.target.value)}
+                        aria-label="Note minimale"
+                        className="h-10 w-20"
+                      />
+                      <span className="text-muted-foreground">→</span>
+                      <Input
+                        type="number"
+                        value={editEchelleMax}
+                        onChange={(e) => setEditEchelleMax(e.target.value)}
+                        aria-label="Note maximale"
+                        className="h-10 w-20"
+                      />
+                      <div className="ml-auto flex gap-1.5">
+                        {[5, 7, 10].map((n) => (
+                          <Button
+                            key={n}
+                            type="button"
+                            variant={Number(editEchelleMax) === n && Number(editEchelleMin) === 1 ? 'secondary' : 'outline'}
+                            size="sm"
+                            onClick={() => { setEditEchelleMin('1'); setEditEchelleMax(String(n)); }}
+                            className="font-bold"
+                          >
+                            1-{n}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(editType === 'OUI_NON' || (editType === 'ECHELLE' && editMode !== 'CES')) && (
+                <div>
+                  <label className="block text-xs font-semibold text-foreground uppercase mb-1">Orientation de la note</label>
+                  <Select value={editOrientation} onValueChange={setEditOrientation}>
+                    <SelectTrigger className="w-full" aria-label="Orientation de la note"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="HIGHER_BETTER">Oui / haut = positif</SelectItem>
+                      <SelectItem value="LOWER_BETTER">Oui / haut = négatif (ex. « Problème ? »)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {(editType === 'QCM' || editType === 'CASES') && (
+                <div className="space-y-3">
+                  <EditeurOptions
+                    options={editOptions}
+                    onChange={setEditOptions}
+                    pondere={editType === 'CASES' && editMode === 'CASES_WEIGHTED'}
+                  />
+                  {editType === 'CASES' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground uppercase mb-1">Mode de scoring</label>
+                      <Select value={editMode} onValueChange={setEditMode}>
+                        <SelectTrigger className="w-full" aria-label="Mode de scoring"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {MODES_CASES.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <Checkbox checked={editObligatoire} onCheckedChange={(c) => setEditObligatoire(c === true)} />
+                Question obligatoire
+              </label>
+
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" disabled={savingEdition} onClick={() => setCritereEnEdition(null)} className="flex-1 rounded-2xl font-bold">
+                  Annuler
+                </Button>
+                <Button type="button" disabled={savingEdition} onClick={sauvegarderEdition} className="flex-1 rounded-2xl font-bold">
+                  {savingEdition ? 'Enregistrement…' : 'Enregistrer'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <AlertDialog open={critereASupprimer !== null} onOpenChange={(open) => !open && setCritereASupprimer(null)}>
           <AlertDialogContent>

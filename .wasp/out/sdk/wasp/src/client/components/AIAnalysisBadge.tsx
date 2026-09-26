@@ -33,6 +33,13 @@ export type AIAnalysisProps = {
     urgence?: string | null;
     resume?: string | null;
     actionRecommandee?: string | null;
+    // Vague 1 Phase F : affichés quand présents (anciens avis : absents).
+    coherenceNote?: string | null;
+    sentimentRetenu?: string | null;
+    severite?: string | null;
+    emotion?: string | null;
+    confidence?: number | null;
+    sousThemes?: string | null;
   } | null;
   className?: string;
 };
@@ -42,7 +49,7 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
 
   if (analyse.status === 'PENDING' || analyse.status === 'PROCESSING') {
     return (
-      <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20", className)}>
+      <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/10 text-primary-strong border border-primary/20", className)}>
         <Loader2 className="size-3.5 animate-spin" />
         <span>Analyse IA en cours…</span>
       </div>
@@ -65,11 +72,11 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
   const getSentimentConfig = (s: string) => {
     switch (s) {
       case 'POSITIVE':
-        return { label: 'Positif', bg: 'bg-success/10 text-success border-success/25' };
+        return { label: 'Positif', bg: 'bg-success/10 text-success-strong border-success/25' };
       case 'NEGATIVE':
-        return { label: 'Négatif', bg: 'bg-destructive/10 text-destructive border-destructive/25' };
+        return { label: 'Négatif', bg: 'bg-destructive/10 text-destructive-strong border-destructive/25' };
       case 'MIXED':
-        return { label: 'Mitigé', bg: 'bg-warning/10 text-warning border-warning/25' };
+        return { label: 'Mitigé', bg: 'bg-warning/10 text-warning-strong border-warning/25' };
       default:
         return { label: 'Neutre', bg: 'bg-secondary/10 text-secondary border-secondary/25' };
     }
@@ -82,9 +89,9 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
       case 'CRITICAL':
         return { label: 'Urgence Critique', bg: 'bg-destructive text-destructive-foreground font-bold animate-pulse' };
       case 'HIGH':
-        return { label: 'Urgence Élevée', bg: 'bg-destructive/15 text-destructive font-bold border border-destructive/30' };
+        return { label: 'Urgence Élevée', bg: 'bg-destructive/15 text-destructive-strong font-bold border border-destructive/30' };
       case 'MEDIUM':
-        return { label: 'Urgence Modérée', bg: 'bg-warning/15 text-warning font-semibold border border-warning/30' };
+        return { label: 'Urgence Modérée', bg: 'bg-warning/15 text-warning-strong font-semibold border border-warning/30' };
       default:
         return { label: 'Urgence Faible', bg: 'bg-muted/80 text-muted-foreground font-medium border border-border/60' };
     }
@@ -108,7 +115,7 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
       {/* Header Badges Row */}
       <div className="flex flex-wrap items-center gap-2">
         <span className={cn("inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border", sentimentCfg.bg)}>
-          <Sparkles className="size-3 text-primary" />
+          <Sparkles className="size-3 text-primary-strong" />
           {sentimentCfg.label}
           {analyse.sentimentScore !== null && (
             <span className="opacity-70 text-[10px]">({Math.round((analyse.sentimentScore || 0) * 100)}%)</span>
@@ -119,6 +126,22 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
           <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-2xs", urgenceCfg.bg)}>
             <AlertTriangle className="size-3" />
             {urgenceCfg.label}
+          </span>
+        )}
+
+        {/* Vague 1 Phase F : divergence note/texte + confiance. Le texte
+            prime sur la note : le responsable voit que la note brute ment. */}
+        {analyse.coherenceNote && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-warning/15 text-warning-strong border border-warning/30">
+            <AlertTriangle className="size-3" />
+            {analyse.coherenceNote === 'NOTE_PLUS_HAUTE_QUE_TEXTE'
+              ? 'Note surévaluée vs texte'
+              : 'Note sous-évaluée vs texte'}
+          </span>
+        )}
+        {typeof analyse.confidence === 'number' && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted/80 text-muted-foreground border border-border/60">
+            Confiance IA {Math.round(analyse.confidence * 100)} %
           </span>
         )}
 
@@ -137,11 +160,11 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
       {analyse.resume && (
         <div className="rounded-xl bg-card-subtle/80 border border-border/60 p-3 text-xs space-y-1.5">
           <div className="flex items-center justify-between text-muted-foreground font-bold text-[11px] uppercase tracking-wider">
-            <span className="flex items-center gap-1.5 text-primary font-bold">
+            <span className="flex items-center gap-1.5 text-primary-strong font-bold">
               <Sparkles className="size-3" /> Synthèse IA
             </span>
             {analyse.problemePrincipal && (
-              <span className="text-destructive font-semibold text-[10px]">
+              <span className="text-destructive-strong font-semibold text-[10px]">
                 Problème : {analyse.problemePrincipal}
               </span>
             )}
@@ -151,7 +174,7 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
           </p>
 
           {analyse.actionRecommandee && (
-            <div className="pt-1.5 flex items-start gap-1.5 text-success font-medium">
+            <div className="pt-1.5 flex items-start gap-1.5 text-success-strong font-medium">
               <ArrowRight className="size-3.5 shrink-0 mt-0.5" />
               <span><strong className="font-bold">Action suggérée :</strong> {analyse.actionRecommandee}</span>
             </div>

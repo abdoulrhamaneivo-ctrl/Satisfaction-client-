@@ -49,7 +49,7 @@ function AuditLogsInner() {
 
       <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card p-3">
         <Filter className="size-4 text-muted-foreground"/>
-        <select value={action} onChange={(e) => setAction(e.target.value)} className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40" aria-label="Filtrer par action">
+        <select value={action} onChange={(e) => setAction(e.target.value)} className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Filtrer par action">
           {ACTIONS_FILTRE.map((a) => (<option key={a} value={a}>{a === '' ? 'Toutes les actions' : ACTION_LABELS[a] ?? a}</option>))}
         </select>
       </div>

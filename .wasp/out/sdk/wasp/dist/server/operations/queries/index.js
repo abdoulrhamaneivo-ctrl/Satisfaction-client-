@@ -37,6 +37,8 @@ import { getRechercheGlobale as getRechercheGlobale_ext } from 'wasp/src/server/
 import { getArchives as getArchives_ext } from 'wasp/src/server/queries';
 import { getAIStatus as getAIStatus_ext } from 'wasp/src/server/queries';
 import { getThemesStats as getThemesStats_ext } from 'wasp/src/server/queries';
+import { getIndicateursExperience as getIndicateursExperience_ext } from 'wasp/src/server/queries';
+import { getAnalysesGlobales as getAnalysesGlobales_ext } from 'wasp/src/server/globalExperience';
 import { getPlatformOverview as getPlatformOverview_ext } from 'wasp/src/server/queriesPlatform';
 import { getPlatformEntreprises as getPlatformEntreprises_ext } from 'wasp/src/server/queriesPlatform';
 import { getPlatformEntreprise as getPlatformEntreprise_ext } from 'wasp/src/server/queriesPlatform';
@@ -336,6 +338,22 @@ export const getThemesStats = createAuthenticatedOperation(getThemesStats_ext, {
     AnalyseAvisIA: prisma.analyseAvisIA,
     Agence: prisma.agence,
     Reponse: prisma.reponse,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const getIndicateursExperience = createAuthenticatedOperation(getIndicateursExperience_ext, {
+    Reponse: prisma.reponse,
+    AnalyseAvisIA: prisma.analyseAvisIA,
+    Agence: prisma.agence,
+    Guichet: prisma.guichet,
+    Service: prisma.service,
+    Critere: prisma.critere,
+    GlobalExperienceAnalysis: prisma.globalExperienceAnalysis,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const getAnalysesGlobales = createAuthenticatedOperation(getAnalysesGlobales_ext, {
+    GlobalExperienceAnalysis: prisma.globalExperienceAnalysis,
     Entreprise: prisma.entreprise,
 });
 // PUBLIC API

@@ -4,13 +4,14 @@ import { Link, useNavigate } from 'react-router';
 import { useAction } from 'wasp/client/operations';
 import { creerEntreprise } from 'wasp/client/operations';
 import { ArrowLeft, ArrowRight, Building2, UserCog, Layers, CheckCircle2, Loader2, Plus, PartyPopper } from 'lucide-react';
+import { useFormPersistence } from '../../hooks/useFormPersistence';
 const PLANS = [
     { id: 'STARTER', label: 'Démarrage', agences: 5, utilisateurs: 50, guichets: 25, features: ['Logo', 'Couleur primaire', 'Messages personnalisés'] },
     { id: 'BUSINESS', label: 'Business', agences: 50, utilisateurs: 500, guichets: 200, features: ['Charte complète', 'QR Designer', 'Surcharge par guichet'] },
     { id: 'ENTERPRISE', label: 'Entreprise', agences: 9999, utilisateurs: 9999, guichets: 9999, features: ['Illimité', 'Modèles QR avancés', 'Sans marque Yeba'] },
 ];
 const ETAPES = ['Entreprise', 'Admin', 'Plan', 'Confirmation'];
-const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40';
+const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring';
 const labelCls = 'block text-xs font-black uppercase tracking-widest text-muted-foreground';
 /** Wizard de création d'entreprise (Doc 12 §6) — 4 étapes, rien créé avant la fin. */
 export default function CreateCompanyPage() {
@@ -21,12 +22,10 @@ export default function CreateCompanyPage() {
 function CreateCompanyInner() {
     const navigate = useNavigate();
     const creer = useAction(creerEntreprise);
-    const [etape, setEtape] = useState(0);
-    const [envoi, setEnvoi] = useState(false);
-    const [erreur, setErreur] = useState(null);
-    const [conflitId, setConflitId] = useState(null);
-    const [succes, setSucces] = useState(null);
-    const [form, setForm] = useState({
+    // C5/UX : Persistance formulaire (localStorage) — ne perd plus les données au changement d'onglet
+    // Annotation explicite : sans elle, les littéraux de PLANS (as const)
+    // figent limite_agences/plan en types littéraux et cassent setForm.
+    const initialForm = {
         nom_entreprise: '',
         nom_court: '',
         email_administratif: '',
@@ -44,8 +43,27 @@ function CreateCompanyInner() {
         mode: 'DIRECTION_RESEAU',
         agence_nom: '',
         agence_commune: '',
+    };
+    const { persist, getPersistedValues, clear, reset } = useFormPersistence({
+        key: 'create-company',
+        initialValues: initialForm,
+        debounceMs: 500,
     });
-    const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+    const [etape, setEtape] = useState(0);
+    const [envoi, setEnvoi] = useState(false);
+    const [erreur, setErreur] = useState(null);
+    const [conflitId, setConflitId] = useState(null);
+    const [succes, setSucces] = useState(null);
+    // Restauration valeurs persistées au mount
+    const persisted = getPersistedValues();
+    const [form, setForm] = useState({ ...initialForm, ...persisted });
+    const set = (k, v) => {
+        setForm((f) => {
+            const next = { ...f, [k]: v };
+            persist(next); // Sauvegarde débouncée
+            return next;
+        });
+    };
     // Par défaut, l'admin reprend le numéro de l'entreprise (petites structures) :
     // une seule saisie, case à décocher pour différencier les deux numéros.
     const [telIdentique, setTelIdentique] = useState(true);

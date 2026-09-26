@@ -68,13 +68,9 @@ export declare const routes: {
         readonly to: "/criteres";
         readonly build: (options?: OptionalRouteOptions) => string;
     };
-    readonly CollecteRoute: {
-        readonly to: "/q/:guichetId";
-        readonly build: (options: OptionalRouteOptions & {
-            params: {
-                "guichetId": ParamValue;
-            };
-        }) => string;
+    readonly SyntheseGlobaleRoute: {
+        readonly to: "/synthese";
+        readonly build: (options?: OptionalRouteOptions) => string;
     };
     readonly CollecteCodeRoute: {
         readonly to: "/q/:code";

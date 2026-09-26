@@ -16,6 +16,7 @@ import { genererPlanning as genererPlanning_ext } from 'wasp/src/server/planning
 import { reconduirePlanning as reconduirePlanning_ext } from 'wasp/src/server/planning';
 import { appliquerSuggestion as appliquerSuggestion_ext } from 'wasp/src/server/planning';
 import { soumettreAvis as soumettreAvis_ext } from 'wasp/src/server/actions';
+import { completerSoumissionPublic as completerSoumission_ext } from 'wasp/src/server/actions';
 import { createAgence as createAgence_ext } from 'wasp/src/server/actions';
 import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions';
 import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions';
@@ -64,6 +65,7 @@ import { desactiverComptePlatform as desactiverComptePlatform_ext } from 'wasp/s
 import { setup2fa as setup2fa_ext } from 'wasp/src/server/actionsPlatform';
 import { activer2fa as activer2fa_ext } from 'wasp/src/server/actionsPlatform';
 import { verifier2fa as verifier2fa_ext } from 'wasp/src/server/actionsPlatform';
+import { declencherAnalyseGlobale as declencherAnalyseGlobale_ext } from 'wasp/src/server/globalExperience';
 // PUBLIC API
 export const updateProfile = createAuthenticatedOperation(updateProfile_ext, {
     User: prisma.user,
@@ -166,6 +168,8 @@ export const appliquerSuggestion = createAuthenticatedOperation(appliquerSuggest
 export const soumettreAvis = createAuthenticatedOperation(soumettreAvis_ext, {
     Reponse: prisma.reponse,
     Critere: prisma.critere,
+    OptionCritere: prisma.optionCritere,
+    ReponseOption: prisma.reponseOption,
     AgenceCritere: prisma.agenceCritere,
     CritereService: prisma.critereService,
     Guichet: prisma.guichet,
@@ -176,6 +180,14 @@ export const soumettreAvis = createAuthenticatedOperation(soumettreAvis_ext, {
     User: prisma.user,
     AnalyseAvisIA: prisma.analyseAvisIA,
     Canal: prisma.canal,
+});
+// PUBLIC API
+export const completerSoumission = createAuthenticatedOperation(completerSoumission_ext, {
+    Reponse: prisma.reponse,
+    Guichet: prisma.guichet,
+    Agence: prisma.agence,
+    VoteAntiRejeu: prisma.voteAntiRejeu,
+    AnalyseAvisIA: prisma.analyseAvisIA,
 });
 // PUBLIC API
 export const createAgence = createAuthenticatedOperation(createAgence_ext, {
@@ -512,5 +524,10 @@ export const activer2fa = createAuthenticatedOperation(activer2fa_ext, {
 export const verifier2fa = createAuthenticatedOperation(verifier2fa_ext, {
     User: prisma.user,
     AuditLog: prisma.auditLog,
+});
+// PUBLIC API
+export const declencherAnalyseGlobale = createAuthenticatedOperation(declencherAnalyseGlobale_ext, {
+    GlobalExperienceAnalysis: prisma.globalExperienceAnalysis,
+    Entreprise: prisma.entreprise,
 });
 //# sourceMappingURL=index.js.map

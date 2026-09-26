@@ -34,6 +34,14 @@ export interface RapportReseauProps {
   alertesNouvelles: number;
   tachesEnCours: number;
   themes: { theme: string; count: number }[];
+  /** Phase L : effort perçu. null / absent = non mesuré (jamais 0 %). */
+  ces?: {
+    volume: number;
+    echelle: number;
+    top_box: number;
+    taux_effort_eleve: number;
+    note_effort_moyenne: number | null;
+  } | null;
 }
 
 const fmtDate = (d: Date) =>
@@ -45,7 +53,7 @@ export const RapportReseauPrint = React.forwardRef<HTMLDivElement, RapportReseau
     satisfaction, noteMoyenne, totalAvis,
     deltaSatisfaction, deltaNote, deltaVolume,
     moyenneGlobale, meilleureAgence, agenceASurveiller, agences,
-    alertesNouvelles, tachesEnCours, themes,
+    alertesNouvelles, tachesEnCours, themes, ces,
   } = props;
 
   const kpi = (label: string, valeur: string, delta?: number, uniteDelta = '') => (
@@ -80,6 +88,43 @@ export const RapportReseauPrint = React.forwardRef<HTMLDivElement, RapportReseau
         {kpi('Note moyenne', `${noteMoyenne.toFixed(1)}/5`, deltaNote)}
         {kpi('Volume avis', String(totalAvis), deltaVolume, ' %')}
         {kpi('Alertes / Tâches', `${alertesNouvelles} / ${tachesEnCours}`)}
+      </div>
+
+      {/* Phase L — effort perçu : la base (n) est affichée à côté de chaque
+          chiffre ; sans question CES, on écrit « non mesuré » (jamais 0 %). */}
+      <div
+        style={{
+          marginTop: 12,
+          border: '1px solid #E9ECEF',
+          borderRadius: 12,
+          padding: '10px 14px',
+          display: 'flex',
+          gap: 18,
+          alignItems: 'center',
+        }}
+      >
+        <p style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6C757D', margin: 0 }}>
+          Effort perçu (CES)
+        </p>
+        {ces && ces.volume > 0 ? (
+          <>
+            <p style={{ fontSize: 11, margin: 0 }}>
+              <strong>{Math.round(ces.top_box)} %</strong> d'effort faible
+              <span style={{ color: '#6C757D' }}> (top box, n = {ces.volume})</span>
+            </p>
+            <p style={{ fontSize: 11, margin: 0 }}>
+              <strong>{ces.note_effort_moyenne != null ? ces.note_effort_moyenne : '—'}/{ces.echelle}</strong> effort moyen
+              <span style={{ color: '#6C757D' }}> (1 = très facile)</span>
+            </p>
+            <p style={{ fontSize: 11, margin: 0 }}>
+              <strong>{Math.round(ces.taux_effort_eleve)} %</strong> d'effort élevé
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: 11, color: '#6C757D', margin: 0 }}>
+            non mesuré — aucune question d'effort (CES) sur la période
+          </p>
+        )}
       </div>
 
       <h2 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '20px 0 8px' }}>

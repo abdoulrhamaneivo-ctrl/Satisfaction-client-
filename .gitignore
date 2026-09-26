@@ -35,6 +35,12 @@ h.zip
 .DS_Store
 Thumbs.db
 
+# ── Sorties d'outillage local (jamais versionnées) ──
+# `coverage/` = rapport `npm run test:coverage` ; `.opencode/` = outillage
+# agentique. Un `git add -A` les embarquerait sinon.
+coverage/
+.opencode/
+
 .env.local.old
 .env.old-root
 .railway-proxy.cjs

@@ -20,7 +20,7 @@ export const ObjectifsProgress = ({ data }) => {
                   {label}
                   {obj.nb_avis > 0 && (<span className="ml-2 text-[11px] text-muted-foreground">({obj.nb_avis} avis)</span>)}
                 </span>
-                {obj.statut === 'PAS_DE_DONNEES' ? (<span className="text-xs text-muted-foreground">Pas encore de données</span>) : (<span className={cn('text-xs font-bold', obj.statut === 'ATTEINT' ? 'text-success' : 'text-destructive')}>
+                {obj.statut === 'PAS_DE_DONNEES' ? (<span className="text-xs text-muted-foreground">Pas encore de données</span>) : (<span className={cn('text-xs font-bold', obj.statut === 'ATTEINT' ? 'text-success-strong' : 'text-destructive-strong')}>
                     {realise}% / {cible}% cible {obj.ecart >= 0 ? `(+${obj.ecart})` : `(${obj.ecart})`}
                   </span>)}
               </div>

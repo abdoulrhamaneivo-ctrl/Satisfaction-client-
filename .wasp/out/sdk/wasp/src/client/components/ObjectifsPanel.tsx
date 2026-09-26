@@ -40,7 +40,11 @@ export const ObjectifsPanel = ({ selectedAgenceId }: Props) => {
   // confirmation cohérente avec le reste du design system.
   const [objectifAConfirmer, setObjectifAConfirmer] = useState<{ idCritere: number; libelle: string } | null>(null);
 
-  const activeIds: number[] = critereIdsActifs || [];
+  // Même garde que dans `ConfigurationCriteresPage` : `|| []` ne protège que
+  // de `null`/`undefined`. Un rendu tardif, après le démontage du test, a
+  // produit `activeIds.includes is not a function` ici — et la sourcemap
+  // désigne un autre fichier, ce qui a coûté cher à diagnostiquer.
+  const activeIds: number[] = Array.isArray(critereIdsActifs) ? critereIdsActifs : [];
   const objectifsList: any[] = objectifs || [];
   const criteresList: any[] = criteres || [];
 

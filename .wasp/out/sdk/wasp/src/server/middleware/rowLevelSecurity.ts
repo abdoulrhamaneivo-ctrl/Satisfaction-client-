@@ -394,34 +394,3 @@ export function requireSuperAdmin(context: WaspContext): void {
   requirePlatformRole(context, ['SUPER_ADMIN']);
 }
 
-/**
- * Vérifie que l'ENTREPRISE du compte est active (SaaS). Appelé par
- * requireAuth pour bloquer globalement un tenant suspendu/résilié —
- * Doc 11 §3.4 : AUTHENTIFICATION → PLATFORM ROLE → ENTREPRISE ACTIVE → ...
- *
- * @returns true si une vérification d'entreprise a été effectuée (compte
- * client), false si compte plateforme (id_entreprise = null, hors tenant).
- * Les erreurs sont SILENCIEUSES (return false) : requireAuth décide.
- */
-export async function verifierEntrepriseActive(
-  context: WaspContext,
-  entities: any
-): Promise<boolean> {
-  const { id_entreprise } = (context.user ?? {}) as { id_entreprise?: number | null };
-  if (!id_entreprise) return false; // compte plateforme ou anomalie — pas de contrôle tenant ici
-
-  const entreprise = await entities.Entreprise.findUnique({
-    where: { id: id_entreprise },
-    select: { status: true },
-  });
-  if (!entreprise) return false; // entreprit disparue : laissé aux autres contrôles
-
-  if (entreprise.status === 'SUSPENDED') {
-    throw new HttpError(403, 'Votre abonnement Yeba est suspendu. Contactez votre gestionnaire Yeba pour le réactiver.');
-  }
-  if (entreprise.status === 'CANCELLED') {
-    throw new HttpError(403, 'Votre abonnement Yeba a été résilié. Contactez votre gestionnaire Yeba.');
-  }
-  // TRIAL et ACTIVE : accès autorisé
-  return true;
-}

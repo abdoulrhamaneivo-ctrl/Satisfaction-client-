@@ -61,7 +61,16 @@ export function App() {
         setMobileNavOpen(false);
     }, [location.pathname]);
     return (<BrandProvider>
-      <div className="relative min-h-screen bg-app-shell text-foreground selection:bg-primary/20 selection:text-primary">
+      <div className="relative min-h-screen bg-app-shell text-foreground selection:bg-primary/20 selection:text-primary-strong">
+        {/* Vague 4 (WCAG 2.2 AA — 2.4.1 « Contourner des blocs », 2.4.11
+            « Focus pas masqué ») : lien d'évitement, invisible jusqu'à
+            réception du focus clavier. Il cible le <main> existant dans
+            les deux branches du shell. Le fond utilise la variante
+            foncée de la marque (`-strong`) : le blanc sur le vert clair
+            d'origine plafonne à 3,12:1, insuffisant pour du texte. */}
+        <a href="#contenu-principal" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-xl focus:bg-primary-strong focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background">
+          Aller au contenu principal
+        </a>
         {/* Blobs décoratifs — UNIQUEMENT hors parcours QR (voir commentaire
             PERFORMANCE QR ci-dessus : même statiques, ils sont recomposés par
             le GPU à chaque frappe sur un téléphone d'agence). */}

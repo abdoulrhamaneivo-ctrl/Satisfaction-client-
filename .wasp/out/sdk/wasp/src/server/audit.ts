@@ -6,6 +6,7 @@
 // ============================================================================
 
 import type { WaspContext } from './middleware/rowLevelSecurity';
+import { extraireIp } from './rateLimit';
 
 export type AuditAction =
   | 'entreprise.create'
@@ -33,7 +34,9 @@ export type AuditAction =
   | 'password.reset_done'
   | '2fa.setup'
   | '2fa.activate'
-  | '2fa.verify';
+  | '2fa.verify'
+  | '2fa.failed'
+  | 'rateLimit.exceeded';
 
 export interface JournaliserArgs {
   context: WaspContext;
@@ -49,6 +52,7 @@ export interface JournaliserArgs {
  * est loggué mais ne casse JAMAIS l'opération métier en cours (l'audit ne
  * doit pas rendre la plateforme indisponible). Fire-and-forget = ne pas
  * attendre la promesse dans les actions critiques.
+ * Pour les routes publiques (collecte), on logue avec actor_id = 'public'.
  */
 export async function journaliser({
   context,
@@ -60,23 +64,24 @@ export async function journaliser({
 }: JournaliserArgs): Promise<void> {
   try {
     const user = (context as any)?.user;
-    if (!user?.id) return; // pas d'acteur identifiable (routes publiques) — pas d'audit
-
+    // Vague 5, P11-e : l'IP vient d'Express, qui applique la confiance
+    // déclarée (`app.set('trust proxy', …)`), et non d'une lecture directe
+    // de `x-forwarded-for`. Cette ligne était la troisième copie de la
+    // même logique — et c'est celle qui écrivait dans les journaux une IP
+    // que l'appelant pouvait choisir librement.
+    const ipBrute = extraireIp(context);
+    const ip = ipBrute === 'inconnue' ? null : ipBrute;
     const req = (context as any)?.req ?? (context as any)?.request;
-    const ip =
-      req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
-      req?.socket?.remoteAddress ||
-      null;
     const userAgent = req?.headers?.['user-agent']?.slice(0, 300) || null;
 
     await (context as any).entities.AuditLog.create({
       data: {
-        actor_id: user.id,
-        actor_role: user.platformRole && user.platformRole !== 'NONE' ? user.platformRole : (user.role ?? null),
+        actor_id: user?.id ?? 'public',
+        actor_role: user?.platformRole && user?.platformRole !== 'NONE' ? user?.platformRole : (user?.role ?? null),
         action,
         resource,
         resource_id: resource_id != null ? String(resource_id) : null,
-        entreprise_id: entreprise_id ?? user.id_entreprise ?? null,
+        entreprise_id: entreprise_id ?? user?.id_entreprise ?? null,
         details: details ?? undefined,
         ip,
         user_agent: userAgent,

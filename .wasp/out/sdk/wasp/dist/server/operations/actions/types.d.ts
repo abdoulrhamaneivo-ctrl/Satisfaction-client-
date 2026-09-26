@@ -1,4 +1,4 @@
-import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _ModeleHoraire, type _Reponse, type _Critere, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _BrandingConfig, type _AuditLog, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _ModeleHoraire, type _Reponse, type _Critere, type _OptionCritere, type _ReponseOption, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _BrandingConfig, type _AuditLog, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _GlobalExperienceAnalysis, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
 export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User
 ], Input, Output>;
@@ -85,6 +85,8 @@ export type AppliquerSuggestion<Input extends Payload = never, Output extends Pa
 export type SoumettreAvis<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _Reponse,
     _Critere,
+    _OptionCritere,
+    _ReponseOption,
     _AgenceCritere,
     _CritereService,
     _Guichet,
@@ -95,6 +97,13 @@ export type SoumettreAvis<Input extends Payload = never, Output extends Payload 
     _User,
     _AnalyseAvisIA,
     _Canal
+], Input, Output>;
+export type CompleterSoumission<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _Reponse,
+    _Guichet,
+    _Agence,
+    _VoteAntiRejeu,
+    _AnalyseAvisIA
 ], Input, Output>;
 export type CreateAgence<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _Agence,
@@ -383,5 +392,9 @@ export type Activer2fa<Input extends Payload = never, Output extends Payload = P
 export type Verifier2fa<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User,
     _AuditLog
+], Input, Output>;
+export type DeclencherAnalyseGlobale<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _GlobalExperienceAnalysis,
+    _Entreprise
 ], Input, Output>;
 //# sourceMappingURL=types.d.ts.map

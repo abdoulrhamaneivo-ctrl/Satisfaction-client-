@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
+import { routes } from 'wasp/client/router';
 
 interface RequireEnterpriseRoleProps {
   children: React.ReactNode;
@@ -20,7 +21,9 @@ export function RequireEnterpriseRole({ children }: RequireEnterpriseRoleProps) 
   const { data: user, isLoading } = useAuth();
   const location = useLocation();
 
-  if (isLoading && !user) {
+  // SÉCURITÉ (fix flash sans-auth, miroir de RequireAuth) : spinner tant que
+  // l'état auth n'est pas résolu — jamais d'enfants avec un user stale.
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -29,6 +32,12 @@ export function RequireEnterpriseRole({ children }: RequireEnterpriseRoleProps) 
         </div>
       </div>
     );
+  }
+
+  // Défense en profondeur : sans user avéré, direction /login ici même
+  // (sans attendre le RequireAuth interne — sinon la coquille de page flashe).
+  if (!user) {
+    return <Navigate to={routes.LoginRoute.to} replace state={{ from: location.pathname }} />;
   }
 
   const platformRole = (user as any)?.platformRole;

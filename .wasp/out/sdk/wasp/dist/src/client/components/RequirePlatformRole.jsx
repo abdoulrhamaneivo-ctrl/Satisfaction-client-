@@ -16,7 +16,9 @@ import { routes } from 'wasp/client/router';
 export function RequirePlatformRole({ children }) {
     const { data: user, isLoading } = useAuth();
     const location = useLocation();
-    if (isLoading && !user) {
+    // SÉCURITÉ (fix flash sans-auth, miroir de RequireAuth) : spinner tant que
+    // l'état auth n'est pas résolu — jamais d'enfants avec un user stale.
+    if (isLoading) {
         return (<div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="size-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary"/>

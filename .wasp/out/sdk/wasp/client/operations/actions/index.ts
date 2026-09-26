@@ -15,6 +15,7 @@ import { GenererPlanning_ext } from 'wasp/server/operations/actions'
 import { ReconduirePlanning_ext } from 'wasp/server/operations/actions'
 import { AppliquerSuggestion_ext } from 'wasp/server/operations/actions'
 import { SoumettreAvis_ext } from 'wasp/server/operations/actions'
+import { CompleterSoumission_ext } from 'wasp/server/operations/actions'
 import { CreateAgence_ext } from 'wasp/server/operations/actions'
 import { UpdateAgent_ext } from 'wasp/server/operations/actions'
 import { DeleteAgent_ext } from 'wasp/server/operations/actions'
@@ -63,6 +64,7 @@ import { DesactiverComptePlatform_ext } from 'wasp/server/operations/actions'
 import { Setup2fa_ext } from 'wasp/server/operations/actions'
 import { Activer2fa_ext } from 'wasp/server/operations/actions'
 import { Verifier2fa_ext } from 'wasp/server/operations/actions'
+import { DeclencherAnalyseGlobale_ext } from 'wasp/server/operations/actions'
 
 // PUBLIC API
 export const updateProfile: ActionFor<UpdateProfile_ext> = createAction<UpdateProfile_ext>(
@@ -157,7 +159,13 @@ export const appliquerSuggestion: ActionFor<AppliquerSuggestion_ext> = createAct
 // PUBLIC API
 export const soumettreAvis: ActionFor<SoumettreAvis_ext> = createAction<SoumettreAvis_ext>(
   'operations/soumettre-avis',
-  ['Reponse', 'Critere', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal'],
+  ['Reponse', 'Critere', 'OptionCritere', 'ReponseOption', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal'],
+)
+
+// PUBLIC API
+export const completerSoumission: ActionFor<CompleterSoumission_ext> = createAction<CompleterSoumission_ext>(
+  'operations/completer-soumission',
+  ['Reponse', 'Guichet', 'Agence', 'VoteAntiRejeu', 'AnalyseAvisIA'],
 )
 
 // PUBLIC API
@@ -446,4 +454,10 @@ export const activer2fa: ActionFor<Activer2fa_ext> = createAction<Activer2fa_ext
 export const verifier2fa: ActionFor<Verifier2fa_ext> = createAction<Verifier2fa_ext>(
   'operations/verifier2fa',
   ['User', 'AuditLog'],
+)
+
+// PUBLIC API
+export const declencherAnalyseGlobale: ActionFor<DeclencherAnalyseGlobale_ext> = createAction<DeclencherAnalyseGlobale_ext>(
+  'operations/declencher-analyse-globale',
+  ['GlobalExperienceAnalysis', 'Entreprise'],
 )

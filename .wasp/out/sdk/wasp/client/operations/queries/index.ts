@@ -36,6 +36,8 @@ import { GetRechercheGlobale_ext } from 'wasp/server/operations/queries'
 import { GetArchives_ext } from 'wasp/server/operations/queries'
 import { GetAIStatus_ext } from 'wasp/server/operations/queries'
 import { GetThemesStats_ext } from 'wasp/server/operations/queries'
+import { GetIndicateursExperience_ext } from 'wasp/server/operations/queries'
+import { GetAnalysesGlobales_ext } from 'wasp/server/operations/queries'
 import { GetPlatformOverview_ext } from 'wasp/server/operations/queries'
 import { GetPlatformEntreprises_ext } from 'wasp/server/operations/queries'
 import { GetPlatformEntreprise_ext } from 'wasp/server/operations/queries'
@@ -262,6 +264,18 @@ export const getAIStatus: QueryFor<GetAIStatus_ext> = createQuery<GetAIStatus_ex
 export const getThemesStats: QueryFor<GetThemesStats_ext> = createQuery<GetThemesStats_ext>(
   'operations/get-themes-stats',
   ['AnalyseAvisIA', 'Agence', 'Reponse', 'Entreprise'],
+)
+
+// PUBLIC API
+export const getIndicateursExperience: QueryFor<GetIndicateursExperience_ext> = createQuery<GetIndicateursExperience_ext>(
+  'operations/get-indicateurs-experience',
+  ['Reponse', 'AnalyseAvisIA', 'Agence', 'Guichet', 'Service', 'Critere', 'GlobalExperienceAnalysis', 'Entreprise'],
+)
+
+// PUBLIC API
+export const getAnalysesGlobales: QueryFor<GetAnalysesGlobales_ext> = createQuery<GetAnalysesGlobales_ext>(
+  'operations/get-analyses-globales',
+  ['GlobalExperienceAnalysis', 'Entreprise'],
 )
 
 // PUBLIC API

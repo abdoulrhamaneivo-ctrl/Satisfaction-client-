@@ -123,10 +123,10 @@ const routesMapping = {
         .then(component => ({ default: component }))
       ),
   },
-  CollecteRoute: {
+  SyntheseGlobaleRoute: {
     Component:
       lazy(() =>
-        import('./src/client/pages/CollectePage').then(m => m.CollectePage)
+        import('./src/client/pages/SyntheseGlobalePage').then(m => m.SyntheseGlobalePage)
         .then(component => ({ default: component }))
       ),
   },

@@ -50,7 +50,7 @@ export const ObjectifsProgress = ({ data }: { data: Objectif[] }) => {
                   <span
                     className={cn(
                       'text-xs font-bold',
-                      obj.statut === 'ATTEINT' ? 'text-success' : 'text-destructive'
+                      obj.statut === 'ATTEINT' ? 'text-success-strong' : 'text-destructive-strong'
                     )}
                   >
                     {realise}% / {cible}% cible {obj.ecart! >= 0 ? `(+${obj.ecart})` : `(${obj.ecart})`}

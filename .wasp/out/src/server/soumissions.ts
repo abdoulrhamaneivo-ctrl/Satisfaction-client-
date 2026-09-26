@@ -13,17 +13,27 @@
 // jamais entre eux : chaque ligne sans id_soumission reste son propre avis
 // (fallback sur son `id` de ligne comme clé de regroupement unique).
 
+import { noteSur5 } from '../shared/noteSur5';
+
 export type ReponseAvecSoumission = {
   id: number | string | bigint;
   id_soumission?: string | null;
-  score_brut: number;
+  // Vague 1 : score_brut est NULLable (NULL = réponse non notable : TEXTE,
+  // CASES catégoriel, QCM non valencé). scoreNormaliseSur5 renvoie null
+  // pour ces lignes → exclues des moyennes, jamais de 0/3 déguisé.
+  score_brut: number | null;
+  // Vague 1 (P2) : score canonique /100 du moteur. Sa présence dans le
+  // `select` des requêtes d'agrégation est ce qui rend la moyenne fidèle.
+  score_normalise?: number | null;
   critere?: {
     type_reponse?: string | null;
+    scoring_mode?: string | null;
     options_reponse?: string | null;
   } | null;
   commentaire_texte?: string | null;
   [key: string]: any;
 };
+
 
 export type GroupeAvis<T> = {
   /** Clé de regroupement : id_soumission réel, ou clé synthétique si absent */
@@ -87,22 +97,16 @@ export function compterAvis<T extends ReponseAvecSoumission>(reponses: T[]): num
  * Ramène les réponses quantitatives sur une échelle commune de 1 à 5.
  * Les réponses de collecte libre ne sont pas des mesures de satisfaction :
  * les inclure dans une moyenne créerait un score artificiel.
+ *
+ * Vague 1 (P2) : la règle est désormais UNIQUE et vit dans
+ * `src/shared/noteSur5.ts` — elle exclut explicitement le NPS et le CES
+ * (indicateurs dédiés, sens d'effort inversé) au lieu de les laisser entrer
+ * dans la moyenne. Les quatre implémentations divergentes qui coexistaient
+ * (celle-ci, `client/utils.ts`, `DashboardCharts.normaliserScoreSur5` et
+ * celle supprimée de `LigneReponse`) passent désormais toutes par ici.
  */
 export function scoreNormaliseSur5(reponse: ReponseAvecSoumission): number | null {
-  const type = reponse.critere?.type_reponse;
-  if (type === 'TEXTE' || type === 'CASES' || type === 'QCM') return null;
-
-  if (type === 'ECHELLE') {
-    const [minBrut, maxBrut] = (reponse.critere?.options_reponse || '1,5').split(',');
-    const min = Number(minBrut);
-    const max = Number(maxBrut);
-    if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
-      const ratio = (reponse.score_brut - min) / (max - min);
-      return Math.max(1, Math.min(5, 1 + ratio * 4));
-    }
-  }
-
-  return reponse.score_brut >= 1 && reponse.score_brut <= 5 ? reponse.score_brut : null;
+  return noteSur5(reponse as any);
 }
 
 /**

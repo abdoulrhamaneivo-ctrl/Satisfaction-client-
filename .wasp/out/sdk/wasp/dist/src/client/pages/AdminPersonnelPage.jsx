@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { estRoleUtilisateur } from '../../shared/domaines';
 import { useSearchParams } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, inviteAgent, updateAgent, deleteAgent, reactivateAgent, renvoyerInvitationAgent, getAgentsByAgence, getAgences, } from 'wasp/client/operations';
@@ -49,6 +50,9 @@ export const AdminPersonnelPage = () => {
     const [recherche, setRecherche] = useState('');
     const [filtreStatut, setFiltreStatut] = useState('ACTIFS');
     const formCardRef = useRef(null);
+    // `role` est typé par l'enum Prisma : une faute de frappe dans une option
+    // de rôle, ou une valeur envoyée à `inviteAgent` qui n'existe pas, devient
+    // une erreur de compilation au lieu d'un 400 en production.
     const [formData, setFormData] = useState({
         nom: '',
         prenom: '',
@@ -276,7 +280,7 @@ export const AdminPersonnelPage = () => {
 
             <Reveal direction="down">
               <PageHeader icon={Users} eyebrow="Équipe" title="Gestion du personnel" description="Ajoutez, modifiez et suivez les agents rattachés à votre agence." actions={user?.role === 'DIRECTION' && agences ? (<Select value={selectedAgenceId !== null ? String(selectedAgenceId) : undefined} onValueChange={(v) => setSelectedAgenceId(Number(v))}>
-                      <SelectTrigger className="h-10 min-w-56 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm">
+                      <SelectTrigger className="h-10 min-w-56 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm" aria-label="Filtrer par agence">
                         <SelectValue placeholder="Choisir l'agence"/>
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-border/80 shadow-premium">
@@ -321,7 +325,11 @@ export const AdminPersonnelPage = () => {
 
                     <div className="space-y-1.5">
                       <Label htmlFor="agent-role">Rôle</Label>
-                      <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
+                      <Select value={formData.role} onValueChange={(value) => {
+            if (!estRoleUtilisateur(value))
+                return;
+            setFormData(prev => ({ ...prev, role: value }));
+        }}>
                         <SelectTrigger id="agent-role" className="h-11 rounded-2xl border-border/80">
                           <SelectValue placeholder="Rôle"/>
                         </SelectTrigger>
@@ -373,7 +381,7 @@ export const AdminPersonnelPage = () => {
                     <Input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher un agent (nom, email)..." className="h-10 pl-9 rounded-xl border-border/60"/>
                   </div>
                   <Select value={filtreStatut} onValueChange={(v) => setFiltreStatut(v)}>
-                    <SelectTrigger className="h-10 sm:w-48 rounded-xl border-border/60">
+                    <SelectTrigger className="h-10 sm:w-48 rounded-xl border-border/60" aria-label="Filtrer par statut">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-border/80">

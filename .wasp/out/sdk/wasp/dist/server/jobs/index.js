@@ -4,4 +4,5 @@ export { envoyerRapportsMensuels } from './envoyerRapportsMensuels.js';
 export { archiverElementsResolusAnciens } from './archiverElementsResolusAnciens.js';
 export { analyserAvisIAJob } from './analyserAvisIAJob.js';
 export { genererPlanningAutoJob } from './genererPlanningAutoJob.js';
+export { analyserGlobaleJob } from './analyserGlobaleJob.js';
 //# sourceMappingURL=index.js.map

@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import { useAction } from 'wasp/client/operations'
 import { creerEntreprise } from 'wasp/client/operations'
 import { ArrowLeft, ArrowRight, Building2, UserCog, Layers, CheckCircle2, Loader2, Plus, PartyPopper } from 'lucide-react'
+import { useFormPersistence } from '../../hooks/useFormPersistence'
 
 const PLANS = [
   { id: 'STARTER', label: 'Démarrage', agences: 5, utilisateurs: 50, guichets: 25, features: ['Logo', 'Couleur primaire', 'Messages personnalisés'] },
@@ -13,7 +14,7 @@ const PLANS = [
 
 const ETAPES = ['Entreprise', 'Admin', 'Plan', 'Confirmation'] as const
 
-const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40'
+const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring'
 const labelCls = 'block text-xs font-black uppercase tracking-widest text-muted-foreground'
 
 /** Wizard de création d'entreprise (Doc 12 §6) — 4 étapes, rien créé avant la fin. */
@@ -29,19 +30,16 @@ function CreateCompanyInner() {
   const navigate = useNavigate()
   const creer = useAction(creerEntreprise)
 
-  const [etape, setEtape] = useState(0)
-  const [envoi, setEnvoi] = useState(false)
-  const [erreur, setErreur] = useState<string | null>(null)
-  const [conflitId, setConflitId] = useState<number | null>(null)
-  const [succes, setSucces] = useState<{ id_entreprise: number; email_envoye: boolean; message?: string } | null>(null)
-
-  const [form, setForm] = useState<{
+  // C5/UX : Persistance formulaire (localStorage) — ne perd plus les données au changement d'onglet
+  // Annotation explicite : sans elle, les littéraux de PLANS (as const)
+  // figent limite_agences/plan en types littéraux et cassent setForm.
+  const initialForm: {
     nom_entreprise: string; nom_court: string; email_administratif: string;
     telephone: string; pays: string; admin_prenom: string; admin_nom: string;
     admin_email: string; admin_telephone: string; plan: string;
-    limite_agences: number; limite_utilisateurs: number; limite_guichets: number; totpCode: string;
-    mode: string; agence_nom: string; agence_commune: string;
-  }>({
+    limite_agences: number; limite_utilisateurs: number; limite_guichets: number;
+    totpCode: string; mode: string; agence_nom: string; agence_commune: string;
+  } = {
     nom_entreprise: '',
     nom_court: '',
     email_administratif: '',
@@ -59,9 +57,31 @@ function CreateCompanyInner() {
     mode: 'DIRECTION_RESEAU',
     agence_nom: '',
     agence_commune: '',
+  }
+
+  const { persist, getPersistedValues, clear, reset } = useFormPersistence({
+    key: 'create-company',
+    initialValues: initialForm,
+    debounceMs: 500,
   })
 
-  const set = (k: string, v: string | number) => setForm((f) => ({ ...f, [k]: v }))
+  const [etape, setEtape] = useState(0)
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [conflitId, setConflitId] = useState<number | null>(null)
+  const [succes, setSucces] = useState<{ id_entreprise: number; email_envoye: boolean; message?: string } | null>(null)
+
+  // Restauration valeurs persistées au mount
+  const persisted = getPersistedValues()
+  const [form, setForm] = useState<typeof initialForm>({ ...initialForm, ...persisted })
+
+  const set = (k: keyof typeof initialForm, v: string | number) => {
+    setForm((f) => {
+      const next = { ...f, [k]: v }
+      persist(next) // Sauvegarde débouncée
+      return next
+    })
+  }
   // Par défaut, l'admin reprend le numéro de l'entreprise (petites structures) :
   // une seule saisie, case à décocher pour différencier les deux numéros.
   const [telIdentique, setTelIdentique] = useState(true)

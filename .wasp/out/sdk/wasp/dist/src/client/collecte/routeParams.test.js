@@ -1,13 +1,19 @@
 import { expect, test } from 'vitest';
 import { parseCollecteIdentifier } from './routeParams';
-test('accepts a safe numeric guichet id and preserves opaque public codes', () => {
-    expect(parseCollecteIdentifier('42')).toEqual({ kind: 'guichetId', guichetId: 42 });
-    expect(parseCollecteIdentifier('0012')).toEqual({ kind: 'guichetId', guichetId: 12 });
-    expect(parseCollecteIdentifier('QRCODE-abc_9')).toEqual({ kind: 'publicCode', code: 'QRCODE-abc_9' });
+test('accepts only opaque public codes (10 chars, no 0/O/1/I)', () => {
+    expect(parseCollecteIdentifier('ABCDEFGHJK')).toEqual({ kind: 'publicCode', code: 'ABCDEFGHJK' });
+    expect(parseCollecteIdentifier('BXYUUEHM9Y')).toEqual({ kind: 'publicCode', code: 'BXYUUEHM9Y' });
 });
-test('rejects empty and unsafe numeric identifiers', () => {
+test('rejects numeric ids, empty, wrong format, wrong length', () => {
     expect(parseCollecteIdentifier('')).toBeNull();
-    expect(parseCollecteIdentifier('9007199254740992')).toBeNull();
-    expect(parseCollecteIdentifier('4.2')).toEqual({ kind: 'publicCode', code: '4.2' });
+    expect(parseCollecteIdentifier('42')).toBeNull();
+    expect(parseCollecteIdentifier('0012')).toBeNull();
+    expect(parseCollecteIdentifier('4.2')).toBeNull();
+    expect(parseCollecteIdentifier('ABCDEFGHJ')).toBeNull(); // 9 chars
+    expect(parseCollecteIdentifier('ABCDEFGHJKL')).toBeNull(); // 11 chars
+    expect(parseCollecteIdentifier('ABCDEFGHJ0')).toBeNull(); // contains 0
+    expect(parseCollecteIdentifier('ABCDEFGHJO')).toBeNull(); // contains O
+    expect(parseCollecteIdentifier('ABCDEFGHJ1')).toBeNull(); // contains 1
+    expect(parseCollecteIdentifier('ABCDEFGHJI')).toBeNull(); // contains I
 });
 //# sourceMappingURL=routeParams.test.js.map

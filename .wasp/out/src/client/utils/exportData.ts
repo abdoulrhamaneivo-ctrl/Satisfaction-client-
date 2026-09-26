@@ -6,12 +6,17 @@
 // CSV natif — pas de dépendance npm requise
 // ============================================================================
 
+/** Neutralise les formules Excel (= + - @ \t) et échappe guillemets (RFC 4180). */
 function escapeCSVCell(value: any): string {
   const str = value === null || value === undefined ? '' : String(value);
-  if (str.includes(';') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
+  // Neutraliser = + - @ \t au début (formule Excel)
+  let s = str;
+  if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s;
+  // Doubler les guillemets
+  s = s.replace(/"/g, '""');
+  // Encadrer si contient ; " \n \r
+  if (/[;",\n\r]/.test(s)) s = '"' + s + '"';
+  return s;
 }
 
 export type ExportMeta = {

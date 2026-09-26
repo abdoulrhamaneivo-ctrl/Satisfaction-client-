@@ -1,0 +1,12 @@
+-- Migration
+-- Scoring QCM/CASES admin-proof (voir src/shared/scoringQCM.ts) :
+-- le score semantique (1 = pire ... 5 = meilleur) de chaque option est
+-- STOCKÉ dans Critere.scores_reponse, en CSV parallèle à options_reponse.
+-- Le score ne dépend donc plus jamais de la position de l option.
+--
+-- Colonne NULLABLE + backfill applicatif (aucun UPDATE massif ici) :
+-- - lignes existantes : scores_reponse reste NULL -> le serveur applique
+--   l inference lexicale FR a la lecture (fallback transparent) ;
+-- - script de consolidation : src/server/scripts/backfillScoresReponse.ts
+--   (remplit scores_reponse pour tous les QCM/CASES existants).
+ALTER TABLE "Critere" ADD COLUMN     "scores_reponse" TEXT;

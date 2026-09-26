@@ -1,5 +1,12 @@
 export declare const env: {
+    JWT_SECRET: string;
+    TOTP_ENCRYPTION_KEY: string;
+    ANTI_REPLAY_SALT: string;
     ADMIN_EMAILS: string[];
+    JWT_SECRET_PREVIOUS?: string | undefined;
+    TOTP_ENCRYPTION_KEY_PREVIOUS?: string | undefined;
+    REDIS_URL?: string | undefined;
+    ANTI_REPLAY_SALT_PREVIOUS?: string | undefined;
     AWS_S3_REGION?: string | undefined;
     AWS_S3_IAM_ACCESS_KEY?: string | undefined;
     AWS_S3_IAM_SECRET_KEY?: string | undefined;

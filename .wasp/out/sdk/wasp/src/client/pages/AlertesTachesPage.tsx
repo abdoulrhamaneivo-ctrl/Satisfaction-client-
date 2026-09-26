@@ -265,7 +265,7 @@ export const AlertesTachesPage = () => {
               value={recherche}
               onChange={(event) => setRecherche(event.target.value)}
               placeholder="Rechercher une alerte, tâche, responsable ou guichet…"
-              className="h-10 pl-9 rounded-xl border-border/60 focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="h-10 pl-9 rounded-xl border-border/60 focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Rechercher dans les alertes et tâches"
             />
           </div>
@@ -385,7 +385,7 @@ export const AlertesTachesPage = () => {
                       role="tab"
                       aria-selected={actif}
                       onClick={() => setColonneMobile(col.statut)}
-                      className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${
+                      className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         actif ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/70 bg-card text-muted-foreground'
                       }`}
                     >

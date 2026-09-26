@@ -1,0 +1,11 @@
+-- Vague 1 (P4) : l'analyse globale doit être RATTRAPABLE.
+--
+-- Constat d'audit : le job ne traitait que les lignes PENDING, le `catch`
+-- posait FAILED sans compteur, et le déclencheur manuel faisait un
+-- `upsert({ update: {} })` — donc un incident fournisseur à 6 h le lundi
+-- rendait la synthèse de la semaine définitivement perdue, et le bouton
+-- « Analyser » répondait « déjà disponible » sur une ligne morte.
+--
+-- Ajout STRICTEMENT additif : une colonne, un défaut, aucun index, aucune
+-- donnée existante touchée.
+ALTER TABLE "GlobalExperienceAnalysis" ADD COLUMN     "attempts" INTEGER NOT NULL DEFAULT 0;

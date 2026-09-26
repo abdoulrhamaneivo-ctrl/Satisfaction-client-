@@ -48,6 +48,14 @@ export interface RapportProps {
   tempsTraitement?: {
     moyenne_heures: number | null;
   } | null;
+  /** Phase L : effort perçu. absent / null = non mesuré (jamais 0 %). */
+  ces?: {
+    volume: number;
+    echelle: number;
+    top_box: number;
+    taux_effort_eleve: number;
+    note_effort_moyenne: number | null;
+  } | null;
 }
 
 // ---------- Helpers impression (CSS pur, zéro canvas/SVG — lisible à 100% sur papier) ----------
@@ -135,20 +143,25 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
     dateFin,
     deltas,
     tempsTraitement,
+    ces,
   } = props;
 
   // RG01/RG02 : un avis = une soumission — les stats du rapport ne comptent
   // jamais les lignes Reponse individuelles.
   const avisGroupes = regrouperAvisParSoumission(reponses);
   const totalAvis = avisGroupes.length;
+  // Vague 1 : les stats de notes portent sur les SEULS avis notables
+  // (un avis TEXTE-only n'a pas de note — ni 0 ni 3).
+  const avisNotes = avisGroupes.filter((a) => a.score_moyen !== null);
+  const totalNotes = avisNotes.length;
 
   const distribution = [1, 2, 3, 4, 5].map((note) => {
-    const nb = avisGroupes.filter((a) => Math.round(a.score_moyen) === note).length;
-    return { note, nb, pct: totalAvis > 0 ? Math.round((nb / totalAvis) * 100) : 0 };
+    const nb = avisNotes.filter((a) => Math.round(a.score_moyen as number) === note).length;
+    return { note, nb, pct: totalNotes > 0 ? Math.round((nb / totalNotes) * 100) : 0 };
   });
 
-  const noteMoyenne = totalAvis > 0 ? avisGroupes.reduce((s, a) => s + a.score_moyen, 0) / totalAvis : 0;
-  const tauxSatisfaction = totalAvis > 0 ? (avisGroupes.filter((a) => a.score_moyen >= 4).length / totalAvis) * 100 : 0;
+  const noteMoyenne = totalNotes > 0 ? avisNotes.reduce((s, a) => s + (a.score_moyen as number), 0) / totalNotes : 0;
+  const tauxSatisfaction = totalNotes > 0 ? (avisNotes.filter((a) => (a.score_moyen as number) >= 4).length / totalNotes) * 100 : 0;
 
   const alertesCloturees = alertes.filter((a) => a.statut_alerte === 'TRAITEE').length;
   const tachesEnRetard = taches.filter((t: any) => {
@@ -249,6 +262,41 @@ export const RapportMensuelPrint = React.forwardRef<HTMLDivElement, RapportProps
             valeur={tempsTraitement?.moyenne_heures != null ? `${tempsTraitement.moyenne_heures.toFixed(1)} h` : '—'}
             detail="Alerte créée → prise en charge"
           />
+        </div>
+        {/* Phase L — effort perçu : la base (n) accompagne chaque chiffre ;
+            sans question CES, on écrit « non mesuré » (jamais un 0 %). */}
+        <div
+          style={{
+            marginTop: 10,
+            border: '1px solid #E9ECEF',
+            borderRadius: 10,
+            padding: '10px 12px',
+            display: 'flex',
+            gap: 18,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6C757D' }}>
+            Effort perçu (CES)
+          </span>
+          {ces && ces.volume > 0 ? (
+            <>
+              <span style={{ fontSize: 11 }}>
+                <strong>{Math.round(ces.top_box)} %</strong> d'effort faible (top box, n = {ces.volume})
+              </span>
+              <span style={{ fontSize: 11 }}>
+                <strong>{ces.note_effort_moyenne != null ? ces.note_effort_moyenne : '—'}/{ces.echelle}</strong> effort moyen (1 = très facile)
+              </span>
+              <span style={{ fontSize: 11 }}>
+                <strong>{Math.round(ces.taux_effort_eleve)} %</strong> d'effort élevé
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: '#6C757D' }}>
+              non mesuré — aucune question d'effort (CES) sur la période
+            </span>
+          )}
         </div>
       </section>
 

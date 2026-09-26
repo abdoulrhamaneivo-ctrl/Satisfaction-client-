@@ -1,0 +1,1 @@
+{"version":3,"file":"backfillScoresReponse.d.ts","sourceRoot":"","sources":["../../../../src/server/scripts/backfillScoresReponse.ts"],"names":[],"mappings":"AAoBA,OAAO,EAAE,YAAY,EAAE,MAAM,gBAAgB,CAAC;AAM9C,wBAAsB,qBAAqB,CAAC,MAAM,EAAE,YAAY,GAAG,OAAO,CAAC;IACzE,OAAO,EAAE,MAAM,CAAC;IAChB,OAAO,EAAE,MAAM,CAAC;IAChB,kBAAkB,EAAE,MAAM,CAAC;CAC5B,CAAC,CAgCD"}

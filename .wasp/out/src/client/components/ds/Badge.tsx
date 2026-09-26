@@ -12,12 +12,12 @@ const badgeStyles = cva(
           "border border-border/60",
         ],
         accent: [
-          "bg-primary/10 text-primary",
+          "bg-primary/10 text-primary-strong",
           "border border-primary/25",
           "shadow-sm",
         ],
         amber: [
-          "bg-primary/12 text-primary",
+          "bg-primary/12 text-primary-strong",
           "border border-primary/25",
         ],
         navy: [
@@ -25,15 +25,15 @@ const badgeStyles = cva(
           "border border-secondary/25",
         ],
         positive: [
-          "bg-success/15 text-success",
+          "bg-success/15 text-success-strong",
           "border border-success/30",
         ],
         danger: [
-          "bg-destructive/15 text-destructive",
+          "bg-destructive/15 text-destructive-strong",
           "border border-destructive/30",
         ],
         warning: [
-          "bg-warning/15 text-warning",
+          "bg-warning/15 text-warning-strong",
           "border border-warning/30",
         ],
         outline: [
@@ -98,9 +98,9 @@ export function Eyebrow({
 }) {
   const toneClass =
     tone === "amber"
-      ? "text-primary"
+      ? "text-primary-strong"
       : tone === "positive"
-        ? "text-success"
+        ? "text-success-strong"
         : tone === "neutral"
           ? "text-muted-foreground"
           : "text-secondary";

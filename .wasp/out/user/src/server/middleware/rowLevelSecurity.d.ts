@@ -148,13 +148,3 @@ export declare function requirePlatformRole(context: WaspContext, roles: Platfor
  * Ne vérifie PAS le rôle métier — les deux mondes sont séparés.
  */
 export declare function requireSuperAdmin(context: WaspContext): void;
-/**
- * Vérifie que l'ENTREPRISE du compte est active (SaaS). Appelé par
- * requireAuth pour bloquer globalement un tenant suspendu/résilié —
- * Doc 11 §3.4 : AUTHENTIFICATION → PLATFORM ROLE → ENTREPRISE ACTIVE → ...
- *
- * @returns true si une vérification d'entreprise a été effectuée (compte
- * client), false si compte plateforme (id_entreprise = null, hors tenant).
- * Les erreurs sont SILENCIEUSES (return false) : requireAuth décide.
- */
-export declare function verifierEntrepriseActive(context: WaspContext, entities: any): Promise<boolean>;

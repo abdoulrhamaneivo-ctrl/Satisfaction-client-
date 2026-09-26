@@ -2,11 +2,25 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from 'wasp/client/auth';
 import { useQuery, getRechercheGlobale } from 'wasp/client/operations';
-import { Search, LayoutDashboard, Store, Calendar, Building2, MessageSquare, AlertTriangle, ListChecks, Users2, User, MapPin, Loader2, CornerDownLeft, } from 'lucide-react';
+import { Search, LayoutDashboard, Store, Calendar, Building2, MessageSquare, AlertTriangle, ListChecks, Users2, User, MapPin, Loader2, CornerDownLeft, Sparkles, } from 'lucide-react';
 import { useDebounce } from '../hooks/useDebounce';
 import { cn } from '../utils';
+import { reponseEnClair } from '../../shared/libelleReponse';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+// Vague 2 — libellés d'un résultat d'avis : plus de `${score_brut}/5` appliqué
+// à TOUT type (un QCM, un NPS ou une échelle 1-10 y affichaient une fausse
+// note sur 5). On affiche la réponse en clair ; à défaut le commentaire ; à
+// défaut de tout, l'identifiant de l'avis.
+function libelleAvis(r) {
+    if (String(r.commentaire_texte || '').trim())
+        return String(r.commentaire_texte).trim().slice(0, 60);
+    return reponseEnClair(r) ?? `Avis ${String(r.id)}`;
+}
+function sousLibelleAvis(r) {
+    const guichet = r.guichet ? `${r.guichet} · ` : '';
+    return guichet + (reponseEnClair(r) ?? 'sans réponse chiffrée');
+}
 const ACTIONS_NAVIGATION = [
     { id: 'nav-dashboard', label: 'Tableau de bord', to: '/dashboard', icon: LayoutDashboard },
     { id: 'nav-guichets', label: 'Guichets', to: '/guichets', icon: Store },
@@ -15,6 +29,7 @@ const ACTIONS_NAVIGATION = [
     { id: 'nav-avis', label: 'Avis clients', to: '/avis', icon: MessageSquare },
     { id: 'nav-alertes', label: 'Alertes & Tâches', to: '/alertes-taches', icon: AlertTriangle },
     { id: 'nav-criteres', label: 'Critères', to: '/criteres', icon: ListChecks },
+    { id: 'nav-synthese', label: 'Synthèse globale IA', to: '/synthese', icon: Sparkles, roles: ['DIRECTION', 'CHEF_AGENCE'] },
     { id: 'nav-personnel', label: 'Personnel', to: '/admin/personnel', icon: Users2, roles: ['DIRECTION', 'CHEF_AGENCE'] },
 ];
 export function CommandPalette() {
@@ -22,6 +37,7 @@ export function CommandPalette() {
     const [requete, setRequete] = useState('');
     const [indexActif, setIndexActif] = useState(0);
     const inputRef = useRef(null);
+    const dialogueRef = useRef(null);
     const navigate = useNavigate();
     const { data: user } = useAuth();
     const canManageDirectory = ['DIRECTION', 'CHEF_AGENCE'].includes(user?.role ?? '');
@@ -58,10 +74,34 @@ export function CommandPalette() {
             // Laisse le temps au DOM de monter avant de focus.
             setTimeout(() => inputRef.current?.focus(), 10);
             document.body.style.overflow = 'hidden';
+            /* Vague 4 (WCAG 2.2 AA — 2.1.2 « Aucun piège clavier », 2.4.3) :
+               la palette se déclare `aria-modal="true"`, le focus doit donc y
+               rester. Sans ce cycle, Tab finit par repartir sur la page
+               derrière l'overlay alors que l'écran est visuellement masqué. */
+            const onKeyDown = (event) => {
+                if (event.key !== 'Tab')
+                    return;
+                const elements = Array.from(dialogueRef.current?.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? []).filter((el) => el.offsetParent !== null);
+                if (elements.length === 0)
+                    return;
+                const first = elements[0];
+                const last = elements[elements.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                }
+                else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            };
+            document.addEventListener('keydown', onKeyDown);
+            return () => {
+                document.removeEventListener('keydown', onKeyDown);
+                document.body.style.overflow = '';
+            };
         }
-        else {
-            document.body.style.overflow = '';
-        }
+        document.body.style.overflow = '';
         return () => {
             document.body.style.overflow = '';
         };
@@ -132,8 +172,8 @@ export function CommandPalette() {
                     titre: 'Avis clients',
                     items: resultats.avis.map((r) => ({
                         id: `avis-${r.id}`,
-                        label: r.commentaire_texte?.slice(0, 60) || `Avis ${r.score_brut}/5`,
-                        sublabel: r.guichet ? `${r.guichet} · ${r.score_brut}/5` : `${r.score_brut}/5`,
+                        label: libelleAvis(r),
+                        sublabel: sousLibelleAvis(r),
                         to: '/avis',
                         icon: MessageSquare,
                     })),
@@ -169,7 +209,7 @@ export function CommandPalette() {
     if (!ouvert)
         return null;
     let compteurGlobal = -1;
-    return (<div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]" role="dialog" aria-modal="true" aria-label="Recherche globale">
+    return (<div ref={dialogueRef} className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]" role="dialog" aria-modal="true" aria-label="Recherche globale">
       <div className="fixed inset-0 bg-black/50 " onClick={() => setOuvert(false)}/>
       <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-border/70 bg-card shadow-2xl">
         <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3">

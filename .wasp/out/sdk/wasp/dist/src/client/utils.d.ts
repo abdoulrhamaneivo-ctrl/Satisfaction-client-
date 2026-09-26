@@ -1,22 +1,16 @@
 import { type ClassValue } from "clsx";
 export declare function cn(...inputs: ClassValue[]): string;
 export declare function messageErreurAction(err: any, defaut: string): string;
-export declare function scoreNormaliseSur5Client(r: {
-    score_brut: number;
-    critere?: {
-        type_reponse?: string | null;
-        options_reponse?: string | null;
-    } | null;
-}): number | null;
+export declare function scoreNormaliseSur5Client(r: any): number | null;
 export declare function decrireReponseCourte(r: any): string;
 export declare function regrouperAvisParSoumission<T extends {
     id: any;
     id_soumission?: string | null;
-    score_brut: number;
+    score_brut: number | null;
 }>(reponses: T[]): {
     id_soumission: string | null;
     reponses: T[];
-    score_moyen: number;
+    score_moyen: number | null;
 }[];
 export declare function formatNumber(number: number): string | undefined;
 //# sourceMappingURL=utils.d.ts.map

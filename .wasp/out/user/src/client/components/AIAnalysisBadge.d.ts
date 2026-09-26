@@ -10,6 +10,12 @@ export type AIAnalysisProps = {
         urgence?: string | null;
         resume?: string | null;
         actionRecommandee?: string | null;
+        coherenceNote?: string | null;
+        sentimentRetenu?: string | null;
+        severite?: string | null;
+        emotion?: string | null;
+        confidence?: number | null;
+        sousThemes?: string | null;
     } | null;
     className?: string;
 };

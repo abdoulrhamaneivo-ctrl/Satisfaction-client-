@@ -5,3 +5,4 @@ export { type EnvoyerRapportsMensuels, envoyerRapportsMensuels } from './envoyer
 export { type ArchiverElementsResolusAnciens, archiverElementsResolusAnciens } from './archiverElementsResolusAnciens.js'
 export { type AnalyserAvisIAJob, analyserAvisIAJob } from './analyserAvisIAJob.js'
 export { type GenererPlanningAutoJob, genererPlanningAutoJob } from './genererPlanningAutoJob.js'
+export { type AnalyserGlobaleJob, analyserGlobaleJob } from './analyserGlobaleJob.js'

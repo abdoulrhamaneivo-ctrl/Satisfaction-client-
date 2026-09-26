@@ -15,13 +15,14 @@ import {
   getComparaisonAgences,
   getTempsTraitement,
   getThemesStats,
+  getIndicateursExperience,
 } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { Link as WaspRouterLink, routes } from 'wasp/client/router';
 import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2, ChevronRight, Tag } from 'lucide-react';
+import { LayoutDashboard, Printer, Smile, MessageSquare, Star, Inbox, AlertTriangle, TrendingUp, Users, Target, Store, FileSpreadsheet, Loader2, Clock, Timer, CheckCircle2, ChevronRight, Tag, Gauge, Scale } from 'lucide-react';
 import { HistogrammeSatisfaction, RadarQualite, TendanceMensuelle, ComparaisonAgents, ClassementGuichets, HistogrammeSatisfactionSkeleton, RadarQualiteSkeleton, TendanceMensuelleSkeleton, ComparaisonAgentsSkeleton, ClassementGuichetsSkeleton, HeatmapReponsesSkeleton, ChartSkeleton } from '../components/DashboardCharts';
 import { HeatmapReponses } from '../components/HeatmapReponses';
 import { RapportMensuelPrint } from '../components/RapportMensuelPrint';
@@ -119,6 +120,13 @@ export const DashboardPage = () => {
     { enabled: !loadingKpis } as any, // différé : après le premier écran (KPI)
   );
   const { data: themesStats, isLoading: loadingThemes } = useQuery(getThemesStats, { nbJours: periodeJours });
+  // Vague 1 Phase I (§49, zone 1) : même moteur que l'IA globale — une
+  // seule vérité statistique pour le dashboard et les synthèses.
+  const { data: experience, isLoading: loadingExperience } = useQuery(
+    getIndicateursExperience,
+    { nbJours: periodeJours },
+    { enabled: aUnTenant } as any,
+  );
 
   const reponsesList: any[] = reponses || [];
   const avisGroupes = regrouperAvisParSoumission(reponsesList);
@@ -138,6 +146,17 @@ export const DashboardPage = () => {
   const labelPeriode = periodeJours === 1 ? '24h' : `${periodeJours}j`;
 
   const alertesNouvelles = alertesList.filter((a: any) => a.statut_alerte === 'NOUVELLE').length;
+
+  // Vague 1 Phase I : NPS scopé (null = pas de question NPS sur la période).
+  // Le volume l'accompagne : l'export doit afficher la base (n) du NPS, sinon
+  // un indice calculé sur 3 réponses se lit comme un indice sur 300.
+  const npsAgregat: { nps: number; volume: number } | null =
+    (experience as any)?.agregats?.nps && typeof (experience as any).agregats.nps.nps === 'number'
+      ? {
+          nps: (experience as any).agregats.nps.nps,
+          volume: (experience as any).agregats.nps.volume ?? 0,
+        }
+      : null;
 
   const deltaSatisfaction = kpisPeriode?.delta_satisfaction_pts ?? 0;
   const deltaNote = kpisPeriode?.delta_note_pts ?? 0;
@@ -225,6 +244,73 @@ export const DashboardPage = () => {
               'Évolution volume': `${kpisPeriode.delta_volume_pct >= 0 ? '+' : ''}${kpisPeriode.delta_volume_pct ?? 0}%`,
             }] : [],
           },
+          // Phase L : indicateurs d'expérience, avec leur dénominateur. Une
+          // mesure absente vaut « N/A » (jamais 0 %) : le lecteur ne doit
+          // jamais lire « 0 % d'effort élevé » là où on n'a rien mesuré.
+          {
+            name: 'Expérience',
+            data: experience?.agregats
+              ? [
+                  {
+                    Indicateur: 'CSAT (/100)',
+                    Valeur: experience.agregats.csat != null ? experience.agregats.csat : 'N/A',
+                    'Base (n)': experience.agregats.volumeNotables,
+                    Formule: 'moyenne(score_normalise) des réponses notables',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'NPS',
+                    Valeur: npsAgregat ? npsAgregat.nps : 'N/A',
+                    'Base (n)': npsAgregat ? npsAgregat.volume : 0,
+                    Formule: '% promoteurs (9-10) − % détracteurs (0-6)',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'Indice global (/100)',
+                    Valeur: experience.indice?.indice != null ? experience.indice.indice : 'N/A',
+                    'Base (n)': experience.agregats.volumeAvis,
+                    Formule: experience.indice?.formule ?? '—',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'Qualité des données (/100)',
+                    Valeur: experience.agregats.qualiteDonnees,
+                    'Base (n)': experience.agregats.totalAnalyses,
+                    Formule: 'notables + commentées + cohérence IA',
+                    Source: 'Mixte',
+                  },
+                  {
+                    Indicateur: experience.agregats.ces
+                      ? `CES — top box faible effort (%) (échelle 1-${experience.agregats.ces.echelle})`
+                      : 'CES — top box faible effort (%)',
+                    Valeur: experience.agregats.ces ? Math.round(experience.agregats.ces.top_box * 10) / 10 : 'N/A',
+                    'Base (n)': experience.agregats.ces ? experience.agregats.ces.volume : 0,
+                    Formule: experience.agregats.ces
+                      ? '1 = très facile ; top box = 1-2 (1-5) ou 1-3 (1-7)'
+                      : 'aucune question d\'effort (CES) sur la période',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: experience.agregats.ces
+                      ? `CES — note d'effort moyenne (1-${experience.agregats.ces.echelle}, 1 = très facile)`
+                      : 'CES — note d\'effort moyenne',
+                    Valeur: experience.agregats.ces ? experience.agregats.ces.note_effort_moyenne : 'N/A',
+                    'Base (n)': experience.agregats.ces ? experience.agregats.ces.volume : 0,
+                    Formule: 'moyenne(score_officiel) des réponses CES',
+                    Source: 'Réponses',
+                  },
+                  {
+                    Indicateur: 'CES — effort élevé (%)',
+                    Valeur: experience.agregats.ces ? Math.round(experience.agregats.ces.taux_effort_eleve * 10) / 10 : 'N/A',
+                    'Base (n)': experience.agregats.ces ? experience.agregats.ces.volume : 0,
+                    Formule: experience.agregats.ces
+                      ? '4-5 (1-5) ou 6-7 (1-7)'
+                      : 'aucune question d\'effort (CES) sur la période',
+                    Source: 'Réponses',
+                  },
+                ]
+              : [],
+          },
         ],
         `Yeba_Rapport_Complet_${new Date().toISOString().split('T')[0]}`,
         { entreprise: nomEntrepriseDocs, periode: labelPeriode }
@@ -234,7 +320,7 @@ export const DashboardPage = () => {
     } finally {
       setExportingXLSX(false);
     }
-  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode, nomEntrepriseDocs, estDirection, comparaisonAgences]);
+  }, [avisGroupes, alertesList, tachesList, kpisPeriode, periodeActuelle, labelPeriode, nomEntrepriseDocs, estDirection, comparaisonAgences, experience, npsAgregat]);
 
   return (
     <RequireEnterpriseRole>
@@ -265,7 +351,7 @@ export const DashboardPage = () => {
               actions={
                 <div className="flex items-center gap-2 flex-wrap">
                   <Select value={String(periodeJours)} onValueChange={(v) => setPeriodeJours(Number(v))}>
-                    <SelectTrigger className="h-10 w-44 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm">
+                    <SelectTrigger className="h-10 w-44 rounded-xl border-border/80 bg-card/80 font-semibold shadow-sm" aria-label="Période analysée">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-border/80 shadow-premium">
@@ -318,6 +404,157 @@ export const DashboardPage = () => {
             </p>
           )}
 
+          {/* ZONE 1 — Expérience client (§49, vague 1 Phase I) : indice
+              global, CSAT, NPS, volume, confiance. Chaque chiffre porte sa
+              définition (survol) : formule + source + période. */}
+          {experience?.agregats && (
+            <section aria-label="Expérience client">
+              <div className="mb-4 flex items-center gap-2">
+                <LayoutDashboard className="size-5 text-primary-strong" />
+                <h2 className="text-xl font-bold text-foreground font-satoshi">
+                  Expérience client ({labelPeriode})
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:gap-5">
+                <div title={`Indice global : ${experience.indice?.formule ?? '—'} — Source : réponses notables.`}>
+                  <StatCard
+                    title="Indice global"
+                    value={loadingExperience ? '…' : experience.indice?.indice != null ? `${experience.indice.indice}/100` : 'N/A'}
+                    icon={LayoutDashboard}
+                    accent="primary"
+                    index={0}
+                  />
+                </div>
+                <div title="CSAT : moyenne des scores normalisés /100 des réponses notables.">
+                  <StatCard
+                    title="CSAT"
+                    value={loadingExperience ? '…' : experience.agregats.csat != null ? `${experience.agregats.csat}/100` : 'N/A'}
+                    icon={Smile}
+                    accent="success"
+                    index={1}
+                    trend={experience.agregats.evolutionCsatPts != null ? formatDelta(experience.agregats.evolutionCsatPts, ' pts') : undefined}
+                    trendDirection={(experience.agregats.evolutionCsatPts ?? 0) >= 0 ? 'up' : 'down'}
+                  />
+                </div>
+                <div title="NPS : % promoteurs − % détracteurs (jamais une moyenne). N/A sans question NPS.">
+                  <StatCard
+                    title="NPS"
+                    value={loadingExperience ? '…' : npsAgregat ? `${npsAgregat.nps >= 0 ? '+' : ''}${npsAgregat.nps}` : 'N/A'}
+                    icon={TrendingUp}
+                    accent="secondary"
+                    index={2}
+                  />
+                </div>
+                <div title="Volumes : avis = soumissions distinctes ; commentaires = lignes avec texte.">
+                  <StatCard
+                    title="Volume"
+                    value={loadingExperience ? '…' : `${experience.agregats.volumeAvis} avis`}
+                    icon={MessageSquare}
+                    accent="primary"
+                    index={3}
+                    trend={experience.agregats.evolutionVolumePct != null ? formatDelta(experience.agregats.evolutionVolumePct, '%') : undefined}
+                    trendDirection={(experience.agregats.evolutionVolumePct ?? 0) >= 0 ? 'up' : 'down'}
+                  />
+                </div>
+                <div
+                  title={
+                    `Confiance : volume + qualité + cohérence. Qualité des données : ${experience.agregats.qualiteDonnees}/100.` +
+                    // Vague 6 : le détail était déjà calculé et transporté,
+                    // mais jamais montré. Un score sans ses composantes oblige
+                    // à deviner la formule pour répondre à « pourquoi ? ».
+                    (experience.agregats.qualiteDonneesDetails
+                      ? ` Détail : ${experience.agregats.qualiteDonneesDetails.notables} % notables · ` +
+                        `${experience.agregats.qualiteDonneesDetails.commentaires} % commentées · ` +
+                        `${experience.agregats.qualiteDonneesDetails.coherence} % cohérence · ` +
+                        `${experience.agregats.qualiteDonneesDetails.fraicheur_legacy} % fraîcheur · ` +
+                        `${experience.agregats.qualiteDonneesDetails.volume} % volume.`
+                      : '')
+                  }
+                >
+                  <StatCard
+                    title="Confiance"
+                    value={loadingExperience ? '…' : experience.agregats.confiance === 'ELEVEE' ? 'Élevée' : experience.agregats.confiance === 'MOYENNE' ? 'Moyenne' : 'Faible'}
+                    icon={CheckCircle2}
+                    accent={experience.agregats.confiance === 'ELEVEE' ? 'success' : 'secondary'}
+                    index={4}
+                  />
+                </div>
+              </div>
+
+              {/* Principal irritant : synthèse IA si disponible, sinon top thème live. */}
+              {(() => {
+                const analyse = experience.derniereAnalyse;
+                const topLive = experience.agregats.themesTop?.[0];
+                const irritant = analyse?.irritants?.[0];
+                if (!irritant && !topLive) return null;
+                return (
+                  <div className="mt-4 rounded-2xl border border-warning/30 bg-warning/5 p-4">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-warning-strong">
+                      Principal irritant
+                    </p>
+                    {irritant ? (
+                      <p className="mt-1 text-sm font-bold text-foreground">
+                        {irritant.theme} — priorité {irritant.priorite}/100
+                        <span className="ml-2 text-xs font-medium text-muted-foreground">
+                          {irritant.constat} · confiance {irritant.confiance}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm font-bold text-foreground">
+                        {topLive.theme} — {topLive.count} mention{topLive.count > 1 ? 's' : ''}
+                        <span className="ml-2 text-xs font-medium text-muted-foreground">
+                          estimation live (en attente de la synthèse IA du lundi)
+                        </span>
+                      </p>
+                    )}
+                    {analyse?.resumeExecutif && (
+                      <p className="mt-2 text-xs text-muted-foreground font-medium italic">
+                        « {analyse.resumeExecutif} »
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Phase L — effort perçu : top box (1 = très facile) + part
+                  d'effort élevé. N/A tant qu'aucune question CES n'est active. */}
+              {experience.agregats.ces && experience.agregats.ces.volume > 0 && (
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <StatCard
+                    title="Effort perçu (top box)"
+                    value={loadingExperience ? '…' : `${Math.round(experience.agregats.ces.top_box)} %`}
+                    icon={Gauge}
+                    accent="success"
+                    index={0}
+                  />
+                  <StatCard
+                    title={`CES moyen (1 = très facile, max ${experience.agregats.ces.echelle})`}
+                    value={loadingExperience ? '…' : experience.agregats.ces.note_effort_moyenne != null ? `${experience.agregats.ces.note_effort_moyenne}/${experience.agregats.ces.echelle}` : 'N/A'}
+                    icon={Scale}
+                    accent="secondary"
+                    index={1}
+                  />
+                  <StatCard
+                    title="Effort élevé"
+                    value={loadingExperience ? '…' : `${Math.round(experience.agregats.ces.taux_effort_eleve)} %`}
+                    icon={AlertTriangle}
+                    accent={experience.agregats.ces.taux_effort_eleve > 25 ? 'destructive' : 'primary'}
+                    index={2}
+                  />
+                </div>
+              )}
+
+              <p className="mt-3 text-xs text-muted-foreground font-medium">
+                Cohérence note/texte :{' '}
+                {experience.agregats.totalAnalyses > 0
+                  ? `${Math.round((1 - experience.agregats.tauxIncoherence) * 100)} % cohérents sur ${experience.agregats.totalAnalyses} analyses`
+                  : 'aucune analyse IA sur la période'}
+                {' · '}Données exploitables : {experience.agregats.qualiteDonnees}/100
+                {' · '}Commentaires : {experience.agregats.volumeCommentaires}
+              </p>
+            </section>
+          )}
+
           {/* NIVEAU 1 — Quoi faire aujourd'hui */}
           <section id="actions-prioritaires">
             <ActionsPrioritaires
@@ -368,7 +605,7 @@ export const DashboardPage = () => {
           {/* Objectifs */}
           <section>
             <div className="mb-4 flex items-center gap-2">
-              <Target className="size-5 text-primary" />
+              <Target className="size-5 text-primary-strong" />
               <h2 className="text-xl font-bold text-foreground font-satoshi">Objectifs de satisfaction</h2>
             </div>
             {loadingObjectifs ? (
@@ -381,7 +618,7 @@ export const DashboardPage = () => {
           {/* Thèmes récurrents — valeur ajoutée : de quoi se plaignent les clients */}
           <section>
             <div className="mb-4 flex items-center gap-2">
-              <Tag className="size-5 text-primary" />
+              <Tag className="size-5 text-primary-strong" />
               <h2 className="text-lg font-bold text-foreground font-satoshi">Thèmes récurrents ({labelPeriode})</h2>
             </div>
             {loadingThemes ? (
@@ -503,7 +740,7 @@ export const DashboardPage = () => {
 
                     <section>
                       <div className="mb-4 flex items-center gap-2">
-                        <TrendingUp className="size-5 text-primary" />
+                        <TrendingUp className="size-5 text-primary-strong" />
                         <h2 className="text-lg font-bold text-foreground font-satoshi">Évolution mensuelle</h2>
                       </div>
                       {loadingTendance ? (
@@ -540,7 +777,7 @@ export const DashboardPage = () => {
                 <Eyebrow tone="amber">Derniers retours enregistrés</Eyebrow>
                 <div className="flex items-center gap-3">
                   {avisGroupes.length > 0 && (
-                    <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary">
+                    <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary-strong">
                       {avisGroupes.length} avis
                     </span>
                   )}
@@ -561,16 +798,22 @@ export const DashboardPage = () => {
                       <DataTableRow
                         key={avis.id_soumission ?? premiere.id}
                         onClick={() => navigate(routes.AvisRoute.to)}
+                        // Vague 4 : la ligne devient focusable et activable
+                        // au clavier ; l'icône seule ne suffisait pas à
+                        // dire ce que fait la ligne.
+                        aria-label={`Ouvrir l’avis du ${premiere.guichet?.nom_guichet || 'guichet inconnu'}, note ${avis.score_moyen ?? 'non chiffrée'}/5`}
                       >
                         <td className="px-6 py-4">
                           <span
                             className={`rounded-full px-2.5 py-1 text-xs font-bold border ${
-                              avis.score_moyen <= 2
-                                ? 'bg-destructive/10 text-destructive border-destructive/20'
-                                : 'bg-success/10 text-success border-success/20'
+                              avis.score_moyen == null
+                                ? 'bg-muted text-muted-foreground border-border'
+                                : avis.score_moyen <= 2
+                                  ? 'bg-destructive/10 text-destructive-strong border-destructive/20'
+                                  : 'bg-success/10 text-success-strong border-success/20'
                             }`}
                           >
-                            {avis.score_moyen}/5
+                            {avis.score_moyen == null ? '—' : `${avis.score_moyen}/5`}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-foreground font-medium">{premiere.guichet?.nom_guichet || 'Guichet inconnu'}</td>
@@ -644,7 +887,7 @@ export const DashboardPage = () => {
                       <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/15 text-lg" aria-hidden>🏆</span>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-success">Top agence</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-success-strong">Top agence</p>
                           <p className="truncate text-sm font-bold text-foreground">{top.nom_agence} — {top.score_moyen}/5</p>
                         </div>
                       </div>
@@ -656,7 +899,7 @@ export const DashboardPage = () => {
                       <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-lg" aria-hidden>⚠️</span>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-warning">À surveiller</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-warning-strong">À surveiller</p>
                           <p className="truncate text-sm font-bold text-foreground">{flop.nom_agence} — {flop.score_moyen}/5</p>
                         </div>
                       </div>
@@ -675,10 +918,10 @@ export const DashboardPage = () => {
                           <p className="truncate text-sm font-bold font-satoshi text-foreground">
                             {a.nom_agence}
                             {comparaisonAgences.meilleure_agence === a.nom_agence && a.nb_avis > 0 && (
-                              <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-success">Meilleure</span>
+                              <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-success-strong">Meilleure</span>
                             )}
                             {comparaisonAgences.agence_a_surveiller === a.nom_agence && a.nb_avis > 0 && comparaisonAgences.agences.filter((x: any) => x.nb_avis > 0).length > 1 && (
-                              <span className="ml-2 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-warning">À surveiller</span>
+                              <span className="ml-2 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-warning-strong">À surveiller</span>
                             )}
                           </p>
                           <p className="text-[11px] text-muted-foreground">{a.commune || '—'} · {a.nb_avis} avis</p>
@@ -690,7 +933,7 @@ export const DashboardPage = () => {
                           <p className="text-[11px] font-semibold text-muted-foreground">
                             {a.taux_satisfaction !== null ? `${a.taux_satisfaction}% satisfaits` : ''}
                             {delta !== null && delta !== undefined && (
-                              <span className={`ml-1.5 font-bold ${delta >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              <span className={`ml-1.5 font-bold ${delta >= 0 ? 'text-success-strong' : 'text-destructive-strong'}`}>
                                 {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}
                               </span>
                             )}
@@ -775,6 +1018,7 @@ export const DashboardPage = () => {
               alertesNouvelles={alertesNouvelles}
               tachesEnCours={tachesList.filter((t: any) => t.statut_tache !== 'TERMINEE').length}
               themes={themesStats?.topThemes || []}
+              ces={experience?.agregats?.ces ?? null}
             />
           ) : (
           <RapportMensuelPrint
@@ -797,6 +1041,7 @@ export const DashboardPage = () => {
               volume: kpisPeriode?.delta_volume_pct ?? 0,
             }}
             tempsTraitement={tempsTraitement?.prise_en_charge || null}
+            ces={experience?.agregats?.ces ?? null}
           />
           )}
         </div>

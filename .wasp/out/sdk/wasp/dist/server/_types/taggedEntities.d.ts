@@ -1,4 +1,4 @@
-import { type Entity, type EntityName, type User, type Entreprise, type Agence, type Guichet, type AffectationGuichet, type ModeleHoraire, type Service, type Critere, type CritereService, type AgenceCritere, type Objectif, type Canal, type Reponse, type AnalyseAvisIA, type Alerte, type TacheCorrective, type TacheCorrectiveHistorique, type VoteAntiRejeu, type StatistiquesMensuelles, type File, type Logs, type Invitation, type AuditLog, type BrandingConfig } from 'wasp/entities';
+import { type Entity, type EntityName, type User, type Entreprise, type Agence, type Guichet, type AffectationGuichet, type ModeleHoraire, type Service, type Critere, type OptionCritere, type ReponseOption, type CritereService, type AgenceCritere, type Objectif, type Canal, type Reponse, type AnalyseAvisIA, type GlobalExperienceAnalysis, type Alerte, type TacheCorrective, type TacheCorrectiveHistorique, type VoteAntiRejeu, type File, type Logs, type Invitation, type AuditLog, type BrandingConfig } from 'wasp/entities';
 export type _User = WithName<User, "User">;
 export type _Entreprise = WithName<Entreprise, "Entreprise">;
 export type _Agence = WithName<Agence, "Agence">;
@@ -7,23 +7,25 @@ export type _AffectationGuichet = WithName<AffectationGuichet, "AffectationGuich
 export type _ModeleHoraire = WithName<ModeleHoraire, "ModeleHoraire">;
 export type _Service = WithName<Service, "Service">;
 export type _Critere = WithName<Critere, "Critere">;
+export type _OptionCritere = WithName<OptionCritere, "OptionCritere">;
+export type _ReponseOption = WithName<ReponseOption, "ReponseOption">;
 export type _CritereService = WithName<CritereService, "CritereService">;
 export type _AgenceCritere = WithName<AgenceCritere, "AgenceCritere">;
 export type _Objectif = WithName<Objectif, "Objectif">;
 export type _Canal = WithName<Canal, "Canal">;
 export type _Reponse = WithName<Reponse, "Reponse">;
 export type _AnalyseAvisIA = WithName<AnalyseAvisIA, "AnalyseAvisIA">;
+export type _GlobalExperienceAnalysis = WithName<GlobalExperienceAnalysis, "GlobalExperienceAnalysis">;
 export type _Alerte = WithName<Alerte, "Alerte">;
 export type _TacheCorrective = WithName<TacheCorrective, "TacheCorrective">;
 export type _TacheCorrectiveHistorique = WithName<TacheCorrectiveHistorique, "TacheCorrectiveHistorique">;
 export type _VoteAntiRejeu = WithName<VoteAntiRejeu, "VoteAntiRejeu">;
-export type _StatistiquesMensuelles = WithName<StatistiquesMensuelles, "StatistiquesMensuelles">;
 export type _File = WithName<File, "File">;
 export type _Logs = WithName<Logs, "Logs">;
 export type _Invitation = WithName<Invitation, "Invitation">;
 export type _AuditLog = WithName<AuditLog, "AuditLog">;
 export type _BrandingConfig = WithName<BrandingConfig, "BrandingConfig">;
-export type _Entity = _User | _Entreprise | _Agence | _Guichet | _AffectationGuichet | _ModeleHoraire | _Service | _Critere | _CritereService | _AgenceCritere | _Objectif | _Canal | _Reponse | _AnalyseAvisIA | _Alerte | _TacheCorrective | _TacheCorrectiveHistorique | _VoteAntiRejeu | _StatistiquesMensuelles | _File | _Logs | _Invitation | _AuditLog | _BrandingConfig | never;
+export type _Entity = _User | _Entreprise | _Agence | _Guichet | _AffectationGuichet | _ModeleHoraire | _Service | _Critere | _OptionCritere | _ReponseOption | _CritereService | _AgenceCritere | _Objectif | _Canal | _Reponse | _AnalyseAvisIA | _GlobalExperienceAnalysis | _Alerte | _TacheCorrective | _TacheCorrectiveHistorique | _VoteAntiRejeu | _File | _Logs | _Invitation | _AuditLog | _BrandingConfig | never;
 type WithName<E extends Entity, Name extends EntityName> = E & {
     _entityName: Name;
 };

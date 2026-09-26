@@ -14,17 +14,19 @@ import {
   type ModeleHoraire,
   type Service,
   type Critere,
+  type OptionCritere,
+  type ReponseOption,
   type CritereService,
   type AgenceCritere,
   type Objectif,
   type Canal,
   type Reponse,
   type AnalyseAvisIA,
+  type GlobalExperienceAnalysis,
   type Alerte,
   type TacheCorrective,
   type TacheCorrectiveHistorique,
   type VoteAntiRejeu,
-  type StatistiquesMensuelles,
   type File,
   type Logs,
   type Invitation,
@@ -40,17 +42,19 @@ export type _AffectationGuichet = WithName<AffectationGuichet, "AffectationGuich
 export type _ModeleHoraire = WithName<ModeleHoraire, "ModeleHoraire">
 export type _Service = WithName<Service, "Service">
 export type _Critere = WithName<Critere, "Critere">
+export type _OptionCritere = WithName<OptionCritere, "OptionCritere">
+export type _ReponseOption = WithName<ReponseOption, "ReponseOption">
 export type _CritereService = WithName<CritereService, "CritereService">
 export type _AgenceCritere = WithName<AgenceCritere, "AgenceCritere">
 export type _Objectif = WithName<Objectif, "Objectif">
 export type _Canal = WithName<Canal, "Canal">
 export type _Reponse = WithName<Reponse, "Reponse">
 export type _AnalyseAvisIA = WithName<AnalyseAvisIA, "AnalyseAvisIA">
+export type _GlobalExperienceAnalysis = WithName<GlobalExperienceAnalysis, "GlobalExperienceAnalysis">
 export type _Alerte = WithName<Alerte, "Alerte">
 export type _TacheCorrective = WithName<TacheCorrective, "TacheCorrective">
 export type _TacheCorrectiveHistorique = WithName<TacheCorrectiveHistorique, "TacheCorrectiveHistorique">
 export type _VoteAntiRejeu = WithName<VoteAntiRejeu, "VoteAntiRejeu">
-export type _StatistiquesMensuelles = WithName<StatistiquesMensuelles, "StatistiquesMensuelles">
 export type _File = WithName<File, "File">
 export type _Logs = WithName<Logs, "Logs">
 export type _Invitation = WithName<Invitation, "Invitation">
@@ -66,17 +70,19 @@ export type _Entity =
   | _ModeleHoraire
   | _Service
   | _Critere
+  | _OptionCritere
+  | _ReponseOption
   | _CritereService
   | _AgenceCritere
   | _Objectif
   | _Canal
   | _Reponse
   | _AnalyseAvisIA
+  | _GlobalExperienceAnalysis
   | _Alerte
   | _TacheCorrective
   | _TacheCorrectiveHistorique
   | _VoteAntiRejeu
-  | _StatistiquesMensuelles
   | _File
   | _Logs
   | _Invitation

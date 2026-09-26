@@ -1,1 +1,1 @@
-{"version":3,"file":"CollectePage.d.ts","sourceRoot":"","sources":["../../../../src/client/pages/CollectePage.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAsC,MAAM,OAAO,CAAC;AAgD3D,eAAO,MAAM,YAAY,yBAmwBxB,CAAC"}
+{"version":3,"file":"CollectePage.d.ts","sourceRoot":"","sources":["../../../../src/client/pages/CollectePage.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAsC,MAAM,OAAO,CAAC;AA4H3D;;;;;;GAMG;AACH,eAAO,MAAM,mBAAmB,QAAO,MAWtC,CAAC;AAuCF,eAAO,MAAM,YAAY,yBAitCxB,CAAC"}

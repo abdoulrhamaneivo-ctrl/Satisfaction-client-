@@ -22,6 +22,7 @@ import { genererPlanning as genererPlanning_ext } from 'wasp/src/server/planning
 import { reconduirePlanning as reconduirePlanning_ext } from 'wasp/src/server/planning'
 import { appliquerSuggestion as appliquerSuggestion_ext } from 'wasp/src/server/planning'
 import { soumettreAvis as soumettreAvis_ext } from 'wasp/src/server/actions'
+import { completerSoumissionPublic as completerSoumission_ext } from 'wasp/src/server/actions'
 import { createAgence as createAgence_ext } from 'wasp/src/server/actions'
 import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions'
 import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions'
@@ -70,6 +71,7 @@ import { desactiverComptePlatform as desactiverComptePlatform_ext } from 'wasp/s
 import { setup2fa as setup2fa_ext } from 'wasp/src/server/actionsPlatform'
 import { activer2fa as activer2fa_ext } from 'wasp/src/server/actionsPlatform'
 import { verifier2fa as verifier2fa_ext } from 'wasp/src/server/actionsPlatform'
+import { declencherAnalyseGlobale as declencherAnalyseGlobale_ext } from 'wasp/src/server/globalExperience'
 
 // PRIVATE API
 export type UpdateProfile_ext = typeof updateProfile_ext
@@ -299,6 +301,8 @@ export const soumettreAvis: AuthenticatedOperationFor<SoumettreAvis_ext> =
     {
       Reponse: prisma.reponse,
       Critere: prisma.critere,
+      OptionCritere: prisma.optionCritere,
+      ReponseOption: prisma.reponseOption,
       AgenceCritere: prisma.agenceCritere,
       CritereService: prisma.critereService,
       Guichet: prisma.guichet,
@@ -309,6 +313,22 @@ export const soumettreAvis: AuthenticatedOperationFor<SoumettreAvis_ext> =
       User: prisma.user,
       AnalyseAvisIA: prisma.analyseAvisIA,
       Canal: prisma.canal,
+    },
+  )
+
+// PRIVATE API
+export type CompleterSoumission_ext = typeof completerSoumission_ext
+
+// PUBLIC API
+export const completerSoumission: AuthenticatedOperationFor<CompleterSoumission_ext> =
+  createAuthenticatedOperation(
+    completerSoumission_ext,
+    {
+      Reponse: prisma.reponse,
+      Guichet: prisma.guichet,
+      Agence: prisma.agence,
+      VoteAntiRejeu: prisma.voteAntiRejeu,
+      AnalyseAvisIA: prisma.analyseAvisIA,
     },
   )
 
@@ -1029,5 +1049,18 @@ export const verifier2fa: AuthenticatedOperationFor<Verifier2fa_ext> =
     {
       User: prisma.user,
       AuditLog: prisma.auditLog,
+    },
+  )
+
+// PRIVATE API
+export type DeclencherAnalyseGlobale_ext = typeof declencherAnalyseGlobale_ext
+
+// PUBLIC API
+export const declencherAnalyseGlobale: AuthenticatedOperationFor<DeclencherAnalyseGlobale_ext> =
+  createAuthenticatedOperation(
+    declencherAnalyseGlobale_ext,
+    {
+      GlobalExperienceAnalysis: prisma.globalExperienceAnalysis,
+      Entreprise: prisma.entreprise,
     },
   )

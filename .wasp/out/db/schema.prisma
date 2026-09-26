@@ -8,53 +8,58 @@ generator client {
 }
 
 model User {
-  id                 String                      @id @default(uuid())
-  email              String?                     @unique
-  username           String?                     @unique
-  createdAt          DateTime                    @default(now())
-  isAdmin            Boolean                     @default(false)
-  sendEmail          Boolean                     @default(false)
-  nom                String?                     @default("")
-  prenom             String?                     @default("")
-  telephone          String?                     @default("")
-  role               String?                     @default("AGENT")
-  actif              Boolean                     @default(true)
-  mustChangePassword Boolean                     @default(false)
-  id_agence          Int?
-  agence             Agence?                     @relation(fields: [id_agence], references: [id])
-  platformRole       String                      @default("NONE")
-  totp_secret        String?
-  totp_actif         Boolean                     @default(false)
-  id_entreprise      Int?
-  entreprise         Entreprise?                 @relation(fields: [id_entreprise], references: [id])
-  invitationsRecues  Invitation[]                @relation("InvitationInvite")
-  invitationsEmises  Invitation[]                @relation("InvitationEmetteur")
-  auditLogs          AuditLog[]                  @relation("AuditActeur")
-  affectations       AffectationGuichet[]
-  modelesHoraires    ModeleHoraire[]             @relation("ModeleHoraireAgent")
-  alertes            Alerte[]
-  taches             TacheCorrective[]
-  reponses           Reponse[]                   @relation("AgentResponses")
-  historiquesTaches  TacheCorrectiveHistorique[] @relation("HistoriqueAuteur")
-  files              File[]
-  auth               Auth?
+  id                   String                      @id @default(uuid())
+  email                String?                     @unique
+  username             String?                     @unique
+  createdAt            DateTime                    @default(now())
+  isAdmin              Boolean                     @default(false)
+  sendEmail            Boolean                     @default(false)
+  nom                  String?                     @default("")
+  prenom               String?                     @default("")
+  telephone            String?                     @default("")
+  role                 RoleUtilisateur?            @default(AGENT)
+  actif                Boolean                     @default(true)
+  mustChangePassword   Boolean                     @default(false)
+  id_agence            Int?
+  agence               Agence?                     @relation(fields: [id_agence], references: [id])
+  platformRole         PlatformRole                @default(NONE)
+  totp_secret          String?
+  totp_actif           Boolean                     @default(false)
+  totp_failed_attempts Int                         @default(0)
+  totp_locked_until    DateTime?
+  totp_last_used_step  BigInt?
+  id_entreprise        Int?
+  entreprise           Entreprise?                 @relation(fields: [id_entreprise], references: [id])
+  invitationsRecues    Invitation[]                @relation("InvitationInvite")
+  invitationsEmises    Invitation[]                @relation("InvitationEmetteur")
+  auditLogs            AuditLog[]                  @relation("AuditActeur")
+  affectations         AffectationGuichet[]
+  modelesHoraires      ModeleHoraire[]             @relation("ModeleHoraireAgent")
+  alertes              Alerte[]
+  taches               TacheCorrective[]
+  reponses             Reponse[]                   @relation("AgentResponses")
+  historiquesTaches    TacheCorrectiveHistorique[] @relation("HistoriqueAuteur")
+  files                File[]
+  auth                 Auth?
+
+  @@index([id_entreprise])
 }
 
 model Entreprise {
-  id                    Int             @id @default(autoincrement())
+  id                    Int                        @id @default(autoincrement())
   nom_entreprise        String
   nom_court             String?
   email_administratif   String?
   telephone             String?
-  pays                  String?         @default("Cote d'Ivoire")
-  date_creation_compte  DateTime        @default(now())
-  status                String          @default("ACTIVE")
-  plan                  String          @default("STARTER")
+  pays                  String?                    @default("Cote d'Ivoire")
+  date_creation_compte  DateTime                   @default(now())
+  status                StatutEntreprise           @default(ACTIVE)
+  plan                  PlanEntreprise             @default(STARTER)
   date_debut_abonnement DateTime?
   date_fin_abonnement   DateTime?
-  limite_agences        Int             @default(5)
-  limite_utilisateurs   Int             @default(50)
-  limite_guichets       Int             @default(25)
+  limite_agences        Int                        @default(5)
+  limite_utilisateurs   Int                        @default(50)
+  limite_guichets       Int                        @default(25)
   suspendue_le          DateTime?
   motif_suspension      String?
   branding              BrandingConfig?
@@ -64,44 +69,44 @@ model Entreprise {
   utilisateurs          User[]
   criteres              Critere[]
   services              Service[]
+  voteAntiRejeu         VoteAntiRejeu[]
+  analysesGlobales      GlobalExperienceAnalysis[]
 }
 
 model Agence {
-  id              Int                      @id @default(autoincrement())
+  id              Int             @id @default(autoincrement())
   nom_agence      String
   commune         String
   adresse         String?
-  heure_ouverture String                   @default("08:00")
-  heure_fermeture String                   @default("17:00")
-  jours_ouvres    String                   @default("1,2,3,4,5,6")
-  archive         Boolean                  @default(false)
+  heure_ouverture String          @default("08:00")
+  heure_fermeture String          @default("17:00")
+  jours_ouvres    String          @default("1,2,3,4,5,6")
+  archive         Boolean         @default(false)
   date_archivage  DateTime?
   id_entreprise   Int
-  entreprise      Entreprise               @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  entreprise      Entreprise      @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
   utilisateurs    User[]
   guichets        Guichet[]
   objectifs       Objectif[]
   reponses        Reponse[]
-  statistiques    StatistiquesMensuelles[]
   agencesCriteres AgenceCritere[]
   modelesHoraires ModeleHoraire[]
 }
 
 model Guichet {
-  id              Int                      @id @default(autoincrement())
+  id              Int                  @id @default(autoincrement())
   nom_guichet     String
   type_guichet    String?
-  actif           Boolean                  @default(true)
-  code_public     String                   @unique
-  archive         Boolean                  @default(false)
+  actif           Boolean              @default(true)
+  code_public     String               @unique
+  archive         Boolean              @default(false)
   date_archivage  DateTime?
   id_agence       Int
-  agence          Agence                   @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+  agence          Agence               @relation(fields: [id_agence], references: [id], onDelete: Cascade)
   affectations    AffectationGuichet[]
   modelesHoraires ModeleHoraire[]
   reponses        Reponse[]
   alertes         Alerte[]
-  statistiques    StatistiquesMensuelles[]
   services        Service[]
 }
 
@@ -134,32 +139,69 @@ model ModeleHoraire {
 }
 
 model Service {
-  id               Int                      @id @default(autoincrement())
+  id               Int              @id @default(autoincrement())
   libelle_service  String
   id_entreprise    Int?
-  entreprise       Entreprise?              @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  entreprise       Entreprise?      @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
   reponses         Reponse[]
-  statistiques     StatistiquesMensuelles[]
   guichets         Guichet[]
   criteresServices CritereService[]
+
+  @@index([id_entreprise])
 }
 
 model Critere {
-  id               Int                      @id @default(autoincrement())
+  id               Int              @id @default(autoincrement())
   libelle_critere  String
   description      String?
-  type_reponse     String                   @default("SMILEY")
+  type_reponse     TypeReponse      @default(SMILEY)
+  scoring_mode     ScoringMode?
+  orientation      OrientationNote  @default(HIGHER_BETTER)
+  version          Int              @default(1)
   options_reponse  String?
-  obligatoire      Boolean                  @default(true)
-  archive          Boolean                  @default(false)
+  scores_reponse   String?
+  obligatoire      Boolean          @default(true)
+  archive          Boolean          @default(false)
   date_archivage   DateTime?
   id_entreprise    Int?
-  entreprise       Entreprise?              @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  entreprise       Entreprise?      @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
   objectifs        Objectif[]
   reponses         Reponse[]
-  statistiques     StatistiquesMensuelles[]
   agencesCriteres  AgenceCritere[]
   criteresServices CritereService[]
+  options          OptionCritere[]
+
+  @@index([id_entreprise])
+}
+
+model OptionCritere {
+  id                String           @id @default(cuid())
+  id_critere        Int
+  critere           Critere          @relation(fields: [id_critere], references: [id], onDelete: Cascade)
+  libelle           String
+  libelle_normalise String
+  ordre_affichage   Int              @default(0)
+  actif             Boolean          @default(true)
+  est_scorable      Boolean          @default(true)
+  score             Int?
+  score_provenance  ProvenanceScore?
+  poids             Int?
+  valeur_metier     String?
+  code_metier       String?
+  reponses          ReponseOption[]
+
+  @@unique([id_critere, libelle_normalise])
+  @@index([id_critere, ordre_affichage])
+}
+
+model ReponseOption {
+  id_reponse BigInt
+  reponse    Reponse       @relation(fields: [id_reponse], references: [id], onDelete: Cascade)
+  id_option  String
+  option     OptionCritere @relation(fields: [id_option], references: [id], onDelete: Restrict)
+
+  @@id([id_reponse, id_option])
+  @@index([id_option])
 }
 
 model CritereService {
@@ -196,70 +238,122 @@ model Objectif {
 
 model Canal {
   id              Int       @id @default(autoincrement())
-  type_canal      String
+  type_canal      TypeCanal
   langue_utilisee String
   reponses        Reponse[]
 }
 
 model Reponse {
-  id                BigInt         @id @default(autoincrement())
-  date_reponse      DateTime       @default(now())
-  score_brut        Int
-  audio_url         String?
+  id                BigInt          @id @default(autoincrement())
+  date_reponse      DateTime        @default(now())
+  score_brut        Int?
+  score_officiel    Int?
+  score_normalise   Float?
+  score_source      String?
+  critere_version   Int?
   commentaire_texte String?
   id_soumission     String?
   id_critere        Int
-  critere           Critere        @relation(fields: [id_critere], references: [id])
+  critere           Critere         @relation(fields: [id_critere], references: [id])
   id_canal          Int
-  canal             Canal          @relation(fields: [id_canal], references: [id])
+  canal             Canal           @relation(fields: [id_canal], references: [id])
   id_agence         Int
-  agence            Agence         @relation(fields: [id_agence], references: [id], onDelete: Cascade)
+  agence            Agence          @relation(fields: [id_agence], references: [id], onDelete: Cascade)
   id_guichet        Int
-  guichet           Guichet        @relation(fields: [id_guichet], references: [id])
+  guichet           Guichet         @relation(fields: [id_guichet], references: [id])
   id_service        Int?
-  service           Service?       @relation(fields: [id_service], references: [id])
+  service           Service?        @relation(fields: [id_service], references: [id])
   id_agent          String?
-  agent             User?          @relation("AgentResponses", fields: [id_agent], references: [id], onDelete: SetNull)
+  agent             User?           @relation("AgentResponses", fields: [id_agent], references: [id], onDelete: SetNull)
   alertes           Alerte[]
   analyseIA         AnalyseAvisIA?
+  optionsChoisies   ReponseOption[]
 
   @@index([id_agence, date_reponse])
   @@index([id_guichet, date_reponse])
   @@index([id_soumission])
+  @@index([id_critere])
+  @@index([id_service])
+  @@index([id_canal])
+  @@index([id_agent])
 }
 
 model AnalyseAvisIA {
-  id                BigInt    @id @default(autoincrement())
-  reponseId         BigInt    @unique
-  reponse           Reponse   @relation(fields: [reponseId], references: [id], onDelete: Cascade)
-  commentaireTexte  String?
-  noteBrut          Int?
-  status            String    @default("PENDING")
-  sentiment         String?
-  sentimentScore    Float?
-  themes            String?
-  problemePrincipal String?
-  urgence           String?
-  resume            String?
-  actionRecommandee String?
-  coherenceNote     String?
-  sentimentRetenu   String?
-  model             String    @default("deepseek-chat")
-  provider          String    @default("deepseek")
-  attempts          Int       @default(0)
-  error             String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  processedAt       DateTime?
+  id                   BigInt         @id @default(autoincrement())
+  reponseId            BigInt         @unique
+  reponse              Reponse        @relation(fields: [reponseId], references: [id], onDelete: Cascade)
+  commentaireTexte     String?
+  noteBrut             Int?
+  status               StatutIa       @default(PENDING)
+  sentiment            SentimentAvis?
+  sentimentScore       Float?
+  themes               String?
+  sousThemes           String?
+  problemePrincipal    String?
+  problemesSecondaires String?
+  severite             NiveauGravite?
+  emotion              String?
+  confidence           Float?
+  urgence              NiveauGravite?
+  resume               String?
+  actionRecommandee    String?
+  promptVersion        String?
+  analysisVersion      String?        @default("1")
+  coherenceNote        CoherenceNote?
+  sentimentRetenu      SentimentAvis?
+  model                String         @default("deepseek-chat")
+  provider             String         @default("deepseek")
+  attempts             Int            @default(0)
+  error                String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  processedAt          DateTime?
 
   @@index([status])
+}
+
+model GlobalExperienceAnalysis {
+  id                 BigInt           @id @default(autoincrement())
+  id_entreprise      Int
+  entreprise         Entreprise       @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  periode            PeriodeAnalyse
+  debut              DateTime
+  fin                DateTime
+  filtres            String?
+  datasetSnapshot    String?
+  indicateurs        String?
+  resumeExecutif     String?
+  pointsPositifs     String?
+  pointsNegatifs     String?
+  irritants          String?
+  tendances          String?
+  anomalies          String?
+  priorites          String?
+  confiance          NiveauConfiance?
+  limites            String?
+  volumeAvis         Int              @default(0)
+  volumeCommentaires Int              @default(0)
+  qualiteDonnees     Float?
+  model              String?
+  provider           String?
+  promptVersion      String?
+  analysisVersion    String           @default("1")
+  status             StatutIa         @default(PENDING)
+  attempts           Int              @default(0)
+  error              String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  processedAt        DateTime?
+
+  @@unique([id_entreprise, periode, debut])
+  @@index([id_entreprise, periode, fin])
 }
 
 model Alerte {
   id                  BigInt            @id @default(autoincrement())
   message             String
-  statut_alerte       String            @default("NOUVELLE")
-  type_alerte         String
+  statut_alerte       StatutAlerte      @default(NOUVELLE)
+  type_alerte         TypeAlerte
   date_creation       DateTime          @default(now())
   date_traitement     DateTime?
   archive             Boolean           @default(false)
@@ -279,7 +373,7 @@ model TacheCorrective {
   id                    BigInt                      @id @default(autoincrement())
   titre                 String
   description           String?
-  statut_tache          String                      @default("A_FAIRE")
+  statut_tache          StatutTache                 @default(A_FAIRE)
   date_creation         DateTime                    @default(now())
   date_echeance         DateTime
   date_cloture          DateTime?
@@ -296,42 +390,28 @@ model TacheCorrective {
 }
 
 model TacheCorrectiveHistorique {
-  id             BigInt          @id @default(autoincrement())
-  date_action    DateTime        @default(now())
-  ancien_statut  String
-  nouveau_statut String
+  id             BigInt           @id @default(autoincrement())
+  date_action    DateTime         @default(now())
+  ancien_statut  StatutAvantTache
+  nouveau_statut StatutTache
   commentaire    String?
   id_tache       BigInt
-  tache          TacheCorrective @relation(fields: [id_tache], references: [id], onDelete: Cascade)
+  tache          TacheCorrective  @relation(fields: [id_tache], references: [id], onDelete: Cascade)
   id_auteur      String
-  auteur         User            @relation("HistoriqueAuteur", fields: [id_auteur], references: [id])
+  auteur         User             @relation("HistoriqueAuteur", fields: [id_auteur], references: [id])
 
   @@index([id_tache, date_action])
 }
 
 model VoteAntiRejeu {
-  id          BigInt   @id @default(autoincrement())
-  hachage_tel String   @unique
-  date_vote   DateTime @default(now())
+  id            BigInt     @id @default(autoincrement())
+  id_entreprise Int
+  entreprise    Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
+  hachage_tel   String
+  date_vote     DateTime   @default(now())
 
+  @@unique([id_entreprise, hachage_tel, date_vote])
   @@index([date_vote])
-}
-
-model StatistiquesMensuelles {
-  id                BigInt   @id @default(autoincrement())
-  annee             Int
-  mois              Int
-  nombre_reponses   Int      @default(0)
-  score_moyen       Decimal  @db.Decimal(5, 2)
-  niveau_conformite String   @default("Informelle")
-  id_agence         Int
-  agence            Agence   @relation(fields: [id_agence], references: [id], onDelete: Cascade)
-  id_guichet        Int?
-  guichet           Guichet? @relation(fields: [id_guichet], references: [id], onDelete: SetNull)
-  id_service        Int?
-  service           Service? @relation(fields: [id_service], references: [id], onDelete: SetNull)
-  id_critere        Int
-  critere           Critere  @relation(fields: [id_critere], references: [id], onDelete: Cascade)
 }
 
 model File {
@@ -441,4 +521,181 @@ model Session {
   auth      Auth     @relation(references: [id], fields: [userId], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Domaines de valeurs (audit P14 j).
+///
+/// Les valeurs viennent du CODE, jamais des commentaires de schéma — un
+/// commentaire finit par mentir, un enum non. Trois exemples de ce que la
+/// lecture des commentaires aurait raté, tous attrs par la compilation :
+///
+/// - `type_reponse` valait 5 valeurs dans mes premieres annotations ; le code en
+///   utilise 7 : `OUI_NON` et `NPS` sont réels (`moteurGlobal.ts:272`
+///   filtre sur `type_reponse === 'NPS'`). Source de vérité : les CLÉS de
+///   `MODES_PAR_TYPE` dans `actions.ts`.
+/// - `scoring_mode` : `MAGIQUE` figurait dans un commentaire de ce fichier.
+///   Il n'est dans aucune liste du code, donc ici il est REFUSÉ.
+/// - `statut_tache` : `EN_COURS` est produit par deux jobs et absent de ma
+///   première extraction, qui ne voyait pas les valeurs posées sur la ligne
+///   suivante.
+///
+/// `HIGH_BETTER`/`LOWER_BETTER` n'apparaissent pas ici : elles appartiennent
+/// au champ `orientation`, pas à `scoring_mode`.
+enum StatutIa {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+/// Gravité d'un problème remonté par l'analyse. Partagée par `severite` et
+/// `urgence` d'`AnalyseAvisIA` : même domaine, donc même contrainte.
+/// `MEDIUM` est documenté et accepté mais pas encore produit par le code.
+enum NiveauGravite {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RoleUtilisateur {
+  AGENT
+  CHEF_AGENCE
+  DIRECTION
+}
+
+enum StatutEntreprise {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+/// Type de question. Source de vérité : les clés de `MODES_PAR_TYPE`
+/// (`actions.ts`), qui associent chaque type à ses modes de score admis.
+enum TypeReponse {
+  SMILEY
+  OUI_NON
+  ECHELLE
+  QCM
+  CASES
+  TEXTE
+  NPS
+}
+
+/// Mode de score. Source de vérité : `MODES_SCORING_VALIDES` (`actions.ts`).
+/// `CASES_CATEGORICAL` (catégories) et `CASES_WEIGHTED` (poids par cas) sont
+/// deux modes distincts du même type de question.
+enum ScoringMode {
+  ORDINAL
+  BINARY
+  NUMERIC
+  SMILEY
+  NPS
+  CASES_CATEGORICAL
+  CASES_WEIGHTED
+  CES
+  FREE_TEXT
+}
+
+enum StatutTache {
+  A_FAIRE
+  EN_COURS
+  TERMINEE
+}
+
+/// `ancien_statut` est l'état AVANT une transition : pour une tâche créée,
+/// la réponse est `CREATION` — ce n'est pas un statut de tâche, mais une
+/// absence de statut. D'où un domaine distinct de `nouveau_statut`.
+enum StatutAvantTache {
+  CREATION
+  A_FAIRE
+  EN_COURS
+  TERMINEE
+}
+
+enum StatutAlerte {
+  NOUVELLE
+  TRAITEE
+}
+
+enum TypeAlerte {
+  NOTE_CRITIQUE
+  SILENCE_EVALUATION
+  IA_INCOHERENCE_NOTE
+  IA_URGENCE
+}
+
+/// Rôle sur la console d'administration de la plateforme (Yeba), indépendant
+/// du rôle dans l'entreprise cliente (`RoleUtilisateur`). Valeurs extraites
+/// des contrôles `requirePlatformRole` et du seed.
+enum PlatformRole {
+  NONE
+  SUPER_ADMIN
+  SUPPORT
+}
+
+/// Plan tarifaire de l'entreprise cliente. Contrôlé par l'action
+/// `actionsPlatform.ts` (liste `STATUTS_VALIDES`-style) et le seed.
+enum PlanEntreprise {
+  STARTER
+  BUSINESS
+  ENTERPRISE
+}
+
+/// Sens de lecture d'une note. `HIGHER_BETTER` par défaut ; `LOWER_BETTER`
+/// pour les questions « problème » où Oui est négatif (`actions.ts:2513`,
+/// `resolutionSoumission.ts:95`). Utilisé par le moteur dans ~50 sites.
+enum OrientationNote {
+  HIGHER_BETTER
+  LOWER_BETTER
+}
+
+/// Canal de collecte d'un avis. Les 3 canaux sont créés au seed.
+enum TypeCanal {
+  QR_WEB
+  USSD
+  IVR_VOCAL
+}
+
+/// Sentiment produit par l'IA. Partagé par `sentiment` (brut) et
+/// `sentimentRetenu` (après croisement note ↔ texte) : le retenu « peut
+/// différer du brut » mais reste dans le même domaine.
+enum SentimentAvis {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  MIXED
+}
+
+/// Période couverte par une analyse d'expérience globale.
+enum PeriodeAnalyse {
+  SEMAINE
+  MOIS
+}
+
+/// Confiance affichée d'une analyse globale.
+enum NiveauConfiance {
+  FAIBLE
+  MOYENNE
+  ELEVEE
+}
+
+/// Origine d'un score d'option : saisi par l'admin (`EXPLICIT`) ou déduit
+/// par inférence lexicale (`INFERRED`). NULL = non scoré.
+/// `MIGRATED` est la troisième valeur, écrite uniquement par le backfill
+/// historique (`backfillOptionsCriteres.ts`) : ni saisi admin, ni inféré à
+/// la volée. En lecture, tout ce qui n'est pas `EXPLICIT` vaut `INFERRED`
+/// (`resolutionSoumission.ts`) — le domaine compte donc 3 valeurs, pas 2.
+enum ProvenanceScore {
+  EXPLICIT
+  INFERRED
+  MIGRATED
+}
+
+/// Résultat du croisement note ↔ commentaire (Doc IA-2). NULL = pas
+/// d'évaluation (pas de note ou pas de texte).
+enum CoherenceNote {
+  NOTE_PLUS_HAUTE_QUE_TEXTE
+  NOTE_PLUS_BASSE_QUE_TEXTE
 }

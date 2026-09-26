@@ -16,28 +16,28 @@ const NIVEAU_CONFIG = {
     excellent: {
         icon: ShieldCheck,
         label: 'Votre réseau est en excellente santé.',
-        accent: 'text-success',
+        accent: 'text-success-strong',
         bg: 'bg-success/10',
         border: 'border-success/25',
     },
     bon: {
         icon: ShieldCheck,
         label: 'Votre réseau se porte bien.',
-        accent: 'text-primary',
+        accent: 'text-primary-strong',
         bg: 'bg-primary/10',
         border: 'border-primary/25',
     },
     attention: {
         icon: ShieldQuestion,
         label: 'Quelques points méritent votre attention.',
-        accent: 'text-warning',
+        accent: 'text-warning-strong',
         bg: 'bg-warning/10',
         border: 'border-warning/25',
     },
     critique: {
         icon: ShieldAlert,
         label: 'Plusieurs alertes critiques demandent une action rapide.',
-        accent: 'text-destructive',
+        accent: 'text-destructive-strong',
         bg: 'bg-destructive/10',
         border: 'border-destructive/25',
     },
@@ -75,13 +75,13 @@ export const DashboardSummary = ({ prenom, satisfaction, totalAvis, alertesNouve
         </div>
       </div>
 
-      {totalActions > 0 && (<a href="#actions-prioritaires" className="relative mt-5 inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-xs font-bold uppercase tracking-widest text-primary transition-colors hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+      {totalActions > 0 && (<a href="#actions-prioritaires" className="relative mt-5 inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-xs font-bold uppercase tracking-widest text-primary-strong transition-colors hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           Voir les actions recommandées
           <ArrowRight className="size-3.5" aria-hidden/>
         </a>)}
     </motion.div>);
 };
-const SummaryChip = ({ label, value, tone = 'neutral', }) => (<div className={cn('flex flex-col rounded-2xl border px-4 py-3 min-w-[9.5rem] transition-[transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-sm cursor-default', tone === 'success' && 'border-success/30 bg-success/10 text-success', tone === 'warning' && 'border-warning/30 bg-warning/10 text-warning', tone === 'neutral' && 'border-border/70 bg-muted/40 text-foreground')}>
+const SummaryChip = ({ label, value, tone = 'neutral', }) => (<div className={cn('flex flex-col rounded-2xl border px-4 py-3 min-w-[9.5rem] transition-[transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-sm cursor-default', tone === 'success' && 'border-success/30 bg-success/10 text-success-strong', tone === 'warning' && 'border-warning/30 bg-warning/10 text-warning-strong', tone === 'neutral' && 'border-border/70 bg-muted/40 text-foreground')}>
     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
     <span className="text-xl font-bold text-foreground font-satoshi tabular-nums">{value}</span>
   </div>);

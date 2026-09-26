@@ -78,18 +78,18 @@ export declare const getServices: (_args: void, context: any) => Promise<any>;
 export declare const getBranding: (_args: void, context: any) => Promise<any>;
 export declare const getFormDefinitionForGuichet: (args: {
     code_public?: string;
-    id_guichet?: number;
 }, context: any) => Promise<{
     guichetName: any;
-    id_guichet: any;
-    id_agence: any;
     services: any;
     agencyCriteres: any;
     brandConfig: {
+        color_background: string;
+        color_primary_strong: string;
+        color_ring: string;
         hide_yeba_branding: any;
-        color_background: any;
         color_accent: any;
         color_secondary: any;
+        color_primary_foreground: string;
         color_primary: any;
         platform_name: any;
         logo_url: any;
@@ -105,7 +105,6 @@ export declare const getFormDefinitionForGuichet: (args: {
         color_card_foreground: string;
         color_popover: string;
         color_popover_foreground: string;
-        color_primary_foreground: string;
         color_secondary_foreground: string;
         color_secondary_muted: string;
         color_secondary_muted_foreground: string;
@@ -118,9 +117,11 @@ export declare const getFormDefinitionForGuichet: (args: {
         color_success_foreground: string;
         color_warning: string;
         color_warning_foreground: string;
+        color_success_strong: string;
+        color_warning_strong: string;
+        color_destructive_strong: string;
         color_border: string;
         color_input: string;
-        color_ring: string;
         border_radius: string;
         shadow_style: string;
         font_family: string;
@@ -282,4 +283,19 @@ export declare const getThemesStats: (args: {
         count: number;
     }[];
 }>;
+export declare const getIndicateursExperience: (args: {
+    nbJours?: number;
+}, context: any) => Promise<{
+    periode: {
+        debut: Date;
+        fin: Date;
+        nbJours: number;
+    };
+    agregats: import("./gex/moteurGlobal").AgregatsGlobaux;
+    indice: {
+        indice: number | null;
+        formule: string;
+    };
+    derniereAnalyse: any;
+} | null>;
 export {};

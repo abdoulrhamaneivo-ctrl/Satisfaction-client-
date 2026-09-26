@@ -281,7 +281,7 @@ export const GuichetsPage = () => {
                 onValueChange={(v) => setSelectedAgenceId(Number(v))}
                 aria-label="Choisir une agence"
               >
-                <SelectTrigger className="h-8 w-auto min-w-[180px] border-border/70 text-foreground">
+                <SelectTrigger className="h-8 w-auto min-w-[180px] border-border/70 text-foreground" aria-label="Choisir une agence">
                   <SelectValue placeholder="Choisir une agence" />
                 </SelectTrigger>
                 <SelectContent>
@@ -355,7 +355,7 @@ export const GuichetsPage = () => {
 
                     <FormField label="Type de guichet">
                       <Select value={typeGuichet} onValueChange={setTypeGuichet}>
-                        <SelectTrigger className="h-11 rounded-2xl border-border/80">
+                        <SelectTrigger className="h-11 rounded-2xl border-border/80" aria-label="Type de guichet">
                           <SelectValue placeholder="Sélectionner un type" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl border-border/80">

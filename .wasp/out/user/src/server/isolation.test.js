@@ -5,6 +5,11 @@
 // Les modules Wasp ('wasp/server', 'wasp/server/auth') sont mockés — voir
 // vitest.config.ts + src/server/__mocks__/.
 // ============================================================================
+// C2/C6a : Variables d'environnement requises pour les actions/queries
+process.env.JWT_SECRET = 'a'.repeat(32);
+process.env.TOTP_ENCRYPTION_KEY = 'b'.repeat(32);
+process.env.ANTI_REPLAY_SALT = 'c'.repeat(32);
+process.env.TELEPHONE_HASH_SALT = 'd'.repeat(32);
 import { expect, test, vi } from 'vitest';
 import { updateAgent, deleteAgent } from './actions';
 import { getAIStatus, getReponses } from './queries';

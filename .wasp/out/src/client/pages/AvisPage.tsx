@@ -240,7 +240,7 @@ export const AvisPage = () => {
             actions={
               <div className="flex items-center gap-3">
                 {allAvis.length > 0 && (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-strong">
                     {allAvis.length}{hasMore ? '+' : ''} retour{allAvis.length > 1 ? 's' : ''}
                   </span>
                 )}
@@ -310,7 +310,7 @@ export const AvisPage = () => {
                       setSelectedGuichetId(undefined);
                     }}
                   >
-                    <SelectTrigger className="h-11 w-full font-semibold">
+                    <SelectTrigger className="h-11 w-full font-semibold" aria-label="Agence">
                       <SelectValue placeholder="Toutes les agences" />
                     </SelectTrigger>
                     <SelectContent>
@@ -333,7 +333,7 @@ export const AvisPage = () => {
                   onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)}
                   disabled={isDirection && !selectedAgenceId}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
                     <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'} />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,7 +354,7 @@ export const AvisPage = () => {
                   value={selectedServiceId ? String(selectedServiceId) : 'ALL'}
                   onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Opération ou service">
                     <SelectValue placeholder="Toutes les opérations" />
                   </SelectTrigger>
                   <SelectContent>
@@ -375,7 +375,7 @@ export const AvisPage = () => {
                   value={selectedScore ? String(selectedScore) : 'ALL'}
                   onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
                     <SelectValue placeholder="Tous les scores" />
                   </SelectTrigger>
                   <SelectContent>
@@ -398,7 +398,7 @@ export const AvisPage = () => {
                   value={selectedTheme ?? 'ALL'}
                   onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}
                 >
-                  <SelectTrigger className="h-11 w-full font-semibold">
+                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Étiquette IA">
                     <SelectValue placeholder="Toutes les étiquettes" />
                   </SelectTrigger>
                   <SelectContent>
@@ -410,25 +410,33 @@ export const AvisPage = () => {
                 </Select>
               </div>
 
-              {/* Start Date Filter */}
+              {/* Start Date Filter — Vague 6 : le <label> était purement
+                  décoratif (aucun htmlFor), le champ n'avait donc AUCUN nom
+                  accessible : un lecteur d'écran annonçait « date » sans
+                  savoir laquelle des deux. Détecté par axe-core. */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} /> Date Début
-                </label>                <Input
+                <label htmlFor="avis-filtre-debut" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={12} aria-hidden /> Date Début
+                </label>
+                <Input
+                  id="avis-filtre-debut"
                   type="date"
+                  aria-label="Filtrer les avis à partir du"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="h-11 font-semibold"
                 />
               </div>
 
-              {/* End Date Filter */}
+              {/* End Date Filter — même correction. */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} /> Date Fin
+                <label htmlFor="avis-filtre-fin" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <Calendar size={12} aria-hidden /> Date Fin
                 </label>
                 <Input
+                  id="avis-filtre-fin"
                   type="date"
+                  aria-label="Filtrer les avis jusqu'au"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="h-11 font-semibold"
@@ -473,13 +481,13 @@ export const AvisPage = () => {
                             {rep.score_moyen !== null && rep.score_moyen !== undefined ? (
                               <GrandVisuelNote score={Math.round(rep.score_moyen)} />
                             ) : (
-                              <span className="flex items-center gap-2 text-sm font-bold text-primary">
+                              <span className="flex items-center gap-2 text-sm font-bold text-primary-strong">
                                 <MessageSquareQuote className="size-5" />
                                 Avis textuel — sans note chiffrée
                               </span>
                             )}
                             {rep.service && (
-                              <span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-md">
+                              <span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary-strong text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-md">
                                 {rep.service.libelle_service}
                               </span>
                             )}
@@ -514,7 +522,7 @@ export const AvisPage = () => {
 
                           {rep.agent && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted w-fit px-2.5 py-1 rounded-lg border border-border/40">
-                              <UserIcon size={12} className="text-primary" />
+                              <UserIcon size={12} className="text-primary-strong" />
                               <span className="font-semibold text-muted-foreground">Agent en service :</span>
                               <span className="font-bold text-foreground">
                                 {[rep.agent.prenom, rep.agent.nom].filter(Boolean).join(' ') || rep.agent.username}

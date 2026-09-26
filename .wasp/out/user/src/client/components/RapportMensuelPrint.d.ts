@@ -43,6 +43,14 @@ export interface RapportProps {
     tempsTraitement?: {
         moyenne_heures: number | null;
     } | null;
+    /** Phase L : effort perçu. absent / null = non mesuré (jamais 0 %). */
+    ces?: {
+        volume: number;
+        echelle: number;
+        top_box: number;
+        taux_effort_eleve: number;
+        note_effort_moyenne: number | null;
+    } | null;
 }
 export declare const RapportMensuelPrint: React.ForwardRefExoticComponent<RapportProps & React.RefAttributes<HTMLDivElement>>;
 export {};

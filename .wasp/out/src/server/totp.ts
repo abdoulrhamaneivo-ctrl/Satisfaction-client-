@@ -6,9 +6,10 @@
 //
 // Usage : 2FA obligatoire pour les comptes SUPER_ADMIN de la console
 // /platform. Secret stocké hashé côté serveur ? Non — le secret doit être
-// reproductible pour valider le code : stocké chiffré avec JWT_SECRET
-// (AES-256-GCM) dans User.totp_secret. Un dump DB seul ne suffit donc pas
-// à produire des codes (il faut aussi JWT_SECRET, jamais en base).
+// reproductible pour valider le code : stocké chiffré avec
+// TOTP_ENCRYPTION_KEY (AES-256-GCM, clé dédiée exigée au démarrage —
+// voir src/env.ts) dans User.totp_secret. Un dump DB seul ne suffit donc
+// pas à produire des codes (il faut aussi la clé, jamais en base).
 // ============================================================================
 
 import crypto from 'node:crypto';
@@ -87,48 +88,200 @@ function codeTotp(secretBase32: string, instantMs: number = Date.now()): string 
 /**
  * Vérifie un code saisi par l'utilisateur avec tolérance ±1 fenêtre (30 s
  * avant/après) pour compenser la dérive d'horloge du téléphone.
+ * C5 (J+30) : lockout exponentiel + refus replay code déjà consommé.
  */
 export function verifierCodeTotp(
+  codeSaisi: string,
+  secretBase32: string,
+  instantMs: number = Date.now(),
+  // C5 : protection anti-replay + lockout
+  user?: { totp_failed_attempts?: number | null; totp_locked_until?: Date | null; totp_last_used_step?: bigint | null },
+  incrementFailed?: () => Promise<void>
+): boolean {
+  const propre = (codeSaisi ?? '').replace(/\D/g, '');
+  if (propre.length !== 6) return false;
+
+  // C5 : lockout check
+  if (user?.totp_locked_until && new Date(user.totp_locked_until) > new Date()) {
+    return false; // lockout actif
+  }
+
+  const compteurActuel = Math.floor(instantMs / 1000 / 30);
+
+  // C5 : refus replay code déjà consommé (step <= last_used_step)
+  if (user?.totp_last_used_step && BigInt(compteurActuel) <= user.totp_last_used_step) {
+    return false;
+  }
+
+  // Fenêtre -1, 0, +1 (±30 s)
+  for (const delta of [-30_000, 0, 30_000]) {
+    if (codeTotp(secretBase32, instantMs + delta) === propre) {
+      // C5 : succès -> reset compteur (sera fait par l'appelant via incrementFailed=false)
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * C5 (J+30) : Calcule le lockout exponentiel basé sur le nombre d'échecs.
+ * 5 échecs → 15 min, 10 → 1h, 15 → 24h, 20+ → 7 jours
+ */
+export function calculerLockoutJusqua(tentatives: number): Date | null {
+  if (tentatives < 5) return null;
+  if (tentatives < 10) return new Date(Date.now() + 15 * 60 * 1000); // 15 min
+  if (tentatives < 15) return new Date(Date.now() + 60 * 60 * 1000); // 1h
+  if (tentatives < 20) return new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
+}
+
+/**
+ * C5 (J+30) : Vérification constante-temps (timingSafeEqual) pour code TOTP.
+ * Évite les attaques temporelles sur la comparaison.
+ */
+export function verifierCodeTotpConstantTime(
   codeSaisi: string,
   secretBase32: string,
   instantMs: number = Date.now()
 ): boolean {
   const propre = (codeSaisi ?? '').replace(/\D/g, '');
   if (propre.length !== 6) return false;
-  // Fenêtre -1, 0, +1 (±30 s)
-  for (const delta of [-30_000, 0, 30_000]) {
-    if (codeTotp(secretBase32, instantMs + delta) === propre) return true;
+
+  const compteurActuel = Math.floor(instantMs / 1000 / 30);
+  const codesValides = [
+    codeTotp(secretBase32, instantMs - 30_000),
+    codeTotp(secretBase32, instantMs),
+    codeTotp(secretBase32, instantMs + 30_000),
+  ];
+
+  // timingSafeEqual nécessite Buffer de même longueur
+  const saisieBuf = Buffer.from(propre, 'ascii');
+  for (const code of codesValides) {
+    const codeBuf = Buffer.from(code, 'ascii');
+    if (crypto.timingSafeEqual(saisieBuf, codeBuf)) return true;
   }
   return false;
 }
 
-// ── Chiffrement du secret en base (AES-256-GCM, clé dérivée de JWT_SECRET) ──
+// ── Chiffrement du secret en base (AES-256-GCM, clé DÉDIÉE) ──
+// C6a (J+7) : le secret TOTP est chiffré avec TOTP_ENCRYPTION_KEY — jamais
+// avec JWT_SECRET (séparation des usages) et SANS fallback 'DEVJWTSECRET' :
+// toute clé manquante/trop courte lève au lieu de chiffrer en mode dégradé.
+// Rotation sans interruption :
+//   - chiffrement : toujours avec la clé primaire (TOTP_ENCRYPTION_KEY_CURRENT
+//     si défini, sinon TOTP_ENCRYPTION_KEY) ;
+//   - déchiffrement : essaie la primaire, puis TOTP_ENCRYPTION_KEY_PREVIOUS,
+//     puis l'héritage JWT_SECRET_CURRENT / JWT_SECRET / JWT_SECRET_PREVIOUS
+//     (lignes chiffrées avant C6a — à retirer une fois la migration jouée) ;
+//   - dechiffrerSecretTotpAvecStatut() signale doitRechiffrer=true quand une
+//     clé non-primaire a servi → l'appelant rechiffre au prochain accès
+//     (rechiffrement opportuniste) ou via scripts/rotationCleTotp.ts.
 
-const cleChiffrement = (): Buffer =>
-  crypto.createHash('sha256')
-    .update(process.env.JWT_SECRET || 'DEVJWTSECRET')
-    .digest();
-
-/** Chiffre un secret TOTP avant stockage en base */
-export function chiffrerSecretTotp(secretBase32: string): string {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', cleChiffrement(), iv);
-  const chiffre = Buffer.concat([cipher.update(secretBase32, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString('base64')}:${tag.toString('base64')}:${chiffre.toString('base64')}`;
+/** Dérive 32 octets AES-256 stables (SHA-256) d'une matière de clé. */
+function cleDerivee(matiere: string): Buffer {
+  return crypto.createHash('sha256').update(matiere, 'utf8').digest();
 }
 
-/** Déchiffre le secret stocké (lève si JWT_SECRET a changé) */
-export function dechiffrerSecretTotp(stocke: string): string {
+/** Lit une variable d'env secrète en exigeant présence + longueur minimale. */
+function exigerSecretEnv(nom: string, minLongueur = 32): string {
+  const valeur = process.env[nom];
+  if (!valeur) {
+    throw new Error(
+      `[C6a] ${nom} manquant — définissez-le avant de démarrer (voir .env.example, génération : openssl rand -hex 32).`
+    );
+  }
+  if (valeur.length < minLongueur) {
+    throw new Error(
+      `[C6a] ${nom} trop court (${valeur.length} < ${minLongueur} caractères) — régénérez-le avec : openssl rand -hex 32.`
+    );
+  }
+  return valeur;
+}
+
+interface CleNommee {
+  nom: string;
+  cle: Buffer;
+}
+
+/** Clé primaire de chiffrement : CURRENT prioritaire, KEY canonique sinon. */
+function clePrimaireTotp(): CleNommee {
+  if (process.env.TOTP_ENCRYPTION_KEY_CURRENT) {
+    return {
+      nom: 'TOTP_ENCRYPTION_KEY_CURRENT',
+      cle: cleDerivee(exigerSecretEnv('TOTP_ENCRYPTION_KEY_CURRENT')),
+    };
+  }
+  return { nom: 'TOTP_ENCRYPTION_KEY', cle: cleDerivee(exigerSecretEnv('TOTP_ENCRYPTION_KEY')) };
+}
+
+/** Clés candidates au déchiffrement, par ordre de priorité (primaire d'abord). */
+function clesDechiffrementTotp(): CleNommee[] {
+  const cles: CleNommee[] = [clePrimaireTotp()];
+  const heritage = [
+    'TOTP_ENCRYPTION_KEY_PREVIOUS',
+    'JWT_SECRET_CURRENT',
+    'JWT_SECRET', // héritage pré-C6a : lignes chiffrées avec JWT_SECRET
+    'JWT_SECRET_PREVIOUS',
+  ] as const;
+  for (const nom of heritage) {
+    const matiere = process.env[nom];
+    if (matiere) cles.push({ nom, cle: cleDerivee(matiere) });
+  }
+  return cles;
+}
+
+function dechiffrerAvecCle(stocke: string, cle: Buffer): string {
   const [ivB64, tagB64, dataB64] = stocke.split(':');
-  const decipher = crypto.createDecipheriv(
-    'aes-256-gcm',
-    cleChiffrement(),
-    Buffer.from(ivB64, 'base64')
-  );
+  if (!ivB64 || !tagB64 || !dataB64) {
+    throw new Error('Secret TOTP stocké au format invalide (attendu iv:tag:données).');
+  }
+  const decipher = crypto.createDecipheriv('aes-256-gcm', cle, Buffer.from(ivB64, 'base64'));
   decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
   return Buffer.concat([
     decipher.update(Buffer.from(dataB64, 'base64')),
     decipher.final(),
   ]).toString('utf8');
+}
+
+/** Chiffre un secret TOTP avant stockage en base (toujours clé primaire) */
+export function chiffrerSecretTotp(secretBase32: string): string {
+  const { cle } = clePrimaireTotp();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', cle, iv);
+  const chiffre = Buffer.concat([cipher.update(secretBase32, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('base64')}:${tag.toString('base64')}:${chiffre.toString('base64')}`;
+}
+
+export interface StatutDechiffrementTotp {
+  secret: string;
+  /** Nom de la variable d'env dont la clé a servi au déchiffrement. */
+  cleUtilisee: string;
+  /** true si une clé non-primaire a servi → rechiffrer avec la primaire. */
+  doitRechiffrer: boolean;
+}
+
+/**
+ * Déchiffre en essayant la clé primaire puis les clés previous/héritage.
+ * Lève si aucune clé configurée ne convient (clé perdue ou données altérées).
+ */
+export function dechiffrerSecretTotpAvecStatut(stocke: string): StatutDechiffrementTotp {
+  const cles = clesDechiffrementTotp();
+  let derniereErreur: unknown = null;
+  for (const { nom, cle } of cles) {
+    try {
+      const secret = dechiffrerAvecCle(stocke, cle);
+      return { secret, cleUtilisee: nom, doitRechiffrer: nom !== cles[0].nom };
+    } catch (e) {
+      derniereErreur = e;
+    }
+  }
+  throw derniereErreur instanceof Error
+    ? derniereErreur
+    : new Error('Déchiffrement du secret TOTP impossible (aucune clé configurée ne convient).');
+}
+
+/** Déchiffre le secret stocké (lève si aucune clé configurée ne convient) */
+export function dechiffrerSecretTotp(stocke: string): string {
+  return dechiffrerSecretTotpAvecStatut(stocke).secret;
 }

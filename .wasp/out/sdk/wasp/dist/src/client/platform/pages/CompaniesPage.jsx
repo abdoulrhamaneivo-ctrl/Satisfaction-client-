@@ -41,16 +41,16 @@ function CompaniesInner() {
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/80 bg-card p-3">
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une entreprise…" aria-label="Rechercher une entreprise" className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"/>
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une entreprise…" aria-label="Rechercher une entreprise" className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"/>
         </div>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40" aria-label="Filtrer par statut">
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Filtrer par statut">
           <option value="">Tous statuts</option>
           <option value="ACTIVE">Active</option>
           <option value="TRIAL">Essai</option>
           <option value="SUSPENDED">Suspendue</option>
           <option value="CANCELLED">Résiliée</option>
         </select>
-        <select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40" aria-label="Filtrer par plan">
+        <select value={plan} onChange={(e) => setPlan(e.target.value)} className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Filtrer par plan">
           <option value="">Tous plans</option>
           <option value="STARTER">Démarrage</option>
           <option value="BUSINESS">Business</option>

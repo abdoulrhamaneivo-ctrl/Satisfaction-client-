@@ -1,3 +1,6 @@
+// src/client/platform/pages/CompanyDetailsPage.tsx
+// Détail d'une entreprise cliente (Doc 12 §5).
+
 import { useState } from 'react'
 import { RequirePlatformRole } from '../../components/RequirePlatformRole'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -12,6 +15,7 @@ import {
 } from 'lucide-react'
 import { StatusChip, PlanChip } from './PlatformOverviewPage'
 import { messageErreurAction } from '../../utils'
+import { useFormPersistence } from '../../hooks/useFormPersistence'
 
 const fmtDate = (d: string | Date | null | undefined) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
@@ -19,9 +23,9 @@ const fmtDateTime = (d: string | Date | null | undefined) =>
   d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
 
 const ACTION_LABELS: Record<string, string> = {
-  'entreprise.create': 'a créé l’entreprise',
-  'entreprise.suspend': 'a suspendu l’entreprise',
-  'entreprise.reactivate': 'a réactivé l’entreprise',
+  'entreprise.create': 'a créé l\'entreprise',
+  'entreprise.suspend': 'a suspendu l\'entreprise',
+  'entreprise.reactivate': 'a réactivé l\'entreprise',
   'entreprise.update_limits': 'a modifié les limites',
   'user.invite': 'a invité un utilisateur',
   'agence.create': 'a créé une agence',
@@ -54,16 +58,31 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
   const renvoyerInvitationFn = useAction(renvoyerInvitation)
   const changerLimites = useAction(changerLimitesEntreprise)
 
+  // C5/UX : Persistance formulaire limites/modal suspendre
+  const initialLimites = { agences: 0, utilisateurs: 0, guichets: 0 }
+  const { persist: persistLimites, getPersistedValues: getLimitesPersisted, clear: clearLimites } = useFormPersistence({
+    key: `company-limites-${idEntreprise}`,
+    initialValues: initialLimites,
+    debounceMs: 500,
+  })
+
   const [modalSuspendre, setModalSuspendre] = useState(false)
   const [motif, setMotif] = useState('')
   const [modalLimites, setModalLimites] = useState(false)
-  const [limites, setLimites] = useState({ agences: 0, utilisateurs: 0, guichets: 0 })
+  const persistedLimites = getLimitesPersisted()
+  const [limites, setLimites] = useState<typeof initialLimites>({ ...initialLimites, ...persistedLimites })
   const [totpCode, setTotpCode] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [erreurAction, setErreurAction] = useState<string | null>(null)
   // Anti-double-clic : un renvoi révoque le lien précédent.
   const [envoiInvitationEnCours, setEnvoiInvitationEnCours] = useState(false)
   const totpCodeValide = /^\d{6}$/.test(totpCode)
+
+  const setLimitesWithPersist = (next: typeof initialLimites) => {
+    setLimites(next)
+    // Sauvegarde locale (pas de debounce nécessaire pour les modales)
+    try { localStorage.setItem(`form-persist:company-limites-${idEntreprise}`, JSON.stringify(next)) } catch {}
+  }
 
   if (isLoading) return (
     <div className="mx-auto max-w-5xl space-y-6" aria-busy="true" aria-label="Chargement de l'entreprise">
@@ -106,7 +125,7 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
 
       <div className="max-w-xs">
         <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground" htmlFor="company-totp">Code 2FA (6 chiffres) *</label>
-        <input id="company-totp" inputMode="numeric" maxLength={6} required className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40" value={totpCode} onChange={(ev) => setTotpCode(ev.target.value.replace(/\D/g, ''))} />
+        <input id="company-totp" inputMode="numeric" maxLength={6} required className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" value={totpCode} onChange={(ev) => setTotpCode(ev.target.value.replace(/\D/g, ''))} />
       </div>
 
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -276,7 +295,7 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
               onChange={(ev) => setMotif(ev.target.value)}
               rows={3}
               placeholder="Ex. impayé de facture, demande du client…"
-              className="mt-1.5 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+              className="mt-1.5 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setModalSuspendre(false)} className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted-foreground hover:bg-muted">
@@ -309,7 +328,7 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
               <select
                 value={e.plan}
                 onChange={(ev) => { /* plan modifiable via changerLimites plan */ (window as any).__newPlan = ev.target.value }}
-                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="select-plan"
                 defaultValue={e.plan}
               >

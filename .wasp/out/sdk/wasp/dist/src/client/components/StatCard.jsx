@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '../utils';
 const accentSurface = {
-    primary: 'bg-primary/10 text-primary border-primary/25',
+    primary: 'bg-primary/10 text-primary-strong border-primary/25',
     secondary: 'bg-secondary/15 text-secondary border-secondary/30',
-    success: 'bg-success/15 text-success border-success/30',
-    destructive: 'bg-destructive/15 text-destructive border-destructive/30',
+    success: 'bg-success/15 text-success-strong border-success/30',
+    destructive: 'bg-destructive/15 text-destructive-strong border-destructive/30',
 };
 export const StatCard = ({ title, value, icon: Icon, accent = 'primary', trend, trendDirection = 'up', index = 0, }) => {
     const TrendIcon = trendDirection === 'up' ? TrendingUp : TrendingDown;
@@ -34,8 +34,8 @@ export const StatCard = ({ title, value, icon: Icon, accent = 'primary', trend, 
           {value}
         </p>
         {trend && (<span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold tabular-nums', trendDirection === 'up'
-                ? 'bg-success/10 text-success border-success/25'
-                : 'bg-destructive/10 text-destructive border-destructive/25')}>
+                ? 'bg-success/10 text-success-strong border-success/25'
+                : 'bg-destructive/10 text-destructive-strong border-destructive/25')}>
             <TrendIcon className="size-3" aria-hidden/>
             {trend}
           </span>)}

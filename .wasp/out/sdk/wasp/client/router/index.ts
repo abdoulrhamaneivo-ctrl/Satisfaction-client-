@@ -216,15 +216,15 @@ export const routes = {
         options?.hash
       ),
   },
-  CollecteRoute: {
-    to: "/q/:guichetId",
+  SyntheseGlobaleRoute: {
+    to: "/synthese",
     build: (
-      options: OptionalRouteOptions
-      & { params: {"guichetId": ParamValue;}}
+      options?:
+      OptionalRouteOptions
     ) => interpolatePath(
         
-        "/q/:guichetId",
-        options.params,
+        "/synthese",
+        undefined,
         options?.search,
         options?.hash
       ),

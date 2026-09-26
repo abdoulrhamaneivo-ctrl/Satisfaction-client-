@@ -6,9 +6,10 @@
 // dans les variables d'env, les SMS sont réellement envoyés via Twilio.
 // Sinon, les appels sont loggués sans crash (mode développement / sans-opérateur).
 //
-// Pour activer WhatsApp, ajoutez TWILIO_WHATSAPP_FROM (ex: "whatsapp:+15005550006")
+// Pour activer WhatsApp, ajoutez TWILIO_WHATSAPP_FROM (ex: "whatsapp:+150****0006")
 // ============================================================================
 import crypto from 'node:crypto';
+import { sanitiserCommentaire } from '../validation';
 
 // Bug corrigé : la détection "clés configurées ?" ne vérifiait que la
 // présence d'une valeur (`!TWILIO_SID`), pas si elle était réellement
@@ -32,7 +33,7 @@ const TWILIO_WA_FROM = process.env.TWILIO_WHATSAPP_FROM;
 // avec `"Invalid 'To' Phone Number: 010203XXXX"` (erreur 21211). Les numéros
 // sont saisis/stockés au format local ivoirien (10 chiffres commençant par
 // 0, ex. "0102030405"), mais Twilio exige le format international E.164
-// ("+2250102030405"). Le numéro brut était envoyé tel quel à l'API — cette
+// ("+225****0405"). Le numéro brut était envoyé tel quel à l'API — cette
 // fonction le normalise juste avant l'envoi, quel que soit le format saisi
 // par l'utilisateur (avec ou sans indicatif, avec ou sans espaces/tirets).
 //
@@ -40,7 +41,7 @@ const TWILIO_WA_FROM = process.env.TWILIO_WHATSAPP_FROM;
 // national fait 10 chiffres et ce premier "0" fait partie intégrante du
 // numéro (il n'est PAS un simple préfixe de réseau à retirer à
 // l'international, contrairement à la France par ex.) : "0102030405" devient
-// "+2250102030405", jamais "+225102030405".
+// "+225****0405", jamais "+225****0405".
 // ============================================================================
 export function normaliserNumeroCI(numeroBrut: string): string {
   const nettoye = numeroBrut.trim().replace(/[\s.\-()]/g, '');
@@ -78,11 +79,17 @@ export async function envoyerAlerteSMS(destinataire: string, message: string): P
     return;
   }
 
+  // C3 : sanitisation SMS — texte brut, tronqué 140 car, sans newlines/URLs
+  const messageSMS = sanitiserCommentaire(message)
+    .replace(/[\n\r]+/g, ' ')           // newlines → espace
+    .replace(/https?:\/\/\S+/g, '[Lien]') // URLs → [Lien]
+    .slice(0, 140);                    // plafond 140 car (SMS standard)
+
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
   const body = new URLSearchParams({
     To: numero,
     From: TWILIO_FROM,
-    Body: message,
+    Body: messageSMS,
   });
 
   const res = await fetch(url, {
@@ -116,11 +123,16 @@ export async function envoyerAlerteWhatsApp(destinataire: string, message: strin
     return;
   }
 
+  // C3 : sanitisation WhatsApp — strip HTML, tronquer 1600 car (limite WhatsApp)
+  const messageWA = sanitiserCommentaire(message)
+    .replace(/[\n\r]+/g, ' ')
+    .slice(0, 1600);
+
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
   const body = new URLSearchParams({
     To: `whatsapp:${numero}`,
     From: TWILIO_WA_FROM,
-    Body: message,
+    Body: messageWA,
   });
 
   const res = await fetch(url, {

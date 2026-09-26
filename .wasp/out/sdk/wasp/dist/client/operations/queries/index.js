@@ -74,6 +74,10 @@ export const getAIStatus = createQuery('operations/get-aistatus', ['AnalyseAvisI
 // PUBLIC API
 export const getThemesStats = createQuery('operations/get-themes-stats', ['AnalyseAvisIA', 'Agence', 'Reponse', 'Entreprise']);
 // PUBLIC API
+export const getIndicateursExperience = createQuery('operations/get-indicateurs-experience', ['Reponse', 'AnalyseAvisIA', 'Agence', 'Guichet', 'Service', 'Critere', 'GlobalExperienceAnalysis', 'Entreprise']);
+// PUBLIC API
+export const getAnalysesGlobales = createQuery('operations/get-analyses-globales', ['GlobalExperienceAnalysis', 'Entreprise']);
+// PUBLIC API
 export const getPlatformOverview = createQuery('operations/get-platform-overview', ['Entreprise', 'User', 'Reponse']);
 // PUBLIC API
 export const getPlatformEntreprises = createQuery('operations/get-platform-entreprises', ['Entreprise', 'User']);
