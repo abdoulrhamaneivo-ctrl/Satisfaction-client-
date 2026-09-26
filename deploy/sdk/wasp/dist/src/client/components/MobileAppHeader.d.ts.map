@@ -1,1 +1,0 @@
-{"version":3,"file":"MobileAppHeader.d.ts","sourceRoot":"","sources":["../../../../src/client/components/MobileAppHeader.tsx"],"names":[],"mappings":"AAQA,UAAU,oBAAoB;IAC5B,UAAU,EAAE,MAAM,IAAI,CAAC;IACvB,QAAQ,CAAC,EAAE,OAAO,CAAC;CACpB;AAED,wBAAgB,eAAe,CAAC,EAAE,UAAU,EAAE,QAAgB,EAAE,EAAE,oBAAoB,+BA2DrF"}

@@ -2,6 +2,13 @@ node_modules/
 .worktrees/
 
 # Wasp — artefacts de développement (le build prod est géré par le script deploy)
+
+# `deploy/` est une COPIE de `.wasp/out` produite par `scripts/deploy-build.sh`
+# pour un déploiement Render via repo séparé. Aucun chemin de déploiement
+# actuel ne la consomme : `render.yaml` et `Dockerfile.render` travaillent
+# depuis la racine et copient `.wasp/out`. C'est donc un artefact
+# régénérable, pas une source — il ne doit pas être versionné.
+deploy/
 .wasp/out/node_modules/
 .wasp/out/sdk/*/node_modules/
 .wasp/out/server/node_modules/

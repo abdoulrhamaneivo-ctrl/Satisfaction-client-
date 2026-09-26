@@ -103,13 +103,13 @@ bash scripts/deploy-build.sh
 ```
 
 Ce script :
-- Lance `wasp build` → génère `.wasp/build/`
+- Lance `wasp build` → génère `.wasp/out/`
 - Crée le `Dockerfile` pour le serveur Render
 - Crée le `vercel.json` pour le client Vercel
 
 Résultat :
 ```
-.wasp/build/
+.wasp/out/
 ├── server/          ← pour Render
 │   ├── Dockerfile
 │   ├── package.json
@@ -128,7 +128,7 @@ Résultat :
 
 ```bash
 # 1. Repo serveur
-cd .wasp/build/server
+cd .wasp/out/server
 git init && git add -A && git commit -m "Yeba server build"
 gh repo create yeba-server --private --push
 
@@ -140,11 +140,15 @@ gh repo create yeba-client --private --push
 
 ### Option B : Un seul repo (plus simple)
 
-Ajouter `.wasp/build/` au repo existant (retirer la ligne `.wasp/out/` du `.gitignore` ne concerne que `out/`, `build/` n'est pas ignoré par défaut). Ou créer un seul repo dédié :
+Attention, cette option part du principe que `.wasp/out/` est versionné. C'est le
+cas dans ce dépôt : `.gitignore` n'ignore que `.wasp/out/**/node_modules/`,
+car `Dockerfile.render` copie `.wasp/out` et a besoin du bundle serveur. Il
+faut donc vérifier que le dossier est bien suivi avant de pousser :
+suivi (`git ls-files .wasp/out/server/bundle` doit répondre). Sinon, créer un repo dédié :
 
 ```bash
 mkdir ~/yeba-deploy && cd ~/yeba-deploy
-cp -r /chemin/vers/app/.wasp/build/* .
+cp -r /chemin/vers/app/.wasp/out/* .
 git init && git add -A && git commit -m "Yeba deploy build"
 gh repo create yeba-deploy --private --push
 ```
