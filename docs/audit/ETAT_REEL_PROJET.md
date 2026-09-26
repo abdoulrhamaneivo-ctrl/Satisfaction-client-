@@ -390,6 +390,37 @@ dérivé autrement.
 
 ---
 
+### Vague 5 — ce que la couverture ne couvre pas
+
+Les seuils sont posés par fichier, sur les modules de sécurité. Un seuil
+global n'aurait pas de sens : `actions.ts` et `queries.ts` pèsent 2 000 lignes
+chacun et ne sont pas entièrement testés — la couverture globale du
+serveur est de **20,5 %** avant cette vague, et de **37 %** sur
+`src/server/** + src/shared/**` avec les tests de la vague 5. Un seuil
+global bas ne protégerait rien ; un seuil élevé bloquerait toute
+intégration.
+
+Couverture réelle des modules sous seuil (à relever sciemment quand
+elles progressent, jamais à contourner) :
+
+| Module | Lignes | Taux |
+|---|---|---|
+| `middleware/rowLevelSecurity.ts` | 53,7 % | 396 lignes, moitié non couvertes |
+| `rateLimit.ts` | 53,8 % | chemins Redis non testés (nécessitent Redis) |
+| `validation.ts` | 33,3 % | schéma Zod et normalisation téléphone non testés |
+| `ai/etatAnalyse.ts` | 100 % | tenu à 100 % |
+| `gex/budget.ts` | 100 % | tenu à 100 % |
+| `gex/moteurGlobal.ts` | 82,8 % | accès base non couverts (nécessitent Postgres) |
+
+Commande : `npm run test:coverage`.
+
+Le trou structurel reste `rowLevelSecurity.ts` : 396 lignes, le module le
+plus sensible du serveur (toutes les requêtes authentifiées passent par
+lui), couvert à moitié et seulement indirectement. C'est le chantier de
+couverture le plus rentable qui reste.
+
+---
+
 ## 4. Risques classés
 
 > **État au 2026-09-26, après la vague de remédiation `hermes/v1-securite`.**
@@ -407,7 +438,9 @@ dérivé autrement.
 | **P6** libellé d'option depuis une position | MOYEN | ✅ **corrigé** (vague 2) | `src/shared/libelleReponse.ts` : identité `ReponseOption` seule source |
 | **P12** objectifs calculés hors moteur | MOYEN | ✅ **corrigé** | `getObjectifs` lit désormais le score canonique |
 | **P7** accessibilité (3 blocants) | MOYEN | ✅ **corrigé** (vague 4) | contrastes, clavier, focus, messages d’état — voir `docs/accessibility/WCAG_22_AA_AUDIT.md` |
-| **P8** anti-rejeu téléphone inopérant | MOYEN | ⬜ ouvert | à repenser (le garde dépend d'un champ que le client n'envoie pas) |
+| **P8** anti-rejeu téléphone inopérant | MOYEN | ⬜ ouvert | à repenser (le garde dépend d’un champ que le client n’envoie pas) |
+| **V5-tests** surface publique sans test serveur | ÉLEVÉ | ✅ **corrigé** (vague 5) | 14 tests serveur sur `soumettreAvis`/`completerSoumission` : code opaque obligatoire, périmètre tenant, volume borné, 4xx vs 5xx, idempotence. La suite complète pouvait verdir pendant que P1 revenait en arrière — vérifié en réintroduisant `guichetId` |
+| **V5-couv** seuils de couverture sur RLS + surface publique | MOYEN | ✅ **corrigé** (vague 5) | seuils PAR FICHIER sur `rowLevelSecurity`, `rateLimit`, `validation`, `etatAnalyse`, `gex/budget`, `gex/moteurGlobal` ; garde vérifiée en abaissant la couverture |
 | **P9** plafond du budget IA globale | MOYEN | ✅ **corrigé** (vague 5) | budget dimensionné sur les entreprises actives (plafond 20/jour), cron quotidien au lieu du lundi, SEMAINE traitée avant MOIS, reliquat journalisé. Réserve : le filtre `model: { not: null }` était déjà présent, le constat était erroné sur ce point |
 | **P10** priorité LLM inventée | MOYEN | ✅ **corrigé** (vague 5) | un irritant dont le thème est absent des mesures est ÉCARTÉ au lieu de conserver la priorité du modèle (`?? i.priorite`) — la valeur inventée disparaît au lieu de ressembler à une mesure. Schème Zod resserré (`min(1)`, entiers) |
 | **P11** surface publique (3 trous + 2 faiblessesses) | MOYEN | ✅ **corrigé** (vague 5) | rate limit sur la lecture publique et sur T2 ; borne haute sur `responses` ; erreur de saisie en 400 au lieu de 500 ; IP lue par Express (`trust proxy` déclaré, 3 copies de lecture supprimées) ; repli Redis signalé au démarrage en production |
