@@ -728,15 +728,16 @@ const soumettreAvisImpl = async (args: any, context: any) => {
       throw new HttpError(400, "L’opération sélectionnée n’est pas disponible pour ce guichet.");
     }
 
-    // FIX 05/09 (audit) : chaque critère soumis doit être rattaché à
-    // l'opération choisie. Sinon un appel forgé fausse les stats par service
-    // en injectant des réponses de critères d'une autre opération.
-    // CORRECTIF : les critères « par défaut » (actifs pour l'agence mais
-    // rattachés à AUCUNE opération — le vivier « Non assignées ») restent
-    // valables pour toutes les opérations : c'est exactement ce que le
-    // formulaire affiche quand l'opération choisie n'a pas de questions
-    // propres (repli sur agencyCriteres côté CollectePage). Sans cette
-    // tolérance, tout avis avec opération + critères par défaut échouait.
+    // DURCISSEMENT 26/09 : chaque critère soumis doit être rattaché à
+    // l'opération choisie, SANS exception. L'ancienne tolérance (« critères
+    // par défaut » du vivier « Non assignées » acceptés avec une opération)
+    // servait l'ancien repli du formulaire : quand l'opération n'avait pas
+    // de questions propres, CollectePage affichait tout le catalogue et le
+    // serveur l'acceptait. Ce repli n'existe plus — en mode opération, le
+    // client n'affiche et n'envoie QUE les questions de l'opération ; une
+    // opération vide affiche « Questionnaire en préparation » au lieu de
+    // questions. Le vivier ne passe que pour un guichet SANS opération
+    // (branche `if (serviceId)` non exécutée), jamais avec une opération.
     const rattachements = await context.entities.CritereService.findMany({
       where: {
         id_service: serviceDuGuichet.id,
@@ -747,23 +748,9 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     const rattaches = new Set(rattachements.map((r: any) => r.id_critere));
     const orphelins = critereIds.filter((id) => !rattaches.has(id));
     if (orphelins.length > 0) {
-      // Un critère non rattaché à l'opération choisie n'est accepté que s'il
-      // n'est rattaché à AUCUNE opération DU GUICHET (critère par défaut —
-      // périmètre guichet, le même que le formulaire qui n'affiche que les
-      // questions de l'opération + ce vivier). Rattaché à une AUTRE
-      // opération du même guichet → rejet (appel forgé ou formulaire
-      // désynchronisé). Un rattachement sur un AUTRE guichet ne disqualifie
-      // pas : l'organisation en opérations est propre à chaque guichet.
-      const autresRattachements = await context.entities.CritereService.findMany({
-        where: {
-          id_critere: { in: orphelins },
-          service: { guichets: { some: { id: guichet.id } } },
-        },
-        select: { id_critere: true },
-      });
-      if (autresRattachements.length > 0) {
-        throw new HttpError(400, "Un ou plusieurs critères ne font pas partie de l’opération sélectionnée.");
-      }
+      // Appel forgé ou formulaire désynchronisé (onglet resté ouvert avant
+      // un déplacement de question) : rejet explicite, pas de tolérance.
+      throw new HttpError(400, "Un ou plusieurs critères ne font pas partie de l’opération sélectionnée.");
     }
   }
 
