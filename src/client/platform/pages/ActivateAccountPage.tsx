@@ -93,7 +93,7 @@ export default function ActivateAccountPage() {
                     type={voirMdp ? 'text' : 'password'}
                     value={motDePasse}
                     onChange={(e) => setMotDePasse(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                    className="h-11 w-full rounded-xl border border-border bg-background px-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-ring"
                     placeholder="8 caractères minimum"
                     autoComplete="new-password"
                   />
@@ -117,7 +117,7 @@ export default function ActivateAccountPage() {
                   type={voirMdp ? 'text' : 'password'}
                   value={confirmation}
                   onChange={(e) => setConfirmation(e.target.value)}
-                  className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                  className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                   autoComplete="new-password"
                 />
               </div>

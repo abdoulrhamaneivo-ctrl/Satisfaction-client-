@@ -14,7 +14,7 @@ const PLANS = [
 
 const ETAPES = ['Entreprise', 'Admin', 'Plan', 'Confirmation'] as const
 
-const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40'
+const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring'
 const labelCls = 'block text-xs font-black uppercase tracking-widest text-muted-foreground'
 
 /** Wizard de création d'entreprise (Doc 12 §6) — 4 étapes, rien créé avant la fin. */

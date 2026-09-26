@@ -125,7 +125,7 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
 
       <div className="max-w-xs">
         <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground" htmlFor="company-totp">Code 2FA (6 chiffres) *</label>
-        <input id="company-totp" inputMode="numeric" maxLength={6} required className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40" value={totpCode} onChange={(ev) => setTotpCode(ev.target.value.replace(/\D/g, ''))} />
+        <input id="company-totp" inputMode="numeric" maxLength={6} required className="mt-1.5 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" value={totpCode} onChange={(ev) => setTotpCode(ev.target.value.replace(/\D/g, ''))} />
       </div>
 
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -295,7 +295,7 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
               onChange={(ev) => setMotif(ev.target.value)}
               rows={3}
               placeholder="Ex. impayé de facture, demande du client…"
-              className="mt-1.5 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+              className="mt-1.5 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setModalSuspendre(false)} className="rounded-xl px-4 py-2.5 text-sm font-bold text-muted-foreground hover:bg-muted">
@@ -328,7 +328,7 @@ function CompanyDetailsInner({ id }: { id: number | string | undefined }) {
               <select
                 value={e.plan}
                 onChange={(ev) => { /* plan modifiable via changerLimites plan */ (window as any).__newPlan = ev.target.value }}
-                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="select-plan"
                 defaultValue={e.plan}
               >

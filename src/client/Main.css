@@ -48,6 +48,15 @@
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
 
+  /* Vague 4 (WCAG 2.2 AA — 1.4.3) : variantes « texte » des couleurs de
+     marque, mesurées à ≥ 4,5:1 sur fond clair. Le vert de marque reste
+     réservé aux aplats (charte Doc 04 inchangée) ; en TEXTE, c'est
+     -strong qui est employé. Voir src/shared/branding.ts. */
+  --color-primary-strong: hsl(var(--primary-strong));
+  --color-success-strong: hsl(var(--success-strong));
+  --color-warning-strong: hsl(var(--warning-strong));
+  --color-destructive-strong: hsl(var(--destructive-strong));
+
   --color-brand-green: hsl(var(--brand-green));
   --color-brand-green-deep: hsl(var(--brand-green-deep));
   --color-brand-green-deeper: hsl(var(--brand-green-deeper));

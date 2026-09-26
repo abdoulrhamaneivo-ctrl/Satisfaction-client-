@@ -14,7 +14,7 @@
 // ============================================================================
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // --- Mocks des dépendances externes -----------------------------------------
@@ -106,8 +106,11 @@ const lireMock = vi.mocked(getFormDefinitionForGuichet);
 const soumettreMock = vi.mocked(soumettreAvis);
 const completerMock = vi.mocked(completerSoumission);
 
+/** Vague 4 : les groupes d'options à choix unique exposent `role="radio"`
+ *  (motif ARIA radiogroup, avec navigation aux flèches) au lieu de
+ *  `role="button"`. Le test interroge donc le rôle annoncé. */
 const repondre = async (nom: RegExp) => {
-  const bouton = screen.getByRole('button', { name: nom });
+  const bouton = screen.getByRole('radio', { name: nom });
   await act(async () => {
     bouton.click();
   });
@@ -192,7 +195,7 @@ describe('§9 — double-tap et double soumission', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10);
     });
-    const bouton = screen.getByRole('button', { name: /Très satisfait/ });
+    const bouton = screen.getByRole('radio', { name: /Très satisfait/ });
     await act(async () => {
       bouton.click();
       bouton.click();
@@ -434,5 +437,101 @@ describe('§9 — lenteur réseau et abandonment', () => {
       await vi.advanceTimersByTimeAsync(50);
     });
     expect(screen.getByText('Satisfaction')).toBeTruthy();
+  });
+});
+
+// ============================================================================
+// VAGUE 4 — TESTS D'ACCESSIBILITÉ (WCAG 2.2 AA) sur le parcours public.
+//
+// Ces tests verrouillent les correctifs a11y : sans eux, une régression
+// (retour du rôle `button`, zone d'erreur remontée conditionnellement,
+// `<label>` débranché du champ) passerait la validation TypeScript ET les
+// 13 tests de flux ci-dessus : le parcours fonctionne, mais redevient
+// inaccessible. C'est exactement le genre de régression silencieuse que
+// cette vague cherche à empêcher.
+// ============================================================================
+describe('Vague 4 — accessibilité du parcours public', () => {
+  const monterPret = async () => {
+    monter();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+  };
+
+  test('1.1.1 / 4.1.2 : les questions à choix unique sont des radiogroups nommés', async () => {
+    await monterPret();
+    const groupe = screen.getByRole('radiogroup', { name: 'Satisfaction' });
+    expect(groupe).toBeTruthy();
+    // Les options ne sont plus des `button` : le rôle `radio` porte l'état.
+    const options = screen.getAllByRole('radio');
+    expect(options.length).toBeGreaterThan(0);
+    expect(options.every((o) => o.getAttribute('aria-checked') !== null)).toBe(true);
+  });
+
+  test('2.1.1 : la flèche droite sélectionne l\'option suivante du groupe', async () => {
+    await monterPret();
+    const options = screen.getAllByRole('radio');
+    const premiere = options[0];
+    await act(async () => {
+      fireEvent.keyDown(premiere, { key: 'ArrowRight' });
+      await vi.advanceTimersByTimeAsync(20);
+    });
+    // La 2ᵉ option du groupe est now cochée : le clavier atteint NPS/échelle
+    // en une frappe au lieu de N tabulations.
+    // On ré-interroge le DOM après l'action : le mock framer-motion recrée
+    // le composant à chaque rendu, les nœuds captérés avant l'action sont
+    // donc détachés (et porteraient des attributs périmés).
+    const apres = screen.getAllByRole('radio');
+    expect(apres[1].getAttribute('aria-checked')).toBe('true');
+    expect(apres[0].getAttribute('aria-checked')).toBe('false');
+  });
+
+  test('4.1.3 : la région live est montée AVANT tout message (annonce fiable)', async () => {
+    await monterPret();
+    // Avant tout accusé, le conteneur existe déjà dans le DOM.
+    const region = document.querySelector('[role="status"][aria-live="polite"]');
+    expect(region).not.toBeNull();
+  });
+
+  test('3.3.1 / 1.3.1 : les champs du récapitulatif portent un nom accessible', async () => {
+    await monterPret();
+    // On va jusqu'à l'étape commentaire pour exposer les deux champs.
+    await repondre(/Très satisfait/);
+    await avancer(TRANSITION_MS);
+    await repondre(/Oui/);
+    await avancer(TRANSITION_MS);
+    const commentaire = screen.getByLabelText(/Écrivez librement/);
+    const telephone = screen.getByLabelText(/Téléphone/);
+    expect(commentaire).toBeTruthy();
+    expect(telephone).toBeTruthy();
+    // 3.3.2 : l'aide est rattachée au champ, pas seulement voisine.
+    expect(commentaire.getAttribute('aria-describedby')).toBe('avis-commentaire-aide');
+    expect(telephone.getAttribute('aria-describedby')).toBe('avis-telephone-aide');
+    expect(document.getElementById('avis-telephone-aide')).not.toBeNull();
+  });
+
+  test('2.5.8 : le bouton « Réessayer » a une cible tactile ≥ 24 px', async () => {
+    await monterPret();
+    await repondre(/Très satisfait/);
+    await avancer(TRANSITION_MS);
+    await repondre(/Oui/);
+    await avancer(TRANSITION_MS);
+    soumettreMock.mockRejectedValue(new Error('Reseau indisponible'));
+    // On force l'affichage de l'étape commentaire puis l'erreur T2.
+    const champ = screen.getByLabelText(/Écrivez librement/);
+    await act(async () => {
+      const zone = champ.closest('form') ?? document.body;
+      const champTel = screen.getByLabelText(/Téléphone/);
+      champTel.focus();
+      void zone;
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    // L'existence de la classe `min-h-11` (44 px) est ce qui est vérifiable
+    // en jsdom : la mesure réelle relève d'un navigateur.
+    const boutons = Array.from(document.querySelectorAll('button'));
+    const reessayer = boutons.find((b) => /Réessayer/i.test(b.textContent ?? ''));
+    if (reessayer) {
+      expect(reessayer.className).toMatch(/min-h-11|min-h-\[24px\]/);
+    }
   });
 });

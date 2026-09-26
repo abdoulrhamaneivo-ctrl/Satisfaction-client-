@@ -36,7 +36,7 @@ import { cn } from '../utils';
 function navLinkClass(isActive: boolean) {
   return cn(
     'relative w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-card',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
     isActive
       ? 'bg-primary/15 text-primary border border-primary/25 shadow-sm font-bold before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-r-full before:bg-primary'
       : 'text-muted-foreground border border-transparent hover:bg-muted/60 hover:text-foreground hover:border-border/50',
@@ -160,7 +160,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
                 onClick={() => logout()}
                 title="Se déconnecter"
                 aria-label="Se déconnecter"
-                className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <LogOut className="size-4" aria-hidden />
               </button>
@@ -180,7 +180,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
         <Link
           to="/dashboard"
           onClick={onNavigate}
-          className="flex items-center justify-between p-2.5 rounded-2xl bg-muted/40 border border-border/70 hover:bg-muted/70 transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="flex items-center justify-between p-2.5 rounded-2xl bg-muted/40 border border-border/70 hover:bg-muted/70 transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-3">
             <YebaLogo className="size-7 transition-transform group-hover:scale-105" />
@@ -203,7 +203,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
               window.dispatchEvent(new Event('yeba:open-command-palette'));
             }}
             aria-keyshortcuts="Control+k Meta+k"
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border border-border/80 bg-card-subtle/80 text-muted-foreground hover:text-foreground hover:bg-muted/70 hover:border-primary/20 transition-all group shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border border-border/80 bg-card-subtle/80 text-muted-foreground hover:text-foreground hover:bg-muted/70 hover:border-primary/20 transition-all group shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="flex items-center gap-2.5">
               <Search className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -322,7 +322,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
               title="Paramètres"
               aria-label="Paramètres"
               onClick={onNavigate}
-              className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Settings className="size-4" aria-hidden />
             </Link>
@@ -332,7 +332,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
                 onClick={() => logout()}
                 title="Se déconnecter"
                 aria-label="Se déconnecter"
-                className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="size-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <LogOut className="size-4" aria-hidden />
               </button>

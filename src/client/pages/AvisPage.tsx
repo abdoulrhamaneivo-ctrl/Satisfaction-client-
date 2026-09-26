@@ -240,7 +240,7 @@ export const AvisPage = () => {
             actions={
               <div className="flex items-center gap-3">
                 {allAvis.length > 0 && (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-strong">
                     {allAvis.length}{hasMore ? '+' : ''} retour{allAvis.length > 1 ? 's' : ''}
                   </span>
                 )}
@@ -473,13 +473,13 @@ export const AvisPage = () => {
                             {rep.score_moyen !== null && rep.score_moyen !== undefined ? (
                               <GrandVisuelNote score={Math.round(rep.score_moyen)} />
                             ) : (
-                              <span className="flex items-center gap-2 text-sm font-bold text-primary">
+                              <span className="flex items-center gap-2 text-sm font-bold text-primary-strong">
                                 <MessageSquareQuote className="size-5" />
                                 Avis textuel — sans note chiffrée
                               </span>
                             )}
                             {rep.service && (
-                              <span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-md">
+                              <span className="bg-primary/5 dark:bg-primary/10 border border-primary/10 text-primary-strong text-[10px] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-md">
                                 {rep.service.libelle_service}
                               </span>
                             )}
@@ -514,7 +514,7 @@ export const AvisPage = () => {
 
                           {rep.agent && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted w-fit px-2.5 py-1 rounded-lg border border-border/40">
-                              <UserIcon size={12} className="text-primary" />
+                              <UserIcon size={12} className="text-primary-strong" />
                               <span className="font-semibold text-muted-foreground">Agent en service :</span>
                               <span className="font-bold text-foreground">
                                 {[rep.agent.prenom, rep.agent.nom].filter(Boolean).join(' ') || rep.agent.username}

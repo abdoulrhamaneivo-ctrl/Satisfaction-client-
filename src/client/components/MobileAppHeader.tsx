@@ -34,7 +34,7 @@ export function MobileAppHeader({ onMenuOpen, menuOpen = false }: MobileAppHeade
 
           <Link
             to="/dashboard"
-            className="flex items-center gap-2.5 min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex items-center gap-2.5 min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <YebaLogo className="size-7 shrink-0" />
             <span className="truncate text-sm font-bold font-satoshi text-foreground tracking-tight">
@@ -48,7 +48,7 @@ export function MobileAppHeader({ onMenuOpen, menuOpen = false }: MobileAppHeade
             to="/alertes-taches"
             title={`${total} action${total > 1 ? 's' : ''} en attente`}
             aria-label={`${total} incident${total > 1 ? 's' : ''} en attente`}
-            className="relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/30 hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/30 hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Bell
               className={cn(

@@ -410,7 +410,7 @@ export const DashboardPage = () => {
           {experience?.agregats && (
             <section aria-label="Expérience client">
               <div className="mb-4 flex items-center gap-2">
-                <LayoutDashboard className="size-5 text-primary" />
+                <LayoutDashboard className="size-5 text-primary-strong" />
                 <h2 className="text-xl font-bold text-foreground font-satoshi">
                   Expérience client ({labelPeriode})
                 </h2>
@@ -475,7 +475,7 @@ export const DashboardPage = () => {
                 if (!irritant && !topLive) return null;
                 return (
                   <div className="mt-4 rounded-2xl border border-warning/30 bg-warning/5 p-4">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-warning">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-warning-strong">
                       Principal irritant
                     </p>
                     {irritant ? (
@@ -591,7 +591,7 @@ export const DashboardPage = () => {
           {/* Objectifs */}
           <section>
             <div className="mb-4 flex items-center gap-2">
-              <Target className="size-5 text-primary" />
+              <Target className="size-5 text-primary-strong" />
               <h2 className="text-xl font-bold text-foreground font-satoshi">Objectifs de satisfaction</h2>
             </div>
             {loadingObjectifs ? (
@@ -604,7 +604,7 @@ export const DashboardPage = () => {
           {/* Thèmes récurrents — valeur ajoutée : de quoi se plaignent les clients */}
           <section>
             <div className="mb-4 flex items-center gap-2">
-              <Tag className="size-5 text-primary" />
+              <Tag className="size-5 text-primary-strong" />
               <h2 className="text-lg font-bold text-foreground font-satoshi">Thèmes récurrents ({labelPeriode})</h2>
             </div>
             {loadingThemes ? (
@@ -726,7 +726,7 @@ export const DashboardPage = () => {
 
                     <section>
                       <div className="mb-4 flex items-center gap-2">
-                        <TrendingUp className="size-5 text-primary" />
+                        <TrendingUp className="size-5 text-primary-strong" />
                         <h2 className="text-lg font-bold text-foreground font-satoshi">Évolution mensuelle</h2>
                       </div>
                       {loadingTendance ? (
@@ -763,7 +763,7 @@ export const DashboardPage = () => {
                 <Eyebrow tone="amber">Derniers retours enregistrés</Eyebrow>
                 <div className="flex items-center gap-3">
                   {avisGroupes.length > 0 && (
-                    <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary">
+                    <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary-strong">
                       {avisGroupes.length} avis
                     </span>
                   )}
@@ -791,8 +791,8 @@ export const DashboardPage = () => {
                               avis.score_moyen == null
                                 ? 'bg-muted text-muted-foreground border-border'
                                 : avis.score_moyen <= 2
-                                  ? 'bg-destructive/10 text-destructive border-destructive/20'
-                                  : 'bg-success/10 text-success border-success/20'
+                                  ? 'bg-destructive/10 text-destructive-strong border-destructive/20'
+                                  : 'bg-success/10 text-success-strong border-success/20'
                             }`}
                           >
                             {avis.score_moyen == null ? '—' : `${avis.score_moyen}/5`}
@@ -869,7 +869,7 @@ export const DashboardPage = () => {
                       <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/15 text-lg" aria-hidden>🏆</span>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-success">Top agence</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-success-strong">Top agence</p>
                           <p className="truncate text-sm font-bold text-foreground">{top.nom_agence} — {top.score_moyen}/5</p>
                         </div>
                       </div>
@@ -881,7 +881,7 @@ export const DashboardPage = () => {
                       <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-lg" aria-hidden>⚠️</span>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-warning">À surveiller</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-warning-strong">À surveiller</p>
                           <p className="truncate text-sm font-bold text-foreground">{flop.nom_agence} — {flop.score_moyen}/5</p>
                         </div>
                       </div>
@@ -900,10 +900,10 @@ export const DashboardPage = () => {
                           <p className="truncate text-sm font-bold font-satoshi text-foreground">
                             {a.nom_agence}
                             {comparaisonAgences.meilleure_agence === a.nom_agence && a.nb_avis > 0 && (
-                              <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-success">Meilleure</span>
+                              <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-success-strong">Meilleure</span>
                             )}
                             {comparaisonAgences.agence_a_surveiller === a.nom_agence && a.nb_avis > 0 && comparaisonAgences.agences.filter((x: any) => x.nb_avis > 0).length > 1 && (
-                              <span className="ml-2 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-warning">À surveiller</span>
+                              <span className="ml-2 rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-warning-strong">À surveiller</span>
                             )}
                           </p>
                           <p className="text-[11px] text-muted-foreground">{a.commune || '—'} · {a.nb_avis} avis</p>
@@ -915,7 +915,7 @@ export const DashboardPage = () => {
                           <p className="text-[11px] font-semibold text-muted-foreground">
                             {a.taux_satisfaction !== null ? `${a.taux_satisfaction}% satisfaits` : ''}
                             {delta !== null && delta !== undefined && (
-                              <span className={`ml-1.5 font-bold ${delta >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              <span className={`ml-1.5 font-bold ${delta >= 0 ? 'text-success-strong' : 'text-destructive-strong'}`}>
                                 {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}
                               </span>
                             )}

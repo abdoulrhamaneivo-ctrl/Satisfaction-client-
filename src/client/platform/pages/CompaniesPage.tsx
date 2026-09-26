@@ -58,13 +58,13 @@ function CompaniesInner() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher une entreprise…"
             aria-label="Rechercher une entreprise"
-            className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Filtrer par statut"
         >
           <option value="">Tous statuts</option>
@@ -76,7 +76,7 @@ function CompaniesInner() {
         <select
           value={plan}
           onChange={(e) => setPlan(e.target.value)}
-          className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Filtrer par plan"
         >
           <option value="">Tous plans</option>

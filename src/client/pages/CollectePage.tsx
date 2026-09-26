@@ -46,7 +46,7 @@ const TRANSITION = { duration: 0.18, ease: [0.16, 1, 0.3, 1] as const };
 const FADE_IN = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: TRANSITION };
 
 // Styles statiques pré-calculés (pas de template-literals ré-évalués par frappe)
-const BTN_BASE = 'cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40';
+const BTN_BASE = 'cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 // Vague 1 Phase E — parcours sans bouton « Envoyer mon avis » :
 // réponse → accusé 500 ms → question suivante → dernière réponse =
@@ -56,6 +56,71 @@ const DELAI_AUTOSAVE_T2_MS = 900;
 const DELAI_AVANCE_APRES_SAVE_MS = 1400;
 // Borne partagée : reset automatique pour le client suivant.
 const DELAI_RESET_BORNE_MS = 10000;
+
+/**
+ * Pastille de progression (Vague 4 — WCAG 2.2 AA).
+ * Extraite de la barre collante pour être utilisée par les deux étapes
+ * (questions et récapitulatif) sans duplication. L'icône seule n'est pas
+ * une information utile : la pastille porte un libellé explicite, et le
+ * repère "en cours" est réservé à la question affichée.
+ */
+const IndicateurReponse = ({
+  reponse,
+  position,
+  total,
+  enCours,
+  peutReduireMouvement,
+}: {
+  reponse: ReponseCollecte | undefined;
+  position: number;
+  total: number;
+  enCours: boolean;
+  peutReduireMouvement: boolean;
+}) => {
+  if (reponse && reponse.critereId !== undefined) {
+    if (reponse.score !== undefined) {
+      return (
+        <span className="text-lg leading-none" title={`Question ${position + 1} : ${reponse.score}/5`}>
+          {visuelPourNote(reponse.score).icon}
+          <span className="sr-only">
+            Question {position + 1} sur {total} : note {reponse.score} sur 5.
+          </span>
+        </span>
+      );
+    }
+    return (
+      <span
+        className="text-lg leading-none text-success-strong font-black"
+        title={`Question ${position + 1} : répondu`}
+      >
+        <span aria-hidden>✓</span>
+        <span className="sr-only">
+          Question {position + 1} sur {total} : répondue.
+        </span>
+      </span>
+    );
+  }
+  if (enCours) {
+    return (
+      <motion.span
+        animate={peutReduireMouvement ? { opacity: 1 } : { opacity: [0.4, 1, 0.4] }}
+        transition={peutReduireMouvement ? { duration: 0 } : { duration: 1.4, repeat: Infinity }}
+        className="size-5 rounded-full border-2 border-primary"
+      >
+        <span className="sr-only">
+          Question {position + 1} sur {total} : en cours.
+        </span>
+      </motion.span>
+    );
+  }
+  return (
+    <span className="size-5 rounded-full bg-muted border border-border/60">
+      <span className="sr-only">
+        Question {position + 1} sur {total} : sans réponse.
+      </span>
+    </span>
+  );
+};
 
 /**
  * Identifiant de soumission (idempotence côté serveur).
@@ -75,6 +140,31 @@ export const genererIdSoumission = (): string => {
   }
   const alea = Math.random().toString(36).slice(2, 10);
   return `s-${Date.now().toString(36)}-${alea}-${alea}`;
+};
+
+/**
+ * Navigation clavier d'un groupe d'options (Vague 4 — WCAG 2.2 AA 2.1.1).
+ * Dans un groupe de choix unique, les flèches doivent déplacer la sélection :
+ * Tab sert à quitter le groupe, pas à le parcourir option par option (sinon
+ * 11 tabulations pour un NPS 0-10). Espace et Entrée restent l'activation
+ * classique d'un <button>.
+ */
+const deplacerChoix = (
+  evenement: React.KeyboardEvent<HTMLElement>,
+  index: number,
+  total: number,
+  choisir: (i: number) => void,
+) => {
+  const touches: Record<string, number> = {
+    ArrowRight: 1,
+    ArrowDown: 1,
+    ArrowLeft: -1,
+    ArrowUp: -1,
+  };
+  const pas = touches[evenement.key];
+  if (pas === undefined) return;
+  evenement.preventDefault();
+  choisir((index + pas + total) % total);
 };
 
 const normaliserTelephone = (valeur: string): string => {
@@ -265,7 +355,7 @@ export const CollectePage = () => {
     return (
       <AmbientBackground>
         <div className="flex min-h-screen flex-col items-center justify-center p-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <Loader2 className="h-10 w-10 animate-spin text-primary-strong" />
           <p className="text-sm font-bold text-muted-foreground mt-4">Chargement du questionnaire...</p>
         </div>
       </AmbientBackground>
@@ -280,7 +370,7 @@ export const CollectePage = () => {
       <AmbientBackground>
         <div className="flex min-h-screen items-center justify-center p-4">
           <Card className="w-full max-w-sm p-8 text-center border-destructive/30">
-            <p className="text-sm font-bold text-destructive">Le guichet demandé n'existe pas ou a été désactivé.</p>
+            <p className="text-sm font-bold text-destructive-strong">Le guichet demandé n'existe pas ou a été désactivé.</p>
           </Card>
         </div>
       </AmbientBackground>
@@ -563,7 +653,7 @@ export const CollectePage = () => {
                 className="h-9 max-w-[140px] object-contain"
               />
             ) : (
-              <span className="text-xs font-bold uppercase tracking-widest text-primary font-satoshi">
+              <span className="text-xs font-bold uppercase tracking-widest text-primary-strong font-satoshi">
                 {marque?.platform_name || "Yéba"}
               </span>
             )}
@@ -680,35 +770,66 @@ export const CollectePage = () => {
                     )}
                   </div>
 
-                  {t1.etat === 'erreur' && (
-                    <div role="alert" className="rounded-2xl bg-destructive/10 border border-destructive/25 p-3 text-xs font-bold text-destructive space-y-2">
-                      <p>{t1.erreur}</p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => void soumettreT1()}
-                        className="rounded-xl font-bold"
-                      >
-                        Réessayer l'envoi
-                      </Button>
-                    </div>
-                  )}
+                  {/* Vague 4 (4.1.3) : la zone d'erreur est TOUJOURS montée —
+                      une région role="alert" insérée au moment de l'échec n'est
+                      pas annoncée de façon fiable. Le contenu, lui, reste
+                      conditionnel ; hors erreur, la zone est vide et
+                      transparente. */}
+                  <div
+                    role="alert"
+                    className={`rounded-2xl border p-3 text-xs font-bold space-y-2 ${
+                      t1.etat === 'erreur'
+                        ? 'bg-destructive/10 border-destructive/25 text-destructive-strong'
+                        : 'border-transparent bg-transparent'
+                    }`}
+                  >
+                    {t1.etat === 'erreur' && (
+                      <>
+                        <p>{t1.erreur}</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => void soumettreT1()}
+                          className="rounded-xl font-bold"
+                        >
+                          Réessayer l'envoi
+                        </Button>
+                      </>
+                    )}
+                  </div>
 
                   {/* Smiley Input — accusé visuel : le choix s'agrandit et
-                      s'entoure avant la transition (repondreAvecAccuse). */}
+                      s'entoure avant la transition (repondreAvecAccuse).
+                      Vague 4 : role=radiogroup + flèches (2.1.1 / 4.1.2). */}
                   {currentCritere.type_reponse === 'SMILEY' && (
-                    <div className="flex justify-between items-center gap-1 sm:gap-2 pt-3 w-full min-w-0">
-                      {NOTE_CONFIG.map((s) => {
+                    <div
+                      role="radiogroup"
+                      aria-label={currentCritere.libelle_critere || 'Satisfaction'}
+                      className="flex justify-between items-center gap-1 sm:gap-2 pt-3 w-full min-w-0"
+                    >
+                      {NOTE_CONFIG.map((s, position) => {
                         const choisi = choixEnCours === `smiley-${s.note}`;
                         return (
                           <motion.button
                             key={s.note}
                             type="button"
+                            role="radio"
+                            aria-checked={choisi}
+                            onKeyDown={(e) =>
+                              deplacerChoix(e, position, NOTE_CONFIG.length, (i) => {
+                                const cible = NOTE_CONFIG[i];
+                                void repondreAvecAccuse(
+                                  payloadSmiley(currentCritere.id, cible.note),
+                                  `smiley-${cible.note}`,
+                                  `${cible.label} — note ${cible.note} sur 5`,
+                                  cible.icon,
+                                );
+                              })
+                            }
                             onClick={() => repondreAvecAccuse(payloadSmiley(currentCritere.id, s.note), `smiley-${s.note}`, `${s.label} — note ${s.note} sur 5`, s.icon)}
                             aria-label={`${s.label} — note ${s.note} sur 5`}
-                            aria-pressed={choisi}
                             animate={choisi ? { scale: 1.25 } : { scale: 1 }}
-                            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+                            transition={peutReduireMouvement ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 18 }}
                             className={`text-3xl sm:text-4xl p-2 sm:p-3 flex-1 max-w-[72px] min-h-[52px] min-w-[44px] flex justify-center items-center rounded-2xl border transition-colors ${BTN_BASE} ${
                               choisi
                                 ? 'bg-primary/15 border-primary shadow-md'
@@ -722,33 +843,62 @@ export const CollectePage = () => {
                     </div>
                   )}
 
-                  {/* Oui/Non Input — valeurOui + orientation gérée serveur. */}
+                  {/* Oui/Non Input — valeurOui + orientation gérée serveur.
+                      Vague 4 : role=radiogroup + flèches (2.1.1 / 4.1.2). */}
                   {currentCritere.type_reponse === 'OUI_NON' && (
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
+                    <div
+                      role="radiogroup"
+                      aria-label={currentCritere.libelle_critere || 'Réponse'}
+                      className="grid grid-cols-2 gap-3 sm:gap-4 pt-2"
+                    >
                       <button
                         type="button"
+                        role="radio"
+                        aria-checked={choixEnCours === 'ouinon-oui'}
+                        onKeyDown={(e) =>
+                          deplacerChoix(e, 0, 2, (i) => {
+                            const estOui = i === 0;
+                            void repondreAvecAccuse(
+                              payloadOuiNon(currentCritere.id, estOui),
+                              estOui ? 'ouinon-oui' : 'ouinon-non',
+                              estOui ? 'Oui' : 'Non',
+                              <span className="text-3xl" aria-hidden>{estOui ? '👍' : '👎'}</span>,
+                            );
+                          })
+                        }
                         onClick={() => repondreAvecAccuse(payloadOuiNon(currentCritere.id, true), 'ouinon-oui', 'Oui', <span className="text-3xl" aria-hidden>👍</span>)}
-                        aria-pressed={choixEnCours === 'ouinon-oui'}
                         className={`font-bold py-5 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm min-h-[88px] border ${BTN_BASE} ${
                           choixEnCours === 'ouinon-oui'
-                            ? 'bg-success/25 border-success text-success'
-                            : 'bg-success/10 hover:bg-success/20 text-success border-success/30'
+                            ? 'bg-success/25 border-success text-success-strong'
+                            : 'bg-success/10 hover:bg-success/20 text-success-strong border-success/30'
                         }`}
                       >
-                        <span className="text-3xl">👍</span>
+                        <span className="text-3xl" aria-hidden>👍</span>
                         <span>Oui</span>
                       </button>
                       <button
                         type="button"
+                        role="radio"
+                        aria-checked={choixEnCours === 'ouinon-non'}
+                        onKeyDown={(e) =>
+                          deplacerChoix(e, 1, 2, (i) => {
+                            const estOui = i === 0;
+                            void repondreAvecAccuse(
+                              payloadOuiNon(currentCritere.id, estOui),
+                              estOui ? 'ouinon-oui' : 'ouinon-non',
+                              estOui ? 'Oui' : 'Non',
+                              <span className="text-3xl" aria-hidden>{estOui ? '👍' : '👎'}</span>,
+                            );
+                          })
+                        }
                         onClick={() => repondreAvecAccuse(payloadOuiNon(currentCritere.id, false), 'ouinon-non', 'Non', <span className="text-3xl" aria-hidden>👎</span>)}
-                        aria-pressed={choixEnCours === 'ouinon-non'}
                         className={`font-bold py-5 rounded-2xl text-base sm:text-lg transition-colors flex flex-col items-center justify-center gap-1 shadow-sm min-h-[88px] border ${BTN_BASE} ${
                           choixEnCours === 'ouinon-non'
-                            ? 'bg-destructive/25 border-destructive text-destructive'
-                            : 'bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30'
+                            ? 'bg-destructive/25 border-destructive text-destructive-strong'
+                            : 'bg-destructive/10 hover:bg-destructive/20 text-destructive-strong border-destructive/30'
                         }`}
                       >
-                        <span className="text-3xl">👎</span>
+                        <span className="text-3xl" aria-hidden>👎</span>
                         <span>Non</span>
                       </button>
                     </div>
@@ -756,27 +906,47 @@ export const CollectePage = () => {
 
                   {/* QCM Input — optionId stable (jamais de position). */}
                   {currentCritere.type_reponse === 'QCM' && (
-                    <div className="flex flex-col gap-2.5 pt-2">
-                      {optionsAffichage(currentCritere).map((choix) => {
-                        const cle = choix.id ?? `t:${choix.libelle}`;
-                        const choisi = choixEnCours === cle;
-                        return (
+                    <div
+                      role="radiogroup"
+                      aria-label={currentCritere.libelle_critere || 'Question à choix unique'}
+                      className="flex flex-col gap-2.5 pt-2"
+                    >
+                      {(() => {
+                        const options = optionsAffichage(currentCritere);
+                        return options.map((choix, position) => {
+                          const cle = choix.id ?? `t:${choix.libelle}`;
+                          const choisi = choixEnCours === cle;
+                          return (
                           <button
                             key={cle}
                             type="button"
+                            role="radio"
+                            aria-checked={choisi}
+                            onKeyDown={(e) =>
+                              deplacerChoix(e, position, options.length, (i) => {
+                                const cible = options[i];
+                                const cleCible = cible.id ?? `t:${cible.libelle}`;
+                                void repondreAvecAccuse(
+                                  payloadQCM(currentCritere.id, cible),
+                                  cleCible,
+                                  cible.libelle,
+                                  <span aria-hidden>✓</span>,
+                                );
+                              })
+                            }
                             onClick={() => repondreAvecAccuse(payloadQCM(currentCritere.id, choix), cle, choix.libelle, <span aria-hidden>✓</span>)}
-                            aria-pressed={choisi}
                             className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${
                               choisi
-                                ? 'border-primary bg-primary/15 text-primary'
+                                ? 'border-primary bg-primary/15 text-primary-strong'
                                 : 'border-border/80 hover:bg-muted text-foreground'
                             }`}
                           >
-                            <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0" />
+                            <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0" aria-hidden />
                             <span>{choix.libelle}</span>
                           </button>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   )}
 
@@ -815,13 +985,28 @@ export const CollectePage = () => {
                         ? 'grid-cols-2 sm:grid-cols-4'
                         : 'grid-cols-4 sm:grid-cols-8';
                     return (
-                      <div className={`grid ${colsClass} gap-2 pt-2 w-full min-w-0`}>
-                        {choix.map((c) => (
+                      <div
+                        role="radiogroup"
+                        aria-label={currentCritere.libelle_critere || 'Note'}
+                        className={`grid ${colsClass} gap-2 pt-2 w-full min-w-0`}
+                      >
+                        {choix.map((c, position) => (
                           <button
                             key={c.valeur}
                             type="button"
+                            role="radio"
+                            aria-checked={choixEnCours === `echelle-${c.valeur}`}
+                            onKeyDown={(e) =>
+                              deplacerChoix(e, position, choix.length, (i) => {
+                                const cible = choix[i];
+                                void repondreAvecAccuse(
+                                  payloadValeur(currentCritere.id, cible.valeur),
+                                  `echelle-${cible.valeur}`,
+                                  cible.libelle,
+                                );
+                              })
+                            }
                             onClick={() => repondreAvecAccuse(payloadValeur(currentCritere.id, c.valeur), `echelle-${c.valeur}`, c.libelle)}
-                            aria-pressed={choixEnCours === `echelle-${c.valeur}`}
                             aria-label={c.aria}
                             className={`w-full rounded-2xl border font-bold transition-colors flex items-center justify-center text-center font-satoshi ${BTN_BASE} ${
                               labelsLongs ? 'h-auto min-h-[64px] px-2 py-2.5 text-[11px] sm:text-xs leading-tight' : 'h-12 text-base'
@@ -838,16 +1023,32 @@ export const CollectePage = () => {
                     );
                   })()}
 
-                  {/* NPS natif 0-10 (détracteurs / passifs / promoteurs). */}
+                  {/* NPS natif 0-10 (détracteurs / passifs / promoteurs).
+                      Vague 4 : radiogroup + flèches. Sans cela, il faut
+                      11 tabulations pour atteindre « 10 ». */}
                   {currentCritere.type_reponse === 'NPS' && (
                     <div className="pt-2 space-y-3">
-                      <div className="grid grid-cols-6 sm:grid-cols-11 gap-2 w-full min-w-0">
-                        {Array.from({ length: 11 }, (_, v) => v).map((v) => (
+                      <div
+                        role="radiogroup"
+                        aria-label={currentCritere.libelle_critere || 'Recommandation'}
+                        className="grid grid-cols-6 sm:grid-cols-11 gap-2 w-full min-w-0"
+                      >
+                        {Array.from({ length: 11 }, (_, v) => v).map((v, position) => (
                           <button
                             key={v}
                             type="button"
+                            role="radio"
+                            aria-checked={choixEnCours === `nps-${v}`}
+                            onKeyDown={(e) =>
+                              deplacerChoix(e, position, 11, (i) => {
+                                void repondreAvecAccuse(
+                                  payloadValeur(currentCritere.id, i),
+                                  `nps-${i}`,
+                                  `Note ${i} sur 10`,
+                                );
+                              })
+                            }
                             onClick={() => repondreAvecAccuse(payloadValeur(currentCritere.id, v), `nps-${v}`, `Note ${v} sur 10`)}
-                            aria-pressed={choixEnCours === `nps-${v}`}
                             aria-label={`Note ${v} sur 10`}
                             className={`w-full h-12 rounded-2xl border text-base font-bold transition-colors flex items-center justify-center font-satoshi ${BTN_BASE} ${
                               choixEnCours === `nps-${v}`
@@ -866,10 +1067,17 @@ export const CollectePage = () => {
                     </div>
                   )}
 
-                  {/* Choix multiples — optionIds stables. */}
+                  {/* Choix multiples — optionIds stables. Vague 4 : le groupe
+                      porte un nom accessible ; chaque option reste un bouton
+                      à bascule (`aria-pressed`), le motif ARIA correct pour
+                      une sélection multiple. */}
                   {currentCritere.type_reponse === 'CASES' && (
                     <div className="space-y-4 pt-2">
-                      <div className="flex flex-col gap-2">
+                      <div
+                        role="group"
+                        aria-label={`${currentCritere.libelle_critere || 'Question'} — plusieurs réponses possibles`}
+                        className="flex flex-col gap-2"
+                      >
                         {optionsAffichage(currentCritere).map((choix) => {
                           const cle = choix.id ?? `t:${choix.libelle}`;
                           const checked = casesSelectionnes.some((c) => (c.id ?? `t:${c.libelle}`) === cle);
@@ -887,7 +1095,7 @@ export const CollectePage = () => {
                               aria-pressed={checked}
                               className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${
                                 checked
-                                  ? 'border-primary bg-primary/15 text-primary'
+                                  ? 'border-primary bg-primary/15 text-primary-strong'
                                   : 'border-border/80 hover:bg-muted text-foreground'
                               }`}
                             >
@@ -950,33 +1158,52 @@ export const CollectePage = () => {
                   </div>
 
                   <div className="space-y-4 pt-1">
+                    {/* Vague 4 (1.3.1 / 3.3.2 / 4.1.2) : le <label> est
+                        réellement associé au champ. Auparavant il n'était
+                        qu'un <span> stylé : le nom accessible retombait sur
+                        le placeholder, qui disparaît dès la saisie. */}
                     <div className="text-left space-y-1.5">
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                        <MessageSquare size={13} /> Écrivez librement…
+                      <label
+                        htmlFor="avis-commentaire"
+                        className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5"
+                      >
+                        <MessageSquare size={13} aria-hidden /> Écrivez librement… (facultatif)
                       </label>
                       <Textarea
+                        id="avis-commentaire"
                         value={commentaire}
                         onChange={(e) => setCommentaire(e.target.value)}
                         placeholder="Des détails à partager ? Un problème rencontré ?"
                         rows={3}
                         maxLength={1000}
+                        aria-describedby="avis-commentaire-aide"
                         className="text-base rounded-2xl border-border/80"
                       />
+                      <p id="avis-commentaire-aide" className="text-[11px] text-muted-foreground leading-tight font-medium">
+                        Facultatif — votre commentaire aide l’équipe à améliorer le service.
+                      </p>
                     </div>
 
                     <div className="text-left space-y-1.5">
-                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                        <Phone size={13} /> Téléphone (facultatif)
+                      <label
+                        htmlFor="avis-telephone"
+                        className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5"
+                      >
+                        <Phone size={13} aria-hidden /> Téléphone (facultatif)
                       </label>
                       <Input
+                        id="avis-telephone"
                         type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
                         value={telephone}
                         onChange={(e) => setTelephone(e.target.value)}
                         placeholder="Ex: +225 0700000000"
+                        aria-describedby="avis-telephone-aide"
                         className="h-12 rounded-2xl px-4 text-base border-border/80"
                       />
-                      <p className="text-[10px] text-muted-foreground leading-tight font-medium">
-                        Votre numéro sera haché (SHA-256) pour éviter les doublons et ne sera jamais partagé.
+                      <p id="avis-telephone-aide" className="text-[11px] text-muted-foreground leading-tight font-medium">
+                        Facultatif — votre numéro sera haché (SHA-256) pour éviter les doublons et ne sera jamais partagé.
                       </p>
                     </div>
 
@@ -987,11 +1214,14 @@ export const CollectePage = () => {
                         </p>
                       )}
                       {t2.etat === 'saved' && (
-                        <p className="text-xs font-bold text-success">Enregistré ✓</p>
+                        <p className="text-xs font-bold text-success-strong">Enregistré ✓</p>
                       )}
                       {t2.etat === 'error' && (
-                        <p className="text-xs font-bold text-destructive space-x-2">
+                        <p className="text-xs font-bold text-destructive-strong">
                           <span>{t2.erreur}</span>
+                          {/* Vague 4 (2.5.8) : cible tactile ≥ 24 px CSS
+                              (ici 44 px, valeur mobile recommandée). Le
+                              bouton inline d'origine mesurait ~16 px. */}
                           <button
                             type="button"
                             onClick={() => {
@@ -999,7 +1229,7 @@ export const CollectePage = () => {
                               setT2({ etat: 'idle', erreur: null });
                               void sauvegarderT2(commentaire.trim(), telephone.trim());
                             }}
-                            className="underline underline-offset-2"
+                            className="mt-1 inline-flex min-h-11 items-center rounded-xl px-3 underline underline-offset-2 hover:bg-accent/60"
                           >
                             Réessayer
                           </button>
@@ -1010,7 +1240,7 @@ export const CollectePage = () => {
                     <button
                       type="button"
                       onClick={passerAuMerci}
-                      className="w-full text-center text-xs font-bold text-muted-foreground hover:text-foreground py-2"
+                      className="w-full min-h-11 text-center text-xs font-bold text-muted-foreground hover:text-foreground py-2"
                     >
                       Passer
                     </button>
@@ -1063,7 +1293,7 @@ export const CollectePage = () => {
                                 {ouiNon}
                               </span>
                             ) : (
-                              <span className="shrink-0 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
+                              <span className="shrink-0 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-bold text-success-strong">
                                 ✓ Répondu
                               </span>
                             )}
@@ -1095,26 +1325,54 @@ export const CollectePage = () => {
         {(step === 'QUESTIONS' || step === 'COMMENT_STEP') && (
           <div className="sticky bottom-3 z-20 mt-2">
             <AnimatePresence mode="wait" initial={false}>
-              {accuse !== null && step === 'QUESTIONS' ? (
-                <motion.div
-                  key={`choix-${currentQuestionIndex}-${accuse.texte}`}
-                  {...FADE_IN}
-                  className="flex items-center justify-center gap-3 rounded-2xl border border-primary/40 bg-card/95 px-4 py-3 shadow-lg backdrop-blur"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <motion.span
-                    initial={{ scale: 0.5 }}
-                    animate={peutReduireMouvement ? { scale: 1 } : { scale: [0.5, 1.3, 1] }}
-                    transition={{ duration: 0.4 }}
-                    className="text-3xl"
-                    aria-hidden
+              {step === 'QUESTIONS' ? (
+                <motion.div key="questions" {...FADE_IN} className="space-y-2">
+                  {/* Vague 4 (4.1.3) : la région live est montée en permanence
+                      (sinon le texte inséré au moment du remplissage n'est pas
+                      annoncé de façon fiable). Sans accusé, elle est masquée en
+                      `sr-only` : présente dans l'arbre d'accessibilité, absente
+                      de la maquette, donc sans décalage de mise en page. */}
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className={
+                      accuse !== null
+                        ? 'flex items-center justify-center gap-3 rounded-2xl border border-primary/40 bg-card/95 px-4 py-3 shadow-lg backdrop-blur'
+                        : 'sr-only'
+                    }
                   >
-                    {accuse.icone ?? '✓'}
-                  </motion.span>
-                  <span className="text-sm font-bold text-foreground">
-                    {accuse.texte}
-                  </span>
+                    {accuse !== null && (
+                      <>
+                        <motion.span
+                          initial={{ scale: 0.5 }}
+                          animate={peutReduireMouvement ? { scale: 1 } : { scale: [0.5, 1.3, 1] }}
+                          transition={peutReduireMouvement ? { duration: 0 } : { duration: 0.4 }}
+                          className="text-3xl"
+                          aria-hidden
+                        >
+                          {accuse.icone ?? '✓'}
+                        </motion.span>
+                        <span className="text-sm font-bold text-foreground">{accuse.texte}</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/95 px-4 py-2.5 shadow-md backdrop-blur">
+                    <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {`Question ${Math.min(currentQuestionIndex + 1, criteres.length)}/${criteres.length}`}
+                    </span>
+                    <span className="flex items-center gap-1.5 overflow-hidden" aria-label="Réponses déjà données">
+                      {criteres.map((_: any, i: number) => (
+                        <IndicateurReponse
+                          key={i}
+                          reponse={answers[i]}
+                          position={i}
+                          total={criteres.length}
+                          enCours={i === currentQuestionIndex}
+                          peutReduireMouvement={peutReduireMouvement}
+                        />
+                      ))}
+                    </span>
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div
@@ -1123,34 +1381,19 @@ export const CollectePage = () => {
                   className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card/95 px-4 py-2.5 shadow-md backdrop-blur"
                 >
                   <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {step === 'COMMENT_STEP' ? 'Vos notes' : `Question ${Math.min(currentQuestionIndex + 1, criteres.length)}/${criteres.length}`}
+                    Vos notes
                   </span>
                   <span className="flex items-center gap-1.5 overflow-hidden" aria-label="Réponses déjà données">
-                    {(step === 'COMMENT_STEP' ? answers : criteres).map((_: any, i: number) => {
-                      const rep = answers[i];
-                      if (rep && rep.critereId !== undefined) {
-                        return rep.score !== undefined ? (
-                          <span key={i} className="text-lg leading-none" title={`Question ${i + 1} : ${rep.score}/5`}>
-                            {visuelPourNote(rep.score).icon}
-                          </span>
-                        ) : (
-                          <span key={i} className="text-lg leading-none text-success font-black" title={`Question ${i + 1} : répondu`}>
-                            ✓
-                          </span>
-                        );
-                      }
-                      if (step === 'QUESTIONS' && i === currentQuestionIndex) {
-                        return (
-                          <motion.span
-                            key={i}
-                            animate={peutReduireMouvement ? { opacity: 1 } : { opacity: [0.4, 1, 0.4] }}
-                            transition={{ duration: 1.4, repeat: Infinity }}
-                            className="size-5 rounded-full border-2 border-primary"
-                          />
-                        );
-                      }
-                      return <span key={i} className="size-5 rounded-full bg-muted border border-border/60" />;
-                    })}
+                    {answers.map((rep: any, i: number) => (
+                      <IndicateurReponse
+                        key={i}
+                        reponse={rep}
+                        position={i}
+                        total={answers.length}
+                        enCours={false}
+                        peutReduireMouvement={peutReduireMouvement}
+                      />
+                    ))}
                   </span>
                 </motion.div>
               )}

@@ -64,7 +64,7 @@ function AuditLogsInner() {
         <select
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Filtrer par action"
         >
           {ACTIONS_FILTRE.map((a) => (

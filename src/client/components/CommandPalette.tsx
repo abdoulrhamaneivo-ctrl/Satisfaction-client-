@@ -75,6 +75,7 @@ export function CommandPalette() {
   const [requete, setRequete] = useState('');
   const [indexActif, setIndexActif] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogueRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { data: user } = useAuth();
   const canManageDirectory = ['DIRECTION', 'CHEF_AGENCE'].includes(user?.role ?? '');
@@ -119,9 +120,36 @@ export function CommandPalette() {
       // Laisse le temps au DOM de monter avant de focus.
       setTimeout(() => inputRef.current?.focus(), 10);
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+
+      /* Vague 4 (WCAG 2.2 AA — 2.1.2 « Aucun piège clavier », 2.4.3) :
+         la palette se déclare `aria-modal="true"`, le focus doit donc y
+         rester. Sans ce cycle, Tab finit par repartir sur la page
+         derrière l'overlay alors que l'écran est visuellement masqué. */
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== 'Tab') return;
+        const elements = Array.from(
+          dialogueRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          ) ?? [],
+        ).filter((el) => el.offsetParent !== null);
+        if (elements.length === 0) return;
+        const first = elements[0];
+        const last = elements[elements.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      };
+      document.addEventListener('keydown', onKeyDown);
+      return () => {
+        document.removeEventListener('keydown', onKeyDown);
+        document.body.style.overflow = '';
+      };
     }
+    document.body.style.overflow = '';
     return () => {
       document.body.style.overflow = '';
     };
@@ -235,7 +263,13 @@ export function CommandPalette() {
   let compteurGlobal = -1;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]" role="dialog" aria-modal="true" aria-label="Recherche globale">
+    <div
+      ref={dialogueRef}
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Recherche globale"
+    >
       <div
         className="fixed inset-0 bg-black/50 "
         onClick={() => setOuvert(false)}

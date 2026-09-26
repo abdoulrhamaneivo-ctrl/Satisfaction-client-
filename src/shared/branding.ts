@@ -31,9 +31,28 @@ export const BRANDING = {
   color_success_foreground: "0 0% 98%",
   color_warning: "45 100% 50%",
   color_warning_foreground: "216 40% 12%",
+  /* ── Variantes « texte » (Vague 4 — WCAG 2.2 AA 1.4.3) ──
+     Le vert de marque #00A851 (3,11:1 sur blanc) reste réservé aux APLATS
+     (boutons, badges, graphiques) : la charte Doc 04 est contractuelle et
+     n'est pas modifiée. En revanche, un vert de marque utilisé comme TEXTE
+     sur fond clair échoue l'exigence 4,5:1. Ces quatre jetons sont des
+     ASSOMBISSEMENTS de la même famille chromatique, réservés à l'usage en
+     texte (dont sur fonds teintés /10-15 %). Ratios mesurés par la formule
+     WCAG (luminance relative), vérifiés par src/shared/branding.test.ts :
+       primary-strong      5,73:1 sur crème · 6,19:1 sur blanc
+       success-strong      4,99:1 · 5,39:1
+       warning-strong      5,52:1 · 5,96:1  (le jaune #FFBF00 plafonne à 1,65:1)
+       destructive-strong  6,28:1 · 6,79:1  (le rouge d'origine plafonne à 4,80:1)
+     Règle d'emploi : aplat → jeton normal ; texte ou icône → jeton -strong. */
+  color_primary_strong: "152 100% 22%",
+  color_success_strong: "147 85% 26%",
+  color_warning_strong: "39 100% 27%",
+  color_destructive_strong: "0 69% 41%",
+  /* Anneau de focus : 3:1 minimum exigé (1.4.11 / 2.4.11). Le vert de
+     marque à 40 % d'opacité ne montait qu'à 1,58:1 — invisible au clavier. */
+  color_ring: "152 100% 22%",
   color_border: "216 16% 88%",
   color_input: "216 16% 84%",
-  color_ring: "149 100% 33%",
   border_radius: "0.75rem",
   shadow_style: "DEFAULT",
   font_family: "Satoshi",
