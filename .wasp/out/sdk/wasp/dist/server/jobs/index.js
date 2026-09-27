@@ -1,6 +1,7 @@
 export { detecterAlertesSilence } from './detecterAlertesSilence.js';
 export { relancerTachesEnRetard } from './relancerTachesEnRetard.js';
 export { envoyerRapportsMensuels } from './envoyerRapportsMensuels.js';
+export { envoyerRapportsHebdo } from './envoyerRapportsHebdo.js';
 export { archiverElementsResolusAnciens } from './archiverElementsResolusAnciens.js';
 export { analyserAvisIAJob } from './analyserAvisIAJob.js';
 export { genererPlanningAutoJob } from './genererPlanningAutoJob.js';

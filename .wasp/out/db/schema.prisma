@@ -345,7 +345,7 @@ model GlobalExperienceAnalysis {
   updatedAt          DateTime         @updatedAt
   processedAt        DateTime?
 
-  @@unique([id_entreprise, periode, debut])
+  @@unique([id_entreprise, periode, debut, fin])
   @@index([id_entreprise, periode, fin])
 }
 
@@ -672,6 +672,7 @@ enum SentimentAvis {
 enum PeriodeAnalyse {
   SEMAINE
   MOIS
+  PERSONNALISEE
 }
 
 /// Confiance affichée d'une analyse globale.

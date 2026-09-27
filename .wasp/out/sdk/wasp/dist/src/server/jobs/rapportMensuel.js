@@ -10,15 +10,15 @@ import { envoyerEmailBrevo } from '../lib/emailBrevo';
 import { prisma } from 'wasp/server';
 import { scoreMoyenParAvis } from '../soumissions';
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
-/** Calcule les stats du mois précédent pour une agence donnée */
-async function calculeStatsAgence(idAgence, debutMois, finMois) {
+/** Calcule les stats d'une période [debut, fin] pour une agence donnée */
+async function calculeStatsAgence(idAgence, debut, fin) {
     const agence = await prisma.agence.findUnique({ where: { id: idAgence } });
     if (!agence)
         return null;
     const reponses = await prisma.reponse.findMany({
         where: {
             id_agence: idAgence,
-            date_reponse: { gte: debutMois, lte: finMois },
+            date_reponse: { gte: debut, lte: fin },
         },
         select: {
             id: true,
@@ -34,7 +34,7 @@ async function calculeStatsAgence(idAgence, debutMois, finMois) {
         where: {
             guichet: { id_agence: idAgence },
             type_alerte: 'NOTE_CRITIQUE',
-            date_creation: { gte: debutMois, lte: finMois },
+            date_creation: { gte: debut, lte: fin },
         },
     });
     const tachesOuvertes = await prisma.tacheCorrective.count({
@@ -63,8 +63,12 @@ async function calculeStatsAgence(idAgence, debutMois, finMois) {
         tachesOuvertes,
     };
 }
-/** Génère le HTML du rapport mensuel */
-function genererHtmlRapport(stats, moisLabel, estDirection) {
+/** Génère le HTML du rapport (mensuel ou hebdomadaire — même gabarit).
+ * `contexte` nomme le périmètre des chiffres : nom de l'agence, ou
+ * « Toutes les agences — Vue consolidée ». Correctif 2026-09-27 : avant,
+ * chaque direction recevait les chiffres d'UNE agence titrés « Vue
+ * Consolidée » — l'intitulé mentait sur le périmètre. */
+function genererHtmlRapport(stats, periodeLabel, contexte) {
     const couleurTaux = stats.tauxSatisfaction >= 80
         ? '#059669'
         : stats.tauxSatisfaction >= 60
@@ -89,9 +93,9 @@ function genererHtmlRapport(stats, moisLabel, estDirection) {
       <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px;">
         Rapport de Satisfaction
       </h1>
-      <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
-        ${moisLabel} · ${stats.agenceNom}${estDirection ? ' — Vue Consolidée' : ''}
-      </p>
+      <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
+        ${periodeLabel} · ${contexte}
+      </p>
       <p style="color: rgba(255,255,255,0.5); margin: 4px 0 0; font-size: 12px;">${stats.commune}</p>
     </div>
 
@@ -178,66 +182,132 @@ function genererHtmlRapport(stats, moisLabel, estDirection) {
 </html>`;
 }
 /**
-
- * Handler principal du job de rapport mensuel.
-
- * Appelé par Wasp le 1er du mois à 07:00 (cron "0 7 1 * *").
-
+ * Consolidation multi-agences (pure, testée) : la Direction reçoit UN email
+ * avec les chiffres de son entreprise, pas N emails par agence.
+ * - taux = satisfaits / total (recalculé, pas moyenné) ;
+ * - note moyenne pondérée par le volume (une grosse agence pèse plus).
  */
-export const envoyerRapportsMensuels = async (_args, _context) => {
-    const maintenant = new Date();
-    // Calculer le premier et dernier jour du mois précédent
-    const debutMoisPrecedent = new Date(maintenant.getFullYear(), maintenant.getMonth() - 1, 1);
-    const finMoisPrecedent = new Date(maintenant.getFullYear(), maintenant.getMonth(), 0, 23, 59, 59);
-    const moisLabel = debutMoisPrecedent.toLocaleDateString('fr-FR', {
-        month: 'long',
-        year: 'numeric',
-    });
-    // Récupérer toutes les agences
+export function consoliderStatsAgences(stats) {
+    const avecDonnees = stats.filter((s) => s.totalAvis > 0);
+    if (avecDonnees.length === 0)
+        return null;
+    const totalAvis = avecDonnees.reduce((s, x) => s + x.totalAvis, 0);
+    const satisfaits = avecDonnees.reduce((s, x) => s + x.satisfaits, 0);
+    const noteMoyenne = totalAvis > 0
+        ? avecDonnees.reduce((s, x) => s + x.noteMoyenne * x.totalAvis, 0) / totalAvis
+        : 0;
+    return {
+        agenceNom: 'Toutes les agences',
+        commune: `${avecDonnees.length} agence${avecDonnees.length > 1 ? 's' : ''}`,
+        totalAvis,
+        noteMoyenne,
+        satisfaits,
+        tauxSatisfaction: totalAvis > 0 ? (satisfaits / totalAvis) * 100 : 0,
+        alertesCritiques: avecDonnees.reduce((s, x) => s + x.alertesCritiques, 0),
+        tachesOuvertes: avecDonnees.reduce((s, x) => s + x.tachesOuvertes, 0),
+    };
+}
+async function envoyerUnRapport(email, stats, contexte, periodeLabel, rythme, tag) {
+    const html = genererHtmlRapport(stats, periodeLabel, contexte);
+    try {
+        await envoyerEmailBrevo({
+            to: email,
+            subject: `📊 Yeba — Rapport ${periodeLabel} · ${contexte}`,
+            html,
+            text: [
+                `Rapport ${rythme} Yeba — ${periodeLabel}`,
+                `${contexte}`,
+                ``,
+                `• Taux satisfaction : ${stats.tauxSatisfaction.toFixed(0)}%`,
+                `• Total avis : ${stats.totalAvis}`,
+                `• Note moyenne : ${stats.noteMoyenne.toFixed(1)}/5`,
+                `• Alertes critiques : ${stats.alertesCritiques}`,
+                `• Tâches ouvertes : ${stats.tachesOuvertes}`,
+                ``,
+                `Tableau de bord complet : ${FRONTEND_URL}/dashboard`,
+            ].join('\n'),
+        });
+        console.log(`[RAPPORT] Email envoyé à ${email} (${contexte})`);
+        return true;
+    }
+    catch (err) {
+        console.error(`[RAPPORT] Erreur email vers ${email}:`, err);
+        return false;
+    }
+}
+/**
+ * Moteur commun mensuel/hebdomadaire : chefs = email de leur agence,
+ * directions = UN email consolidé par entreprise.
+ *
+ * Correctif 2026-09-27 : avant, chaque direction recevait les chiffres
+ * d'UNE agence titrés « Vue Consolidée » (l'intitulé mentait), et les
+ * directions sans agence ne recevaient rien du tout. Le regroupement est
+ * PAR ENTREPRISE : sans ça, le consolidé mélangerait les tenants.
+ */
+async function envoyerRapportsPeriode(debut, fin, periodeLabel, rythme, tag) {
     const agences = await prisma.agence.findMany({
         include: {
             utilisateurs: {
-                where: { role: { in: ['CHEF_AGENCE', 'DIRECTION'] }, actif: true },
+                where: { role: { in: ['CHEF_AGENCE'] }, actif: true },
             },
         },
     });
     let emailsEnvoyes = 0;
+    const statsParAgence = [];
     for (const agence of agences) {
-        const stats = await calculeStatsAgence(agence.id, debutMoisPrecedent, finMoisPrecedent);
+        const stats = await calculeStatsAgence(agence.id, debut, fin);
         if (!stats || stats.totalAvis === 0)
             continue; // Pas de données → pas de rapport
+        statsParAgence.push({ idAgence: agence.id, idEntreprise: agence.id_entreprise, stats });
         for (const destinataire of agence.utilisateurs) {
             if (!destinataire.email)
                 continue;
-            const estDirection = destinataire.role === 'DIRECTION';
-            const html = genererHtmlRapport(stats, moisLabel, estDirection);
-            try {
-                await envoyerEmailBrevo({
-                    to: destinataire.email,
-                    subject: `📊 Yeba — Rapport ${moisLabel} · ${agence.nom_agence}`,
-                    html,
-                    text: [
-                        `Rapport mensuel Yeba — ${moisLabel}`,
-                        `Agence : ${stats.agenceNom} (${stats.commune})`,
-                        ``,
-                        `• Taux satisfaction : ${stats.tauxSatisfaction.toFixed(0)}%`,
-                        `• Total avis : ${stats.totalAvis}`,
-                        `• Note moyenne : ${stats.noteMoyenne.toFixed(1)}/5`,
-                        `• Alertes critiques : ${stats.alertesCritiques}`,
-                        `• Tâches ouvertes : ${stats.tachesOuvertes}`,
-                        ``,
-                        `Tableau de bord complet : ${FRONTEND_URL}/dashboard`,
-                    ].join('\n'),
-                });
+            const ok = await envoyerUnRapport(destinataire.email, stats, stats.agenceNom, periodeLabel, rythme, tag);
+            if (ok)
                 emailsEnvoyes++;
-                console.log(`[RAPPORT] Email envoyé à ${destinataire.email} (${agence.nom_agence})`);
-            }
-            catch (err) {
-                console.error(`[RAPPORT] Erreur email vers ${destinataire.email}:`, err);
-            }
         }
     }
-    console.log(`[RAPPORT] Job terminé — ${emailsEnvoyes} rapport(s) envoyé(s) pour ${moisLabel}`);
-    return { emailsEnvoyes, moisLabel };
+    const entreprises = [...new Set(statsParAgence.map((s) => s.idEntreprise))];
+    for (const idEntreprise of entreprises) {
+        const consolide = consoliderStatsAgences(statsParAgence.filter((s) => s.idEntreprise === idEntreprise).map((s) => s.stats));
+        if (!consolide)
+            continue;
+        const directions = await prisma.user.findMany({
+            where: { role: 'DIRECTION', actif: true, email: { not: null }, id_entreprise: idEntreprise },
+            select: { email: true },
+        });
+        for (const d of directions) {
+            if (!d.email)
+                continue;
+            const ok = await envoyerUnRapport(d.email, consolide, 'Toutes les agences — Vue consolidée', periodeLabel, rythme, tag);
+            if (ok)
+                emailsEnvoyes++;
+        }
+    }
+    console.log(`[RAPPORT] Job terminé — ${emailsEnvoyes} rapport(s) envoyé(s) pour ${periodeLabel}`);
+    return { emailsEnvoyes, periodeLabel };
+}
+/**
+ * Handler principal du job de rapport mensuel.
+ * Appelé par Wasp le 1er du mois à 07:00 (cron "0 7 1 * *").
+ */
+export const envoyerRapportsMensuels = async (_args, _context) => {
+    const maintenant = new Date();
+    const debutMoisPrecedent = new Date(maintenant.getFullYear(), maintenant.getMonth() - 1, 1);
+    const finMoisPrecedent = new Date(maintenant.getFullYear(), maintenant.getMonth(), 0, 23, 59, 59);
+    const moisLabel = debutMoisPrecedent.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    return envoyerRapportsPeriode(debutMoisPrecedent, finMoisPrecedent, moisLabel, 'mensuel', 'MENSUEL');
+};
+/**
+ * Handler du job de rapport hebdomadaire (2026-09-27, §14 — le mensuel
+ * seul ne suffit pas au pilotage). Appelé par Wasp le lundi à 07:00
+ * (cron "0 7 * * 1"), sur la dernière semaine COMPLÈTE (lun→dim, jamais la
+ * semaine en cours — mêmes bornes que l'analyse GEX SEMAINE).
+ */
+export const envoyerRapportsHebdo = async (_args, _context) => {
+    const { derniereSemaineComplete } = await import('../gex/moteurGlobal');
+    const { debut, fin } = derniereSemaineComplete(new Date());
+    const semaineLabel = `semaine du ${debut.toLocaleDateString('fr-FR')} au ${fin.toLocaleDateString('fr-FR')}`;
+    return envoyerRapportsPeriode(debut, fin, semaineLabel, 'hebdomadaire', 'HEBDO');
 };
 //# sourceMappingURL=rapportMensuel.js.map

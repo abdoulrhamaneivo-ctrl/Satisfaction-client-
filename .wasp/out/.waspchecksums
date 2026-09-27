@@ -18,14 +18,14 @@
             "dir",
             "db/migrations/"
         ],
-        "2bb347357c92a36af8686d276fadb0d72bd7a8f48bca97d836ea1bb1773910f9"
+        "5a5ec04b5d36267060a64e9f7e3c8f84e41eaff09d81f1de9791977ac105b9f7"
     ],
     [
         [
             "file",
             "db/schema.prisma"
         ],
-        "07b6f58065021c867cc8bdf32bef7a842d3a833fcdae8b6fc7f1a90086ad3b4c"
+        "cbc62ed0d1e1ffbc6d732465dc07943851f2132667c18883d0749d2391e6efc1"
     ],
     [
         [
@@ -954,6 +954,13 @@
     [
         [
             "file",
+            "sdk/wasp/server/jobs/envoyerRapportsHebdo.ts"
+        ],
+        "0de5e0ca000a2164d9e12899eec43d29f3ed574caa653bbb238f5abf2390a4a3"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/server/jobs/envoyerRapportsMensuels.ts"
         ],
         "bb99470497f3348876e14ceab6d95cc9eaef8ffebd92fa1dd24f2a8acb0f49e3"
@@ -970,7 +977,7 @@
             "file",
             "sdk/wasp/server/jobs/index.ts"
         ],
-        "323ee4d5857e0f568317aaf501285470ae7a12d008a655a352d77610a358e849"
+        "73e86626fcb3915916d3fdefe9e6e5e696d23b4ba8d379273e03d310cf48fd06"
     ],
     [
         [
@@ -1964,14 +1971,14 @@
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.test.ts"
         ],
-        "a7b8882f223499ce24cb964d204ee6eba7411784acf2ee66cd8409b014861c6d"
+        "5cf2daf3edfc608c3123cba1b511e0ad6f9b243f150f9118824b6e4726aa9548"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.tsx"
         ],
-        "3cff5ee84c3af19126d81319c716d42a9450df0e4ac09bade912c680004145ba"
+        "efaf847e4b7628fb2605f983ab9a515d50931cfd153ff4223e179af6b07cc285"
     ],
     [
         [
@@ -2419,14 +2426,14 @@
             "file",
             "sdk/wasp/src/server/gex/budget.test.ts"
         ],
-        "13e31ae2b93670cf6e2dc1e935f7c2d11c45fb9b8f67a32924fbb1dad369921e"
+        "464a8552594d66681b5cf0e3d119e223fe31190167a856714014a47a8f0e1eec"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/gex/budget.ts"
         ],
-        "1620d0da6b60335b8c8ae9e3da6346a93ff1e63c1fd88088fac291bf1874f879"
+        "746d01e81041870ff432c0dac6fd36e87af480e8f91bba57068ca4be6aad73b8"
     ],
     [
         [
@@ -2447,7 +2454,7 @@
             "file",
             "sdk/wasp/src/server/globalExperience.ts"
         ],
-        "4289d76eb9c34fb9a1cf22ad17ae5d046c1aaa535d86fb14879f0c19db2ef75c"
+        "83d2036f561cf76e6be25751861c4fb200c7d70628c17fdfd377e83ff9fe5aee"
     ],
     [
         [
@@ -2468,7 +2475,7 @@
             "file",
             "sdk/wasp/src/server/jobs/analyseGlobale.ts"
         ],
-        "ec5aabfa89b29b2b60f7478df01a230a4869fa7b561829579be42c74b062f07b"
+        "c0821b18553b6b3950d44c40678465918d44e5abfb4e110a83435bbe7ccb08c1"
     ],
     [
         [
@@ -2501,9 +2508,16 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/jobs/rapportMensuel.test.ts"
+        ],
+        "5d662ef1f6737b8198b19f9422d69f0d7f3cbbdfbaee8d3b9f0a3e1e6722088a"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/jobs/rapportMensuel.ts"
         ],
-        "2f8afdaf99aea1f0c9780b9a889252368e343b003c12e9963c7ed1ee0ab19dbc"
+        "cfc5664e37ae6849c11a29bacb1e8ff352b128ecda8d74f04909883e2093c691"
     ],
     [
         [
@@ -2762,7 +2776,7 @@
             "file",
             "sdk/wasp/src/shared/domaines.ts"
         ],
-        "07ce4687f9d231c5ea2943e08f42829ff599d9a2987e7c82f25a8b90086c258f"
+        "86583fba9f13dc586d1f48557356d769fb530960748eb153b1ec88361dd08453"
     ],
     [
         [
@@ -3539,7 +3553,7 @@
             "file",
             "server/src/jobs/core/allJobs.ts"
         ],
-        "9b5301e8b7456bdf3ed2d56528e3a5185bd456f5cde2d41d70b4fdb340c79914"
+        "728be722a31fbaa07ba682fb359a316f13d6d15d2a83b2c2ef0d27679e9f727d"
     ],
     [
         [
@@ -3547,6 +3561,13 @@
             "server/src/jobs/detecterAlertesSilence.ts"
         ],
         "5f7ac27c322607587920732d711847fc5708ff469f2f9b58f4bb527ef38f5c0b"
+    ],
+    [
+        [
+            "file",
+            "server/src/jobs/envoyerRapportsHebdo.ts"
+        ],
+        "39d17a7737d774094da52a58f7105c14970513a94dde7c44da617da41c10bac5"
     ],
     [
         [

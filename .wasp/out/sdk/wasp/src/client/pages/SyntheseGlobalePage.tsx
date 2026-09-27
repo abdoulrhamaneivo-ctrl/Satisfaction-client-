@@ -87,7 +87,9 @@ export function libellePeriode(ligne: any): string {  const debut = new Date(lig
   const fin = new Date(ligne.fin);
   const d = debut.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
   const f = fin.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-  return ligne.periode === 'SEMAINE' ? `Semaine ${d} → ${f}` : `Mois ${f}`;
+  if (ligne.periode === 'SEMAINE') return `Semaine ${d} → ${f}`;
+  if (ligne.periode === 'PERSONNALISEE') return `Période ${d} → ${f}`;
+  return `Mois ${f}`;
 }
 
 const CONFIANCE_STYLE: Record<string, string> = {
@@ -150,7 +152,11 @@ export const SyntheseGlobalePage: React.FC = () => {
   // visibles pour la Direction cumulée (petite structure) et les chefs.
   const estDirectionPure = estDirection && (user as any)?.id_agence == null;
 
-  const [periode, setPeriode] = useState<'SEMAINE' | 'MOIS'>('SEMAINE');
+  const [periode, setPeriode] = useState<'SEMAINE' | 'MOIS' | 'PERSONNALISEE'>('SEMAINE');
+  // Période personnalisée (2026-09-27) : bornes libres pour l'analyse à la
+  // demande (max 92 j, jamais dans le futur — validé aussi côté serveur).
+  const [debutPerso, setDebutPerso] = useState('');
+  const [finPerso, setFinPerso] = useState('');
   const [selection, setSelection] = useState<string | null>(null);
   const [declenchement, setDeclenchement] = useState(false);
 
@@ -203,7 +209,10 @@ export const SyntheseGlobalePage: React.FC = () => {
   const lancerAnalyse = async () => {
     setDeclenchement(true);
     try {
-      const r: any = await declencherAnalyseGlobale({ periode });
+      const r: any = await declencherAnalyseGlobale({
+        periode,
+        ...(periode === 'PERSONNALISEE' ? { debut: debutPerso, fin: finPerso } : {}),
+      } as any);
       if (r?.dejaExistante) {
         toast({
           variant: 'success',
@@ -257,8 +266,29 @@ export const SyntheseGlobalePage: React.FC = () => {
                       <SelectContent className="rounded-xl">
                         <SelectItem value="SEMAINE">Semaine</SelectItem>
                         <SelectItem value="MOIS">Mois</SelectItem>
+                        <SelectItem value="PERSONNALISEE">Personnalisée</SelectItem>
                       </SelectContent>
                     </Select>
+                    {periode === 'PERSONNALISEE' && (
+                      <>
+                        <input
+                          type="date"
+                          aria-label="Début de la période personnalisée"
+                          value={debutPerso}
+                          max={finPerso || undefined}
+                          onChange={(e) => setDebutPerso(e.target.value)}
+                          className="h-10 rounded-xl border border-border/80 bg-card/80 px-3 text-sm font-semibold shadow-sm"
+                        />
+                        <input
+                          type="date"
+                          aria-label="Fin de la période personnalisée"
+                          value={finPerso}
+                          min={debutPerso || undefined}
+                          onChange={(e) => setFinPerso(e.target.value)}
+                          className="h-10 rounded-xl border border-border/80 bg-card/80 px-3 text-sm font-semibold shadow-sm"
+                        />
+                      </>
+                    )}
                     <Button
                       variant="outline"
                       onClick={() => refetch()}
@@ -269,7 +299,16 @@ export const SyntheseGlobalePage: React.FC = () => {
                       Actualiser
                     </Button>
                     {estDirection && (
-                      <Button onClick={lancerAnalyse} disabled={declenchement} className="h-10 rounded-xl font-bold">
+                      <Button
+                        onClick={lancerAnalyse}
+                        disabled={declenchement || (periode === 'PERSONNALISEE' && (!debutPerso || !finPerso))}
+                        title={
+                          periode === 'PERSONNALISEE' && (!debutPerso || !finPerso)
+                            ? 'Choisissez le début et la fin de la période'
+                            : 'Lancer une analyse sur la période'
+                        }
+                        className="h-10 rounded-xl font-bold"
+                      >
                         {declenchement ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                         Analyser
                       </Button>

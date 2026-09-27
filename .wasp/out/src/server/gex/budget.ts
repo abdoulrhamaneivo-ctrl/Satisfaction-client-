@@ -61,10 +61,13 @@ export function budgetDuJour(
  * depuis des semaines ne doit pas être doublée par une ligne plus récente
  * de la même période.
  */
-export type PeriodePriorisee = 'SEMAINE' | 'MOIS';
+export type PeriodePriorisee = 'SEMAINE' | 'MOIS' | 'PERSONNALISEE';
 
 export function comparerParPriorite<T extends { periode: string; createdAt: Date }>(a: T, b: T): number {
-  const rang = (p: string) => (p === 'SEMAINE' ? 0 : 1);
+  // PERSONNALISEE d'abord : c'est une demande explicite d'un utilisateur
+  // qui attend devant son écran — le programmé (SEMAINE/MOIS) peut attendre
+  // le budget suivant. Une custom ne consomme qu'1 unité de budget/jour.
+  const rang = (p: string) => (p === 'PERSONNALISEE' ? 0 : p === 'SEMAINE' ? 1 : 2);
   const parPeriode = rang(a.periode) - rang(b.periode);
   return parPeriode !== 0 ? parPeriode : a.createdAt.getTime() - b.createdAt.getTime();
 }

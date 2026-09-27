@@ -1613,7 +1613,7 @@ const PLANS_ENTREPRISE = ["STARTER", "BUSINESS", "ENTERPRISE"];
 const ORIENTATIONS_NOTE = ["HIGHER_BETTER", "LOWER_BETTER"];
 const TYPES_CANAL = ["QR_WEB", "USSD", "IVR_VOCAL"];
 const SENTIMENTS_AVIS = ["POSITIVE", "NEUTRAL", "NEGATIVE", "MIXED"];
-const PERIODES_ANALYSE = ["SEMAINE", "MOIS"];
+const PERIODES_ANALYSE = ["SEMAINE", "MOIS", "PERSONNALISEE"];
 const NIVEAUX_CONFIANCE = ["FAIBLE", "MOYENNE", "ELEVEE"];
 const PROVENANCES_SCORE = ["EXPLICIT", "INFERRED", "MIGRATED"];
 const COHERENCES_NOTE = [
@@ -7477,6 +7477,19 @@ ${JSON.stringify(doc)}
 Retourne exclusivement le JSON demand\xE9 (resume_executif, points_positifs, points_negatifs, irritants, tendances, anomalies, priorites, confiance, limites).`;
 }
 
+var moteurGlobal = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    calculerAgregats: calculerAgregats,
+    construirePromptSynthese: construirePromptSynthese,
+    derniereSemaineComplete: derniereSemaineComplete,
+    moisContenant: moisContenant,
+    moisPrecedent: moisPrecedent,
+    niveauConfianceGlobal: niveauConfianceGlobal,
+    prioriserIrritants: prioriserIrritants,
+    recalerIrritantsSurMesures: recalerIrritantsSurMesures,
+    semaineContenant: semaineContenant
+});
+
 const getAnalysesGlobales$2 = async (args, context) => {
   requireAuth(context);
   requireManagementRole(context);
@@ -7484,8 +7497,8 @@ const getAnalysesGlobales$2 = async (args, context) => {
   if (!idEntreprise) return [];
   await assertEntrepriseActive(context, context.entities);
   const periode = typeof args === "object" && args?.periode ? String(args.periode) : void 0;
-  if (periode && periode !== "SEMAINE" && periode !== "MOIS") {
-    throw new HttpError(400, "P\xE9riode invalide (SEMAINE ou MOIS).");
+  if (periode && periode !== "SEMAINE" && periode !== "MOIS" && periode !== "PERSONNALISEE") {
+    throw new HttpError(400, "P\xE9riode invalide (SEMAINE, MOIS ou PERSONNALISEE).");
   }
   return context.entities.GlobalExperienceAnalysis.findMany({
     where: { id_entreprise: idEntreprise, ...periode ? { periode } : {} },
@@ -7502,20 +7515,41 @@ const declencherAnalyseGlobale$2 = async (args, context) => {
     throw new HttpError(403, "R\xE9serv\xE9 aux directions d'entreprise.");
   }
   const periode = String(args?.periode || "").toUpperCase();
-  if (periode !== "SEMAINE" && periode !== "MOIS") {
-    throw new HttpError(400, "P\xE9riode invalide (SEMAINE ou MOIS).");
+  if (periode !== "SEMAINE" && periode !== "MOIS" && periode !== "PERSONNALISEE") {
+    throw new HttpError(400, "P\xE9riode invalide (SEMAINE, MOIS ou PERSONNALISEE).");
   }
-  const ref = args?.date ? new Date(args.date) : /* @__PURE__ */ new Date();
-  if (Number.isNaN(ref.getTime())) {
-    throw new HttpError(400, "Date invalide.");
+  let bornes;
+  if (periode === "PERSONNALISEE") {
+    const debut = args?.debut ? /* @__PURE__ */ new Date(`${args.debut}T00:00:00`) : /* @__PURE__ */ new Date(NaN);
+    const fin = args?.fin ? /* @__PURE__ */ new Date(`${args.fin}T23:59:59.999`) : /* @__PURE__ */ new Date(NaN);
+    if (Number.isNaN(debut.getTime()) || Number.isNaN(fin.getTime())) {
+      throw new HttpError(400, "P\xE9riode personnalis\xE9e : dates de d\xE9but et de fin requises (AAAA-MM-JJ).");
+    }
+    if (!(debut < fin)) {
+      throw new HttpError(400, "P\xE9riode personnalis\xE9e : la fin doit \xEAtre apr\xE8s le d\xE9but.");
+    }
+    const MS_PAR_JOUR = 24 * 3600 * 1e3;
+    if (fin.getTime() - debut.getTime() > 92 * MS_PAR_JOUR) {
+      throw new HttpError(400, "P\xE9riode personnalis\xE9e : 92 jours maximum (borne de co\xFBt).");
+    }
+    if (fin.getTime() > Date.now() + MS_PAR_JOUR) {
+      throw new HttpError(400, "P\xE9riode personnalis\xE9e : la fin ne peut pas \xEAtre dans le futur.");
+    }
+    bornes = { debut, fin };
+  } else {
+    const ref = args?.date ? new Date(args.date) : /* @__PURE__ */ new Date();
+    if (Number.isNaN(ref.getTime())) {
+      throw new HttpError(400, "Date invalide.");
+    }
+    bornes = periode === "SEMAINE" ? semaineContenant(ref) : moisContenant(ref);
   }
-  const bornes = periode === "SEMAINE" ? semaineContenant(ref) : moisContenant(ref);
   const existante = await context.entities.GlobalExperienceAnalysis.upsert({
     where: {
-      id_entreprise_periode_debut: {
+      id_entreprise_periode_debut_fin: {
         id_entreprise: idEntreprise,
         periode,
-        debut: bornes.debut
+        debut: bornes.debut,
+        fin: bornes.fin
       }
     },
     update: { status: "PENDING", error: null, attempts: 0, processedAt: null },
@@ -11322,36 +11356,54 @@ V\xE9rifiez : ${FRONTEND_URL$2}/alertes-taches`;
   return { alertesCreees, messagesEnvoyes };
 };
 
-const entities$6 = {
+const entities$7 = {
   Alerte: dbClient.alerte,
   Guichet: dbClient.guichet,
   AffectationGuichet: dbClient.affectationGuichet,
   Reponse: dbClient.reponse,
   User: dbClient.user
 };
-const jobSchedule$6 = {
+const jobSchedule$7 = {
   cron: "*/30 * * * *",
   options: {}
 };
 const detecterAlertesSilence = createJobDefinition({
   jobName: "detecterAlertesSilence",
   defaultJobOptions: {},
-  jobSchedule: jobSchedule$6,
-  entities: entities$6
+  jobSchedule: jobSchedule$7,
+  entities: entities$7
 });
 
-const entities$5 = {
+const entities$6 = {
   TacheCorrective: dbClient.tacheCorrective,
   Alerte: dbClient.alerte,
   Guichet: dbClient.guichet,
   User: dbClient.user
 };
-const jobSchedule$5 = {
+const jobSchedule$6 = {
   cron: "0 8 * * *",
   options: {}
 };
 const relancerTachesEnRetard$1 = createJobDefinition({
   jobName: "relancerTachesEnRetard",
+  defaultJobOptions: {},
+  jobSchedule: jobSchedule$6,
+  entities: entities$6
+});
+
+const entities$5 = {
+  Agence: dbClient.agence,
+  Reponse: dbClient.reponse,
+  Alerte: dbClient.alerte,
+  TacheCorrective: dbClient.tacheCorrective,
+  User: dbClient.user
+};
+const jobSchedule$5 = {
+  cron: "0 7 1 * *",
+  options: {}
+};
+const envoyerRapportsMensuels$1 = createJobDefinition({
+  jobName: "envoyerRapportsMensuels",
   defaultJobOptions: {},
   jobSchedule: jobSchedule$5,
   entities: entities$5
@@ -11365,11 +11417,11 @@ const entities$4 = {
   User: dbClient.user
 };
 const jobSchedule$4 = {
-  cron: "0 7 1 * *",
+  cron: "0 7 * * 1",
   options: {}
 };
-const envoyerRapportsMensuels$1 = createJobDefinition({
-  jobName: "envoyerRapportsMensuels",
+const envoyerRapportsHebdo$1 = createJobDefinition({
+  jobName: "envoyerRapportsHebdo",
   defaultJobOptions: {},
   jobSchedule: jobSchedule$4,
   entities: entities$4
@@ -11587,13 +11639,13 @@ registerJob({
 });
 
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || "http://localhost:3000";
-async function calculeStatsAgence(idAgence, debutMois, finMois) {
+async function calculeStatsAgence(idAgence, debut, fin) {
   const agence = await dbClient.agence.findUnique({ where: { id: idAgence } });
   if (!agence) return null;
   const reponses = await dbClient.reponse.findMany({
     where: {
       id_agence: idAgence,
-      date_reponse: { gte: debutMois, lte: finMois }
+      date_reponse: { gte: debut, lte: fin }
     },
     select: {
       id: true,
@@ -11609,7 +11661,7 @@ async function calculeStatsAgence(idAgence, debutMois, finMois) {
     where: {
       guichet: { id_agence: idAgence },
       type_alerte: "NOTE_CRITIQUE",
-      date_creation: { gte: debutMois, lte: finMois }
+      date_creation: { gte: debut, lte: fin }
     }
   });
   const tachesOuvertes = await dbClient.tacheCorrective.count({
@@ -11634,7 +11686,7 @@ async function calculeStatsAgence(idAgence, debutMois, finMois) {
     tachesOuvertes
   };
 }
-function genererHtmlRapport(stats, moisLabel, estDirection) {
+function genererHtmlRapport(stats, periodeLabel, contexte) {
   const couleurTaux = stats.tauxSatisfaction >= 80 ? "#059669" : stats.tauxSatisfaction >= 60 ? "#d97706" : "#dc2626";
   const niveauConformite = stats.tauxSatisfaction >= 80 ? "Conforme \u2705" : stats.tauxSatisfaction >= 60 ? "Convaincante \u{1F7E1}" : stats.tauxSatisfaction >= 40 ? "Informelle \u{1F7E0}" : "Insuffisante \u{1F534}";
   return `<!DOCTYPE html>
@@ -11662,11 +11714,8 @@ function genererHtmlRapport(stats, moisLabel, estDirection) {
       </h1>
 
       <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
-
-        ${moisLabel} \xB7 ${stats.agenceNom}${estDirection ? " \u2014 Vue Consolid\xE9e" : ""}
-
+        ${periodeLabel} \xB7 ${contexte}
       </p>
-
       <p style="color: rgba(255,255,255,0.5); margin: 4px 0 0; font-size: 12px;">${stats.commune}</p>
 
     </div>
@@ -11835,83 +11884,121 @@ function genererHtmlRapport(stats, moisLabel, estDirection) {
 
 </html>`;
 }
-const envoyerRapportsMensuels = async (_args, _context) => {
-  const maintenant = /* @__PURE__ */ new Date();
-  const debutMoisPrecedent = new Date(
-    maintenant.getFullYear(),
-    maintenant.getMonth() - 1,
-    1
-  );
-  const finMoisPrecedent = new Date(
-    maintenant.getFullYear(),
-    maintenant.getMonth(),
-    0,
-    23,
-    59,
-    59
-  );
-  const moisLabel = debutMoisPrecedent.toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric"
-  });
+function consoliderStatsAgences(stats) {
+  const avecDonnees = stats.filter((s) => s.totalAvis > 0);
+  if (avecDonnees.length === 0) return null;
+  const totalAvis = avecDonnees.reduce((s, x) => s + x.totalAvis, 0);
+  const satisfaits = avecDonnees.reduce((s, x) => s + x.satisfaits, 0);
+  const noteMoyenne = totalAvis > 0 ? avecDonnees.reduce((s, x) => s + x.noteMoyenne * x.totalAvis, 0) / totalAvis : 0;
+  return {
+    agenceNom: "Toutes les agences",
+    commune: `${avecDonnees.length} agence${avecDonnees.length > 1 ? "s" : ""}`,
+    totalAvis,
+    noteMoyenne,
+    satisfaits,
+    tauxSatisfaction: totalAvis > 0 ? satisfaits / totalAvis * 100 : 0,
+    alertesCritiques: avecDonnees.reduce((s, x) => s + x.alertesCritiques, 0),
+    tachesOuvertes: avecDonnees.reduce((s, x) => s + x.tachesOuvertes, 0)
+  };
+}
+async function envoyerUnRapport(email, stats, contexte, periodeLabel, rythme, tag) {
+  const html = genererHtmlRapport(stats, periodeLabel, contexte);
+  try {
+    await envoyerEmailBrevo({
+      to: email,
+      subject: `\u{1F4CA} Yeba \u2014 Rapport ${periodeLabel} \xB7 ${contexte}`,
+      html,
+      text: [
+        `Rapport ${rythme} Yeba \u2014 ${periodeLabel}`,
+        `${contexte}`,
+        ``,
+        `\u2022 Taux satisfaction : ${stats.tauxSatisfaction.toFixed(0)}%`,
+        `\u2022 Total avis : ${stats.totalAvis}`,
+        `\u2022 Note moyenne : ${stats.noteMoyenne.toFixed(1)}/5`,
+        `\u2022 Alertes critiques : ${stats.alertesCritiques}`,
+        `\u2022 T\xE2ches ouvertes : ${stats.tachesOuvertes}`,
+        ``,
+        `Tableau de bord complet : ${FRONTEND_URL}/dashboard`
+      ].join("\n")
+    });
+    console.log(`[RAPPORT] Email envoy\xE9 \xE0 ${email} (${contexte})`);
+    return true;
+  } catch (err) {
+    console.error(`[RAPPORT] Erreur email vers ${email}:`, err);
+    return false;
+  }
+}
+async function envoyerRapportsPeriode(debut, fin, periodeLabel, rythme, tag) {
   const agences = await dbClient.agence.findMany({
     include: {
       utilisateurs: {
-        where: { role: { in: ["CHEF_AGENCE", "DIRECTION"] }, actif: true }
+        where: { role: { in: ["CHEF_AGENCE"] }, actif: true }
       }
     }
   });
   let emailsEnvoyes = 0;
+  const statsParAgence = [];
   for (const agence of agences) {
-    const stats = await calculeStatsAgence(
-      agence.id,
-      debutMoisPrecedent,
-      finMoisPrecedent
-    );
+    const stats = await calculeStatsAgence(agence.id, debut, fin);
     if (!stats || stats.totalAvis === 0) continue;
+    statsParAgence.push({ idAgence: agence.id, idEntreprise: agence.id_entreprise, stats });
     for (const destinataire of agence.utilisateurs) {
       if (!destinataire.email) continue;
-      const estDirection = destinataire.role === "DIRECTION";
-      const html = genererHtmlRapport(stats, moisLabel, estDirection);
-      try {
-        await envoyerEmailBrevo({
-          to: destinataire.email,
-          subject: `\u{1F4CA} Yeba \u2014 Rapport ${moisLabel} \xB7 ${agence.nom_agence}`,
-          html,
-          text: [
-            `Rapport mensuel Yeba \u2014 ${moisLabel}`,
-            `Agence : ${stats.agenceNom} (${stats.commune})`,
-            ``,
-            `\u2022 Taux satisfaction : ${stats.tauxSatisfaction.toFixed(0)}%`,
-            `\u2022 Total avis : ${stats.totalAvis}`,
-            `\u2022 Note moyenne : ${stats.noteMoyenne.toFixed(1)}/5`,
-            `\u2022 Alertes critiques : ${stats.alertesCritiques}`,
-            `\u2022 T\xE2ches ouvertes : ${stats.tachesOuvertes}`,
-            ``,
-            `Tableau de bord complet : ${FRONTEND_URL}/dashboard`
-          ].join("\n")
-        });
-        emailsEnvoyes++;
-        console.log(
-          `[RAPPORT] Email envoy\xE9 \xE0 ${destinataire.email} (${agence.nom_agence})`
-        );
-      } catch (err) {
-        console.error(
-          `[RAPPORT] Erreur email vers ${destinataire.email}:`,
-          err
-        );
-      }
+      const ok = await envoyerUnRapport(
+        destinataire.email,
+        stats,
+        stats.agenceNom,
+        periodeLabel,
+        rythme);
+      if (ok) emailsEnvoyes++;
     }
   }
-  console.log(
-    `[RAPPORT] Job termin\xE9 \u2014 ${emailsEnvoyes} rapport(s) envoy\xE9(s) pour ${moisLabel}`
-  );
-  return { emailsEnvoyes, moisLabel };
+  const entreprises = [...new Set(statsParAgence.map((s) => s.idEntreprise))];
+  for (const idEntreprise of entreprises) {
+    const consolide = consoliderStatsAgences(
+      statsParAgence.filter((s) => s.idEntreprise === idEntreprise).map((s) => s.stats)
+    );
+    if (!consolide) continue;
+    const directions = await dbClient.user.findMany({
+      where: { role: "DIRECTION", actif: true, email: { not: null }, id_entreprise: idEntreprise },
+      select: { email: true }
+    });
+    for (const d of directions) {
+      if (!d.email) continue;
+      const ok = await envoyerUnRapport(
+        d.email,
+        consolide,
+        "Toutes les agences \u2014 Vue consolid\xE9e",
+        periodeLabel,
+        rythme);
+      if (ok) emailsEnvoyes++;
+    }
+  }
+  console.log(`[RAPPORT] Job termin\xE9 \u2014 ${emailsEnvoyes} rapport(s) envoy\xE9(s) pour ${periodeLabel}`);
+  return { emailsEnvoyes, periodeLabel };
+}
+const envoyerRapportsMensuels = async (_args, _context) => {
+  const maintenant = /* @__PURE__ */ new Date();
+  const debutMoisPrecedent = new Date(maintenant.getFullYear(), maintenant.getMonth() - 1, 1);
+  const finMoisPrecedent = new Date(maintenant.getFullYear(), maintenant.getMonth(), 0, 23, 59, 59);
+  const moisLabel = debutMoisPrecedent.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return envoyerRapportsPeriode(debutMoisPrecedent, finMoisPrecedent, moisLabel, "mensuel");
+};
+const envoyerRapportsHebdo = async (_args, _context) => {
+  const { derniereSemaineComplete } = await Promise.resolve().then(function () { return moteurGlobal; });
+  const { debut, fin } = derniereSemaineComplete(/* @__PURE__ */ new Date());
+  const semaineLabel = `semaine du ${debut.toLocaleDateString("fr-FR")} au ${fin.toLocaleDateString("fr-FR")}`;
+  return envoyerRapportsPeriode(debut, fin, semaineLabel, "hebdomadaire");
 };
 
 registerJob({
   job: envoyerRapportsMensuels$1,
   jobFn: envoyerRapportsMensuels
+});
+
+registerJob({
+  job: envoyerRapportsHebdo$1,
+  jobFn: envoyerRapportsHebdo
 });
 
 const RETENTION_JOURS = 180;
@@ -12907,7 +12994,7 @@ function budgetDuJour$1(nbEntreprisesActives, env = process.env) {
   return Math.max(plancher, Math.min(max, demande));
 }
 function comparerParPriorite(a, b) {
-  const rang = (p) => p === "SEMAINE" ? 0 : 1;
+  const rang = (p) => p === "PERSONNALISEE" ? 0 : p === "SEMAINE" ? 1 : 2;
   const parPeriode = rang(a.periode) - rang(b.periode);
   return parPeriode !== 0 ? parPeriode : a.createdAt.getTime() - b.createdAt.getTime();
 }
@@ -12927,7 +13014,7 @@ async function budgetRestant(budget) {
 async function assurerProgrammee(idEntreprise, periode, debut, fin) {
   await dbClient.globalExperienceAnalysis.upsert({
     where: {
-      id_entreprise_periode_debut: { id_entreprise: idEntreprise, periode, debut }
+      id_entreprise_periode_debut_fin: { id_entreprise: idEntreprise, periode, debut, fin }
     },
     update: {},
     create: {
@@ -13028,7 +13115,7 @@ async function traiterLigne(row, entrepriseNom, budget) {
       confiance: d.count >= 30 ? 0.9 : d.count >= 10 ? 0.7 : 0.5
     }));
     const irritants = prioriserIrritants(entrees).slice(0, 8);
-    const periodeLabel = row.periode === "SEMAINE" ? `semaine du ${debut.toLocaleDateString("fr-FR")} au ${fin.toLocaleDateString("fr-FR")}` : `mois de ${debut.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`;
+    const periodeLabel = row.periode === "SEMAINE" ? `semaine du ${debut.toLocaleDateString("fr-FR")} au ${fin.toLocaleDateString("fr-FR")}` : row.periode === "PERSONNALISEE" ? `p\xE9riode du ${debut.toLocaleDateString("fr-FR")} au ${fin.toLocaleDateString("fr-FR")}` : `mois de ${debut.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`;
     const prompt = construirePromptSynthese(entrepriseNom, periodeLabel, agregats, irritants);
     const { synthese, provider, model } = await AIService.syntheseGlobale(prompt);
     const { retenus: irritantsVerifies, ecarte: themesInventes } = recalerIrritantsSurMesures(

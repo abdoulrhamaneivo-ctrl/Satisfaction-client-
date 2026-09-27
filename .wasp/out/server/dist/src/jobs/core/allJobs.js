@@ -3,6 +3,7 @@
 import '../detecterAlertesSilence.js';
 import '../relancerTachesEnRetard.js';
 import '../envoyerRapportsMensuels.js';
+import '../envoyerRapportsHebdo.js';
 import '../archiverElementsResolusAnciens.js';
 import '../analyserAvisIAJob.js';
 import '../genererPlanningAutoJob.js';

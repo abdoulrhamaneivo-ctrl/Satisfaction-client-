@@ -120,7 +120,7 @@ export const TYPES_CANAL = ['QR_WEB', 'USSD', 'IVR_VOCAL'] as const satisfies re
 
 export const SENTIMENTS_AVIS = ['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'MIXED'] as const satisfies readonly SentimentAvis[];
 
-export const PERIODES_ANALYSE = ['SEMAINE', 'MOIS'] as const satisfies readonly PeriodeAnalyse[];
+export const PERIODES_ANALYSE = ['SEMAINE', 'MOIS', 'PERSONNALISEE'] as const satisfies readonly PeriodeAnalyse[];
 
 export const NIVEAUX_CONFIANCE = ['FAIBLE', 'MOYENNE', 'ELEVEE'] as const satisfies readonly NiveauConfiance[];
 

@@ -68,6 +68,12 @@ describe('P9 — priorité en cas de budget court', () => {
         const tri = [ligne('MOIS', 10), ligne('SEMAINE', 0)].sort(comparerParPriorite);
         expect(tri[0].periode).toBe('SEMAINE');
     });
+    test('la demande explicite (PERSONNALISEE) passe avant le programmé', () => {
+        // Un utilisateur attend devant son écran : sa custom ne doit pas
+        // attendre derrière la routine. Elle ne consomme qu'1 unité de budget.
+        const tri = [ligne('SEMAINE', 120), ligne('MOIS', 120), ligne('PERSONNALISEE', 0)].sort(comparerParPriorite);
+        expect(tri.map((l) => l.periode)).toEqual(['PERSONNALISEE', 'SEMAINE', 'MOIS']);
+    });
     test('à période égale, la plus ancienne d\'abord', () => {
         const tri = [ligne('SEMAINE', 0), ligne('SEMAINE', 60)].sort(comparerParPriorite);
         expect(tri[0].createdAt.getTime()).toBeLessThan(tri[1].createdAt.getTime());

@@ -26,6 +26,12 @@ describe('libellePeriode', () => {
   test('MOIS → mention du mois', () => {
     expect(libellePeriode({ periode: 'MOIS', debut: '2026-08-01T00:00:00Z', fin: '2026-08-31T00:00:00Z' })).toMatch(/^Mois /);
   });
+
+  test('PERSONNALISEE → plage explicite', () => {
+    const l = libellePeriode({ periode: 'PERSONNALISEE', debut: '2026-09-01T00:00:00Z', fin: '2026-09-10T00:00:00Z' });
+    expect(l).toMatch(/^Période /);
+    expect(l).toContain('2026');
+  });
 });
 
 describe('intervalleActualisationSynthese (régression page blanche /synthese)', () => {

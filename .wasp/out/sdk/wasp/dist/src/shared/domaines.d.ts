@@ -23,7 +23,7 @@ export declare const PLANS_ENTREPRISE: readonly ["STARTER", "BUSINESS", "ENTERPR
 export declare const ORIENTATIONS_NOTE: readonly ["HIGHER_BETTER", "LOWER_BETTER"];
 export declare const TYPES_CANAL: readonly ["QR_WEB", "USSD", "IVR_VOCAL"];
 export declare const SENTIMENTS_AVIS: readonly ["POSITIVE", "NEUTRAL", "NEGATIVE", "MIXED"];
-export declare const PERIODES_ANALYSE: readonly ["SEMAINE", "MOIS"];
+export declare const PERIODES_ANALYSE: readonly ["SEMAINE", "MOIS", "PERSONNALISEE"];
 export declare const NIVEAUX_CONFIANCE: readonly ["FAIBLE", "MOYENNE", "ELEVEE"];
 export declare const PROVENANCES_SCORE: readonly ["EXPLICIT", "INFERRED", "MIGRATED"];
 export declare const COHERENCES_NOTE: readonly ["NOTE_PLUS_HAUTE_QUE_TEXTE", "NOTE_PLUS_BASSE_QUE_TEXTE"];
@@ -32,7 +32,7 @@ export declare const estPlanEntreprise: (v: unknown) => v is "STARTER" | "BUSINE
 export declare const estOrientationNote: (v: unknown) => v is "HIGHER_BETTER" | "LOWER_BETTER";
 export declare const estTypeCanal: (v: unknown) => v is "QR_WEB" | "USSD" | "IVR_VOCAL";
 export declare const estSentimentAvis: (v: unknown) => v is "POSITIVE" | "NEUTRAL" | "NEGATIVE" | "MIXED";
-export declare const estPeriodeAnalyse: (v: unknown) => v is "SEMAINE" | "MOIS";
+export declare const estPeriodeAnalyse: (v: unknown) => v is "SEMAINE" | "MOIS" | "PERSONNALISEE";
 export declare const estNiveauConfiance: (v: unknown) => v is "FAIBLE" | "MOYENNE" | "ELEVEE";
 export declare const estProvenanceScore: (v: unknown) => v is "EXPLICIT" | "INFERRED" | "MIGRATED";
 export declare const estCoherenceNote: (v: unknown) => v is "NOTE_PLUS_HAUTE_QUE_TEXTE" | "NOTE_PLUS_BASSE_QUE_TEXTE";

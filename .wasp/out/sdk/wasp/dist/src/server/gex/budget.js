@@ -45,7 +45,10 @@ export function budgetDuJour(nbEntreprisesActives, env = process.env) {
     return Math.max(plancher, Math.min(max, demande));
 }
 export function comparerParPriorite(a, b) {
-    const rang = (p) => (p === 'SEMAINE' ? 0 : 1);
+    // PERSONNALISEE d'abord : c'est une demande explicite d'un utilisateur
+    // qui attend devant son écran — le programmé (SEMAINE/MOIS) peut attendre
+    // le budget suivant. Une custom ne consomme qu'1 unité de budget/jour.
+    const rang = (p) => (p === 'PERSONNALISEE' ? 0 : p === 'SEMAINE' ? 1 : 2);
     const parPeriode = rang(a.periode) - rang(b.periode);
     return parPeriode !== 0 ? parPeriode : a.createdAt.getTime() - b.createdAt.getTime();
 }

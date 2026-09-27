@@ -37,7 +37,7 @@ async function budgetRestant(budget) {
 async function assurerProgrammee(idEntreprise, periode, debut, fin) {
     await prisma.globalExperienceAnalysis.upsert({
         where: {
-            id_entreprise_periode_debut: { id_entreprise: idEntreprise, periode, debut },
+            id_entreprise_periode_debut_fin: { id_entreprise: idEntreprise, periode, debut, fin },
         },
         update: {},
         create: {
@@ -144,7 +144,9 @@ async function traiterLigne(row, entrepriseNom, budget) {
         const irritants = prioriserIrritants(entrees).slice(0, 8);
         const periodeLabel = row.periode === 'SEMAINE'
             ? `semaine du ${debut.toLocaleDateString('fr-FR')} au ${fin.toLocaleDateString('fr-FR')}`
-            : `mois de ${debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+            : row.periode === 'PERSONNALISEE'
+                ? `période du ${debut.toLocaleDateString('fr-FR')} au ${fin.toLocaleDateString('fr-FR')}`
+                : `mois de ${debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
         const prompt = construirePromptSynthese(entrepriseNom, periodeLabel, agregats, irritants);
         const { synthese, provider, model } = await AIService.syntheseGlobale(prompt);
         /* Vague 5, P10 — la priorité DÉTERMINISTE fait foi, sans exception.

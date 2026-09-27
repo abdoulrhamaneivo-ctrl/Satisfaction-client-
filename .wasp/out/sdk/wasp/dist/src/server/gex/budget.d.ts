@@ -25,7 +25,7 @@ export declare function budgetDuJour(nbEntreprisesActives: number, env?: NodeJS.
  * depuis des semaines ne doit pas être doublée par une ligne plus récente
  * de la même période.
  */
-export type PeriodePriorisee = 'SEMAINE' | 'MOIS';
+export type PeriodePriorisee = 'SEMAINE' | 'MOIS' | 'PERSONNALISEE';
 export declare function comparerParPriorite<T extends {
     periode: string;
     createdAt: Date;
