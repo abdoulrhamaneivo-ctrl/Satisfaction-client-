@@ -17,7 +17,7 @@ import {
 import { semaineContenant, moisContenant } from './gex/moteurGlobal';
 
 export const getAnalysesGlobales = async (
-  args: { periode?: 'SEMAINE' | 'MOIS' } | void,
+  args: { periode?: 'SEMAINE' | 'MOIS' | 'PERSONNALISEE' } | void,
   context: any,
 ) => {
   requireAuth(context);
@@ -31,8 +31,8 @@ export const getAnalysesGlobales = async (
   if (!idEntreprise) return [];
   await assertEntrepriseActive(context, context.entities);
   const periode = typeof args === 'object' && args?.periode ? String(args.periode) : undefined;
-  if (periode && periode !== 'SEMAINE' && periode !== 'MOIS') {
-    throw new HttpError(400, 'Période invalide (SEMAINE ou MOIS).');
+  if (periode && periode !== 'SEMAINE' && periode !== 'MOIS' && periode !== 'PERSONNALISEE') {
+    throw new HttpError(400, 'Période invalide (SEMAINE, MOIS ou PERSONNALISEE).');
   }
   return context.entities.GlobalExperienceAnalysis.findMany({
     where: { id_entreprise: idEntreprise, ...(periode ? { periode } : {}) },
@@ -42,7 +42,7 @@ export const getAnalysesGlobales = async (
 };
 
 export const declencherAnalyseGlobale = async (
-  args: { periode: 'SEMAINE' | 'MOIS'; date?: string },
+  args: { periode: 'SEMAINE' | 'MOIS' | 'PERSONNALISEE'; date?: string; debut?: string; fin?: string },
   context: any,
 ) => {
   requireAuth(context);
@@ -53,24 +53,49 @@ export const declencherAnalyseGlobale = async (
     throw new HttpError(403, "Réservé aux directions d'entreprise.");
   }
   const periode = String(args?.periode || '').toUpperCase();
-  if (periode !== 'SEMAINE' && periode !== 'MOIS') {
-    throw new HttpError(400, 'Période invalide (SEMAINE ou MOIS).');
+  if (periode !== 'SEMAINE' && periode !== 'MOIS' && periode !== 'PERSONNALISEE') {
+    throw new HttpError(400, 'Période invalide (SEMAINE, MOIS ou PERSONNALISEE).');
   }
-  const ref = args?.date ? new Date(args.date) : new Date();
-  if (Number.isNaN(ref.getTime())) {
-    throw new HttpError(400, 'Date invalide.');
+  let bornes: { debut: Date; fin: Date };
+  if (periode === 'PERSONNALISEE') {
+    // Période libre (2026-09-27) : bornes EXPLICITES, jamais devinées.
+    // Garde-fous : dates valides, debut < fin, étendue ≤ 92 jours (borne de
+    // coût : le moteur charge toutes les lignes de l'intervalle), fin pas
+    // dans le futur (une analyse porte sur du collecté, pas du à-venir).
+    const debut = args?.debut ? new Date(`${args.debut}T00:00:00`) : new Date(NaN);
+    const fin = args?.fin ? new Date(`${args.fin}T23:59:59.999`) : new Date(NaN);
+    if (Number.isNaN(debut.getTime()) || Number.isNaN(fin.getTime())) {
+      throw new HttpError(400, 'Période personnalisée : dates de début et de fin requises (AAAA-MM-JJ).');
+    }
+    if (!(debut < fin)) {
+      throw new HttpError(400, 'Période personnalisée : la fin doit être après le début.');
+    }
+    const MS_PAR_JOUR = 24 * 3600 * 1000;
+    if (fin.getTime() - debut.getTime() > 92 * MS_PAR_JOUR) {
+      throw new HttpError(400, 'Période personnalisée : 92 jours maximum (borne de coût).');
+    }
+    if (fin.getTime() > Date.now() + MS_PAR_JOUR) {
+      throw new HttpError(400, 'Période personnalisée : la fin ne peut pas être dans le futur.');
+    }
+    bornes = { debut, fin };
+  } else {
+    const ref = args?.date ? new Date(args.date) : new Date();
+    if (Number.isNaN(ref.getTime())) {
+      throw new HttpError(400, 'Date invalide.');
+    }
+    bornes = periode === 'SEMAINE' ? semaineContenant(ref) : moisContenant(ref);
   }
-  const bornes = periode === 'SEMAINE' ? semaineContenant(ref) : moisContenant(ref);
   // Vague 1 (P4) : le déclencheur manuel REMET EN FILE une analyse échouée ou
   // bloquée. Avant, `update: {}` laissait la ligne FAILED telle quelle et
   // répondait « déjà disponible » : un incident de fournisseur condamnait la
   // synthèse de la semaine, définitivement et sans issue.
   const existante = await context.entities.GlobalExperienceAnalysis.upsert({
     where: {
-      id_entreprise_periode_debut: {
+      id_entreprise_periode_debut_fin: {
         id_entreprise: idEntreprise,
         periode,
         debut: bornes.debut,
+        fin: bornes.fin,
       },
     },
     update: { status: 'PENDING', error: null, attempts: 0, processedAt: null },

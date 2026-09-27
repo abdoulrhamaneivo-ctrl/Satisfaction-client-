@@ -114,7 +114,7 @@ describe('domaines de valeurs (P14 j)', () => {
     expect(ORIENTATIONS_NOTE).toHaveLength(2);
     expect(TYPES_CANAL).toHaveLength(3);
     expect(SENTIMENTS_AVIS).toHaveLength(4);
-    expect(PERIODES_ANALYSE).toHaveLength(2);
+    expect(PERIODES_ANALYSE).toHaveLength(3);
     expect(NIVEAUX_CONFIANCE).toHaveLength(3);
     expect(PROVENANCES_SCORE).toHaveLength(3);
     expect(COHERENCES_NOTE).toHaveLength(2);

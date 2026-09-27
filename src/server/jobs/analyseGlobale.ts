@@ -58,7 +58,7 @@ async function assurerProgrammee(
 ): Promise<void> {
   await prisma.globalExperienceAnalysis.upsert({
     where: {
-      id_entreprise_periode_debut: { id_entreprise: idEntreprise, periode, debut },
+      id_entreprise_periode_debut_fin: { id_entreprise: idEntreprise, periode, debut, fin },
     },
     update: {},
     create: {
@@ -175,7 +175,9 @@ async function traiterLigne(
     const periodeLabel =
       row.periode === 'SEMAINE'
         ? `semaine du ${debut.toLocaleDateString('fr-FR')} au ${fin.toLocaleDateString('fr-FR')}`
-        : `mois de ${debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+        : row.periode === 'PERSONNALISEE'
+          ? `période du ${debut.toLocaleDateString('fr-FR')} au ${fin.toLocaleDateString('fr-FR')}`
+          : `mois de ${debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
     const prompt = construirePromptSynthese(entrepriseNom, periodeLabel, agregats, irritants);
     const { synthese, provider, model } = await AIService.syntheseGlobale(prompt);
 

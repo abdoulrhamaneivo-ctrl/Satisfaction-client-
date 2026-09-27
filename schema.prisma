@@ -628,6 +628,9 @@ enum SentimentAvis {
 enum PeriodeAnalyse {
   SEMAINE
   MOIS
+  // 2026-09-27 : analyse à la demande sur des bornes libres (déclencheur
+  // manuel). Les périodes SEMAINE/MOIS restent les seules programmées.
+  PERSONNALISEE
 }
 
 /// Confiance affichée d'une analyse globale.
@@ -760,7 +763,7 @@ model GlobalExperienceAnalysis {
   updatedAt           DateTime @updatedAt
   processedAt         DateTime?
 
-  @@unique([id_entreprise, periode, debut])
+  @@unique([id_entreprise, periode, debut, fin])
   @@index([id_entreprise, periode, fin])
 }
 
