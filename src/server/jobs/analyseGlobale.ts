@@ -111,6 +111,21 @@ async function traiterLigne(
         taux: agregats.tauxIncoherence,
       },
       qualite: agregats.qualiteDonnees,
+      // 2026-09-27 : la synthèse affiche aussi la ventilation et la
+      // richesse — mêmes objets canoniques que le dashboard live
+      // (`getIndicateursExperience`), figés pour la période. Les snapshots
+      // antérieurs n'ont pas ces clés : le client les lit avec `?? []`.
+      richesse: {
+        score: agregats.richesseQualitative,
+        details: agregats.richesseDetails,
+      },
+      distribution5: agregats.distribution5,
+      ventilation: {
+        parAgence: agregats.parAgence,
+        parService: agregats.parService,
+        guichetsTop: agregats.guichetsTop,
+        guichetsFlop: agregats.guichetsFlop,
+      },
     }),
     volumeAvis: agregats.volumeAvis,
     volumeCommentaires: agregats.volumeCommentaires,
