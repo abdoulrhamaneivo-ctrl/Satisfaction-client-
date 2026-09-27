@@ -15,10 +15,17 @@ export const AmbientBackground = ({
   children,
   className,
   animated = false,
+  decorations = true,
 }: {
   children: React.ReactNode;
   className?: string;
   animated?: boolean;
+  /**
+   * `false` sur les pages de saisie : coupe les blobs même quand
+   * `animated` les demanderait. Comportement par défaut inchangé
+   * (`true` = exactement comme avant). Voir `utils/decorations.ts`.
+   */
+  decorations?: boolean;
 }) => {
   return (
     <div
@@ -27,7 +34,7 @@ export const AmbientBackground = ({
         className,
       )}
     >
-      {animated ? (
+      {animated && decorations ? (
         <AnimatedBackgroundStatic />
       ) : null}
       <div className="relative">{children}</div>

@@ -1068,7 +1068,7 @@
             "file",
             "sdk/wasp/src/auth/AuthPageLayout.tsx"
         ],
-        "2c1e2ef3212104c9b4c8f1e9413be7d917f9a320cf140516dd5ee102a0926ef9"
+        "c6c3eed5531935d99c82b05901abd3b36c0473b9f6325ec8280fde801ab083c6"
     ],
     [
         [
@@ -1145,7 +1145,7 @@
             "file",
             "sdk/wasp/src/client/App.tsx"
         ],
-        "be9cff93b8afcfa2a67f0cf3b0078a26f4913dcddf9b5fedf0d8708bcc1dae6b"
+        "500bf0e4bcc0b0d0e07a73c69cdaa46734d751a1c4de57079775eeb432b9794b"
     ],
     [
         [
@@ -1236,7 +1236,7 @@
             "file",
             "sdk/wasp/src/client/components/AmbientBackground.tsx"
         ],
-        "d505220d7ac600738033e91e75929e8d65251ba1f5e79eccb1073f4b51c545fe"
+        "704612897adb26ad482f1a603644a4ae964ebef5e7d219fce24d2d7fe5b936d1"
     ],
     [
         [
@@ -2207,6 +2207,20 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/utils/decorations.test.ts"
+        ],
+        "55db8aa5be341a18a28ec6df63071c9ffa4dbd0734e708fe25563d44526c05a3"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/utils/decorations.ts"
+        ],
+        "d4e09e4d61895478ac81a049c782d7bab6491c8c665eb5950c4f32dbc6c5588f"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/utils/drilldown.test.ts"
         ],
         "f0f0463272c89836522142828b1d63b59ce6208a9816711978f6741cb9c2c0ec"
@@ -2769,7 +2783,7 @@
             "file",
             "sdk/wasp/src/shared/domaines.test.ts"
         ],
-        "290a76ef13ff9367ed24880ce01b241e08c592b96bb7fa657ac512f8eb0ccaeb"
+        "3cc4f55c0c6db4a5565951e4e71f73b4c50588f41fa18731897c5f359893a6d1"
     ],
     [
         [

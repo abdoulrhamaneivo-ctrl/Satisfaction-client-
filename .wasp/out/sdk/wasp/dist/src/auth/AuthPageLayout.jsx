@@ -34,7 +34,7 @@ function NoteSignature() {
  */
 export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }) {
     const prefersReducedMotion = useReducedMotion();
-    return (<AmbientBackground className="flex items-center justify-center px-4 py-10 sm:py-12">
+    return (<AmbientBackground className="flex items-center justify-center px-4 py-10 sm:py-12" decorations={false}>
       {/* En-tête compact visible uniquement sur mobile */}
       <motion.div initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: prefersReducedMotion ? 0 : 0.4 }} className="mb-5 w-full max-w-4xl rounded-2xl bg-card px-4 py-3 shadow-sm ring-1 ring-border/60 lg:hidden">
         <div className="flex items-center justify-between gap-3">

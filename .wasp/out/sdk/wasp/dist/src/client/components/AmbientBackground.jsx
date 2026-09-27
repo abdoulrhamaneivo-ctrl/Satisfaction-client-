@@ -10,9 +10,9 @@ import { cn } from '../utils';
  * animation pendant la frappe). L'animation de fond reste disponible sur les
  * pages de pilotage via <AnimatedBackground />.
  */
-export const AmbientBackground = ({ children, className, animated = false, }) => {
+export const AmbientBackground = ({ children, className, animated = false, decorations = true, }) => {
     return (<div className={cn('relative min-h-screen overflow-hidden bg-background', className)}>
-      {animated ? (<AnimatedBackgroundStatic />) : null}
+      {animated && decorations ? (<AnimatedBackgroundStatic />) : null}
       <div className="relative">{children}</div>
     </div>);
 };

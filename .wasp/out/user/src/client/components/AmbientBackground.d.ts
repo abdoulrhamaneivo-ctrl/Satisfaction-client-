@@ -9,10 +9,16 @@ import React from 'react';
  * animation pendant la frappe). L'animation de fond reste disponible sur les
  * pages de pilotage via <AnimatedBackground />.
  */
-export declare const AmbientBackground: ({ children, className, animated, }: {
+export declare const AmbientBackground: ({ children, className, animated, decorations, }: {
     children: React.ReactNode;
     className?: string;
     animated?: boolean;
+    /**
+     * `false` sur les pages de saisie : coupe les blobs même quand
+     * `animated` les demanderait. Comportement par défaut inchangé
+     * (`true` = exactement comme avant). Voir `utils/decorations.ts`.
+     */
+    decorations?: boolean;
 }) => React.JSX.Element;
 /**
  * Blobs STATIQUES (zéro animation JS) — décoration pure, coût GPU nul après
