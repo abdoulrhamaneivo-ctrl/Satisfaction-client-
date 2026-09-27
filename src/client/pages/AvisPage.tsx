@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useQuery, getAvisGroupes, getAgences, getGuichets, getServices, exportAvisGroupes } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,6 +50,36 @@ export const AvisPage = () => {
   const [selectedTheme, setSelectedTheme] = useState<string | undefined>(undefined);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // DRILL-DOWN (2026-09-27) : arrivée depuis le dashboard ou la synthèse
+  // avec ?agence=&guichet=&service=&score=&theme=&debut=&fin=. Les valeurs
+  // sont validées ici (entiers positifs, dates ISO, thème borné) et le
+  // serveur applique son RLS de toute façon : un paramètre forgé donne une
+  // liste vide, jamais les données d'un autre périmètre. Comme
+  // AdminPersonnelPage (?agence=), on écoute les changements (même route
+  // réutilisée en SPA : deux drill-downs successifs doivent re-filtrer).
+  const [searchParams, setSearchParams] = useSearchParams();
+  React.useEffect(() => {
+    const entierPositif = (v: string | null) => {
+      const n = Number(v);
+      return v != null && v !== '' && Number.isSafeInteger(n) && n > 0 ? n : undefined;
+    };
+    const a = entierPositif(searchParams.get('agence'));
+    if (a !== undefined) setSelectedAgenceId(a);
+    const g = entierPositif(searchParams.get('guichet'));
+    if (g !== undefined) setSelectedGuichetId(g);
+    const s = entierPositif(searchParams.get('service'));
+    if (s !== undefined) setSelectedServiceId(s);
+    const sc = entierPositif(searchParams.get('score'));
+    if (sc !== undefined && sc >= 1 && sc <= 5) setSelectedScore(sc);
+    const th = (searchParams.get('theme') || '').trim().slice(0, 60);
+    if (th) setSelectedTheme(th);
+    const d = searchParams.get('debut') || '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) setStartDate(d);
+    const f = searchParams.get('fin') || '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(f)) setEndDate(f);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Nom de l'entreprise + période pour l'en-tête des documents exportés.
   const { brandConfig } = useBrand();
@@ -145,6 +175,9 @@ export const AvisPage = () => {
     setEndDate('');
     setPage(1);
     setAllAvis([]);
+    // L'URL ne doit pas mentir : sans ça, un rechargement réappliquerait
+    // les filtres qu'on vient d'effacer.
+    setSearchParams({});
   };
 
   // Export CSV & XLSX — charge TOUS les avis filtrés (sans pagination).
