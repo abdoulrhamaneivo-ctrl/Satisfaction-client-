@@ -282,6 +282,10 @@ export declare const getThemesStats: (args: {
         theme: string;
         count: number;
     }[];
+    topSousThemes: {
+        theme: string;
+        count: number;
+    }[];
 }>;
 export declare const getIndicateursExperience: (args: {
     nbJours?: number;

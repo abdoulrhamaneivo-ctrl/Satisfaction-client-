@@ -84,6 +84,10 @@ async function traiterLigne(row, entrepriseNom, budget) {
                 taux: agregats.tauxIncoherence,
             },
             qualite: agregats.qualiteDonnees,
+            // 2026-09-27 : version de la formule qualité — toute rupture future
+            // de définition s'accompagne d'un bump, pour ne jamais comparer deux
+            // formules sans le savoir (risque documenté Phase 2).
+            qualiteVersion: 2,
             // 2026-09-27 : la synthèse affiche aussi la ventilation et la
             // richesse — mêmes objets canoniques que le dashboard live
             // (`getIndicateursExperience`), figés pour la période. Les snapshots
@@ -93,6 +97,8 @@ async function traiterLigne(row, entrepriseNom, budget) {
                 details: agregats.richesseDetails,
             },
             distribution5: agregats.distribution5,
+            // 2026-09-27 : sous-thèmes enfin persistés lisibles (ex-colonne morte).
+            sousThemesTop: agregats.sousThemesTop,
             ventilation: {
                 parAgence: agregats.parAgence,
                 parService: agregats.parService,

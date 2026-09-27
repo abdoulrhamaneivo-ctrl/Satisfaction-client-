@@ -64,6 +64,8 @@ export type AgregatsGlobaux = {
   themesTop: ThemeCompte[];
   /** Détail par thème (sévérité max + étendue) pour la priorisation. */
   themesDetail: ThemeDetail[];
+  /** Sous-thèmes (top 10) — comptés comme les thèmes depuis 2026-09-27. */
+  sousThemesTop: ThemeCompte[];
   /** Fréquences de la période précédente (évolution par irritant). */
   themesTopPrev: ThemeCompte[];
   totalAnalysesPrev: number;
@@ -333,6 +335,9 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
       sentiment: true,
       sentimentRetenu: true,
       themes: true,
+      // 2026-09-27 : les sous-thèmes étaient persistés mais jamais lus
+      // (colonne morte). Ils sont désormais comptés comme les thèmes.
+      sousThemes: true,
       urgence: true,
       severite: true,
       coherenceNote: true,
@@ -344,6 +349,7 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
   const sentiments: Record<string, number> = {};
   let incoherents = 0;
   const compteurThemes = new Map<string, { count: number; severiteMax: string; agences: Set<number> }>();
+  const compteurSousThemes = new Map<string, number>();
   const severiteDe = (a: any): string => a.severite || a.urgence || 'LOW';
   for (const a of analyses) {
     const s = a.sentimentRetenu || a.sentiment || 'NEUTRAL';
@@ -363,7 +369,25 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
       if (typeof a.reponse?.id_agence === 'number') e.agences.add(a.reponse.id_agence);
       compteurThemes.set(t, e);
     }
+    // Sous-thèmes : même source (JSON validé par enum côté écriture),
+    // comptage simple — pas de sévérité propre, ils héritent du thème.
+    try {
+      const lus = JSON.parse(String((a as any).sousThemes || '[]'));
+      if (Array.isArray(lus)) {
+        for (const st of lus) {
+          if (typeof st === 'string' && st.length > 0) {
+            compteurSousThemes.set(st, (compteurSousThemes.get(st) ?? 0) + 1);
+          }
+        }
+      }
+    } catch {
+      // sous-thème mal formé — ignoré comme les thèmes (même règle)
+    }
   }
+  const sousThemesTop: ThemeCompte[] = [...compteurSousThemes.entries()]
+    .map(([theme, count]) => ({ theme, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
   const themesTop: ThemeCompte[] = [...compteurThemes.entries()]
     .map(([theme, e]) => ({ theme, count: e.count }))
     .sort((a, b) => b.count - a.count)
@@ -557,6 +581,8 @@ export async function calculerAgregats(db: any, p: PerimetreGlobal): Promise<Agr
     tauxIncoherence: arrondi1(tauxIncoherence * 100) / 100,
     themesTop,
     themesDetail,
+    /** Sous-thèmes les plus fréquents (top 10) — 2026-09-27, ex-colonne morte. */
+    sousThemesTop,
     themesTopPrev,
     totalAnalysesPrev: analysesPrev.length,
     parAgence,

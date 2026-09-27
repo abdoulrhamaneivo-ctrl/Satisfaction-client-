@@ -2134,28 +2134,39 @@ export const getThemesStats = async (args, context) => {
             // ne se recoupaient jamais.
             reponse: { id_agence: filter.id_agence, date_reponse: { gte: depuis } },
         },
-        select: { themes: true },
+        select: { themes: true, sousThemes: true },
     });
     const counts = {};
-    for (const a of analyses) {
+    const countsSousThemes = {};
+    const compter = (brut, dest) => {
         try {
-            const themes = JSON.parse(a.themes);
-            if (Array.isArray(themes)) {
-                for (const t of themes) {
-                    if (typeof t === 'string')
-                        counts[t] = (counts[t] || 0) + 1;
+            const lus = JSON.parse(brut);
+            if (Array.isArray(lus)) {
+                for (const t of lus) {
+                    if (typeof t === 'string' && t.length > 0)
+                        dest[t] = (dest[t] || 0) + 1;
                 }
             }
         }
         catch {
-            // thème mal formé — ignoré
+            // thème mal formé — ignoré (même règle que le moteur global)
         }
+    };
+    for (const a of analyses) {
+        compter(a.themes, counts);
+        // 2026-09-27 : les sous-thèmes étaient sélectionnés nulle part —
+        // désormais comptés avec les thèmes (même fenêtre, même périmètre).
+        compter(a.sousThemes, countsSousThemes);
     }
     const total = Object.values(counts).reduce((s, c) => s + c, 0);
     const topThemes = Object.entries(counts)
         .map(([theme, count]) => ({ theme, count }))
         .sort((a, b) => b.count - a.count);
-    return { total, topThemes };
+    const topSousThemes = Object.entries(countsSousThemes)
+        .map(([theme, count]) => ({ theme, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+    return { total, topThemes, topSousThemes };
 };
 // ============================================================================
 // INDICATEURS D'EXPÉRIENCE (vague 1, Phase I — §49) : zone décisionnelle.

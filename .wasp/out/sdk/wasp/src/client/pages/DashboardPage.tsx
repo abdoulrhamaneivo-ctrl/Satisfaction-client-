@@ -671,6 +671,27 @@ export const DashboardPage = () => {
                     );
                   })}
                 </div>
+                {/* Sous-thèmes (2026-09-27) : granularité fine sous les thèmes,
+                    même fenêtre, même périmètre — avant, colonne morte. */}
+                {(themesStats as any)?.topSousThemes?.length > 0 && (
+                  <div className="mt-4 border-t border-border/60 pt-3">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                      Précisions détectées
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(themesStats as any).topSousThemes.map((s: any) => (
+                        <span
+                          key={s.theme}
+                          title={`${s.count} mention${s.count > 1 ? 's' : ''}`}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-foreground"
+                        >
+                          › {THEMES_LABELS[s.theme] ?? s.theme}
+                          <span className="tabular-nums text-muted-foreground">{s.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Card>
             ) : (
               <EmptyState icon={Tag} title="Aucun thème analysé" description="Les thèmes apparaîtront ici dès que l'IA aura analysé des commentaires clients." />

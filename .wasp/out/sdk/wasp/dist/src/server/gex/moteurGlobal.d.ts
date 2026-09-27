@@ -37,6 +37,8 @@ export type AgregatsGlobaux = {
     themesTop: ThemeCompte[];
     /** Détail par thème (sévérité max + étendue) pour la priorisation. */
     themesDetail: ThemeDetail[];
+    /** Sous-thèmes (top 10) — comptés comme les thèmes depuis 2026-09-27. */
+    sousThemesTop: ThemeCompte[];
     /** Fréquences de la période précédente (évolution par irritant). */
     themesTopPrev: ThemeCompte[];
     totalAnalysesPrev: number;

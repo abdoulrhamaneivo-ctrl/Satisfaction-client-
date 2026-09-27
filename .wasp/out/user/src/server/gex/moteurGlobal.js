@@ -209,6 +209,9 @@ export async function calculerAgregats(db, p) {
             sentiment: true,
             sentimentRetenu: true,
             themes: true,
+            // 2026-09-27 : les sous-thèmes étaient persistés mais jamais lus
+            // (colonne morte). Ils sont désormais comptés comme les thèmes.
+            sousThemes: true,
             urgence: true,
             severite: true,
             coherenceNote: true,
@@ -219,6 +222,7 @@ export async function calculerAgregats(db, p) {
     const sentiments = {};
     let incoherents = 0;
     const compteurThemes = new Map();
+    const compteurSousThemes = new Map();
     const severiteDe = (a) => a.severite || a.urgence || 'LOW';
     for (const a of analyses) {
         const s = a.sentimentRetenu || a.sentiment || 'NEUTRAL';
@@ -243,7 +247,26 @@ export async function calculerAgregats(db, p) {
                 e.agences.add(a.reponse.id_agence);
             compteurThemes.set(t, e);
         }
+        // Sous-thèmes : même source (JSON validé par enum côté écriture),
+        // comptage simple — pas de sévérité propre, ils héritent du thème.
+        try {
+            const lus = JSON.parse(String(a.sousThemes || '[]'));
+            if (Array.isArray(lus)) {
+                for (const st of lus) {
+                    if (typeof st === 'string' && st.length > 0) {
+                        compteurSousThemes.set(st, (compteurSousThemes.get(st) ?? 0) + 1);
+                    }
+                }
+            }
+        }
+        catch {
+            // sous-thème mal formé — ignoré comme les thèmes (même règle)
+        }
     }
+    const sousThemesTop = [...compteurSousThemes.entries()]
+        .map(([theme, count]) => ({ theme, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
     const themesTop = [...compteurThemes.entries()]
         .map(([theme, e]) => ({ theme, count: e.count }))
         .sort((a, b) => b.count - a.count)
@@ -426,6 +449,8 @@ export async function calculerAgregats(db, p) {
         tauxIncoherence: arrondi1(tauxIncoherence * 100) / 100,
         themesTop,
         themesDetail,
+        /** Sous-thèmes les plus fréquents (top 10) — 2026-09-27, ex-colonne morte. */
+        sousThemesTop,
         themesTopPrev,
         totalAnalysesPrev: analysesPrev.length,
         parAgence,

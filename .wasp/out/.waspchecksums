@@ -1215,7 +1215,7 @@
             "file",
             "sdk/wasp/src/client/components/AIAnalysisBadge.tsx"
         ],
-        "d3f049b3935b5e2bfd3f9c90ef89f6ef3ef03a9ecd76354eeae49e788305c6ca"
+        "c68a0e1a35e4f809039ed6011c6b45637a2d548d4c0ff76d9123bc2eb123e958"
     ],
     [
         [
@@ -1880,7 +1880,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "6b078803d07fb79a218c4e6b8ed9d32e4af47f412b45510fb39a476a00e2db6f"
+        "17f8e7ee4ae8c9d267543fbaa1797b7712187b89c6a20f745d8e96e56ff06aa9"
     ],
     [
         [
@@ -2412,14 +2412,14 @@
             "file",
             "sdk/wasp/src/server/gex/moteurGlobal.test.ts"
         ],
-        "d7a7a813828c64f64ac56e03ace90430f518a3aefa153f77ee142150ac9a8922"
+        "e99f867db45fd8ea868a7652fab13229fd5d007bece978bffa433eb01900b475"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/gex/moteurGlobal.ts"
         ],
-        "12f7350dd7f7ebd4e73843dc861df07a4cd52b7ba822f80355a9d8e4b37c8c4c"
+        "826701f087d2354c3aabfdf05b5211e3435cbb3b7bcf033d6b1305048767b829"
     ],
     [
         [
@@ -2447,7 +2447,7 @@
             "file",
             "sdk/wasp/src/server/jobs/analyseGlobale.ts"
         ],
-        "81ad785a5a7cdce16eed4b8405d90e460b8b985b949afc01da8efbcfc649faa8"
+        "ec5aabfa89b29b2b60f7478df01a230a4869fa7b561829579be42c74b062f07b"
     ],
     [
         [
@@ -2531,7 +2531,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "80523bc3dff33d5f016455fee656b5109ed6d1c038b233a78e1912662b35efb2"
+        "7bd34beb35656a3f201d73982966c0cf076ff217284b4dff7ff3728a706429be"
     ],
     [
         [
