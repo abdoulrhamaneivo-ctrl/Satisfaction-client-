@@ -52,16 +52,25 @@ export function echelleVers100(valeur, min, max, orientation = 'HIGHER_BETTER') 
 }
 /**
  * Normalisation d'un score ordinal sur une échelle arbitraire.
- * Convention : S = max(5, plus grand score des options scorables) — les
- * échelles 1..5 historiques gardent leur mapping exact ; les échelles
- * 1..7 / 1..10 se normalisent sur leur pleine étendue. Échelle dégénérée
- * (une seule valeur distincte) → 50 neutre documenté.
+ * Convention : les bornes sont celles des options scorables RÉELLES
+ * (min et max observés), jamais un plafond fixe. Historiquement un plancher
+ * de 5 était codé en dur (`max(5, …)`) avec un min supposé à 1 : une échelle
+ * 1..3 produisait alors 0/25/50 au lieu de 0/50/100, et toute échelle ne
+ * démarrant pas à 1 sortait des scores négatifs. Corrigé le 2026-09-27 :
+ * 1..5, 1..7 et 1..10 produisent des résultats IDENTIQUES à avant (la
+ * correction ne change rien aux données existantes), les autres échelles
+ * se normalisent sur leur pleine étendue. Échelle dégénérée (zéro ou une
+ * seule valeur distincte) → 50 neutre documenté.
  */
 export function ordinalVers100(score, scoresOptions) {
-    const plafond = Math.max(5, ...scoresOptions);
-    if (plafond <= 1)
+    const finis = scoresOptions.filter((s) => Number.isFinite(s));
+    if (finis.length === 0)
         return 50;
-    return ((score - 1) / (plafond - 1)) * 100;
+    const min = Math.min(...finis);
+    const max = Math.max(...finis);
+    if (!(max > min))
+        return 50;
+    return ((score - min) / (max - min)) * 100;
 }
 function orientationDe(c) {
     return c.orientation === 'LOWER_BETTER' ? 'LOWER_BETTER' : 'HIGHER_BETTER';
@@ -101,6 +110,10 @@ function ambigu(raison) {
  * - option inconnue → AMBIGU (OPTION_INCONNUE), jamais deviné ;
  * - option inactive (retirée après collecte) → AMBIGU (OPTION_INACTIVE) ;
  * - option non scorable → NON_NOTABLE (choix catégoriel assumé par l'admin).
+ * - orientation LOWER_BETTER (ex. « délai : court=1 … long=3 », moins c'est
+ *   mieux) → le normalisé est inversé comme pour le NUMERIC. Corrigé le
+ *   2026-09-27 : avant, l'orientation était ignorée et un tel critère était
+ *   noté à l'envers.
  */
 export function resoudreChoixUnique(critere, optionId, provenance = 'INFERRED') {
     const { option, inactive } = optionActiveParId(critere, optionId);
@@ -117,10 +130,12 @@ export function resoudreChoixUnique(critere, optionId, provenance = 'INFERRED') 
     const echelle = critere.options
         .filter((o) => o.actif && o.est_scorable && o.score != null)
         .map((o) => o.score);
+    const brut = ordinalVers100(option.score, echelle);
+    const normalise = orientationDe(critere) === 'LOWER_BETTER' ? 100 - brut : brut;
     return {
         statut: 'OK',
         score_officiel: option.score,
-        score_normalise: ordinalVers100(option.score, echelle),
+        score_normalise: normalise,
         source: provenance === 'EXPLICIT' ? 'EXPLICIT' : 'INFERRED',
         options_retenues: [option.id],
     };
@@ -274,13 +289,25 @@ export function resoudreCases(critere, optionIds, provenance = 'INFERRED', norma
         const poids = retenues.map((o) => o.poids);
         if (poids.some((p) => p == null))
             return ambigu('POIDS_MANQUANTS');
+        // MODÈLE MÉTIER DOCUMENTÉ (2026-09-27) : on part de 100 et on applique
+        // les poids SIGNÉS des choix cochés — pénalités (poids négatifs, ex.
+        // −20 par problème constaté) et atouts (poids positifs, bornés au
+        // plafond 100 : un score ne peut pas dépasser 100). Le résultat est
+        // clampé à [0, 100]. La saturation à 100 pour des atouts n'est donc pas
+        // un bug, c'est la définition d'une métrique /100.
+        // CONVERSION DOCUMENTÉE : `score_officiel` porte la métrique NATURELLE
+        // /100 (entière) — PAS de conversion /5 forcée. La note /5 d'affichage
+        // est dérivée de `score_normalise` côté client (LigneReponse), jamais
+        // l'inverse. L'historique ne contient aucun CASES_WEIGHTED, le
+        // changement de `score_officiel` (anciennement `round(/20)` clampé 1-5)
+        // n'affecte aucune donnée existante.
         const total = 100 + poids.reduce((s, p) => s + p, 0);
         const normalise = Math.max(0, Math.min(100, total));
         return {
             statut: 'OK',
-            score_officiel: Math.max(1, Math.min(5, Math.round(normalise / 20))),
+            score_officiel: Math.round(normalise),
             score_normalise: normalise,
-            source: 'EXPLICIT',
+            source: provenance === 'EXPLICIT' ? 'EXPLICIT' : 'INFERRED',
             options_retenues: retenues.map((o) => o.id),
         };
     }
@@ -296,6 +323,9 @@ export function resoudreCases(critere, optionIds, provenance = 'INFERRED', norma
  * Compat historique : moyenne arrondie des options scorées cochées.
  * Réservé aux CASES legacy SANS scoring_mode explicite (Phase D).
  * Ne pas utiliser pour les nouveaux questionnaires.
+ * - options SANS scores explicites → NON_NOTABLE conservé (jamais de note
+ *   inventée sur des choix purement catégoriels) ;
+ * - orientation LOWER_BETTER inversée comme pour l'ordinal (2026-09-27).
  */
 export function resoudreCasesMoyenne(critere, optionIds, provenance = 'INFERRED') {
     const base = resoudreCases({ ...critere, scoring_mode: 'CASES_CATEGORICAL' }, optionIds, provenance);
@@ -311,10 +341,12 @@ export function resoudreCasesMoyenne(critere, optionIds, provenance = 'INFERRED'
     const echelle = critere.options
         .filter((o) => o.actif && o.est_scorable && o.score != null)
         .map((o) => o.score);
+    const brut = ordinalVers100(moyenne, echelle);
+    const normalise = orientationDe(critere) === 'LOWER_BETTER' ? 100 - brut : brut;
     return {
         statut: 'OK',
         score_officiel: moyenne,
-        score_normalise: ordinalVers100(moyenne, echelle),
+        score_normalise: normalise,
         source: provenance === 'EXPLICIT' ? 'EXPLICIT' : 'INFERRED',
         options_retenues: base.options_retenues,
     };

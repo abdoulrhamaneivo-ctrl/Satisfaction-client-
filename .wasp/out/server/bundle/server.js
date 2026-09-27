@@ -1819,9 +1819,12 @@ function echelleVers100(valeur, min, max, orientation = "HIGHER_BETTER") {
   return orientation === "LOWER_BETTER" ? 100 - direct : direct;
 }
 function ordinalVers100(score, scoresOptions) {
-  const plafond = Math.max(5, ...scoresOptions);
-  if (plafond <= 1) return 50;
-  return (score - 1) / (plafond - 1) * 100;
+  const finis = scoresOptions.filter((s) => Number.isFinite(s));
+  if (finis.length === 0) return 50;
+  const min = Math.min(...finis);
+  const max = Math.max(...finis);
+  if (!(max > min)) return 50;
+  return (score - min) / (max - min) * 100;
 }
 function orientationDe(c) {
   return c.orientation === "LOWER_BETTER" ? "LOWER_BETTER" : "HIGHER_BETTER";
@@ -1864,10 +1867,12 @@ function resoudreChoixUnique(critere, optionId, provenance = "INFERRED") {
     };
   }
   const echelle = critere.options.filter((o) => o.actif && o.est_scorable && o.score != null).map((o) => o.score);
+  const brut = ordinalVers100(option.score, echelle);
+  const normalise = orientationDe(critere) === "LOWER_BETTER" ? 100 - brut : brut;
   return {
     statut: "OK",
     score_officiel: option.score,
-    score_normalise: ordinalVers100(option.score, echelle),
+    score_normalise: normalise,
     source: provenance === "EXPLICIT" ? "EXPLICIT" : "INFERRED",
     options_retenues: [option.id]
   };
@@ -1990,9 +1995,9 @@ function resoudreCases(critere, optionIds, provenance = "INFERRED", normaliser =
     const normalise = Math.max(0, Math.min(100, total));
     return {
       statut: "OK",
-      score_officiel: Math.max(1, Math.min(5, Math.round(normalise / 20))),
+      score_officiel: Math.round(normalise),
       score_normalise: normalise,
-      source: "EXPLICIT",
+      source: provenance === "EXPLICIT" ? "EXPLICIT" : "INFERRED",
       options_retenues: retenues.map((o) => o.id)
     };
   }
@@ -2015,10 +2020,12 @@ function resoudreCasesMoyenne(critere, optionIds, provenance = "INFERRED") {
   if (scores.length === 0) return base;
   const moyenne = Math.round(scores.reduce((s, x) => s + x, 0) / scores.length);
   const echelle = critere.options.filter((o) => o.actif && o.est_scorable && o.score != null).map((o) => o.score);
+  const brut = ordinalVers100(moyenne, echelle);
+  const normalise = orientationDe(critere) === "LOWER_BETTER" ? 100 - brut : brut;
   return {
     statut: "OK",
     score_officiel: moyenne,
-    score_normalise: ordinalVers100(moyenne, echelle),
+    score_normalise: normalise,
     source: provenance === "EXPLICIT" ? "EXPLICIT" : "INFERRED",
     options_retenues: base.options_retenues
   };

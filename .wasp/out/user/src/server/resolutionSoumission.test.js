@@ -82,10 +82,10 @@ describe('QCM : identité, jamais position', () => {
     });
 });
 describe('CASES : ids, pondéré, exclusivité', () => {
-    test('optionIds pondérés : 100 − 20 − 15 = 65', () => {
+    test('optionIds pondérés : 100 − 20 − 15 = 65, officiel /100 (correctif 2026-09-27)', () => {
         const r = resoudreEntree(casCases(), normaliserEntree({ critereId: 15, optionIds: ['opt_1', 'opt_4'] }));
         expect(r.score_normalise).toBe(65);
-        expect(r.score_officiel).toBe(3);
+        expect(r.score_officiel).toBe(65);
         expect(r.optionsRetnues).toEqual(['opt_1', 'opt_4']);
         expect(r.libelleOption).toBe('Attente longue • Information insuffisante');
     });

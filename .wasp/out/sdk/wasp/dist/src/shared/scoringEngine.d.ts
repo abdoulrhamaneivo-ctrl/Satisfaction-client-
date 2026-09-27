@@ -27,7 +27,7 @@ export interface CritereMoteur {
 }
 export interface ResolutionScoring {
     statut: StatutResolution;
-    /** Note métier brute (1..5, valeur d'échelle, 0..10 NPS, 1..5 CASES pondéré). */
+    /** Note métier brute (option.score, valeur d'échelle, 0..10 NPS, /100 CASES pondéré). */
     score_officiel: number | null;
     /** Note canonique /100. NULL si non notable ou ambigu. */
     score_normalise: number | null;
@@ -44,10 +44,15 @@ export declare function note5Vers100(score: number): number;
 export declare function echelleVers100(valeur: number, min: number, max: number, orientation?: Orientation): number;
 /**
  * Normalisation d'un score ordinal sur une échelle arbitraire.
- * Convention : S = max(5, plus grand score des options scorables) — les
- * échelles 1..5 historiques gardent leur mapping exact ; les échelles
- * 1..7 / 1..10 se normalisent sur leur pleine étendue. Échelle dégénérée
- * (une seule valeur distincte) → 50 neutre documenté.
+ * Convention : les bornes sont celles des options scorables RÉELLES
+ * (min et max observés), jamais un plafond fixe. Historiquement un plancher
+ * de 5 était codé en dur (`max(5, …)`) avec un min supposé à 1 : une échelle
+ * 1..3 produisait alors 0/25/50 au lieu de 0/50/100, et toute échelle ne
+ * démarrant pas à 1 sortait des scores négatifs. Corrigé le 2026-09-27 :
+ * 1..5, 1..7 et 1..10 produisent des résultats IDENTIQUES à avant (la
+ * correction ne change rien aux données existantes), les autres échelles
+ * se normalisent sur leur pleine étendue. Échelle dégénérée (zéro ou une
+ * seule valeur distincte) → 50 neutre documenté.
  */
 export declare function ordinalVers100(score: number, scoresOptions: number[]): number;
 /**
@@ -55,6 +60,10 @@ export declare function ordinalVers100(score: number, scoresOptions: number[]): 
  * - option inconnue → AMBIGU (OPTION_INCONNUE), jamais deviné ;
  * - option inactive (retirée après collecte) → AMBIGU (OPTION_INACTIVE) ;
  * - option non scorable → NON_NOTABLE (choix catégoriel assumé par l'admin).
+ * - orientation LOWER_BETTER (ex. « délai : court=1 … long=3 », moins c'est
+ *   mieux) → le normalisé est inversé comme pour le NUMERIC. Corrigé le
+ *   2026-09-27 : avant, l'orientation était ignorée et un tel critère était
+ *   noté à l'envers.
  */
 export declare function resoudreChoixUnique(critere: CritereMoteur, optionId: string, provenance?: ProvenanceScore): ResolutionScoring;
 /**
@@ -101,6 +110,9 @@ export declare function resoudreCases(critere: CritereMoteur, optionIds: string[
  * Compat historique : moyenne arrondie des options scorées cochées.
  * Réservé aux CASES legacy SANS scoring_mode explicite (Phase D).
  * Ne pas utiliser pour les nouveaux questionnaires.
+ * - options SANS scores explicites → NON_NOTABLE conservé (jamais de note
+ *   inventée sur des choix purement catégoriels) ;
+ * - orientation LOWER_BETTER inversée comme pour l'ordinal (2026-09-27).
  */
 export declare function resoudreCasesMoyenne(critere: CritereMoteur, optionIds: string[], provenance?: ProvenanceScore): ResolutionScoring;
 /** Un texte libre ne devient JAMAIS une note officielle (décision validée). */

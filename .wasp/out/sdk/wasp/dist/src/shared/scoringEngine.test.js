@@ -57,14 +57,42 @@ describe('§61 ordinal : ordre libre, scores stables', () => {
     });
 });
 describe('§60 scoring : cas limites', () => {
-    test('3 niveaux', () => {
+    test('3 niveaux : pleine étendue 0/50/100 (correctif 2026-09-27 — fini le plafond 5)', () => {
         const c = {
             scoring_mode: 'ORDINAL', type_reponse: 'QCM', orientation: 'HIGHER_BETTER',
             options: [opt('a', 'Mal', 1), opt('b', 'Moyen', 2), opt('c', 'Bien', 3)],
         };
         expect(resoudreChoixUnique(c, 'c').score_officiel).toBe(3);
         expect(resoudreChoixUnique(c, 'a').score_normalise).toBeCloseTo(0, 9);
-        expect(resoudreChoixUnique(c, 'c').score_normalise).toBeCloseTo(50, 9);
+        expect(resoudreChoixUnique(c, 'b').score_normalise).toBeCloseTo(50, 9);
+        expect(resoudreChoixUnique(c, 'c').score_normalise).toBeCloseTo(100, 9);
+    });
+    test('échelle ne démarrant pas à 1 : bornes réelles, pas de négatif', () => {
+        const c = {
+            scoring_mode: 'ORDINAL', type_reponse: 'QCM', orientation: 'HIGHER_BETTER',
+            options: [opt('z', 'Nul', 0), opt('m', 'Moyen', 1), opt('b', 'Bon', 2)],
+        };
+        expect(resoudreChoixUnique(c, 'z').score_normalise).toBeCloseTo(0, 9);
+        expect(resoudreChoixUnique(c, 'm').score_normalise).toBeCloseTo(50, 9);
+        expect(resoudreChoixUnique(c, 'b').score_normalise).toBeCloseTo(100, 9);
+    });
+    test('échelle dégénérée (une seule valeur) → 50 neutre', () => {
+        const c = {
+            scoring_mode: 'ORDINAL', type_reponse: 'QCM', orientation: 'HIGHER_BETTER',
+            options: [opt('u', 'Unique', 3)],
+        };
+        expect(resoudreChoixUnique(c, 'u').score_normalise).toBeCloseTo(50, 9);
+    });
+    test('LOWER_BETTER ordinal : le meilleur score donne 100', () => {
+        const c = {
+            scoring_mode: 'ORDINAL', type_reponse: 'QCM', orientation: 'LOWER_BETTER',
+            options: [opt('court', 'Court', 1), opt('moyen', 'Moyen', 2), opt('long', 'Long', 3)],
+        };
+        expect(resoudreChoixUnique(c, 'court').score_normalise).toBeCloseTo(100, 9);
+        expect(resoudreChoixUnique(c, 'moyen').score_normalise).toBeCloseTo(50, 9);
+        expect(resoudreChoixUnique(c, 'long').score_normalise).toBeCloseTo(0, 9);
+        // L'officiel reste la valeur métier brute, pas inversée.
+        expect(resoudreChoixUnique(c, 'court').score_officiel).toBe(1);
     });
     test('7 niveaux (échelle large, pas de 1..5 imposé)', () => {
         const options = [1, 2, 3, 4, 5, 6, 7].map((s) => opt(`n${s}`, `Niveau ${s}`, s));
@@ -82,6 +110,8 @@ describe('§60 scoring : cas limites', () => {
         const c = {
             scoring_mode: 'ORDINAL', type_reponse: 'QCM', orientation: 'HIGHER_BETTER', options,
         };
+        expect(resoudreChoixUnique(c, 'x1').score_normalise).toBeCloseTo(0, 9);
+        expect(resoudreChoixUnique(c, 'x5').score_normalise).toBeCloseTo(((5 - 1) / 9) * 100, 9);
         expect(resoudreChoixUnique(c, 'x10').score_normalise).toBeCloseTo(100, 9);
     });
     test('accents / casse / espaces : identité par id, pas par texte', () => {
@@ -234,7 +264,7 @@ describe('§10 + §63 CASES', () => {
         expect(r.statut).toBe('NON_NOTABLE');
         expect(r.raison).toBe('CASES_NON_VALENCE');
     });
-    test('CASES_WEIGHTED : 100 − 20 − 15 = 65/100, officiel 3', () => {
+    test('CASES_WEIGHTED : 100 − 20 − 15 = 65/100, officiel = métrique naturelle /100', () => {
         const c = {
             scoring_mode: 'CASES_WEIGHTED',
             type_reponse: 'CASES',
@@ -249,12 +279,28 @@ describe('§10 + §63 CASES', () => {
         const r = resoudreCases(c, ['att', 'info']);
         expect(r.statut).toBe('OK');
         expect(r.score_normalise).toBe(65);
-        expect(r.score_officiel).toBe(3);
-        expect(r.source).toBe('EXPLICIT');
+        // Correctif 2026-09-27 : PAS de conversion /5 forcée — l'officiel porte
+        // la métrique naturelle /100 (entière). La note /5 d'affichage dérive
+        // du normalisé côté client.
+        expect(r.score_officiel).toBe(65);
+        // Provenance traversante (avant : forcée EXPLICIT).
+        expect(r.source).toBe('INFERRED');
+        expect(resoudreCases(c, ['att', 'info'], 'EXPLICIT').source).toBe('EXPLICIT');
         // « Aucun » seul → 100/100
         const seul = resoudreCases(c, ['aucun']);
         expect(seul.score_normalise).toBe(100);
-        expect(seul.score_officiel).toBe(5);
+        expect(seul.score_officiel).toBe(100);
+    });
+    test('WEIGHTED atouts : saturation au plafond 100 (définition, pas bug)', () => {
+        const c = {
+            scoring_mode: 'CASES_WEIGHTED',
+            type_reponse: 'CASES',
+            orientation: 'HIGHER_BETTER',
+            options: [opt('a', 'Accueil chaleureux', null, { poids: 30 })],
+        };
+        const r = resoudreCases(c, ['a']);
+        expect(r.score_normalise).toBe(100);
+        expect(r.score_officiel).toBe(100);
     });
     test('WEIGHTED clampé 0-100', () => {
         const c = {
@@ -265,7 +311,7 @@ describe('§10 + §63 CASES', () => {
         };
         const r = resoudreCases(c, ['a']);
         expect(r.score_normalise).toBe(0);
-        expect(r.score_officiel).toBe(1);
+        expect(r.score_officiel).toBe(0);
     });
     test('WEIGHTED sans poids → AMBIGU (config incomplète, pas de devinette)', () => {
         const c = {
@@ -305,6 +351,21 @@ describe('§10 + §63 CASES', () => {
         expect(r.score_officiel).toBe(5); // (4+5)/2 = 4.5 → 5
         const seul = resoudreCasesMoyenne(c, ['x']);
         expect(seul.statut).toBe('NON_NOTABLE');
+    });
+    test('compat legacy LOWER_BETTER : la moyenne est inversée', () => {
+        const c = {
+            scoring_mode: null,
+            type_reponse: 'CASES',
+            orientation: 'LOWER_BETTER',
+            options: [opt('a', 'Un peu', 1), opt('b', 'Beaucoup', 3)],
+        };
+        // Moyenne (1+3)/2 = 2 sur échelle [1,3] → brut 50 → inversé 50.
+        const r = resoudreCasesMoyenne(c, ['a', 'b']);
+        expect(r.statut).toBe('OK');
+        expect(r.score_normalise).toBeCloseTo(50, 9);
+        // Seul le meilleur (1/3) → brut 0 → inversé 100.
+        const meilleur = resoudreCasesMoyenne(c, ['a']);
+        expect(meilleur.score_normalise).toBeCloseTo(100, 9);
     });
 });
 describe('§11 TEXTE : jamais une note', () => {

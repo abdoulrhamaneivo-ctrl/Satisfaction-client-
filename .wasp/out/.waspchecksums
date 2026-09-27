@@ -2559,7 +2559,7 @@
             "file",
             "sdk/wasp/src/server/resolutionSoumission.test.ts"
         ],
-        "102a4da9cb3d82f2f13142a4be774fb3024bc692518584ddc5d0a0f5d56a8124"
+        "6fcd33bebd94b263297f437d68a9412cbb5da34fe0b1542f23e639c165973191"
     ],
     [
         [
@@ -2790,14 +2790,14 @@
             "file",
             "sdk/wasp/src/shared/scoringEngine.test.ts"
         ],
-        "d3531ae0b1e995e07907dc8cff769fe9f48cb5276dba6693421e8662e774dfb1"
+        "461f1cd0767ff075cdc2550d9e8bd3a74f9f358564e803aa68cccd9dbcc7e4a1"
     ],
     [
         [
             "file",
             "sdk/wasp/src/shared/scoringEngine.ts"
         ],
-        "4cef55801f93ccd61836ef96adab6ec8e866945f08b99966f0b6a644bc7ea2ac"
+        "6720b7d87eb70ce80a3b69a15e3799d5cfd80a7a00ed750af1b06141732c869a"
     ],
     [
         [
