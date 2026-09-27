@@ -107,6 +107,18 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
     themesList = ['AUTRE'];
   }
 
+  // Sous-thèmes (2026-09-27) : persistés depuis toujours, jamais affichés
+  // (colonne morte). Même règle de parsing que les thèmes.
+  let sousThemesList: string[] = [];
+  try {
+    if (analyse.sousThemes) {
+      const lus = typeof analyse.sousThemes === 'string' ? JSON.parse(analyse.sousThemes) : analyse.sousThemes;
+      if (Array.isArray(lus)) sousThemesList = lus.filter((t) => typeof t === 'string');
+    }
+  } catch {
+    sousThemesList = [];
+  }
+
   const sentimentCfg = getSentimentConfig(sentiment);
   const urgenceCfg = getUrgenceConfig(urgence);
 
@@ -152,6 +164,16 @@ export const AIAnalysisBadge: React.FC<AIAnalysisProps> = ({ analyse, className 
             className="px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide bg-card-subtle text-foreground/80 border border-border/60"
           >
             {THEMES_LABELS[theme] ?? theme}
+          </span>
+        ))}
+        {/* Sous-thèmes : précision sous le thème (même donnée IA, granularité fine) */}
+        {sousThemesList.map((st, idx) => (
+          <span
+            key={`st-${idx}`}
+            title="Sous-thème détecté par l'IA"
+            className="px-2 py-0.5 rounded-md text-[10px] font-medium tracking-wide bg-primary/10 text-primary-strong border border-primary/20"
+          >
+            › {THEMES_LABELS[st] ?? st}
           </span>
         ))}
       </div>
