@@ -1836,9 +1836,16 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/pages/AvisPage.test.tsx"
+        ],
+        "32d66f44172c6e28d64f988b85c238c424b04ee10dbbe922200d06c0310b78d4"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/pages/AvisPage.tsx"
         ],
-        "dfcfcc1a587440a0187a9d2e6e5d805d0d62247ac0305eb309da341bbdf61f86"
+        "53afe63bceb870698a177a6fb1d25ae4983bad998f5651014eada80cecdd23ad"
     ],
     [
         [
@@ -1880,7 +1887,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "17f8e7ee4ae8c9d267543fbaa1797b7712187b89c6a20f745d8e96e56ff06aa9"
+        "a6127ffcb4bec9e4911637fbea4322691a6845f7585dc10cddfae67bfb04acbc"
     ],
     [
         [
@@ -1964,7 +1971,7 @@
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.tsx"
         ],
-        "1bd04e6dceb79a2e4927589b6305ad84c5bb431f02446958af12f108bd0f5574"
+        "3cff5ee84c3af19126d81319c716d42a9450df0e4ac09bade912c680004145ba"
     ],
     [
         [
@@ -2189,6 +2196,20 @@
             "sdk/wasp/src/client/utils.ts"
         ],
         "408a26a779248b4b656a1ecafbad08264fce42876297e3980b336c67fa33b949"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/utils/drilldown.test.ts"
+        ],
+        "f0f0463272c89836522142828b1d63b59ce6208a9816711978f6741cb9c2c0ec"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/utils/drilldown.ts"
+        ],
+        "23737385227f84cb14308147ef62b14839752ccc5458da66591ffce484f3bce3"
     ],
     [
         [

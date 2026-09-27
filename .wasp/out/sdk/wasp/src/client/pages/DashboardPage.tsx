@@ -19,6 +19,7 @@ import {
 } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { Link as WaspRouterLink, routes } from 'wasp/client/router';
+import { construireUrlAvis } from '../utils/drilldown';
 import { useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { motion } from 'framer-motion';
@@ -826,7 +827,8 @@ export const DashboardPage = () => {
                     </span>
                   )}
                   <WaspRouterLink
-                    to={routes.AvisRoute.to}
+                    to={construireUrlAvis({}, { debut: bornesPeriode.startDate, fin: bornesPeriode.endDate }, routes.AvisRoute.to) as any}
+                    title={`Voir tous les avis de la période (${labelPeriode})`}
                     className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
                   >
                     Voir tout <ChevronRight className="size-3.5" />
@@ -1016,7 +1018,29 @@ export const DashboardPage = () => {
                         <p className="truncate text-sm font-bold font-satoshi text-foreground">
                           {o.libelle}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">{o.nb} avis</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {o.nb} avis
+                          {/* Drill-down (2026-09-27) : la Direction pure ne
+                              voit pas /avis (403 → dashboard), pas de lien
+                              pour elle. */}
+                          {!estDirectionPure && o.nb > 0 && (
+                            <>
+                              {' · '}
+                              <WaspRouterLink
+                                to={
+                                  construireUrlAvis(
+                                    { service: o.id },
+                                    { debut: bornesPeriode.startDate, fin: bornesPeriode.endDate },
+                                    routes.AvisRoute.to,
+                                  ) as any
+                                }
+                                className="font-bold text-primary-strong hover:underline"
+                              >
+                                Voir les avis
+                              </WaspRouterLink>
+                            </>
+                          )}
+                        </p>
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-lg font-bold font-satoshi text-foreground">

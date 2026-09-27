@@ -22,6 +22,8 @@ import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '../components/ui/select';
 import { useToast } from '../hooks/use-toast';
+import { Link as WaspRouterLink, routes } from 'wasp/client/router';
+import { construireUrlAvis } from '../utils/drilldown';
 // ---------- Helpers purs (testables) ----------
 /**
  * Lecture du NPS persisté : l'objet agrégé `{nps, promoteurs, passifs,
@@ -106,6 +108,10 @@ export const SyntheseGlobalePage = () => {
     const { data: user } = useAuth();
     const { toast } = useToast();
     const estDirection = user?.role === 'DIRECTION';
+    // Drill-down (2026-09-27) : la Direction pure ne voit pas /avis
+    // (403 → dashboard) — les liens de ventilation sont masqués pour elle,
+    // visibles pour la Direction cumulée (petite structure) et les chefs.
+    const estDirectionPure = estDirection && user?.id_agence == null;
     const [periode, setPeriode] = useState('SEMAINE');
     const [selection, setSelection] = useState(null);
     const [declenchement, setDeclenchement] = useState(false);
@@ -117,6 +123,9 @@ export const SyntheseGlobalePage = () => {
         const trouvee = selection ? lignes.find((l) => String(l.id) === selection) : undefined;
         return trouvee ?? lignes[0] ?? null;
     }, [lignes, selection]);
+    // Période du snapshot affiché : le drill-down retombe sur les MÊMES
+    // bornes, pour voir exactement les avis qui ont produit ces chiffres.
+    const bornesSnapshot = { debut: courante?.debut, fin: courante?.fin };
     const indicateurs = parseJson(courante?.indicateurs, null);
     const snapshotCES = indicateurs?.ces ?? null;
     const npsValeur = lireNpsValeur(indicateurs);
@@ -272,7 +281,9 @@ export const SyntheseGlobalePage = () => {
                             <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Agences</p>
                             <ul className="space-y-1 text-sm">
                               {ventilationAgences.map((a) => (<li key={a.id} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{a.nom}</span>
+                                  {!estDirectionPure ? (<WaspRouterLink to={construireUrlAvis({ agence: a.id }, bornesSnapshot, routes.AvisRoute.to)} title={`Voir les avis de ${a.nom} sur la période`} className="truncate font-medium text-primary-strong hover:underline">
+                                      {a.nom}
+                                    </WaspRouterLink>) : (<span className="truncate text-foreground">{a.nom}</span>)}
                                   <span className="shrink-0 font-bold text-foreground">
                                     {a.csat != null ? `${a.csat}/100` : '—'}
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({a.volume} avis)</span>
@@ -284,7 +295,9 @@ export const SyntheseGlobalePage = () => {
                             <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Opérations</p>
                             <ul className="space-y-1 text-sm">
                               {ventilationServices.map((s, i) => (<li key={s.id ?? `service-${i}`} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{s.nom}</span>
+                                  {!estDirectionPure ? (<WaspRouterLink to={construireUrlAvis({ service: s.id }, bornesSnapshot, routes.AvisRoute.to)} title={`Voir les avis ${s.nom} sur la période`} className="truncate font-medium text-primary-strong hover:underline">
+                                      {s.nom}
+                                    </WaspRouterLink>) : (<span className="truncate text-foreground">{s.nom}</span>)}
                                   <span className="shrink-0 font-bold text-foreground">
                                     {s.csat != null ? `${s.csat}/100` : '—'}
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({s.volume} avis)</span>
@@ -296,7 +309,9 @@ export const SyntheseGlobalePage = () => {
                             <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Guichets — meilleurs (≥ 5 avis)</p>
                             <ul className="space-y-1 text-sm">
                               {guichetsTop.map((g) => (<li key={g.id} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{g.nom}</span>
+                                  {!estDirectionPure ? (<WaspRouterLink to={construireUrlAvis({ guichet: g.id }, bornesSnapshot, routes.AvisRoute.to)} title={`Voir les avis de ${g.nom} sur la période`} className="truncate font-medium text-primary-strong hover:underline">
+                                      {g.nom}
+                                    </WaspRouterLink>) : (<span className="truncate text-foreground">{g.nom}</span>)}
                                   <span className="shrink-0 font-bold text-success">
                                     {g.csat}/100
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({g.volume} avis)</span>
@@ -308,7 +323,9 @@ export const SyntheseGlobalePage = () => {
                             <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Guichets — à accompagner (≥ 5 avis)</p>
                             <ul className="space-y-1 text-sm">
                               {guichetsFlop.map((g) => (<li key={g.id} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{g.nom}</span>
+                                  {!estDirectionPure ? (<WaspRouterLink to={construireUrlAvis({ guichet: g.id }, bornesSnapshot, routes.AvisRoute.to)} title={`Voir les avis de ${g.nom} sur la période`} className="truncate font-medium text-primary-strong hover:underline">
+                                      {g.nom}
+                                    </WaspRouterLink>) : (<span className="truncate text-foreground">{g.nom}</span>)}
                                   <span className="shrink-0 font-bold text-destructive">
                                     {g.csat}/100
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({g.volume} avis)</span>
