@@ -47,6 +47,8 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { useToast } from '../hooks/use-toast';
+import { Link as WaspRouterLink, routes } from 'wasp/client/router';
+import { construireUrlAvis } from '../utils/drilldown';
 
 // ---------- Helpers purs (testables) ----------
 
@@ -143,6 +145,10 @@ export const SyntheseGlobalePage: React.FC = () => {
   const { data: user } = useAuth();
   const { toast } = useToast();
   const estDirection = user?.role === 'DIRECTION';
+  // Drill-down (2026-09-27) : la Direction pure ne voit pas /avis
+  // (403 → dashboard) — les liens de ventilation sont masqués pour elle,
+  // visibles pour la Direction cumulée (petite structure) et les chefs.
+  const estDirectionPure = estDirection && (user as any)?.id_agence == null;
 
   const [periode, setPeriode] = useState<'SEMAINE' | 'MOIS'>('SEMAINE');
   const [selection, setSelection] = useState<string | null>(null);
@@ -160,6 +166,10 @@ export const SyntheseGlobalePage: React.FC = () => {
     const trouvee = selection ? lignes.find((l: any) => String(l.id) === selection) : undefined;
     return trouvee ?? lignes[0] ?? null;
   }, [lignes, selection]);
+
+  // Période du snapshot affiché : le drill-down retombe sur les MÊMES
+  // bornes, pour voir exactement les avis qui ont produit ces chiffres.
+  const bornesSnapshot = { debut: (courante as any)?.debut, fin: (courante as any)?.fin };
 
   const indicateurs = parseJson<any>(courante?.indicateurs, null);
   const snapshotCES = indicateurs?.ces ?? null;
@@ -379,7 +389,17 @@ export const SyntheseGlobalePage: React.FC = () => {
                             <ul className="space-y-1 text-sm">
                               {ventilationAgences.map((a: any) => (
                                 <li key={a.id} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{a.nom}</span>
+                                  {!estDirectionPure ? (
+                                    <WaspRouterLink
+                                      to={construireUrlAvis({ agence: a.id }, bornesSnapshot, routes.AvisRoute.to) as any}
+                                      title={`Voir les avis de ${a.nom} sur la période`}
+                                      className="truncate font-medium text-primary-strong hover:underline"
+                                    >
+                                      {a.nom}
+                                    </WaspRouterLink>
+                                  ) : (
+                                    <span className="truncate text-foreground">{a.nom}</span>
+                                  )}
                                   <span className="shrink-0 font-bold text-foreground">
                                     {a.csat != null ? `${a.csat}/100` : '—'}
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({a.volume} avis)</span>
@@ -395,7 +415,17 @@ export const SyntheseGlobalePage: React.FC = () => {
                             <ul className="space-y-1 text-sm">
                               {ventilationServices.map((s: any, i: number) => (
                                 <li key={s.id ?? `service-${i}`} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{s.nom}</span>
+                                  {!estDirectionPure ? (
+                                    <WaspRouterLink
+                                      to={construireUrlAvis({ service: s.id }, bornesSnapshot, routes.AvisRoute.to) as any}
+                                      title={`Voir les avis ${s.nom} sur la période`}
+                                      className="truncate font-medium text-primary-strong hover:underline"
+                                    >
+                                      {s.nom}
+                                    </WaspRouterLink>
+                                  ) : (
+                                    <span className="truncate text-foreground">{s.nom}</span>
+                                  )}
                                   <span className="shrink-0 font-bold text-foreground">
                                     {s.csat != null ? `${s.csat}/100` : '—'}
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({s.volume} avis)</span>
@@ -411,7 +441,17 @@ export const SyntheseGlobalePage: React.FC = () => {
                             <ul className="space-y-1 text-sm">
                               {guichetsTop.map((g: any) => (
                                 <li key={g.id} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{g.nom}</span>
+                                  {!estDirectionPure ? (
+                                    <WaspRouterLink
+                                      to={construireUrlAvis({ guichet: g.id }, bornesSnapshot, routes.AvisRoute.to) as any}
+                                      title={`Voir les avis de ${g.nom} sur la période`}
+                                      className="truncate font-medium text-primary-strong hover:underline"
+                                    >
+                                      {g.nom}
+                                    </WaspRouterLink>
+                                  ) : (
+                                    <span className="truncate text-foreground">{g.nom}</span>
+                                  )}
                                   <span className="shrink-0 font-bold text-success">
                                     {g.csat}/100
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({g.volume} avis)</span>
@@ -427,7 +467,17 @@ export const SyntheseGlobalePage: React.FC = () => {
                             <ul className="space-y-1 text-sm">
                               {guichetsFlop.map((g: any) => (
                                 <li key={g.id} className="flex justify-between gap-2">
-                                  <span className="truncate text-foreground">{g.nom}</span>
+                                  {!estDirectionPure ? (
+                                    <WaspRouterLink
+                                      to={construireUrlAvis({ guichet: g.id }, bornesSnapshot, routes.AvisRoute.to) as any}
+                                      title={`Voir les avis de ${g.nom} sur la période`}
+                                      className="truncate font-medium text-primary-strong hover:underline"
+                                    >
+                                      {g.nom}
+                                    </WaspRouterLink>
+                                  ) : (
+                                    <span className="truncate text-foreground">{g.nom}</span>
+                                  )}
                                   <span className="shrink-0 font-bold text-destructive">
                                     {g.csat}/100
                                     <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({g.volume} avis)</span>
