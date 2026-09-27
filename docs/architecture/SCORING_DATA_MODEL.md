@@ -109,7 +109,7 @@ et supprime définitivement toute information de position.
 | Champ | Type | Sens | Qui l'écrit |
 |---|---|---|---|
 | `score_brut` | `Int?` (nullable depuis `20260927000200`) | **LEGACY** — ancienne note métier 1-5/1-10, conservée comme trace | `actions.ts:778` (miroir de l'officiel) ; jamais réécrit par la consolidation |
-| `score_officiel` | `Int?` | valeur métier brute du résolveur (note 1-5, valeur d'échelle, 0-10 NPS, `100+Σ poids` ramené /20) | moteur, via `construireLigne` |
+| `score_officiel` | `Int?` | valeur métier brute du résolveur (note d'option, valeur d'échelle, 0-10 NPS, métrique /100 entière pour CASES pondéré — **plus de conversion /5 forcée depuis 2026-09-27**) | moteur, via `construireLigne` |
 | `score_normalise` | `Float?` | **canonique `/100`** — seule échelle comparable entre questionnaires | moteur |
 | `score_source` | `String?` | `EXPLICIT` · `INFERRED` · `LEGACY_POSITIONAL` · `MIGRATED`. **Pas de source IA** | moteur |
 | `critere_version` | `Int?` | version du scoring du critère **au moment de la réponse** | `actions.ts:782` |

@@ -45,7 +45,7 @@ Trois interdits absolus, vérifiés par les tests :
 |---|---|---|---|---|
 | `SMILEY` | SMILEY | note entière 1-5 | `s` | `(s−1)×25` |
 | `BINARY` | OUI_NON | booléen + `orientation` | `5` (positif) ou `1` | `100` ou `0` |
-| `ORDINAL` | QCM | `optionId` | score sémantique de l'option | `(s−1)/(S−1)×100` avec `S = max(5, max des scores)` |
+| `ORDINAL` | QCM | `optionId` | score sémantique de l'option | `(s−min)/(max−min)×100` sur les bornes réelles des options (depuis 2026-09-27, fini le plancher 5) ; `LOWER_BETTER` → inversé |
 | `NUMERIC` | ECHELLE | valeur + bornes stockées | `v` | `(v−min)/(max−min)×100` |
 | `CES` | ECHELLE (`scoring_mode=CES`) | valeur, échelle 1-5 ou 1-7 | `v` | **inversé** : `(max−v)/(max−1)×100` |
 | `NPS` | NPS | entier 0-10 | `v` | `v×10` + catégorie |
@@ -138,8 +138,10 @@ C'est le mode qu'un admin choisit pour un « motifs de dissatisfaction ».
 
 ```text
 score_normalise = clamp(100 + Σ poids, 0, 100)
-score_officiel  = arrondi(clampé / 20) borné à [1, 5]
+score_officiel  = arrondi(score_normalise) — métrique naturelle /100
+                  (depuis 2026-09-27, fini la conversion /20 forcée)
 poids ∈ [−100, +100]   (+ atout, − irritant)
+source          = provenance réelle (EXPLICIT/INFERRED), jamais forcée
 ```
 
 Options **exclusives** : une option marquée `code_metier = EXCLUSIF` (ou un
