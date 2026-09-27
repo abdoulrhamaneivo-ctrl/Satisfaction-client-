@@ -80,6 +80,7 @@ import {
 import { detecterAlertesSilence } from "./src/server/jobs/alerteSilence" with { type: "ref" };
 import { relancerTachesEnRetard } from "./src/server/jobs/relanceTache" with { type: "ref" };
 import { envoyerRapportsMensuels } from "./src/server/jobs/rapportMensuel" with { type: "ref" };
+import { envoyerRapportsHebdo } from "./src/server/jobs/rapportMensuel" with { type: "ref" };
 import { archiverElementsResolusAnciens } from "./src/server/jobs/archivageAutomatique" with { type: "ref" };
 import { analyserAvisIAJob } from "./src/server/jobs/analyserAvisIA" with { type: "ref" };
 import { analyserGlobaleJob } from "./src/server/jobs/analyseGlobale" with { type: "ref" };
@@ -494,6 +495,13 @@ export default app({
       executor: "PgBoss",
       entities: ["Agence", "Reponse", "Alerte", "TacheCorrective", "User"],
       schedule: { cron: "0 7 1 * *" },
+    }),
+    // 2026-09-27 (§14) : le mensuel seul ne suffit pas au pilotage — même
+    // rapport sur la dernière semaine complète, chaque lundi 07:00.
+    job(envoyerRapportsHebdo, {
+      executor: "PgBoss",
+      entities: ["Agence", "Reponse", "Alerte", "TacheCorrective", "User"],
+      schedule: { cron: "0 7 * * 1" },
     }),
     job(archiverElementsResolusAnciens, {
       executor: "PgBoss",
