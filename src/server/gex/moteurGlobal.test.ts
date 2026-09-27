@@ -191,6 +191,61 @@ describe('calculerAgregats : CES (Phase L)', () => {
   });
 });
 
+describe('calculerAgregats : sous-thèmes (2026-09-27, ex-colonne morte)', () => {
+  const fenetre = { debut: new Date(2026, 0, 1), fin: new Date(2026, 0, 31) };
+  const avis = (id: number, soumission: string) => ({
+    id,
+    id_soumission: soumission,
+    score_normalise: 80,
+    score_officiel: 4,
+    score_source: 'EXPLICIT',
+    commentaire_texte: 'un commentaire assez long pour être substantiel',
+    id_agence: 1,
+    id_guichet: 1,
+    id_service: null,
+    critere: { type_reponse: 'SMILEY', libelle_critere: 'Satisfaction', scoring_mode: 'SMILEY', options_reponse: null },
+    guichet: { nom_guichet: 'G1' },
+    service: null,
+    agence: { nom_agence: 'Centrale' },
+  });
+  const analyse = (sousThemes: string[]) => ({
+    sentimentRetenu: 'NEGATIVE',
+    sentiment: 'NEGATIVE',
+    themes: '["TEMPS_ATTENTE"]',
+    sousThemes: JSON.stringify(sousThemes),
+    coherenceNote: null,
+    severite: 'HIGH',
+    urgence: 'HIGH',
+    confidence: 0.9,
+    reponse: { id_agence: 1, id_guichet: 1 },
+  });
+
+  test('les sous-thèmes persistés sont comptés comme les thèmes', async () => {
+    const db = {
+      agence: { findMany: async () => [{ id: 1, nom_agence: 'Centrale' }] },
+      reponse: { findMany: async () => [avis(1, 's1'), avis(2, 's2'), avis(3, 's3')] },
+      analyseAvisIA: {
+        findMany: async () => [analyse(['FILE_LENTE']), analyse(['FILE_LENTE']), analyse(['ACCUEIL_FROID'])],
+      },
+    } as any;
+    const a = await calculerAgregats(db, { id_entreprise: 1, ...fenetre });
+    expect(a.sousThemesTop).toEqual([
+      { theme: 'FILE_LENTE', count: 2 },
+      { theme: 'ACCUEIL_FROID', count: 1 },
+    ]);
+  });
+
+  test('sans sous-thèmes → liste vide, pas de crash', async () => {
+    const db = {
+      agence: { findMany: async () => [{ id: 1, nom_agence: 'Centrale' }] },
+      reponse: { findMany: async () => [avis(1, 's1')] },
+      analyseAvisIA: { findMany: async () => [] },
+    } as any;
+    const a = await calculerAgregats(db, { id_entreprise: 1, ...fenetre });
+    expect(a.sousThemesTop).toEqual([]);
+  });
+});
+
 describe('prompt déterministe + schéma synthèse', () => {
   const agregats: AgregatsGlobaux = {
     volumeAvis: 421,
@@ -212,6 +267,7 @@ describe('prompt déterministe + schéma synthèse', () => {
     parService: [],
     guichetsTop: [],
     guichetsFlop: [],
+    sousThemesTop: [],
     evolutionVolumePct: 12,
     evolutionCsatPts: -2,
     qualiteDonnees: 87,
