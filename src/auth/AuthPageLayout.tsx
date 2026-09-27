@@ -55,7 +55,10 @@ export function AuthPageLayout({ eyebrow, title, subtitle, children, footer }: A
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <AmbientBackground className="flex items-center justify-center px-4 py-10 sm:py-12">
+    <AmbientBackground
+      className="flex items-center justify-center px-4 py-10 sm:py-12"
+      decorations={false}
+    >
       {/* En-tête compact visible uniquement sur mobile */}
       <motion.div
         initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }}

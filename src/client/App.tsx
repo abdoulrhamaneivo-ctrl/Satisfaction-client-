@@ -9,6 +9,7 @@ import { MobileAppHeader } from "./components/MobileAppHeader";
 import { OnboardingTour } from "./components/OnboardingTour";
 import { BrandProvider } from "./context/BrandContext";
 import { CommandPalette } from "./components/CommandPalette";
+import { afficherBlobsGlobaux } from "./utils/decorations";
 
 // PERFORMANCE FRONT (FIX 05/09) : sans staleTime, chaque focus de fenêtre /
 // retour d'onglet re-déclenche TOUTES les queries visibles (14 sur le
@@ -45,13 +46,15 @@ export function App() {
     return !standaloneRoutes.includes(location.pathname) && !location.pathname.startsWith('/q/');
   }, [location]);
 
-  // PERFORMANCE QR (fix « clics/saisie lents ») : sur /q/*, on ne monte NI les
-  // blobs décoratifs (même statiques, 4 x blur-3xl plein écran coûtent une
-  // recomposition GPU à chaque re-render du formulaire pendant la frappe),
-  // NI le shell dashboard. La page de collecte est rendue nue : HTML + CSS
-  // léger + React + 1 requête API.
-  const isQRCollecte = location.pathname.startsWith('/q/');
-  const showGlobalBlobs = !isQRCollecte;
+  // PERFORMANCE SAISIE (fix « clics/saisie lents », étendu le 2026-09-27) :
+  // même statiques, 4 x blur-3xl plein écran coûtent une recomposition GPU
+  // à chaque re-render du formulaire pendant la frappe — et à chaque resize
+  // quand le clavier mobile s'ouvre. D'abord corrigé sur /q/* (collecte),
+  // puis constaté IDENTIQUE sur /login (frappe et taps retardés de plusieurs
+  // secondes sur téléphone d'entrée de gamme). Règle désormais centrale :
+  // AUCUN blob sur les pages de saisie (voir utils/decorations.ts) — auth
+  // + QR rendus nus, le reste de l'app garde sa décoration.
+  const showGlobalBlobs = afficherBlobsGlobaux(location.pathname);
 
   const YEBA_ADMIN_ROUTES = ['/admin/personnel', '/admin/agences'];
   const isAdminDashboard = useMemo(() => {
