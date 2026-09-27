@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import {
   useQuery,
   getReponses,
@@ -73,13 +73,26 @@ export const DashboardPage = () => {
 
   const [periodeJours, setPeriodeJours] = useState(30);
 
+  // 2026-09-27 : la liste des réponses suit la période sélectionnée (comme
+  // tous les autres blocs) au lieu d'une fenêtre implicite de 90 j. Le
+  // plafond `take: 500` reste côté serveur (garde anti-timeout), et le
+  // tableau/export portent donc sur les 500 derniers avis DE LA PÉRIODE.
+  // Mémorisé : un `new Date()` inline recréerait l'objet args à chaque
+  // rendu et relancerait la requête en boucle.
+  const bornesPeriode = useMemo(() => {
+    const fin = new Date();
+    const debut = new Date(fin);
+    debut.setDate(debut.getDate() - periodeJours);
+    return { startDate: debut.toISOString(), endDate: fin.toISOString() };
+  }, [periodeJours]);
+
   // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : seule la DIRECTION pure
   // est refusée à getReponses — la cumulée charge les réponses comme un chef.
   const estDirection = user?.role === 'DIRECTION';
   const estDirectionPure = estDirection && (user as any)?.id_agence == null;
   const { data: reponses, isLoading: loadingReponses } = useQuery(
     getReponses,
-    undefined,
+    bornesPeriode,
     { enabled: !estDirectionPure }
   );
   const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
@@ -99,14 +112,16 @@ export const DashboardPage = () => {
   );
   const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode, { nbJours: periodeJours });
   const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
-  // PERFORMANCE (FIX 05/09) : la heatmap 90 jours est lourde côté Neon et
+  // PERFORMANCE (FIX 05/09) : la heatmap est lourde côté Neon et
   // peu consultée — chargée seulement quand sa section est visible
   // (IntersectionObserver ci-dessous). Idem temps de traitement.
+  // 2026-09-27 : suit la période sélectionnée (7/30 j allègent la requête,
+  // 90 j = comportement d'avant), au lieu d'une fenêtre fixe.
   const [refHeatmap, visibleHeatmap] = useVisibleOnce<HTMLDivElement>();
   const [refTemps, visibleTemps] = useVisibleOnce<HTMLDivElement>();
   const { data: heatmap, isLoading: loadingHeatmap } = useQuery(
     getHeatmapReponses,
-    { nbJours: 90 },
+    { nbJours: periodeJours },
     { enabled: visibleHeatmap } as any,
   );
   const { data: comparaisonAgences } = useQuery(
@@ -425,9 +440,9 @@ export const DashboardPage = () => {
                     index={0}
                   />
                 </div>
-                <div title="CSAT : moyenne des scores normalisés /100 des réponses notables.">
+                <div title="CSAT : note moyenne /100, par avis (un avis = une voix), questions de satisfaction seules.">
                   <StatCard
-                    title="CSAT"
+                    title="CSAT — note moyenne /100"
                     value={loadingExperience ? '…' : experience.agregats.csat != null ? `${experience.agregats.csat}/100` : 'N/A'}
                     icon={Smile}
                     accent="success"
@@ -566,8 +581,9 @@ export const DashboardPage = () => {
 
           {/* NIVEAU 2 — KPIs exécutifs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+            <div title="Taux d'avis satisfaits : % d'avis dont la note moyenne /5 atteint 4 ou plus. Distinct du CSAT (moyenne), complémentaire : un taux haut + une moyenne basse = quelques avis très mécontents.">
             <StatCard
-              title={`Satisfaction (${labelPeriode})`}
+              title={`Avis ≥ 4/5 (${labelPeriode})`}
               value={`${satisfaction}%`}
               icon={Smile}
               accent="success"
@@ -575,6 +591,7 @@ export const DashboardPage = () => {
               trend={!loadingKpis ? formatDelta(deltaSatisfaction, ' pts') : undefined}
               trendDirection={deltaSatisfaction >= 0 ? 'up' : 'down'}
             />
+            </div>
             <StatCard
               title={`Total Avis (${labelPeriode})`}
               value={String(totalAvisPeriode)}
@@ -709,10 +726,16 @@ export const DashboardPage = () => {
                           </>
                         ) : (
                           <>
-                            {/* L'histogramme lit les réponses brutes (403 Direction) :
-                                on ne l'affiche que hors Direction pour éviter
-                                une zone fantôme vide. Le radar est agrégé. */}
-                            {!estDirection && <HistogrammeSatisfaction data={reponsesList} />}
+                            {/* 2026-09-27 : l'histogramme lit la répartition
+                                canonique PAR AVIS (`agregats.distribution5`,
+                                même requête et même fenêtre que la carte
+                                CSAT) au lieu de recalculer ligne à ligne.
+                                Fini la zone fantôme pour la Direction : les
+                                agrégats sont scopés par rôle, pas de 403. */}
+                            <HistogrammeSatisfaction
+                              distribution={(experience as any)?.agregats?.distribution5}
+                              labelPeriode={labelPeriode}
+                            />
                             <RadarQualite data={radarData || []} />
                           </>
                         )}

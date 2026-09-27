@@ -11,9 +11,9 @@ import { agregerNPS } from '../../shared/scoringEngine';
 import { agregerCES, reconnaitreCES } from '../../shared/ces';
 // Vague 6 : DATA_QUALITY_SCORE n'est plus recalculé ici. La formule vit
 // dans le module canonique, avec ses cinq composantes documentées.
-import { scoreQualiteDonnees } from '../../shared/indicateurs';
+import { scoreQualiteDonnees, scoreRichesseQualitative } from '../../shared/indicateurs';
 // Vague 6 : règle unique du CSAT (par avis, satisfaction seule).
-import { grouperParAvis, scoresAvisSatisfaction, distributionParAvis, } from '../../shared/csat';
+import { grouperParAvis, compterAvisDans, scoresAvisSatisfaction, distributionParAvis, } from '../../shared/csat';
 // Gravité ordinale pour la priorité (LOW=1 … CRITICAL=4).
 const GRAVITE = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
 function moyenne(notes) {
@@ -196,6 +196,10 @@ export async function calculerAgregats(db, p) {
         ces = agregerCES(dominante[1], dominante[0]);
     }
     const volumeCommentaires = reponses.filter((r) => String(r.commentaire_texte || '').trim().length > 0).length;
+    // Richesse qualitative (2026-09-27) : les verbatims substantiels (≥ 20
+    // caractères) portent l'analyse — un « merci ! » compte en présence,
+    // pas en substance.
+    const commentairesSubstantiels = reponses.filter((r) => String(r.commentaire_texte || '').trim().length >= 20).length;
     const analyses = await db.analyseAvisIA.findMany({
         where: {
             status: 'DONE',
@@ -331,20 +335,19 @@ export async function calculerAgregats(db, p) {
             id_agence: { in: idsAgences },
             date_reponse: { gte: prevDebut, lte: prevFin },
         },
-        select: { id_soumission: true, score_normalise: true },
+        select: {
+            id_soumission: true,
+            score_normalise: true,
+            critere: { select: { type_reponse: true, scoring_mode: true } },
+        },
     });
-    const subsPrev = new Set();
-    let orphPrev = 0;
-    const notesPrev = [];
-    for (const r of prev) {
-        if (r.id_soumission)
-            subsPrev.add(String(r.id_soumission));
-        else
-            orphPrev += 1;
-        if (typeof r.score_normalise === 'number')
-            notesPrev.push(Number(r.score_normalise));
-    }
-    const volumePrev = subsPrev.size + orphPrev;
+    // Correctif 2026-09-27 : l'évolution comparait deux définitions
+    // différentes — CSAT courant par AVIS (satisfaction seule) contre moyenne
+    // par LIGNE toutes familles pour la période précédente. La période
+    // précédente utilise désormais EXACTEMENT la même liste canonique
+    // (`scoresAvisSatisfaction`) : même unité (avis), même filtre.
+    const notesPrev = scoresAvisSatisfaction(prev);
+    const volumePrev = compterAvisDans(prev);
     const csatPrev = notesPrev.length > 0 ? moyenne(notesPrev) : null;
     const evolutionVolumePct = volumePrev > 0 && volumeAvis >= 0
         ? arrondi1(((volumeAvis - volumePrev) / volumePrev) * 100)
@@ -383,7 +386,8 @@ export async function calculerAgregats(db, p) {
     // Avant, cette valeur était recalculée ici avec une formule locale
     // (50 % notables + 30 % commentées + 20 % cohérence) alors que le
     // module canonique `src/shared/indicateurs.ts` en documentait une autre
-    // (35/20/20/15/10, avec fraîcheur et volume). Deux définitions
+    // (40/25/20/15 — correctif 2026-09-27 : le taux de commentaires est sorti
+    // du score technique, voir scoreQualiteDonnees). Deux définitions
     // divergentes de la même métrique, dont une seule réellement affichée :
     // le catalogue mentait sur la formule, et rien ne le signalait.
     //
@@ -397,6 +401,16 @@ export async function calculerAgregats(db, p) {
         incoherentes: incoherents,
         legacy: reponses.filter((r) => r.score_source === 'LEGACY_POSITIONAL' || r.score_source === 'MIGRATED').length,
         inferees: reponses.filter((r) => r.score_source === 'INFERRED').length,
+        // Correctif 2026-09-27 : la cohérence se mesure sur les analyses
+        // réellement produites, pas sur toutes les lignes collectées.
+        totalAnalyses: analyses.length,
+    });
+    // Richesse qualitative (2026-09-27) : mesure à part, jamais mélangée au
+    // score technique — voir scoreRichesseQualitative.
+    const { score: richesseQualitative, details: richesseDetails } = scoreRichesseQualitative({
+        totalReponses: reponses.length,
+        avecCommentaire: volumeCommentaires,
+        commentairesSubstantiels,
     });
     return {
         volumeAvis,
@@ -422,6 +436,8 @@ export async function calculerAgregats(db, p) {
         evolutionCsatPts,
         qualiteDonnees,
         qualiteDonneesDetails: qualiteDetails,
+        richesseQualitative,
+        richesseDetails,
         confiance: niveauConfianceGlobal(volumeAvis, qualiteDonnees, tauxIncoherence),
     };
 }

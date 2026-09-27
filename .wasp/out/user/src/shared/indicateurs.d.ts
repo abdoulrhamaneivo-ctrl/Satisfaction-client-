@@ -52,15 +52,49 @@ export interface EntreesQualite {
     incoherentes: number;
     legacy: number;
     inferees: number;
+    /**
+     * Nombre d'analyses IA réellement produites sur la période — DÉNOMINATEUR
+     * de la cohérence. Avant le 2026-09-27, on divisait par `totalReponses`,
+     * ce qui affichait « 98 % cohérence » quand l'IA n'avait analysé que 10 %
+     * des lignes (toutes incohérentes). La cohérence se mesure sur ce qui a
+     * été analysé, pas sur tout ce qui a été collecté.
+     */
+    totalAnalyses: number;
 }
 /**
- * DATA_QUALITY_SCORE (§31) — 5 composantes documentées, toutes en [0,1] :
- * notables 35 % + commentées 20 % + cohérence 20 % + (1 − legacy) 15 % +
- * volume (saturé à 50) 10 %. Chaque terme est explicable séparément.
+ * DATA_QUALITY_SCORE (§31) — qualité TECHNIQUE des données, 4 composantes
+ * en [0,1] : notables 40 % + cohérence 25 % + (1 − legacy) 20 % + volume
+ * (saturé à 50) 15 %. Chaque terme est explicable séparément.
+ *
+ * Correctif 2026-09-27 : le taux de commentaires (20 %) est SORTI du score
+ * technique. Un avis parfaitement noté et exploitable perdait jusqu'à 20
+ * points parce que le client n'avait rien écrit — « absence de commentaire »
+ * n'est pas « mauvaise qualité de donnée ». Le taux reste exposé dans
+ * `details.commentaires` à titre INFORMATIF (poids 0) ; la présence et la
+ * substance des verbatims sont mesurées par QUALITATIVE_RICHNESS_SCORE
+ * (`scoreRichesseQualitative` ci-dessous), affiché à côté, jamais mélangé.
  */
 export declare function scoreQualiteDonnees(e: EntreesQualite): {
     score: number;
     details: Record<'notables' | 'commentaires' | 'coherence' | 'fraicheur_legacy' | 'volume', number>;
+};
+export interface EntreesRichesse {
+    totalReponses: number;
+    avecCommentaire: number;
+    /** Commentaires de ≥ 20 caractères après trim : présence + substance. */
+    commentairesSubstantiels: number;
+}
+/**
+ * QUALITATIVE_RICHNESS_SCORE — richesse QUALITATIVE du matériau d'analyse,
+ * 2 composantes en [0,1] : présence de commentaires 50 % + verbatims
+ * substantiels 50 %. Un avis noté sans texte vaut 0 ici ET 100 en technique
+ * (`notables`) — les deux scores se lisent côte à côte, ils ne se
+ * compensent jamais. Seuil de substance : 20 caractères (un « merci ! » ne
+ * fait pas un verbatim exploitable, mais compte en présence).
+ */
+export declare function scoreRichesseQualitative(e: EntreesRichesse): {
+    score: number;
+    details: Record<'commentaires' | 'substantiels', number>;
 };
 /** Cherche une définition au catalogue (affichage « d'où vient ce chiffre »). */
 export declare function definitionIndicateur(id: string): DefinitionIndicateur | null;

@@ -43,3 +43,33 @@ describe('intervalleActualisationSynthese (régression page blanche /synthese)',
         expect(intervalleActualisationSynthese([null, undefined, 42, {}])).toBe(false);
     });
 });
+describe('lecture NPS persisté (régression NaN affiché)', () => {
+    // Le snapshot stocke l'OBJET agrégé, pas le scalaire. `Number(objet)`
+    // donnait NaN, affiché tel quel. Ces tests verrouillent la lecture.
+    test('objet agrégé → scalaire + ventilation', async () => {
+        const { lireNpsValeur, lireNpsDetail } = await import('./SyntheseGlobalePage');
+        const ind = { nps: { nps: 42, promoteurs: 6, passifs: 2, detracteurs: 2, volume: 10 } };
+        expect(lireNpsValeur(ind)).toBe(42);
+        expect(lireNpsDetail(ind)).toBe('6 promoteurs · 2 passifs · 2 détracteurs (10 notes)');
+    });
+    test('NPS négatif → scalaire négatif', async () => {
+        const { lireNpsValeur } = await import('./SyntheseGlobalePage');
+        expect(lireNpsValeur({ nps: { nps: -20, volume: 5 } })).toBe(-20);
+    });
+    test('scalaire historique → repli sans crash', async () => {
+        const { lireNpsValeur, lireNpsDetail } = await import('./SyntheseGlobalePage');
+        expect(lireNpsValeur({ nps: 30 })).toBe(30);
+        expect(lireNpsDetail({ nps: 30 })).toBeUndefined();
+    });
+    test('null / objet vide / volume 0 → N/A, jamais NaN', async () => {
+        const { lireNpsValeur, lireNpsDetail } = await import('./SyntheseGlobalePage');
+        expect(lireNpsValeur({ nps: null })).toBeNull();
+        expect(lireNpsValeur(null)).toBeNull();
+        expect(lireNpsValeur({ nps: { nps: null, volume: 0 } })).toBeNull();
+        expect(lireNpsDetail({ nps: { nps: null, volume: 0 } })).toBeUndefined();
+        // Garde anti-régression : aucun de ces cas ne produit NaN.
+        for (const ind of [{ nps: null }, null, { nps: { volume: 0 } }, { nps: 'x' }]) {
+            expect(Number.isNaN(lireNpsValeur(ind))).toBe(false);
+        }
+    });
+});

@@ -1278,7 +1278,7 @@
             "file",
             "sdk/wasp/src/client/components/DashboardCharts.tsx"
         ],
-        "53a6e0000dd755ddf8c720a0fdcf32182670cade300a6ebbc78ea13b10f03e98"
+        "6c1612738c2c317e00f066d10999560d9258cde50d9db9062d32a26865eb4bc3"
     ],
     [
         [
@@ -1880,7 +1880,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "4acd743a7cda4ec3d11903b2b271d61c496545248a87c60393d20edc76bb75e0"
+        "6b078803d07fb79a218c4e6b8ed9d32e4af47f412b45510fb39a476a00e2db6f"
     ],
     [
         [
@@ -1957,14 +1957,14 @@
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.test.ts"
         ],
-        "62d49d7c0f731928735b7a1e480732e7836e192807f513142d89c41883919f3c"
+        "a7b8882f223499ce24cb964d204ee6eba7411784acf2ee66cd8409b014861c6d"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.tsx"
         ],
-        "05505c906e15bc5fc80b93d09d82a4a778e02d633d176528baf7d20eb1585228"
+        "1bd04e6dceb79a2e4927589b6305ad84c5bb431f02446958af12f108bd0f5574"
     ],
     [
         [
@@ -2412,14 +2412,14 @@
             "file",
             "sdk/wasp/src/server/gex/moteurGlobal.test.ts"
         ],
-        "030985158fd77ca2894eac25b4ff74eb73fad53e6d4c8df40f95a08eb55b65d9"
+        "d7a7a813828c64f64ac56e03ace90430f518a3aefa153f77ee142150ac9a8922"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/gex/moteurGlobal.ts"
         ],
-        "7e2312836addb7f8aceaa906f26af33164d7db9d8922744d3c95457a7e5928d0"
+        "12f7350dd7f7ebd4e73843dc861df07a4cd52b7ba822f80355a9d8e4b37c8c4c"
     ],
     [
         [
@@ -2447,7 +2447,7 @@
             "file",
             "sdk/wasp/src/server/jobs/analyseGlobale.ts"
         ],
-        "bbe80c3729fc616ff772f886343fb9bde39f01aa30e3db6d47481c4f7e73873c"
+        "81ad785a5a7cdce16eed4b8405d90e460b8b985b949afc01da8efbcfc649faa8"
     ],
     [
         [
@@ -2531,7 +2531,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "56763e222be84183359c8c23d3032ea1d840221a03846b0889af38190e4fe0c0"
+        "80523bc3dff33d5f016455fee656b5109ed6d1c038b233a78e1912662b35efb2"
     ],
     [
         [
@@ -2748,14 +2748,14 @@
             "file",
             "sdk/wasp/src/shared/indicateurs.test.ts"
         ],
-        "1a124928c53ec15dfdc8be8de9a02b0bc05023c6adaa4e6cb34c45a5ee5e28ac"
+        "fca69520d11ddf001102ed5e7ba962ee91c04138fe44ea1a413f1badca28b1e8"
     ],
     [
         [
             "file",
             "sdk/wasp/src/shared/indicateurs.ts"
         ],
-        "f55c7ad10e5af93717fbece7aa95433ba80cf85819c470a20d7bb5aefb432d3e"
+        "31abda3b6425e9f1f297fb57cbb7f23d994e8fb23239ae4d6e49a188c1e09ad2"
     ],
     [
         [

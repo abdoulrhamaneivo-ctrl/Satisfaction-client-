@@ -190,6 +190,8 @@ describe('prompt déterministe + schéma synthèse', () => {
             fraicheur_legacy: 97,
             volume: 100,
         },
+        richesseQualitative: 45,
+        richesseDetails: { commentaires: 41, substantiels: 49 },
         confiance: 'ELEVEE',
     };
     test('même entrée → même chaîne, nombres cités', () => {

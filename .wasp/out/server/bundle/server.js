@@ -6918,11 +6918,11 @@ function scoreQualiteDonnees(e) {
   }
   const notables = e.notables / e.totalReponses;
   const commentaires = e.avecCommentaire / e.totalReponses;
-  const coherence = 1 - Math.min(1, e.incoherentes / e.totalReponses);
+  const coherence = e.totalAnalyses > 0 ? 1 - Math.min(1, e.incoherentes / e.totalAnalyses) : 1;
   const fraicheurLegacy = 1 - Math.min(1, (e.legacy + e.inferees * 0.5) / e.totalReponses);
   const volume = Math.min(1, e.totalReponses / 50);
   const score = Math.round(
-    100 * (0.35 * notables + 0.2 * commentaires + 0.2 * coherence + 0.15 * fraicheurLegacy + 0.1 * volume)
+    100 * (0.4 * notables + 0.25 * coherence + 0.2 * fraicheurLegacy + 0.15 * volume)
   );
   return {
     score,
@@ -6932,6 +6932,21 @@ function scoreQualiteDonnees(e) {
       coherence: Math.round(coherence * 100),
       fraicheur_legacy: Math.round(fraicheurLegacy * 100),
       volume: Math.round(volume * 100)
+    }
+  };
+}
+function scoreRichesseQualitative(e) {
+  if (e.totalReponses <= 0) {
+    return { score: 0, details: { commentaires: 0, substantiels: 0 } };
+  }
+  const commentaires = Math.min(1, e.avecCommentaire / e.totalReponses);
+  const substantiels = Math.min(1, e.commentairesSubstantiels / e.totalReponses);
+  const score = Math.round(100 * (0.5 * commentaires + 0.5 * substantiels));
+  return {
+    score,
+    details: {
+      commentaires: Math.round(commentaires * 100),
+      substantiels: Math.round(substantiels * 100)
     }
   };
 }
@@ -7010,6 +7025,9 @@ function grouperParAvis(lignes) {
     }
   }
   return [...parSoumission.values(), ...orphelines.map((l) => [l])];
+}
+function compterAvisDans(lignes) {
+  return grouperParAvis(lignes).length;
 }
 const FACTEUR_NOTE5_VERS_100 = 20;
 function scoreAvis100(lignes) {
@@ -7164,6 +7182,9 @@ async function calculerAgregats(db, p) {
   const volumeCommentaires = reponses.filter(
     (r) => String(r.commentaire_texte || "").trim().length > 0
   ).length;
+  const commentairesSubstantiels = reponses.filter(
+    (r) => String(r.commentaire_texte || "").trim().length >= 20
+  ).length;
   const analyses = await db.analyseAvisIA.findMany({
     where: {
       status: "DONE",
@@ -7271,17 +7292,14 @@ async function calculerAgregats(db, p) {
       id_agence: { in: idsAgences },
       date_reponse: { gte: prevDebut, lte: prevFin }
     },
-    select: { id_soumission: true, score_normalise: true }
+    select: {
+      id_soumission: true,
+      score_normalise: true,
+      critere: { select: { type_reponse: true, scoring_mode: true } }
+    }
   });
-  const subsPrev = /* @__PURE__ */ new Set();
-  let orphPrev = 0;
-  const notesPrev = [];
-  for (const r of prev) {
-    if (r.id_soumission) subsPrev.add(String(r.id_soumission));
-    else orphPrev += 1;
-    if (typeof r.score_normalise === "number") notesPrev.push(Number(r.score_normalise));
-  }
-  const volumePrev = subsPrev.size + orphPrev;
+  const notesPrev = scoresAvisSatisfaction(prev);
+  const volumePrev = compterAvisDans(prev);
   const csatPrev = notesPrev.length > 0 ? moyenne(notesPrev) : null;
   const evolutionVolumePct = volumePrev > 0 && volumeAvis >= 0 ? arrondi1$1((volumeAvis - volumePrev) / volumePrev * 100) : null;
   const evolutionCsatPts = csat !== null && csatPrev !== null ? arrondi1$1(csat - csatPrev) : null;
@@ -7313,7 +7331,15 @@ async function calculerAgregats(db, p) {
     legacy: reponses.filter(
       (r) => r.score_source === "LEGACY_POSITIONAL" || r.score_source === "MIGRATED"
     ).length,
-    inferees: reponses.filter((r) => r.score_source === "INFERRED").length
+    inferees: reponses.filter((r) => r.score_source === "INFERRED").length,
+    // Correctif 2026-09-27 : la cohérence se mesure sur les analyses
+    // réellement produites, pas sur toutes les lignes collectées.
+    totalAnalyses: analyses.length
+  });
+  const { score: richesseQualitative, details: richesseDetails } = scoreRichesseQualitative({
+    totalReponses: reponses.length,
+    avecCommentaire: volumeCommentaires,
+    commentairesSubstantiels
   });
   return {
     volumeAvis,
@@ -7339,6 +7365,8 @@ async function calculerAgregats(db, p) {
     evolutionCsatPts,
     qualiteDonnees,
     qualiteDonneesDetails: qualiteDetails,
+    richesseQualitative,
+    richesseDetails,
     confiance: niveauConfianceGlobal(volumeAvis, qualiteDonnees, tauxIncoherence)
   };
 }
@@ -9457,8 +9485,12 @@ const getThemesStats$2 = async (args, context) => {
     where: {
       status: "DONE",
       themes: { not: null },
-      processedAt: { gte: depuis },
-      reponse: { id_agence: filter.id_agence }
+      // Correctif 2026-09-27 : la fenêtre porte sur la DATE DE L'AVIS, pas
+      // sur la date d'analyse. Avant, un avis de septembre analysé en
+      // octobre comptait pour octobre ici mais pour septembre dans le moteur
+      // global (`date_reponse`) — les deux compteurs de thèmes du dashboard
+      // ne se recoupaient jamais.
+      reponse: { id_agence: filter.id_agence, date_reponse: { gte: depuis } }
     },
     select: { themes: true }
   });
@@ -12915,7 +12947,22 @@ async function traiterLigne(row, entrepriseNom, budget) {
         incoherentes: agregats.incoherents,
         taux: agregats.tauxIncoherence
       },
-      qualite: agregats.qualiteDonnees
+      qualite: agregats.qualiteDonnees,
+      // 2026-09-27 : la synthèse affiche aussi la ventilation et la
+      // richesse — mêmes objets canoniques que le dashboard live
+      // (`getIndicateursExperience`), figés pour la période. Les snapshots
+      // antérieurs n'ont pas ces clés : le client les lit avec `?? []`.
+      richesse: {
+        score: agregats.richesseQualitative,
+        details: agregats.richesseDetails
+      },
+      distribution5: agregats.distribution5,
+      ventilation: {
+        parAgence: agregats.parAgence,
+        parService: agregats.parService,
+        guichetsTop: agregats.guichetsTop,
+        guichetsFlop: agregats.guichetsFlop
+      }
     }),
     volumeAvis: agregats.volumeAvis,
     volumeCommentaires: agregats.volumeCommentaires,

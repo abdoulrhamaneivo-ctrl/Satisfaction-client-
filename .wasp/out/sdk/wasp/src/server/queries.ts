@@ -2375,8 +2375,12 @@ export const getThemesStats = async (args: { nbJours?: number }, context: any) =
     where: {
       status: 'DONE',
       themes: { not: null },
-      processedAt: { gte: depuis },
-      reponse: { id_agence: filter.id_agence },
+      // Correctif 2026-09-27 : la fenêtre porte sur la DATE DE L'AVIS, pas
+      // sur la date d'analyse. Avant, un avis de septembre analysé en
+      // octobre comptait pour octobre ici mais pour septembre dans le moteur
+      // global (`date_reponse`) — les deux compteurs de thèmes du dashboard
+      // ne se recoupaient jamais.
+      reponse: { id_agence: filter.id_agence, date_reponse: { gte: depuis } },
     },
     select: { themes: true },
   });

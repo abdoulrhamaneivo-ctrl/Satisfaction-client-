@@ -70,10 +70,17 @@ export type AgregatsGlobaux = {
      */
     qualiteDonneesDetails: {
         notables: number;
+        /** Taux de commentaires — INFORMATIF (poids 0 dans le score technique). */
         commentaires: number;
         coherence: number;
         fraicheur_legacy: number;
         volume: number;
+    };
+    /** Richesse qualitative /100 — voir `richesseDetails`. Jamais mélangée au technique. */
+    richesseQualitative: number;
+    richesseDetails: {
+        commentaires: number;
+        substantiels: number;
     };
     confiance: 'FAIBLE' | 'MOYENNE' | 'ELEVEE';
 };

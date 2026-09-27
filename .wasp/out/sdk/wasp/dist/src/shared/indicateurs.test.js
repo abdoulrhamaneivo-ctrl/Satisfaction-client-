@@ -1,6 +1,6 @@
 // src/shared/indicateurs.test.ts — Phase H : catalogue, bandes, N/A, qualité.
 import { expect, test, describe } from 'vitest';
-import { distributionBandends, mediane, tauxReponse, scoreQualiteDonnees, definitionIndicateur, indiceGlobalExperience, CATALOGUE_INDICATEURS, } from './indicateurs';
+import { distributionBandends, mediane, tauxReponse, scoreQualiteDonnees, scoreRichesseQualitative, definitionIndicateur, indiceGlobalExperience, CATALOGUE_INDICATEURS, } from './indicateurs';
 describe('bandes CSAT et médiane', () => {
     test('bandes /100 exactes', () => {
         expect(distributionBandends([100, 80, 79, 60, 59, 40, 39, 20, 19, 0])).toEqual({
@@ -35,31 +35,75 @@ describe('DATA_QUALITY_SCORE décomposé', () => {
     test('jeu parfait → 100, détails à 100', () => {
         const r = scoreQualiteDonnees({
             totalReponses: 100, notables: 100, avecCommentaire: 100,
-            incoherentes: 0, legacy: 0, inferees: 0,
+            incoherentes: 0, legacy: 0, inferees: 0, totalAnalyses: 100,
         });
         expect(r.score).toBe(100);
         expect(r.details).toEqual({
             notables: 100, commentaires: 100, coherence: 100, fraicheur_legacy: 100, volume: 100,
         });
     });
+    test('jeu parfait SANS commentaire → 100 quand même (correctif 2026-09-27)', () => {
+        // Avant : jusqu'à −20 points parce que le client n'avait rien écrit.
+        // L'absence de commentaire n'est pas une mauvaise qualité de donnée.
+        const r = scoreQualiteDonnees({
+            totalReponses: 100, notables: 100, avecCommentaire: 0,
+            incoherentes: 0, legacy: 0, inferees: 0, totalAnalyses: 100,
+        });
+        expect(r.score).toBe(100);
+        expect(r.details.commentaires).toBe(0);
+    });
+    test('cohérence mesurée sur les analyses, pas sur les lignes (correctif 2026-09-27)', () => {
+        // 10 réponses, 2 analyses IA, les 2 incohérentes → cohérence 0.
+        // Avant (dénominateur = lignes) : 1 − 2/10 = 80 % affichés à tort.
+        const r = scoreQualiteDonnees({
+            totalReponses: 10, notables: 10, avecCommentaire: 10,
+            incoherentes: 2, legacy: 0, inferees: 0, totalAnalyses: 2,
+        });
+        expect(r.details.coherence).toBe(0);
+    });
+    test('aucune analyse → cohérence vacuement à 1, pas de NaN', () => {
+        const r = scoreQualiteDonnees({
+            totalReponses: 10, notables: 10, avecCommentaire: 0,
+            incoherentes: 0, legacy: 0, inferees: 0, totalAnalyses: 0,
+        });
+        expect(r.details.coherence).toBe(100);
+    });
     test('vide → 0 partout (pas de division par zéro)', () => {
         expect(scoreQualiteDonnees({
             totalReponses: 0, notables: 0, avecCommentaire: 0,
-            incoherentes: 0, legacy: 0, inferees: 0,
+            incoherentes: 0, legacy: 0, inferees: 0, totalAnalyses: 0,
         }).score).toBe(0);
     });
     test('legacy pénalisé à moitié pour inféré, plein pour positionnel', () => {
         const plein = scoreQualiteDonnees({
             totalReponses: 100, notables: 100, avecCommentaire: 100,
-            incoherentes: 0, legacy: 100, inferees: 0,
+            incoherentes: 0, legacy: 100, inferees: 0, totalAnalyses: 100,
         });
         const moitie = scoreQualiteDonnees({
             totalReponses: 100, notables: 100, avecCommentaire: 100,
-            incoherentes: 0, legacy: 0, inferees: 100,
+            incoherentes: 0, legacy: 0, inferees: 100, totalAnalyses: 100,
         });
         expect(moitie.details.fraicheur_legacy).toBe(50);
         expect(plein.details.fraicheur_legacy).toBe(0);
         expect(moitie.score).toBeGreaterThan(plein.score);
+    });
+});
+describe('QUALITATIVE_RICHNESS_SCORE : présence + substance, jamais mélangé au technique', () => {
+    test('tout commenté et substantiel → 100', () => {
+        const r = scoreRichesseQualitative({ totalReponses: 10, avecCommentaire: 10, commentairesSubstantiels: 10 });
+        expect(r.score).toBe(100);
+        expect(r.details).toEqual({ commentaires: 100, substantiels: 100 });
+    });
+    test('« merci ! » compte en présence, pas en substance', () => {
+        const r = scoreRichesseQualitative({ totalReponses: 10, avecCommentaire: 10, commentairesSubstantiels: 0 });
+        expect(r.score).toBe(50);
+    });
+    test('avis noté sans texte → 0 ici (mais 100 en technique via notables)', () => {
+        const r = scoreRichesseQualitative({ totalReponses: 10, avecCommentaire: 0, commentairesSubstantiels: 0 });
+        expect(r.score).toBe(0);
+    });
+    test('vide → 0 partout', () => {
+        expect(scoreRichesseQualitative({ totalReponses: 0, avecCommentaire: 0, commentairesSubstantiels: 0 }).score).toBe(0);
     });
 });
 describe('indice global : formule documentée, jamais cachée', () => {
@@ -144,26 +188,29 @@ describe('Vague 6 — source unique de la qualité des données', () => {
             incoherentes: 0,
             legacy: reponses.filter((r) => r.score_source === 'LEGACY_POSITIONAL').length,
             inferees: 0,
+            totalAnalyses: 0,
         });
         expect(agregats.qualiteDonnees).toBe(attendu.score);
         expect(agregats.qualiteDonneesDetails).toEqual(attendu.details);
     });
     test('aucune formule de qualité en dur ailleurs que dans le module canonique', async () => {
-        // Garde-fou structurel : la pondération (35/20/20/15/10) ne doit
-        // exister qu'à un seul endroit du dépôt. Une duplication réintroduite
-        // avec les mêmes chiffres ferait diverger la documentation de la
-        // métrique — exactement le défaut que cette vague corrige.
+        // Garde-fou structurel : la pondération (40/25/20/15, correctif
+        // 2026-09-27 — le taux de commentaires est sorti du score technique)
+        // ne doit exister qu'à un seul endroit du dépôt. Une duplication
+        // réintroduite avec les mêmes chiffres ferait diverger la documentation
+        // de la métrique — exactement le défaut que cette vague corrige.
         const { readFileSync } = await import('node:fs');
         const faux = readFileSync('src/server/gex/moteurGlobal.ts', 'utf8');
         const canonique = readFileSync('src/shared/indicateurs.ts', 'utf8');
-        const poidsCanonique = [0.35, 0.2, 0.2, 0.15, 0.1];
+        const poidsCanonique = [0.4, 0.25, 0.2, 0.15];
         for (const poids of poidsCanonique) {
             expect(canonique).toContain(String(poids));
-            // Hors du module canonique, un poids de qualité isolé doit être absent.
-            // (0.2 est trop générique pour être assertion ; on vérifie les autres.)
-            if (poids !== 0.2)
-                expect(faux).not.toContain(String(poids));
         }
+        // Hors du module canonique, le poids distinctif (0.4, notables) doit
+        // être absent : c'est lui qui trahirait une formule dupliquée. (0.25
+        // existe légitimement ailleurs — seuil d'incohérence du moteur — et
+        // 0.2/0.15 sont trop génériques pour être assertés.)
+        expect(faux).not.toContain('0.4');
         // Et l'ancienne pondération de trois termes a disparu.
         expect(faux).not.toMatch(/0\.5 \* partNotables/);
         expect(faux).not.toMatch(/0\.3 \* partCommentaires/);

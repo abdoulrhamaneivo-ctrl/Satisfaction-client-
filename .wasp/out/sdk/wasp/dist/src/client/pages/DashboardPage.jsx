@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, getReponses, getRadarStats, getAlertes, getTachesCorrectives, getTendanceMensuelle, getStatsByAgent, getStatsByGuichet, getActionsPrioritaires, getKPIsPeriode, getObjectifs, getHeatmapReponses, getComparaisonAgences, getTempsTraitement, getThemesStats, getIndicateursExperience, } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { Link as WaspRouterLink, routes } from 'wasp/client/router';
@@ -46,11 +46,23 @@ export const DashboardPage = () => {
     const { brandConfig } = useBrand();
     const nomEntrepriseDocs = brandConfig?.platform_name || 'Yeba';
     const [periodeJours, setPeriodeJours] = useState(30);
+    // 2026-09-27 : la liste des réponses suit la période sélectionnée (comme
+    // tous les autres blocs) au lieu d'une fenêtre implicite de 90 j. Le
+    // plafond `take: 500` reste côté serveur (garde anti-timeout), et le
+    // tableau/export portent donc sur les 500 derniers avis DE LA PÉRIODE.
+    // Mémorisé : un `new Date()` inline recréerait l'objet args à chaque
+    // rendu et relancerait la requête en boucle.
+    const bornesPeriode = useMemo(() => {
+        const fin = new Date();
+        const debut = new Date(fin);
+        debut.setDate(debut.getDate() - periodeJours);
+        return { startDate: debut.toISOString(), endDate: fin.toISOString() };
+    }, [periodeJours]);
     // CONFIDENTIALITÉ MÉTIER (RG16/RG17 — Doc 08) : seule la DIRECTION pure
     // est refusée à getReponses — la cumulée charge les réponses comme un chef.
     const estDirection = user?.role === 'DIRECTION';
     const estDirectionPure = estDirection && user?.id_agence == null;
-    const { data: reponses, isLoading: loadingReponses } = useQuery(getReponses, undefined, { enabled: !estDirectionPure });
+    const { data: reponses, isLoading: loadingReponses } = useQuery(getReponses, bornesPeriode, { enabled: !estDirectionPure });
     const { data: radarData, isLoading: loadingRadar } = useQuery(getRadarStats);
     const { data: alertes, isLoading: loadingAlertes } = useQuery(getAlertes);
     const { data: taches, isLoading: loadingTaches } = useQuery(getTachesCorrectives);
@@ -64,12 +76,14 @@ export const DashboardPage = () => {
     const { data: actionsPrioritaires, isLoading: loadingActions } = useQuery(getActionsPrioritaires, undefined, { enabled: aUnTenant });
     const { data: kpisPeriode, isLoading: loadingKpis } = useQuery(getKPIsPeriode, { nbJours: periodeJours });
     const { data: objectifs, isLoading: loadingObjectifs } = useQuery(getObjectifs);
-    // PERFORMANCE (FIX 05/09) : la heatmap 90 jours est lourde côté Neon et
+    // PERFORMANCE (FIX 05/09) : la heatmap est lourde côté Neon et
     // peu consultée — chargée seulement quand sa section est visible
     // (IntersectionObserver ci-dessous). Idem temps de traitement.
+    // 2026-09-27 : suit la période sélectionnée (7/30 j allègent la requête,
+    // 90 j = comportement d'avant), au lieu d'une fenêtre fixe.
     const [refHeatmap, visibleHeatmap] = useVisibleOnce();
     const [refTemps, visibleTemps] = useVisibleOnce();
-    const { data: heatmap, isLoading: loadingHeatmap } = useQuery(getHeatmapReponses, { nbJours: 90 }, { enabled: visibleHeatmap });
+    const { data: heatmap, isLoading: loadingHeatmap } = useQuery(getHeatmapReponses, { nbJours: periodeJours }, { enabled: visibleHeatmap });
     const { data: comparaisonAgences } = useQuery(getComparaisonAgences, { nbJours: periodeJours }, { enabled: estDirection } // requete reservee DIRECTION (403 sinon pour les autres roles)
     );
     const { data: tempsTraitement, isLoading: loadingTemps } = useQuery(getTempsTraitement, { nbJours: periodeJours }, { enabled: !loadingKpis });
@@ -323,8 +337,8 @@ export const DashboardPage = () => {
                 <div title={`Indice global : ${experience.indice?.formule ?? '—'} — Source : réponses notables.`}>
                   <StatCard title="Indice global" value={loadingExperience ? '…' : experience.indice?.indice != null ? `${experience.indice.indice}/100` : 'N/A'} icon={LayoutDashboard} accent="primary" index={0}/>
                 </div>
-                <div title="CSAT : moyenne des scores normalisés /100 des réponses notables.">
-                  <StatCard title="CSAT" value={loadingExperience ? '…' : experience.agregats.csat != null ? `${experience.agregats.csat}/100` : 'N/A'} icon={Smile} accent="success" index={1} trend={experience.agregats.evolutionCsatPts != null ? formatDelta(experience.agregats.evolutionCsatPts, ' pts') : undefined} trendDirection={(experience.agregats.evolutionCsatPts ?? 0) >= 0 ? 'up' : 'down'}/>
+                <div title="CSAT : note moyenne /100, par avis (un avis = une voix), questions de satisfaction seules.">
+                  <StatCard title="CSAT — note moyenne /100" value={loadingExperience ? '…' : experience.agregats.csat != null ? `${experience.agregats.csat}/100` : 'N/A'} icon={Smile} accent="success" index={1} trend={experience.agregats.evolutionCsatPts != null ? formatDelta(experience.agregats.evolutionCsatPts, ' pts') : undefined} trendDirection={(experience.agregats.evolutionCsatPts ?? 0) >= 0 ? 'up' : 'down'}/>
                 </div>
                 <div title="NPS : % promoteurs − % détracteurs (jamais une moyenne). N/A sans question NPS.">
                   <StatCard title="NPS" value={loadingExperience ? '…' : npsAgregat ? `${npsAgregat.nps >= 0 ? '+' : ''}${npsAgregat.nps}` : 'N/A'} icon={TrendingUp} accent="secondary" index={2}/>
@@ -400,7 +414,9 @@ export const DashboardPage = () => {
 
           {/* NIVEAU 2 — KPIs exécutifs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
-            <StatCard title={`Satisfaction (${labelPeriode})`} value={`${satisfaction}%`} icon={Smile} accent="success" index={0} trend={!loadingKpis ? formatDelta(deltaSatisfaction, ' pts') : undefined} trendDirection={deltaSatisfaction >= 0 ? 'up' : 'down'}/>
+            <div title="Taux d'avis satisfaits : % d'avis dont la note moyenne /5 atteint 4 ou plus. Distinct du CSAT (moyenne), complémentaire : un taux haut + une moyenne basse = quelques avis très mécontents.">
+            <StatCard title={`Avis ≥ 4/5 (${labelPeriode})`} value={`${satisfaction}%`} icon={Smile} accent="success" index={0} trend={!loadingKpis ? formatDelta(deltaSatisfaction, ' pts') : undefined} trendDirection={deltaSatisfaction >= 0 ? 'up' : 'down'}/>
+            </div>
             <StatCard title={`Total Avis (${labelPeriode})`} value={String(totalAvisPeriode)} icon={MessageSquare} accent="primary" index={1} trend={!loadingKpis ? formatDelta(deltaVolume, '%') : undefined} trendDirection={deltaVolume >= 0 ? 'up' : 'down'}/>
             <StatCard title={`Note Moyenne (${labelPeriode})`} value={`${noteMoyenne} / 5`} icon={Star} accent="secondary" index={2} trend={!loadingKpis ? formatDelta(deltaNote, ' pts') : undefined} trendDirection={deltaNote >= 0 ? 'up' : 'down'}/>
             <StatCard title="Alertes nouvelles" value={String(alertesNouvelles)} icon={AlertTriangle} accent={alertesNouvelles > 0 ? 'destructive' : 'success'} index={3}/>
@@ -468,10 +484,13 @@ export const DashboardPage = () => {
                             <HistogrammeSatisfactionSkeleton />
                             <RadarQualiteSkeleton />
                           </>) : (<>
-                            {/* L'histogramme lit les réponses brutes (403 Direction) :
-                on ne l'affiche que hors Direction pour éviter
-                une zone fantôme vide. Le radar est agrégé. */}
-                            {!estDirection && <HistogrammeSatisfaction data={reponsesList}/>}
+                            {/* 2026-09-27 : l'histogramme lit la répartition
+                canonique PAR AVIS (`agregats.distribution5`,
+                même requête et même fenêtre que la carte
+                CSAT) au lieu de recalculer ligne à ligne.
+                Fini la zone fantôme pour la Direction : les
+                agrégats sont scopés par rôle, pas de 403. */}
+                            <HistogrammeSatisfaction distribution={experience?.agregats?.distribution5} labelPeriode={labelPeriode}/>
                             <RadarQualite data={radarData || []}/>
                           </>)}
                       </div>

@@ -68,7 +68,8 @@ export const CATALOGUE_INDICATEURS: DefinitionIndicateur[] = [
   { id: 'SENTIMENT_POSITIF', label: 'Sentiment positif', description: 'Part des sentiments retenus POSITIVE.', formule: '100 × n(POSITIVE retenu) / n(analyses)', source: 'analyse_ia', unite: '%' },
   { id: 'SENTIMENT_NEGATIF', label: 'Sentiment négatif', description: 'Part des sentiments retenus NEGATIVE.', formule: '100 × n(NEGATIVE retenu) / n(analyses)', source: 'analyse_ia', unite: '%' },
   { id: 'CONFIANCE_MOYENNE_IA', label: 'Confiance moyenne IA', description: 'Moyenne des confidences des analyses DONE.', formule: 'moyenne(confidence)', source: 'analyse_ia', unite: '%' },
-  { id: 'DATA_QUALITY_SCORE', label: 'Qualité des données', description: 'Fiabilité du jeu : notables, commentaires, cohérence, legacy, volume.', formule: 'voir scoreQualiteDonnees()', source: 'mixte', unite: '/100' },
+  { id: 'DATA_QUALITY_SCORE', label: 'Qualité technique des données', description: 'Fiabilité du jeu : notables, cohérence (sur analyses), legacy, volume. Les commentaires ne comptent plus (voir RICHESSE).', formule: 'voir scoreQualiteDonnees()', source: 'mixte', unite: '/100' },
+  { id: 'QUALITATIVE_RICHNESS_SCORE', label: 'Richesse qualitative', description: 'Présence et substance des verbatims : commentaires + substantiels (≥ 20 car.).', formule: 'voir scoreRichesseQualitative()', source: 'reponses', unite: '/100' },
 ];
 
 /** Distribution d'une liste de notes /100 vers les bandes CSAT. */
@@ -118,12 +119,28 @@ export interface EntreesQualite {
   incoherentes: number;
   legacy: number;
   inferees: number;
+  /**
+   * Nombre d'analyses IA réellement produites sur la période — DÉNOMINATEUR
+   * de la cohérence. Avant le 2026-09-27, on divisait par `totalReponses`,
+   * ce qui affichait « 98 % cohérence » quand l'IA n'avait analysé que 10 %
+   * des lignes (toutes incohérentes). La cohérence se mesure sur ce qui a
+   * été analysé, pas sur tout ce qui a été collecté.
+   */
+  totalAnalyses: number;
 }
 
 /**
- * DATA_QUALITY_SCORE (§31) — 5 composantes documentées, toutes en [0,1] :
- * notables 35 % + commentées 20 % + cohérence 20 % + (1 − legacy) 15 % +
- * volume (saturé à 50) 10 %. Chaque terme est explicable séparément.
+ * DATA_QUALITY_SCORE (§31) — qualité TECHNIQUE des données, 4 composantes
+ * en [0,1] : notables 40 % + cohérence 25 % + (1 − legacy) 20 % + volume
+ * (saturé à 50) 15 %. Chaque terme est explicable séparément.
+ *
+ * Correctif 2026-09-27 : le taux de commentaires (20 %) est SORTI du score
+ * technique. Un avis parfaitement noté et exploitable perdait jusqu'à 20
+ * points parce que le client n'avait rien écrit — « absence de commentaire »
+ * n'est pas « mauvaise qualité de donnée ». Le taux reste exposé dans
+ * `details.commentaires` à titre INFORMATIF (poids 0) ; la présence et la
+ * substance des verbatims sont mesurées par QUALITATIVE_RICHNESS_SCORE
+ * (`scoreRichesseQualitative` ci-dessous), affiché à côté, jamais mélangé.
  */
 export function scoreQualiteDonnees(e: EntreesQualite): {
   score: number;
@@ -134,11 +151,13 @@ export function scoreQualiteDonnees(e: EntreesQualite): {
   }
   const notables = e.notables / e.totalReponses;
   const commentaires = e.avecCommentaire / e.totalReponses;
-  const coherence = 1 - Math.min(1, e.incoherentes / e.totalReponses);
+  const coherence = e.totalAnalyses > 0
+    ? 1 - Math.min(1, e.incoherentes / e.totalAnalyses)
+    : 1;
   const fraicheurLegacy = 1 - Math.min(1, (e.legacy + e.inferees * 0.5) / e.totalReponses);
   const volume = Math.min(1, e.totalReponses / 50);
   const score = Math.round(
-    100 * (0.35 * notables + 0.2 * commentaires + 0.2 * coherence + 0.15 * fraicheurLegacy + 0.1 * volume),
+    100 * (0.4 * notables + 0.25 * coherence + 0.2 * fraicheurLegacy + 0.15 * volume),
   );
   return {
     score,
@@ -148,6 +167,40 @@ export function scoreQualiteDonnees(e: EntreesQualite): {
       coherence: Math.round(coherence * 100),
       fraicheur_legacy: Math.round(fraicheurLegacy * 100),
       volume: Math.round(volume * 100),
+    },
+  };
+}
+
+export interface EntreesRichesse {
+  totalReponses: number;
+  avecCommentaire: number;
+  /** Commentaires de ≥ 20 caractères après trim : présence + substance. */
+  commentairesSubstantiels: number;
+}
+
+/**
+ * QUALITATIVE_RICHNESS_SCORE — richesse QUALITATIVE du matériau d'analyse,
+ * 2 composantes en [0,1] : présence de commentaires 50 % + verbatims
+ * substantiels 50 %. Un avis noté sans texte vaut 0 ici ET 100 en technique
+ * (`notables`) — les deux scores se lisent côte à côte, ils ne se
+ * compensent jamais. Seuil de substance : 20 caractères (un « merci ! » ne
+ * fait pas un verbatim exploitable, mais compte en présence).
+ */
+export function scoreRichesseQualitative(e: EntreesRichesse): {
+  score: number;
+  details: Record<'commentaires' | 'substantiels', number>;
+} {
+  if (e.totalReponses <= 0) {
+    return { score: 0, details: { commentaires: 0, substantiels: 0 } };
+  }
+  const commentaires = Math.min(1, e.avecCommentaire / e.totalReponses);
+  const substantiels = Math.min(1, e.commentairesSubstantiels / e.totalReponses);
+  const score = Math.round(100 * (0.5 * commentaires + 0.5 * substantiels));
+  return {
+    score,
+    details: {
+      commentaires: Math.round(commentaires * 100),
+      substantiels: Math.round(substantiels * 100),
     },
   };
 }

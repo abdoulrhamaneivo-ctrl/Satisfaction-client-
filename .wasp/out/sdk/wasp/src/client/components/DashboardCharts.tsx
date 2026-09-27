@@ -15,7 +15,6 @@ import {
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '../utils';
-import { noteSur5 } from '../../shared/noteSur5';
 
 type ChartSkeletonVariant = 'bar' | 'radar' | 'area' | 'horizontalBar' | 'heatmap';
 
@@ -231,34 +230,44 @@ const CSAT_COLORS = [
   'hsl(var(--success))',      // 5 ⭐ : Vert succès (Très satisfait)
 ];
 
-export const HistogrammeSatisfaction = ({ data }: { data: any[] }) => {
-  // Vague 1 (P2) : la normalisation n'est plus réimplémentée ici. Cette copie
-  // locale n'avait AUCUNE branche `score_normalise` et laissait un NPS 3/10
-  // entrer dans l'histogramme comme un 3 étoiles.
-  const scores = data
-    .map((reponse) => noteSur5(reponse))
-    .filter((score): score is number => score !== null);
+export const HistogrammeSatisfaction = ({
+  distribution,
+  labelPeriode,
+}: {
+  distribution?: Record<string, number> | null;
+  labelPeriode?: string;
+}) => {
+  // 2026-09-27 : l'histogramme ne recalcule PLUS rien. Avant, il moyennisait
+  // les LIGNES (`noteSur5` ligne à ligne : un avis à 3 questions pesait 3×)
+  // sur une fenêtre différente (90 j / 500 lignes) pendant que la carte CSAT
+  // affichait la moyenne PAR AVIS sur la période — deux chiffres qui ne se
+  // recoupaient jamais. La répartition affichée est désormais
+  // `agregats.distribution5`, calculée par le moteur sur la même requête,
+  // la même fenêtre et la même règle (un avis = une voix) que la carte CSAT.
   const counts = [1, 2, 3, 4, 5].map((note) => ({
     name: `${note} ⭐`,
-    count: scores.filter((score) => Math.round(score) === note).length,
+    count: Math.max(0, Math.round(Number(distribution?.[String(note)] ?? 0))),
   }));
+  const total = counts.reduce((s, c) => s + c.count, 0);
 
-  if (scores.length === 0) {
+  if (total === 0) {
     return (
       <div className="flex h-72 items-center justify-center rounded-2xl border border-border/70 bg-card p-5 text-sm text-muted-foreground">
-        Aucune réponse chiffrée n’est disponible pour cette répartition.
+        Aucun avis noté sur la période pour cette répartition.
       </div>
     );
   }
 
-  const resume = `Répartition de ${scores.length} réponses chiffrées : ${counts
-    .map((c) => `${c.count} note(s) ${c.name}`)
+  const resume = `Répartition de ${total} avis notés${labelPeriode ? ` (${labelPeriode})` : ''} : ${counts
+    .map((c) => `${c.count} avis ${c.name}`)
     .join(', ')}.`;
 
   return (
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-1 text-sm font-bold text-foreground">Répartition des notes</h3>
-      <p className="mb-3 text-xs text-muted-foreground">Scores normalisés sur 5 — réponses qualitatives exclues</p>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Un avis = une voix — même source que la carte CSAT{labelPeriode ? ` (${labelPeriode})` : ''}
+      </p>
       <div role="img" aria-label={resume}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <BarChart data={counts}>
@@ -293,7 +302,7 @@ export const RadarQualite = ({ data }: { data: any[] }) => {
   return (
     <div className="h-72 rounded-2xl border border-border/70 bg-card p-5 shadow-premium">
       <h3 className="mb-1 text-sm font-bold text-foreground">Maturité du pilotage</h3>
-      <p className="mb-3 text-xs text-muted-foreground">Planification, collecte récente et traitement des alertes</p>
+      <p className="mb-3 text-xs text-muted-foreground">Planification, collecte des 30 derniers jours et traitement des alertes</p>
       <div
         role="img"
         aria-label={`Maturité du pilotage, notée de 0 à 100 : ${data

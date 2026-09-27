@@ -345,6 +345,15 @@ disparu. **Le chiffre affiché change** (c'est une correction, pas un
 réglage) et devient explicable composante par composante — le détail est
 désormais transporté jusqu'à l'interface.
 
+Addendum 2026-09-27 (Phase 2) — la formule canonique a changé, à nouveau
+par correction : le taux de commentaires (20 %) est SORTI du score
+technique (un avis noté sans texte perdait 20 points à tort) et la
+cohérence se mesure sur les analyses IA réellement produites (plus sur
+toutes les lignes). Pondération actuelle : notables 40 + cohérence 25 +
+fraîcheur 20 + volume 15. Le taux de commentaires reste exposé à titre
+informatif, et la présence/substance des verbatims est mesurée à part par
+QUALITATIVE_RICHNESS_SCORE (`scoreRichesseQualitative`).
+
 Deux dépendances que la formule canonique a révélées :
 - `score_source` n'était pas dans le SELECT de la requête d'agrégats : la
   composante « fraîcheur » (15 %) aurait été calculée sur une information

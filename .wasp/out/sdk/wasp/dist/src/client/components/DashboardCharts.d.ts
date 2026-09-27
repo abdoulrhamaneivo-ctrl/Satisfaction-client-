@@ -14,8 +14,9 @@ export declare const TendanceMensuelleSkeleton: () => React.JSX.Element;
 export declare const ClassementGuichetsSkeleton: () => React.JSX.Element;
 export declare const ComparaisonAgentsSkeleton: () => React.JSX.Element;
 export declare const HeatmapReponsesSkeleton: () => React.JSX.Element;
-export declare const HistogrammeSatisfaction: ({ data }: {
-    data: any[];
+export declare const HistogrammeSatisfaction: ({ distribution, labelPeriode, }: {
+    distribution?: Record<string, number> | null;
+    labelPeriode?: string;
 }) => React.JSX.Element;
 export declare const RadarQualite: ({ data }: {
     data: any[];

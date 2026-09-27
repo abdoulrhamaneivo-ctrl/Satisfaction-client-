@@ -11,6 +11,7 @@ import { useQuery } from 'wasp/client/operations';
 import {
   getAnalysesGlobales,
   declencherAnalyseGlobale,
+  getObjectifsParAgence,
 } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import {
@@ -48,6 +49,27 @@ import {
 import { useToast } from '../hooks/use-toast';
 
 // ---------- Helpers purs (testables) ----------
+
+/**
+ * Lecture du NPS persisté : l'objet agrégé `{nps, promoteurs, passifs,
+ * detracteurs, volume}` (jamais `Number(objet)` → NaN, bug corrigé le
+ * 2026-09-27), avec repli sur un scalaire historique éventuel.
+ */
+export function lireNpsValeur(indicateurs: any): number | null {
+  const objet =
+    indicateurs?.nps != null && typeof indicateurs.nps === 'object' ? indicateurs.nps : null;
+  if (objet != null && typeof objet.nps === 'number') return objet.nps;
+  if (typeof indicateurs?.nps === 'number') return indicateurs.nps;
+  return null;
+}
+
+/** Ventilation promoteurs/passifs/détracteurs, ou `undefined` si indisponible. */
+export function lireNpsDetail(indicateurs: any): string | undefined {
+  const objet =
+    indicateurs?.nps != null && typeof indicateurs.nps === 'object' ? indicateurs.nps : null;
+  if (objet == null || (objet.volume ?? 0) <= 0) return undefined;
+  return `${objet.promoteurs ?? 0} promoteurs · ${objet.passifs ?? 0} passifs · ${objet.detracteurs ?? 0} détracteurs (${objet.volume} notes)`;
+}
 
 export function parseJson<T>(brut: string | null | undefined, defaut: T): T {
   if (!brut) return defaut;
@@ -141,6 +163,16 @@ export const SyntheseGlobalePage: React.FC = () => {
 
   const indicateurs = parseJson<any>(courante?.indicateurs, null);
   const snapshotCES = indicateurs?.ces ?? null;
+  const npsValeur = lireNpsValeur(indicateurs);
+  const npsDetail = lireNpsDetail(indicateurs);
+  // Richesse qualitative + ventilation : absents des snapshots antérieurs
+  // au 2026-09-27 → gardes `??` systématiques, jamais de crash sur l'ancien.
+  const richesse = indicateurs?.richesse ?? null;
+  const ventilation = indicateurs?.ventilation ?? {};
+  const ventilationAgences: any[] = ventilation.parAgence ?? [];
+  const ventilationServices: any[] = ventilation.parService ?? [];
+  const guichetsTop: any[] = ventilation.guichetsTop ?? [];
+  const guichetsFlop: any[] = ventilation.guichetsFlop ?? [];
   const snapshot = parseJson<any>(courante?.datasetSnapshot, null);
   const pointsPositifs = parseJson<string[]>(courante?.pointsPositifs, []);
   const pointsNegatifs = parseJson<string[]>(courante?.pointsNegatifs, []);
@@ -149,6 +181,14 @@ export const SyntheseGlobalePage: React.FC = () => {
   const anomalies = parseJson<string[]>(courante?.anomalies, []);
   const priorites = parseJson<string[]>(courante?.priorites, []);
   const limites = parseJson<string[]>(courante?.limites, []);
+
+  // Objectifs par agence : requête DIRECTION seule (403 sinon) — on ne
+  // l'appelle que pour la Direction, et la section est masquée aux autres.
+  const { data: objectifsParAgence } = useQuery(
+    getObjectifsParAgence,
+    undefined as any,
+    { enabled: estDirection } as any,
+  );
 
   const lancerAnalyse = async () => {
     setDeclenchement(true);
@@ -294,19 +334,153 @@ export const SyntheseGlobalePage: React.FC = () => {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {[
                     { label: 'CSAT', valeur: indicateurs?.csat != null ? `${Number(indicateurs.csat).toFixed(1)}%` : 'N/A', icon: Target },
-                    { label: 'NPS', valeur: indicateurs?.nps != null ? String(Math.round(Number(indicateurs.nps))) : 'N/A', icon: TrendingUp },
+                    {
+                      label: 'NPS',
+                      valeur: npsValeur != null ? `${npsValeur >= 0 ? '+' : ''}${Math.round(npsValeur)}` : 'N/A',
+                      detail: npsDetail,
+                      icon: TrendingUp,
+                    },
                     { label: 'CES moyen', valeur: snapshotCES && snapshotCES.note_moyenne != null ? `${snapshotCES.note_moyenne}/${snapshotCES.echelle}` : 'non mesuré', icon: Gauge },
                     { label: 'Avis analysés', valeur: snapshot?.volumeAvis != null ? String(snapshot.volumeAvis) : String(courante.volumeAvis ?? 0), icon: Users },
-                    { label: 'Qualité des données', valeur: courante.qualiteDonnees != null ? `${Math.round(Number(courante.qualiteDonnees))}/100` : 'N/A', icon: CheckCircle2 },
+                    { label: 'Qualité technique', valeur: courante.qualiteDonnees != null ? `${Math.round(Number(courante.qualiteDonnees))}/100` : 'N/A', icon: CheckCircle2 },
+                    {
+                      label: 'Richesse qualitative',
+                      valeur: richesse?.score != null ? `${Math.round(Number(richesse.score))}/100` : 'N/A',
+                      detail:
+                        richesse?.details != null
+                          ? `${richesse.details.commentaires ?? 0} % d'avis commentés · ${richesse.details.substantiels ?? 0} % de verbatims substantiels`
+                          : undefined,
+                      icon: Info,
+                    },
                   ].map((k) => (
                     <div key={k.label} className="rounded-2xl border border-border/80 bg-card/70 p-4">
                       <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                         <k.icon className="size-4" aria-hidden /> {k.label}
                       </p>
                       <p className="mt-2 text-2xl font-bold text-foreground">{k.valeur}</p>
+                      {(k as any).detail != null && (
+                        <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{(k as any).detail}</p>
+                      )}
                     </div>
                   ))}
                 </div>
+
+                {/* Ventilation déterministe (mêmes objets que le dashboard live, figés pour la période) */}
+                {(ventilationAgences.length > 0 || ventilationServices.length > 0 || guichetsTop.length > 0 || guichetsFlop.length > 0) && (
+                  <Reveal>
+                    <div className="rounded-2xl border border-border/80 bg-card/70 p-5">
+                      <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        <Users className="size-4" aria-hidden /> Ventilation — CSAT par segment (un avis = une voix)
+                      </p>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {ventilationAgences.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Agences</p>
+                            <ul className="space-y-1 text-sm">
+                              {ventilationAgences.map((a: any) => (
+                                <li key={a.id} className="flex justify-between gap-2">
+                                  <span className="truncate text-foreground">{a.nom}</span>
+                                  <span className="shrink-0 font-bold text-foreground">
+                                    {a.csat != null ? `${a.csat}/100` : '—'}
+                                    <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({a.volume} avis)</span>
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {ventilationServices.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Opérations</p>
+                            <ul className="space-y-1 text-sm">
+                              {ventilationServices.map((s: any, i: number) => (
+                                <li key={s.id ?? `service-${i}`} className="flex justify-between gap-2">
+                                  <span className="truncate text-foreground">{s.nom}</span>
+                                  <span className="shrink-0 font-bold text-foreground">
+                                    {s.csat != null ? `${s.csat}/100` : '—'}
+                                    <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({s.volume} avis)</span>
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {guichetsTop.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Guichets — meilleurs (≥ 5 avis)</p>
+                            <ul className="space-y-1 text-sm">
+                              {guichetsTop.map((g: any) => (
+                                <li key={g.id} className="flex justify-between gap-2">
+                                  <span className="truncate text-foreground">{g.nom}</span>
+                                  <span className="shrink-0 font-bold text-success">
+                                    {g.csat}/100
+                                    <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({g.volume} avis)</span>
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {guichetsFlop.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase text-muted-foreground">Guichets — à accompagner (≥ 5 avis)</p>
+                            <ul className="space-y-1 text-sm">
+                              {guichetsFlop.map((g: any) => (
+                                <li key={g.id} className="flex justify-between gap-2">
+                                  <span className="truncate text-foreground">{g.nom}</span>
+                                  <span className="shrink-0 font-bold text-destructive">
+                                    {g.csat}/100
+                                    <span className="ml-1 text-[11px] font-semibold text-muted-foreground">({g.volume} avis)</span>
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Reveal>
+                )}
+
+                {/* Objectifs par agence (Direction seule — la requête est 403 sinon) */}
+                {estDirection && Array.isArray(objectifsParAgence) && objectifsParAgence.length > 0 && (
+                  <Reveal>
+                    <div className="rounded-2xl border border-border/80 bg-card/70 p-5">
+                      <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                        <Target className="size-4" aria-hidden /> Objectifs par agence — réalisé vs cible (/100)
+                      </p>
+                      <div className="space-y-4">
+                        {(objectifsParAgence as any[]).map((ligne: any) => (
+                          <div key={ligne.agence?.id ?? ligne.agence?.nom_agence}>
+                            <p className="mb-1 text-sm font-bold text-foreground">{ligne.agence?.nom_agence}</p>
+                            {(ligne.objectifs ?? []).length === 0 ? (
+                              <p className="text-xs text-muted-foreground">Aucun objectif suivi pour cette agence.</p>
+                            ) : (
+                              <ul className="space-y-1 text-sm">
+                                {(ligne.objectifs ?? []).map((o: any) => (
+                                  <li key={o.id} className="flex justify-between gap-2">
+                                    <span className="truncate text-foreground">
+                                      {o.critere?.libelle_critere ?? `Critère ${o.id_critere}`}
+                                      <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${o.statut === 'ATTEINT' ? 'bg-success/10 text-success' : o.statut === 'EN_RETARD' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>
+                                        {o.statut === 'ATTEINT' ? 'atteint' : o.statut === 'EN_RETARD' ? 'en retard' : 'sans données'}
+                                      </span>
+                                    </span>
+                                    <span className="shrink-0 font-bold text-foreground">
+                                      {o.realise_pct != null ? `${o.realise_pct}/100` : '—'}
+                                      <span className="ml-1 text-[11px] font-semibold text-muted-foreground">
+                                        (cible {o.cible_pct}/100 · {o.nb_avis ?? 0} avis)
+                                      </span>
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Reveal>
+                )}
 
                 {/* Résumé exécutif */}
                 <Reveal>

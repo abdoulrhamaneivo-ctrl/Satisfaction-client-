@@ -1,4 +1,12 @@
 import React from 'react';
+/**
+ * Lecture du NPS persisté : l'objet agrégé `{nps, promoteurs, passifs,
+ * detracteurs, volume}` (jamais `Number(objet)` → NaN, bug corrigé le
+ * 2026-09-27), avec repli sur un scalaire historique éventuel.
+ */
+export declare function lireNpsValeur(indicateurs: any): number | null;
+/** Ventilation promoteurs/passifs/détracteurs, ou `undefined` si indisponible. */
+export declare function lireNpsDetail(indicateurs: any): string | undefined;
 export declare function parseJson<T>(brut: string | null | undefined, defaut: T): T;
 export declare function libellePeriode(ligne: any): string;
 /**
