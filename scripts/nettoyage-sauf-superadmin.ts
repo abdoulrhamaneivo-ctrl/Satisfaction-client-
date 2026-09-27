@@ -34,7 +34,6 @@ async function counts() {
   c.auditLogs = await prisma.auditLog.count();
   c.files = await prisma.file.count();
   c.objectifs = await prisma.objectif.count();
-  c.statistiques = await prisma.statistiquesMensuelles.count();
   c.votesAntiRejeu = await prisma.voteAntiRejeu.count();
   c.criteres = await prisma.critere.count();
   c.services = await prisma.service.count();
@@ -90,7 +89,6 @@ async function main() {
     await tx.analyseAvisIA.deleteMany({});
     await tx.reponse.deleteMany({});
     await tx.voteAntiRejeu.deleteMany({});
-    await tx.statistiquesMensuelles.deleteMany({});
     await tx.affectationGuichet.deleteMany({});
     await tx.modeleHoraire.deleteMany({});
     await tx.objectif.deleteMany({});
