@@ -121,6 +121,7 @@ export declare const inviterSuperAdmin: import("vitest").Mock<() => Promise<{
 }>>;
 export declare const setup2fa: import("vitest").Mock<() => Promise<{
     secret_pour_qr: string;
+    otpauth_url: string;
 }>>;
 export declare const activer2fa: import("vitest").Mock<() => Promise<{
     message: string;

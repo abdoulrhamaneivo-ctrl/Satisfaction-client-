@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { RequirePlatformRole } from '../../components/RequirePlatformRole'
 import { useQuery, useAction } from 'wasp/client/operations'
 import { getPlatformMe, inviterSuperAdmin, setup2fa, activer2fa } from 'wasp/client/operations'
-import { ShieldCheck, UserPlus, Loader2, CheckCircle2, AlertTriangle, Lock, KeyRound, Timer, Server } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { ShieldCheck, UserPlus, Loader2, CheckCircle2, AlertTriangle, Lock, KeyRound, Timer, Server, Copy, Check } from 'lucide-react'
 
 /**
  * Page Sécurité de la console (Doc 12 §1 — /platform/securite).
@@ -29,6 +30,8 @@ function SecurityInner() {
   const [totpCode, setTotpCode] = useState('')
   const [codeActivation, setCodeActivation] = useState('')
   const [secretTotp, setSecretTotp] = useState<string | null>(null)
+  const [otpauthUrl, setOtpauthUrl] = useState<string | null>(null)
+  const [cleCopiee, setCleCopiee] = useState(false)
   const [mfaErreur, setMfaErreur] = useState<string | null>(null)
   const [mfaMessage, setMfaMessage] = useState<string | null>(null)
   const [mfaActive, setMfaActive] = useState(false)
@@ -50,7 +53,12 @@ function SecurityInner() {
     if (!me || totpActif || setupLance.current) return
     setupLance.current = true
     setup(undefined)
-      .then((r) => setSecretTotp(r.secret_pour_qr))
+      .then((r) => {
+        // setup2fa retourne { otpauth_url, secret_pour_qr } : le QR est la
+        // voie principale (« ajouter en scannant »), la clé reste en repli.
+        setSecretTotp(r.secret_pour_qr)
+        setOtpauthUrl(r.otpauth_url ?? null)
+      })
       .catch((e: any) => setMfaErreur(e?.message ?? 'Impossible de préparer la 2FA.'))
   }, [me?.totp_actif, totpActif])
 
@@ -63,6 +71,17 @@ function SecurityInner() {
       setCodeActivation('')
     } catch (e: any) {
       setMfaErreur(e?.message ?? 'Code 2FA invalide.')
+    }
+  }
+
+  async function copierCle() {
+    if (!secretTotp) return
+    try {
+      await navigator.clipboard.writeText(secretTotp)
+      setCleCopiee(true)
+      setTimeout(() => setCleCopiee(false), 3000)
+    } catch {
+      setMfaErreur('Copie impossible : notez la clé manuellement.')
     }
   }
 
@@ -109,9 +128,58 @@ function SecurityInner() {
         ) : (
           <>
             <p className="mt-2 text-sm text-muted-foreground">
-              Ajoutez ce compte à votre application d’authentification, puis confirmez avec le code affiché.
+              Scannez le QR code avec votre application d’authentification
+              (Google Authenticator, Microsoft Authenticator, 1Password…),
+              puis confirmez ci-dessous avec le code à 6 chiffres affiché.
             </p>
-            {secretTotp && <p className="mt-3 rounded-xl bg-background p-3 font-mono text-sm font-bold tracking-widest">Secret : {secretTotp}</p>}
+            {!secretTotp ? (
+              <p className="mt-3 text-sm text-muted-foreground">Génération du code sécurisé…</p>
+            ) : (
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+                {otpauthUrl && (
+                  <div
+                    role="img"
+                    aria-label="QR code d'activation 2FA à scanner avec votre application d'authentification"
+                    className="shrink-0 self-center rounded-2xl border border-border bg-white p-3 sm:self-start"
+                  >
+                    {/* Fond blanc forcé : le contraste noir-sur-blanc reste
+                        scannable même en mode sombre. Le svg est masqué aux
+                        lecteurs d'écran (doublon décoratif) : seul le
+                        conteneur role="img" porte le libellé. */}
+                    <QRCodeSVG
+                      value={otpauthUrl}
+                      size={180}
+                      level="M"
+                      bgColor="#FFFFFF"
+                      fgColor="#000000"
+                      title="QR code d'activation 2FA"
+                      aria-hidden="true"
+                    />
+                  </div>
+                )}
+                <div className="w-full flex-1 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Saisie manuelle (si le scan est impossible)
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="min-w-0 flex-1 rounded-xl bg-background p-3 font-mono text-sm font-bold tracking-widest">
+                      Clé : {secretTotp}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={copierCle}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold text-foreground hover:bg-muted/60"
+                    >
+                      {cleCopiee ? (
+                        <><Check className="size-4 text-success" /> Copié</>
+                      ) : (
+                        <><Copy className="size-4" /> Copier</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap items-end gap-3">
               <div>
                 <label className={labelCls} htmlFor="sec-mfa-activation">Code à 6 chiffres *</label>

@@ -1187,7 +1187,7 @@
             "file",
             "sdk/wasp/src/client/__mocks__/waspClientOperations.ts"
         ],
-        "3ee70124e6f796b5a3244e184afd04819eb391b7dde38fcbd3710447536c1a11"
+        "b2cdad6b986df6a3bfaa5f8eb4dfd02f3c96ffc15d474fbd97fd06f96f8f1c8a"
     ],
     [
         [
@@ -2034,14 +2034,14 @@
             "file",
             "sdk/wasp/src/client/platform/pages/SecurityPage.test.tsx"
         ],
-        "8ed6957630ccd8457903548f08005b51b727945ccca90860de5272299a7a5e96"
+        "594529f557d41d1f457632bdeb5cc0b314585c6ff39727721ef808f42d9112db"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/SecurityPage.tsx"
         ],
-        "4614195a2860e18d701fcf6636e04f5a313571d0a80c6337abc628e39e1063fc"
+        "9dc174f38c8d23e9c2147c180cc19a85b76ffc10a3c0001be9e32ae767e5a1ca"
     ],
     [
         [

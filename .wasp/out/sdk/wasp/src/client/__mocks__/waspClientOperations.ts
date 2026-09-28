@@ -104,5 +104,9 @@ export const logout = vi.fn(async () => undefined);
 // prenom, totp_actif }.
 export const getPlatformMe = vi.fn(async () => ({ platformRole: 'NONE', email: null, nom: null, prenom: null, totp_actif: false }));
 export const inviterSuperAdmin = vi.fn(async () => ({ message: '' }));
-export const setup2fa = vi.fn(async () => ({ secret_pour_qr: 'TESTSECRET' }));
+export const setup2fa = vi.fn(async () => ({
+  secret_pour_qr: 'TESTSECRET',
+  // Forme réelle de setup2fa (actionsPlatform.ts) : { otpauth_url, secret_pour_qr }.
+  otpauth_url: 'otpauth://totp/Yeba%3Asuperadmin%40yeba.ci?secret=TESTSECRET&issuer=Yeba&algorithm=SHA1&digits=6&period=30',
+}));
 export const activer2fa = vi.fn(async () => ({ message: '' }));

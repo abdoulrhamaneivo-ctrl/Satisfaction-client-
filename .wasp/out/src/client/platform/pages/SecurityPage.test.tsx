@@ -8,7 +8,7 @@
 // la même page via RequirePlatformRole).
 // ============================================================================
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getPlatformMe, setup2fa } from 'wasp/client/operations';
 import SecurityPage from './SecurityPage';
@@ -63,7 +63,11 @@ beforeEach(() => {
     prenom: 'Super',
     totp_actif: true,
   } as any);
-  vi.mocked(setup2fa).mockResolvedValue({ secret_pour_qr: 'TESTSECRET' } as any);
+  vi.mocked(setup2fa).mockResolvedValue({
+    secret_pour_qr: 'TESTSECRET',
+    otpauth_url:
+      'otpauth://totp/Yeba%3Asuperadmin%40yeba.ci?secret=TESTSECRET&issuer=Yeba&algorithm=SHA1&digits=6&period=30',
+  } as any);
 });
 
 describe('guide de déploiement réservé au SUPER_ADMIN', () => {
@@ -90,5 +94,69 @@ describe('guide de déploiement réservé au SUPER_ADMIN', () => {
     // …mais le guide de déploiement n'y figure pas.
     expect(screen.queryByRole('heading', { name: /guide de déploiement/i })).toBeNull();
     expect(screen.queryByText(/OPENROUTER_API_KEY/)).toBeNull();
+  });
+});
+
+describe("QR d'enrôlement 2FA (ajout en scannant)", () => {
+  const ecrirePressePapier = vi.fn(async (_texte: string) => undefined);
+
+  beforeEach(() => {
+    // Compte sans 2FA : l'effet d'enrôlement appelle setup2fa au montage.
+    vi.mocked(getPlatformMe).mockResolvedValue({
+      platformRole: 'SUPER_ADMIN',
+      email: 'superadmin@yeba.ci',
+      nom: 'Admin',
+      prenom: 'Super',
+      totp_actif: false,
+    } as any);
+    ecrirePressePapier.mockClear();
+    Object.assign(navigator, { clipboard: { writeText: ecrirePressePapier } });
+  });
+
+  test('enrôlement → QR scannable + clé manuelle affichés', async () => {
+    monter();
+    // Chaîne à rallonge (query getPlatformMe → effet setup2fa → setState) :
+    // on attend l'apparition plutôt qu'un nombre fixe de ticks.
+    await waitFor(() => {
+      expect(
+        screen.getByRole('img', { name: /qr code d'activation 2fa/i }),
+      ).toBeDefined();
+    });
+    expect(setup2fa).toHaveBeenCalled();
+    expect(screen.getByText(/TESTSECRET/)).toBeDefined();
+    expect(
+      screen.getByRole('button', { name: /copier/i }),
+    ).toBeDefined();
+  });
+
+  test('bouton Copier → la clé est copiée dans le presse-papiers', async () => {
+    monter();
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /copier/i }),
+      ).toBeDefined();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /copier/i }));
+    await waitFor(() => {
+      expect(ecrirePressePapier).toHaveBeenCalledWith('TESTSECRET');
+    });
+    expect(screen.getByText(/copié/i)).toBeDefined();
+  });
+
+  test('2FA déjà active → ni QR ni clé (rien à enrôler)', async () => {
+    vi.mocked(getPlatformMe).mockResolvedValue({
+      platformRole: 'SUPER_ADMIN',
+      email: 'superadmin@yeba.ci',
+      nom: 'Admin',
+      prenom: 'Super',
+      totp_actif: true,
+    } as any);
+    monter();
+    await laisserCharger();
+    expect(
+      screen.queryByRole('img', { name: /qr code d'activation 2fa/i }),
+    ).toBeNull();
+    expect(screen.queryByText(/TESTSECRET/)).toBeNull();
+    expect(screen.getByText(/2FA est activée/)).toBeDefined();
   });
 });
