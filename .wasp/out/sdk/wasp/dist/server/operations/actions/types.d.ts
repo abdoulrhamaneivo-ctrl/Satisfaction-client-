@@ -1,9 +1,10 @@
-import { type _User, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _ModeleHoraire, type _Reponse, type _Critere, type _OptionCritere, type _ReponseOption, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _BrandingConfig, type _AuditLog, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _GlobalExperienceAnalysis, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _AuditLog, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _ModeleHoraire, type _Reponse, type _Critere, type _OptionCritere, type _ReponseOption, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _BrandingConfig, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _GlobalExperienceAnalysis, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
 export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User
 ], Input, Output>;
 export type ChangePassword<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
-    _User
+    _User,
+    _AuditLog
 ], Input, Output>;
 export type ChangeEmail<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User

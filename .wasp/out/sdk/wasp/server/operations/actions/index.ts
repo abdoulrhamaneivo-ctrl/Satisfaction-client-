@@ -94,6 +94,7 @@ export const changePassword: AuthenticatedOperationFor<ChangePassword_ext> =
     changePassword_ext,
     {
       User: prisma.user,
+      AuditLog: prisma.auditLog,
     },
   )
 

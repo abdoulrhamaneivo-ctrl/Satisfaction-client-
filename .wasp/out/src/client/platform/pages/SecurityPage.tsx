@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { RequirePlatformRole } from '../../components/RequirePlatformRole'
 import { useQuery, useAction } from 'wasp/client/operations'
 import { getPlatformMe, inviterSuperAdmin, setup2fa, activer2fa } from 'wasp/client/operations'
-import { ShieldCheck, UserPlus, Loader2, CheckCircle2, AlertTriangle, Lock, KeyRound, Timer } from 'lucide-react'
+import { ShieldCheck, UserPlus, Loader2, CheckCircle2, AlertTriangle, Lock, KeyRound, Timer, Server } from 'lucide-react'
 
 /**
  * Page Sécurité de la console (Doc 12 §1 — /platform/securite).
@@ -189,6 +189,67 @@ function SecurityInner() {
           ))}
         </ul>
       </section>
+
+      {/* Guide de déploiement — SUPER_ADMIN UNIQUEMENT (retiré de /settings).
+          Masquage fail-closed : tant que getPlatformMe ne confirme pas
+          platformRole === 'SUPER_ADMIN', rien n'est affiché — y compris en
+          cas d'erreur de la requête. Contenu statique (noms de variables
+          uniquement, jamais de valeurs) : la vraie frontière reste
+          requirePlatformRole côté serveur. */}
+      {me?.platformRole === 'SUPER_ADMIN' && (
+        <section className="rounded-2xl border border-border/80 bg-card p-6" aria-label="Guide de déploiement">
+          <h2 className="flex items-center gap-2 text-lg font-black text-foreground">
+            <Server className="size-5 text-primary" /> Guide de déploiement
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Configuration sécurisée des variables d’environnement du serveur (Render). Réservé au Super Admin.
+          </p>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4">
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+                <KeyRound className="size-3.5" /> Variables requises sur Render
+              </span>
+              <div className="space-y-2 font-mono text-xs text-foreground">
+                <div className="rounded-lg border border-border/80 bg-card p-2.5">
+                  <span className="text-muted-foreground"># Clé API OpenRouter (requise)</span>
+                  <br />
+                  <span className="font-semibold text-success">OPENROUTER_API_KEY</span>=sk-or-…
+                </div>
+                <div className="rounded-lg border border-border/80 bg-card p-2.5">
+                  <span className="text-muted-foreground"># Modèle (optionnel, défaut DeepSeek V3 via OpenRouter)</span>
+                  <br />
+                  <span className="font-semibold text-primary">OPENROUTER_MODEL</span>=deepseek/deepseek-chat-v3-0324
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-success">
+                Fonctionnalités IA de Yéba
+              </span>
+              <ul className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <span className="text-success">✓</span>
+                  <span><strong>Détection de sentiment</strong> : Positif, Neutre ou Négatif.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-success">✓</span>
+                  <span><strong>Score d'urgence</strong> : Faible, Modérée, Élevée ou Critique.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-success">✓</span>
+                  <span><strong>Extraction des thèmes</strong> : Temps d'attente, Propreté, Accueil, etc.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-success">✓</span>
+                  <span><strong>Synthèse automatique</strong> : Résumé concis généré pour les équipes qualité.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Identité */}
       {me && (

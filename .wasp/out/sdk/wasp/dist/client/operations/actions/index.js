@@ -2,7 +2,7 @@ import { createAction } from './core';
 // PUBLIC API
 export const updateProfile = createAction('operations/update-profile', ['User']);
 // PUBLIC API
-export const changePassword = createAction('operations/change-password', ['User']);
+export const changePassword = createAction('operations/change-password', ['User', 'AuditLog']);
 // PUBLIC API
 export const changeEmail = createAction('operations/change-email', ['User']);
 // PUBLIC API

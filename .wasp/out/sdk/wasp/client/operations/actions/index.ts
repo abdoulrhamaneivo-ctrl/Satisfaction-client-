@@ -75,7 +75,7 @@ export const updateProfile: ActionFor<UpdateProfile_ext> = createAction<UpdatePr
 // PUBLIC API
 export const changePassword: ActionFor<ChangePassword_ext> = createAction<ChangePassword_ext>(
   'operations/change-password',
-  ['User'],
+  ['User', 'AuditLog'],
 )
 
 // PUBLIC API

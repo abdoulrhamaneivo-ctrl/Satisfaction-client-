@@ -109,3 +109,19 @@ export declare const getThemesStats: import("vitest").Mock<() => Promise<{
 export declare const getIndicateursExperience: import("vitest").Mock<() => Promise<null>>;
 export declare const getReponses: import("vitest").Mock<() => Promise<never[]>>;
 export declare const logout: import("vitest").Mock<() => Promise<undefined>>;
+export declare const getPlatformMe: import("vitest").Mock<() => Promise<{
+    platformRole: string;
+    email: null;
+    nom: null;
+    prenom: null;
+    totp_actif: boolean;
+}>>;
+export declare const inviterSuperAdmin: import("vitest").Mock<() => Promise<{
+    message: string;
+}>>;
+export declare const setup2fa: import("vitest").Mock<() => Promise<{
+    secret_pour_qr: string;
+}>>;
+export declare const activer2fa: import("vitest").Mock<() => Promise<{
+    message: string;
+}>>;

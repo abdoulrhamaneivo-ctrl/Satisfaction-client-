@@ -92,4 +92,11 @@ export const getThemesStats = vi.fn(async () => ({ total: 0, topThemes: [] }));
 export const getIndicateursExperience = vi.fn(async () => null);
 export const getReponses = vi.fn(async () => []);
 export const logout = vi.fn(async () => undefined);
+// Console /platform (SecurityPage, pages Entreprises) — forme réelle de
+// `getPlatformMe` (queriesPlatform.ts:249) : { platformRole, email, nom,
+// prenom, totp_actif }.
+export const getPlatformMe = vi.fn(async () => ({ platformRole: 'NONE', email: null, nom: null, prenom: null, totp_actif: false }));
+export const inviterSuperAdmin = vi.fn(async () => ({ message: '' }));
+export const setup2fa = vi.fn(async () => ({ secret_pour_qr: 'TESTSECRET' }));
+export const activer2fa = vi.fn(async () => ({ message: '' }));
 //# sourceMappingURL=waspClientOperations.js.map

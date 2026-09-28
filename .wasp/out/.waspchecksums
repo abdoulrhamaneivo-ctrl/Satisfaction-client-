@@ -480,7 +480,7 @@
             "file",
             "sdk/wasp/client/operations/actions/index.ts"
         ],
-        "0ac291c455025a185be2a020e46619c4c9e7bf2aaeae991e9cf59009932c4686"
+        "57d343c94f90546497bddef6c5d61ce446978e70f72051bf4b777fab71c05dfb"
     ],
     [
         [
@@ -1005,14 +1005,14 @@
             "file",
             "sdk/wasp/server/operations/actions/index.ts"
         ],
-        "a3779f248cc03fa1deb5eb9b9b950a61701e188bb4d3747b4a930b9a83f51fc9"
+        "e4c22cd0e8bfe493e71afe51665a82c5153a5275ee202f03a21fadabb775de17"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/actions/types.ts"
         ],
-        "5fb55243eaef02f7d3c508fcd45b1ea52475ec0c71dda1b83f5c23921ac7abe7"
+        "df53b137f463c3e1273ffb001455a1293b83aab1c6f8896454e703b457c3b783"
     ],
     [
         [
@@ -1187,7 +1187,7 @@
             "file",
             "sdk/wasp/src/client/__mocks__/waspClientOperations.ts"
         ],
-        "f210fd1055a30fcd216b43944b9277c08a111f3c01800b0e80970162052ae78c"
+        "3ee70124e6f796b5a3244e184afd04819eb391b7dde38fcbd3710447536c1a11"
     ],
     [
         [
@@ -1467,7 +1467,7 @@
             "file",
             "sdk/wasp/src/client/components/Sidebar.tsx"
         ],
-        "ffbea417d0bb16ebcf551e39667b18d5e4a22aab80608798bdb1548bbc8da938"
+        "1ff9eceff05ad2fbc37a2a7261d2183d98f652b349eedb8ef995b4bbc02b1137"
     ],
     [
         [
@@ -1964,7 +1964,7 @@
             "file",
             "sdk/wasp/src/client/pages/SettingsPage.tsx"
         ],
-        "1c6da5233ed2161e3fb75b922858cdae9737db2bfbac1e3b935605e5554847d6"
+        "815666ac9d746a1d546a757d0e4da57534ea5de56a6870ceb81f34f71f3ce1a5"
     ],
     [
         [
@@ -2032,9 +2032,16 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/platform/pages/SecurityPage.test.tsx"
+        ],
+        "8ed6957630ccd8457903548f08005b51b727945ccca90860de5272299a7a5e96"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/platform/pages/SecurityPage.tsx"
         ],
-        "397c5369a2b95f8028314463a539cc235e0d69875818d4715957d5fe529a140d"
+        "4614195a2860e18d701fcf6636e04f5a313571d0a80c6337abc628e39e1063fc"
     ],
     [
         [
@@ -2895,7 +2902,7 @@
             "file",
             "sdk/wasp/src/user/accountsActions.ts"
         ],
-        "ba61c155f721e987fcc2bcceca6396dd8e7a44c35241e928f664ea437147f075"
+        "54c5fa894f2a5049ce7ea375b99e4d11cf8da63eab388b2acdc309f9ecb6e71a"
     ],
     [
         [
@@ -2909,7 +2916,7 @@
             "file",
             "sdk/wasp/src/user/user.wasp.ts"
         ],
-        "6805ac567f2300b50d58fd8d4a2c8a640ecbe0a2745445e3b6c72c2d85937bc1"
+        "9d9202e7aaf5c4dd95838914db6f3ec1e554f3347e0cfef773a49d4f0b831fed"
     ],
     [
         [
@@ -3091,7 +3098,7 @@
             "file",
             "server/src/actions/changePassword.ts"
         ],
-        "08733c440b30460b71046ae078d8899eee5c5de3cb9ed902499699ce499b1e24"
+        "0d7a4305095733ba2a1c1f99ceb3132b46005b3a9a6a8db3b3b1dffa7d645b52"
     ],
     [
         [

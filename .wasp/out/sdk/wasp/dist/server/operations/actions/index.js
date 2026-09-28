@@ -73,6 +73,7 @@ export const updateProfile = createAuthenticatedOperation(updateProfile_ext, {
 // PUBLIC API
 export const changePassword = createAuthenticatedOperation(changePassword_ext, {
     User: prisma.user,
+    AuditLog: prisma.auditLog,
 });
 // PUBLIC API
 export const changeEmail = createAuthenticatedOperation(changeEmail_ext, {

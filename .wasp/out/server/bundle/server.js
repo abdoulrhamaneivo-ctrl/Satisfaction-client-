@@ -914,6 +914,145 @@ function validerSecretEnv(nom, val) {
   return val;
 }
 
+class MemoryStore {
+  buckets = /* @__PURE__ */ new Map();
+  lastPurge = Date.now();
+  async get(key) {
+    return this.buckets.get(key);
+  }
+  async set(key, bucket) {
+    this.buckets.set(key, bucket);
+    if (Date.now() - this.lastPurge > 5 * 60 * 1e3) {
+      await this.purge(30 * 60 * 1e3);
+      this.lastPurge = Date.now();
+    }
+  }
+  async purge(inactifDepuisMs) {
+    const maintenant = Date.now();
+    for (const [key, b] of this.buckets) {
+      if (maintenant - b.lastRefill > inactifDepuisMs) this.buckets.delete(key);
+    }
+  }
+}
+let redisClient = null;
+async function getRedisClient() {
+  if (redisClient) return redisClient;
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  try {
+    const { createClient } = await import('redis');
+    redisClient = createClient({ url });
+    redisClient.on("error", (err) => console.error("[Redis] rate-limit client error:", err));
+    await redisClient.connect();
+    console.log("[Redis] rate-limit connect\xE9");
+  } catch (e) {
+    console.warn("[Redis] client non dispo, fallback MemoryStore:", e);
+    redisClient = false;
+  }
+  return redisClient || null;
+}
+class RedisStore {
+  async get(key) {
+    const client = await getRedisClient();
+    if (!client) return void 0;
+    const val = await client.get(`rl:${key}`);
+    if (!val) return void 0;
+    const [tokens, lastRefill] = val.split(":").map(Number);
+    return { tokens, lastRefill };
+  }
+  async set(key, bucket) {
+    const client = await getRedisClient();
+    if (!client) return;
+    await client.set(`rl:${key}`, `${bucket.tokens}:${bucket.lastRefill}`, { EX: 120 });
+  }
+  async purge(_inactifDepuisMs) {
+  }
+}
+const store = process.env.REDIS_URL ? new RedisStore() : new MemoryStore();
+if (!process.env.REDIS_URL && process.env.NODE_ENV === "production") {
+  console.warn(
+    "[rate-limit] ATTENTION : REDIS_URL absent \u2014 les limites sont tenues par instance. Elles restent effectives en mono-instance, mais sont multipli\xE9es par le nombre d\u2019instances. D\xE9finir REDIS_URL avant tout scale horizontal."
+  );
+}
+async function checkRateLimit(key, opts) {
+  const now = Date.now();
+  let bucket = await store.get(key);
+  if (!bucket) {
+    bucket = { tokens: opts.capacity, lastRefill: now };
+  }
+  const elapsedMinutes = (now - bucket.lastRefill) / 6e4;
+  if (elapsedMinutes > 0) {
+    bucket.tokens = Math.min(opts.capacity, bucket.tokens + elapsedMinutes * opts.refillPerMinute);
+    bucket.lastRefill = now;
+  }
+  if (bucket.tokens < 1) {
+    const retryAfterSeconds = Math.ceil(60 / opts.refillPerMinute);
+    await store.set(key, bucket);
+    return { allowed: false, retryAfterSeconds };
+  }
+  bucket.tokens -= 1;
+  await store.set(key, bucket);
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+function nombreDeProxysDeConfiance() {
+  const brut = process.env.TRUST_PROXY_HOPS;
+  if (brut === void 0 || brut === "") return 1;
+  const n = Number(brut);
+  if (!Number.isInteger(n) || n < 0) {
+    console.warn(
+      `[rate-limit] TRUST_PROXY_HOPS ignor\xE9 (valeur invalide : ${brut}) \u2014 1 par d\xE9faut`
+    );
+    return 1;
+  }
+  return n;
+}
+function normaliserIp(ip) {
+  return ip.startsWith("::ffff:") ? ip.slice(7) : ip;
+}
+function extraireIp(context) {
+  const req = context?.req ?? context?.request;
+  const ipExpress = req?.ip;
+  if (typeof ipExpress === "string" && ipExpress.length > 0) return normaliserIp(ipExpress);
+  const socket = req?.socket?.remoteAddress;
+  if (typeof socket === "string" && socket.length > 0) return normaliserIp(socket);
+  return "inconnue";
+}
+function extraireIpDeRequete(req) {
+  return extraireIp({ req });
+}
+
+async function journaliser({
+  context,
+  action,
+  resource,
+  resource_id = null,
+  entreprise_id = null,
+  details = void 0
+}) {
+  try {
+    const user = context?.user;
+    const ipBrute = extraireIp(context);
+    const ip = ipBrute === "inconnue" ? null : ipBrute;
+    const req = context?.req ?? context?.request;
+    const userAgent = req?.headers?.["user-agent"]?.slice(0, 300) || null;
+    await context.entities.AuditLog.create({
+      data: {
+        actor_id: user?.id ?? "public",
+        actor_role: user?.platformRole && user?.platformRole !== "NONE" ? user?.platformRole : user?.role ?? null,
+        action,
+        resource,
+        resource_id: resource_id != null ? String(resource_id) : null,
+        entreprise_id: entreprise_id ?? user?.id_entreprise ?? null,
+        details: details ?? void 0,
+        ip,
+        user_agent: userAgent
+      }
+    });
+  } catch (e) {
+    console.warn("[AUDIT] \xC9chec \xE9criture audit (non bloquant):", e?.message);
+  }
+}
+
 const updateProfileSchema = z.object({
   nom: z.string().trim().min(1, "Le nom est requis.").max(100),
   prenom: z.string().trim().min(1, "Le pr\xE9nom est requis.").max(100),
@@ -958,6 +1097,14 @@ const changePassword$2 = async (rawArgs, context) => {
   await context.entities.User.update({
     where: { id: context.user.id },
     data: { mustChangePassword: false }
+  });
+  await journaliser({
+    context,
+    action: "password.reset_done",
+    resource: "User",
+    resource_id: context.user.id,
+    entreprise_id: context.user.id_entreprise ?? null,
+    details: { par: "compte_personnel" }
   });
   return { success: true };
 };
@@ -1022,7 +1169,8 @@ async function changePassword$1(args, context) {
   return changePassword$2(args, {
     ...context,
     entities: {
-      User: dbClient.user
+      User: dbClient.user,
+      AuditLog: dbClient.auditLog
     }
   });
 }
@@ -1421,145 +1569,6 @@ async function envoyerAlerteWhatsApp(destinataire, message) {
     await envoyerAlerteSMS(numero, message);
   } else {
     console.log(`event=notification_sent channel=whatsapp dest=${empreinteNumero(numero)}`);
-  }
-}
-
-class MemoryStore {
-  buckets = /* @__PURE__ */ new Map();
-  lastPurge = Date.now();
-  async get(key) {
-    return this.buckets.get(key);
-  }
-  async set(key, bucket) {
-    this.buckets.set(key, bucket);
-    if (Date.now() - this.lastPurge > 5 * 60 * 1e3) {
-      await this.purge(30 * 60 * 1e3);
-      this.lastPurge = Date.now();
-    }
-  }
-  async purge(inactifDepuisMs) {
-    const maintenant = Date.now();
-    for (const [key, b] of this.buckets) {
-      if (maintenant - b.lastRefill > inactifDepuisMs) this.buckets.delete(key);
-    }
-  }
-}
-let redisClient = null;
-async function getRedisClient() {
-  if (redisClient) return redisClient;
-  const url = process.env.REDIS_URL;
-  if (!url) return null;
-  try {
-    const { createClient } = await import('redis');
-    redisClient = createClient({ url });
-    redisClient.on("error", (err) => console.error("[Redis] rate-limit client error:", err));
-    await redisClient.connect();
-    console.log("[Redis] rate-limit connect\xE9");
-  } catch (e) {
-    console.warn("[Redis] client non dispo, fallback MemoryStore:", e);
-    redisClient = false;
-  }
-  return redisClient || null;
-}
-class RedisStore {
-  async get(key) {
-    const client = await getRedisClient();
-    if (!client) return void 0;
-    const val = await client.get(`rl:${key}`);
-    if (!val) return void 0;
-    const [tokens, lastRefill] = val.split(":").map(Number);
-    return { tokens, lastRefill };
-  }
-  async set(key, bucket) {
-    const client = await getRedisClient();
-    if (!client) return;
-    await client.set(`rl:${key}`, `${bucket.tokens}:${bucket.lastRefill}`, { EX: 120 });
-  }
-  async purge(_inactifDepuisMs) {
-  }
-}
-const store = process.env.REDIS_URL ? new RedisStore() : new MemoryStore();
-if (!process.env.REDIS_URL && process.env.NODE_ENV === "production") {
-  console.warn(
-    "[rate-limit] ATTENTION : REDIS_URL absent \u2014 les limites sont tenues par instance. Elles restent effectives en mono-instance, mais sont multipli\xE9es par le nombre d\u2019instances. D\xE9finir REDIS_URL avant tout scale horizontal."
-  );
-}
-async function checkRateLimit(key, opts) {
-  const now = Date.now();
-  let bucket = await store.get(key);
-  if (!bucket) {
-    bucket = { tokens: opts.capacity, lastRefill: now };
-  }
-  const elapsedMinutes = (now - bucket.lastRefill) / 6e4;
-  if (elapsedMinutes > 0) {
-    bucket.tokens = Math.min(opts.capacity, bucket.tokens + elapsedMinutes * opts.refillPerMinute);
-    bucket.lastRefill = now;
-  }
-  if (bucket.tokens < 1) {
-    const retryAfterSeconds = Math.ceil(60 / opts.refillPerMinute);
-    await store.set(key, bucket);
-    return { allowed: false, retryAfterSeconds };
-  }
-  bucket.tokens -= 1;
-  await store.set(key, bucket);
-  return { allowed: true, retryAfterSeconds: 0 };
-}
-function nombreDeProxysDeConfiance() {
-  const brut = process.env.TRUST_PROXY_HOPS;
-  if (brut === void 0 || brut === "") return 1;
-  const n = Number(brut);
-  if (!Number.isInteger(n) || n < 0) {
-    console.warn(
-      `[rate-limit] TRUST_PROXY_HOPS ignor\xE9 (valeur invalide : ${brut}) \u2014 1 par d\xE9faut`
-    );
-    return 1;
-  }
-  return n;
-}
-function normaliserIp(ip) {
-  return ip.startsWith("::ffff:") ? ip.slice(7) : ip;
-}
-function extraireIp(context) {
-  const req = context?.req ?? context?.request;
-  const ipExpress = req?.ip;
-  if (typeof ipExpress === "string" && ipExpress.length > 0) return normaliserIp(ipExpress);
-  const socket = req?.socket?.remoteAddress;
-  if (typeof socket === "string" && socket.length > 0) return normaliserIp(socket);
-  return "inconnue";
-}
-function extraireIpDeRequete(req) {
-  return extraireIp({ req });
-}
-
-async function journaliser({
-  context,
-  action,
-  resource,
-  resource_id = null,
-  entreprise_id = null,
-  details = void 0
-}) {
-  try {
-    const user = context?.user;
-    const ipBrute = extraireIp(context);
-    const ip = ipBrute === "inconnue" ? null : ipBrute;
-    const req = context?.req ?? context?.request;
-    const userAgent = req?.headers?.["user-agent"]?.slice(0, 300) || null;
-    await context.entities.AuditLog.create({
-      data: {
-        actor_id: user?.id ?? "public",
-        actor_role: user?.platformRole && user?.platformRole !== "NONE" ? user?.platformRole : user?.role ?? null,
-        action,
-        resource,
-        resource_id: resource_id != null ? String(resource_id) : null,
-        entreprise_id: entreprise_id ?? user?.id_entreprise ?? null,
-        details: details ?? void 0,
-        ip,
-        user_agent: userAgent
-      }
-    });
-  } catch (e) {
-    console.warn("[AUDIT] \xC9chec \xE9criture audit (non bloquant):", e?.message);
   }
 }
 

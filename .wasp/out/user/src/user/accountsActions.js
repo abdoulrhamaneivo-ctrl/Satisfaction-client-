@@ -11,6 +11,7 @@ import { Argon2id } from 'oslo/password';
 import * as z from 'zod';
 import { requireAuth } from '../server/middleware/rowLevelSecurity';
 import { ensureArgsSchemaOrThrowHttpError } from '../server/validation';
+import { journaliser } from '../server/audit';
 // ─────────────────────────────────────────────
 // 1. Modifier le profil (nom, prénom, téléphone)
 // ─────────────────────────────────────────────
@@ -66,6 +67,16 @@ export const changePassword = async (rawArgs, context) => {
     await context.entities.User.update({
         where: { id: context.user.id },
         data: { mustChangePassword: false },
+    });
+    // Traçabilité : qui a changé son mot de passe, quand. `entreprise_id`
+    // null = compte plateforme (hors tenant). Aucun secret n'est journalisé.
+    await journaliser({
+        context,
+        action: 'password.reset_done',
+        resource: 'User',
+        resource_id: context.user.id,
+        entreprise_id: context.user.id_entreprise ?? null,
+        details: { par: 'compte_personnel' },
     });
     return { success: true };
 };

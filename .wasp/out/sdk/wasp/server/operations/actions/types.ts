@@ -1,5 +1,6 @@
 import {
   type _User,
+  type _AuditLog,
   type _File,
   type _Guichet,
   type _Service,
@@ -18,7 +19,6 @@ import {
   type _AnalyseAvisIA,
   type _Canal,
   type _BrandingConfig,
-  type _AuditLog,
   type _Invitation,
   type _Objectif,
   type _TacheCorrective,
@@ -43,6 +43,7 @@ export type ChangePassword<Input extends Payload = never, Output extends Payload
   AuthenticatedActionDefinition<
     [
       _User,
+      _AuditLog,
     ],
     Input,
     Output
