@@ -8,7 +8,7 @@ import { PageHeader } from '../components/PageHeader';
 import { RequireAuth } from '../components/RequireAuth';
 import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
 import { useToast } from '../hooks/use-toast';
-import { Cpu, CheckCircle2, AlertTriangle, Key, Server, Sparkles, Activity, RefreshCw, Palette, Loader2 } from 'lucide-react';
+import { Cpu, CheckCircle2, AlertTriangle, Sparkles, Activity, RefreshCw, Palette, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -73,7 +73,7 @@ export const SettingsPage = () => {
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {aiStatus?.configured
                       ? 'Les avis soumis avec commentaires sont automatiquement analysés par le modèle IA.'
-                      : 'Veuillez ajouter OPENROUTER_API_KEY dans vos variables d’environnement Railway pour activer le traitement.'}
+                      : 'Veuillez ajouter OPENROUTER_API_KEY dans vos variables d’environnement Render pour activer le traitement.'}
                   </p>
                 </MotionCard>
 
@@ -104,64 +104,9 @@ export const SettingsPage = () => {
                 </MotionCard>
               </div>
 
-              {/* Instructions de Configuration pour l'administrateur */}
-              <MotionCard className="p-8 space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                    <Key className="size-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground">Guide de Déploiement Railway (OpenRouter)</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Configuration sécurisée des variables d’environnement du serveur.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                  <div className="space-y-3 p-4 rounded-xl bg-background/50 border border-border/70">
-                    <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                      <Server className="size-3.5" /> Variables requises sur Railway
-                    </span>
-                    <div className="space-y-2 font-mono text-xs text-foreground">
-                      <div className="p-2.5 rounded-lg bg-card border border-border/80">
-                        <span className="text-muted-foreground"># Clé API OpenRouter</span>
-                        <br />
-                        <span className="text-success font-semibold">OPENROUTER_API_KEY</span>=«redacted:sk-or-…»
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-card border border-border/80">
-                        <span className="text-muted-foreground"># Modèle (Optionnel, défaut DeepSeek V3 via OpenRouter)</span>
-                        <br />
-                        <span className="text-primary font-semibold">OPENROUTER_MODEL</span>=deepseek/deepseek-chat-v3-0324
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 p-4 rounded-xl bg-background/50 border border-border/70">
-                    <span className="text-xs font-bold uppercase tracking-wider text-success">
-                      Fonctionnalités IA de YEBA
-                    </span>
-                    <ul className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-                      <li className="flex items-start gap-2">
-                        <span className="text-success">✓</span>
-                        <span><strong>Détection de sentiment</strong> : Positif, Neutre ou Négatif.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-success">✓</span>
-                        <span><strong>Score d'urgence</strong> : Faible, Modérée, Élevée ou Critique.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-success">✓</span>
-                        <span><strong>Extraction des thèmes</strong> : Temps d'attente, Propreté, Accueil, etc.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-success">✓</span>
-                        <span><strong>Synthèse automatique</strong> : Résumé concis généré pour les équipes qualité.</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </MotionCard>
+              {/* Le « Guide de déploiement » vivait ici : retiré — il est
+                  désormais réservé au SUPER_ADMIN dans /platform/securite.
+                  Les 3 cartes IA ci-dessus restent pour la DIRECTION. */}
               <SectionPersonnalisation />
             </>
           )}

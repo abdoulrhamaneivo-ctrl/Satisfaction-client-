@@ -135,11 +135,22 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
             </span>
             <NavItem to="/platform/audit" icon={ScrollText} label="Journal d'audit" isActive={isCurrent('/platform/audit')} onNavigate={onNavigate} />
             <NavItem to="/platform/securite" icon={Lock} label="Sécurité" isActive={isCurrent('/platform/securite')} onNavigate={onNavigate} />
+            {/* « Mon compte » (changement de mot de passe) : aucun point
+                d'entrée n'existait pour les comptes plateforme — le /account
+                n'était atteignable que par redirection forcée. */}
+            <NavItem to="/account" icon={UserRound} label="Mon compte" isActive={isCurrent('/account')} onNavigate={onNavigate} />
           </div>
         </div>
 
         <div className="p-4 border-t border-border/70 space-y-3 bg-muted/20 mt-auto">
-          <div className="flex items-center gap-2.5">
+          {/* Puce identité cliquable vers /account — miroir du footer
+              entreprise : le changement de mot de passe y est accessible. */}
+          <Link
+            to="/account"
+            onClick={onNavigate}
+            title="Mon compte"
+            className="flex items-center gap-2.5 overflow-hidden rounded-xl px-1 py-1 hover:bg-muted/60 transition-colors"
+          >
             <div className="size-8 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-bold text-xs shrink-0">
               {user ? (user as any).email?.[0]?.toUpperCase() : 'A'}
             </div>
@@ -151,7 +162,7 @@ export function SidebarContent({ onNavigate, className }: SidebarContentProps) {
                 {platformRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Support'}
               </span>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center justify-between gap-1 pt-1">
             <div className="flex items-center gap-1">
               <DarkModeSwitcher />

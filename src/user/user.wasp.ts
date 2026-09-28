@@ -16,6 +16,9 @@ import {
 export const userSpec: Spec = [
   route("AccountRoute", "/account", page(AccountPage, { authRequired: true })),
   action(updateProfile, { entities: ["User"] }),
-  action(changePassword, { entities: ["User"] }),
+  // "AuditLog" : changePassword journalise 'password.reset_done' via
+  // journaliser() — seules les entités déclarées sont injectées dans
+  // context.entities (sinon l'écriture d'audit échoue en silence).
+  action(changePassword, { entities: ["User", "AuditLog"] }),
   action(changeEmail, { entities: ["User"] }),
 ];
