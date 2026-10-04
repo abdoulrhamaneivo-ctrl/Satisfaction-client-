@@ -731,10 +731,12 @@ export const getFormDefinitionForGuichet = async (
                   // QCM/CASES (le client envoie des optionIds, jamais de
                   // position). Actives seules, ordre d'affichage. AUCUN
                   // score/poids ne quitte le serveur (résolution serveur).
+                  // Task 2 : code_metier exposé (AUTRE_LIBRE/EXCLUSIF) pour
+                  // le champ Autre conditionnel — jamais un score.
                   options: {
                     where: { actif: true },
                     orderBy: { ordre_affichage: 'asc' },
-                    select: { id: true, libelle: true },
+                    select: { id: true, libelle: true, code_metier: true },
                   },
                 },
               },
@@ -766,7 +768,7 @@ export const getFormDefinitionForGuichet = async (
                   options: {
                     where: { actif: true },
                     orderBy: { ordre_affichage: 'asc' },
-                    select: { id: true, libelle: true },
+                    select: { id: true, libelle: true, code_metier: true },
                   },
                 },
               },

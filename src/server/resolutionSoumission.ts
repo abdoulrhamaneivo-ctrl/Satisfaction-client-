@@ -19,6 +19,7 @@ import {
   resoudreNPS,
   resoudreCases,
   resoudreCasesMoyenne,
+  estAutreLibre,
   type CritereMoteur,
   type ProvenanceScore,
   type ResolutionScoring,
@@ -32,7 +33,21 @@ export type EntreeBrute = {
   optionIds?: string[];
   valeur?: number;
   valeurOui?: boolean;
+  /** Verbatim de l'option « Autre (précisez) » (Task 2, déjà nettoyé). */
+  autreTexte?: string;
 };
+
+/**
+ * Task 2 — Marqueur du verbatim Autre dans ItemResolu.texte.
+ * `construireLigne` (actions.ts) le convertit en `Autre — "verbatim"`
+ * pour commentaire_texte ; le score reste NON_NOTABLE.
+ */
+export const PREFIXE_AUTRE = 'AUTRE::';
+
+/** `Autre — "verbatim"` : forme stockée (commentaire_texte) et envoyée à l'IA. */
+export function formaterAutreStockage(verbatim: string): string {
+  return `Autre — "${verbatim}"`;
+}
 
 export type ItemResolu = {
   critereId: number;
@@ -61,6 +76,13 @@ export function normaliserEntree(r: any): EntreeBrute {
   }
   if (r?.valeur !== undefined && r?.valeur !== null && r?.valeur !== '') e.valeur = Number(r.valeur);
   if (typeof r?.valeurOui === 'boolean') e.valeurOui = r.valeurOui;
+  // Task 2 : le verbatim Autre voyage avec l'identifiant (jamais seul) —
+  // même nettoyage que le client (miroir de nettoyerAutreTexte : le serveur
+  // ne croit jamais le client sur parole). Vide → absent.
+  if (typeof r?.autreTexte === 'string') {
+    const propre = r.autreTexte.replace(/[•;|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1000);
+    if (propre) e.autreTexte = propre;
+  }
   return e;
 }
 
@@ -130,6 +152,12 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
   const version = Number(critere?.version) || 1;
   let res: ResolutionScoring;
   let libelleOption: string | undefined;
+  // Task 2 : verbatim Autre (`AUTRE::…`), jamais un score.
+  let texteAutre: string | undefined;
+
+  // Task 2 : l'option visée est-elle un « Autre (précisez) » ?
+  const estAutre = (vise: any): boolean =>
+    !!vise && estAutreLibre({ code_metier: vise?.code_metier ?? null });
 
   if (type === 'TEXTE') {
     // Un texte libre ne devient JAMAIS une note officielle (fini le 3).
@@ -143,21 +171,40 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
   } else if (type === 'QCM') {
     if (entree.optionId) {
       const vise = (critere.options ?? []).find((o: any) => String(o.id) === entree.optionId);
-      res = resoudreReponse(cm, { type: 'option', optionId: entree.optionId },
-        vise ? provenanceDe(vise) : 'INFERRED');
-      if (res.statut === 'OK') libelleOption = vise?.libelle;
+      if (estAutre(vise)) {
+        // Task 2 : Autre libre — score sur l'id (NON_NOTABLE, jamais
+        // EXCLUSIVITE_VIOLEE), verbatim conservé avec marqueur.
+        res = {
+          statut: 'NON_NOTABLE', score_officiel: null, score_normalise: null,
+          source: null, options_retenues: [String(vise.id)], raison: 'AUTRE_LIBRE',
+        };
+        if (entree.autreTexte) texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+      } else {
+        res = resoudreReponse(cm, { type: 'option', optionId: entree.optionId },
+          vise ? provenanceDe(vise) : 'INFERRED');
+        if (res.statut === 'OK') libelleOption = vise?.libelle;
+      }
     } else if (entree.texte) {
       // Compat pré-Phase E : appariement par libellé normalisé (jamais
       // par position), stampé MIGRATED.
       const vise = apparierParLibelle(critere, entree.texte);
       if (!vise) throw new HttpError(400, messageAmbigu('OPTION_INCONNUE', type));
-      res = resoudreReponse(cm, { type: 'option', optionId: String(vise.id) },
-        provenanceDe(vise));
-      if (res.statut === 'OK') {
-        libelleOption = vise.libelle;
-        res = { ...res, source: 'MIGRATED' };
-      } else if (res.statut === 'NON_NOTABLE') {
-        libelleOption = vise.libelle;
+      if (estAutre(vise)) {
+        // Task 2 : legacy pointant sur l'option Autre — même traitement.
+        res = {
+          statut: 'NON_NOTABLE', score_officiel: null, score_normalise: null,
+          source: 'MIGRATED', options_retenues: [String(vise.id)], raison: 'AUTRE_LIBRE',
+        };
+        if (entree.autreTexte) texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+      } else {
+        res = resoudreReponse(cm, { type: 'option', optionId: String(vise.id) },
+          provenanceDe(vise));
+        if (res.statut === 'OK') {
+          libelleOption = vise.libelle;
+          res = { ...res, source: 'MIGRATED' };
+        } else if (res.statut === 'NON_NOTABLE') {
+          libelleOption = vise.libelle;
+        }
       }
     } else {
       throw new HttpError(400, 'Choix manquant pour cette question.');
@@ -178,7 +225,14 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
         res = resoudreCasesMoyenne(cm, entree.optionIds, prov);
       }
       if (res.statut === 'OK' || res.statut === 'NON_NOTABLE') {
-        libelleOption = vises.map((v: any) => v.libelle).join(' • ');
+        // Task 2 : le libellé ne retient que les choix chiffrables — le
+        // verbatim Autre part dans texteAutre (`AUTRE::…`), `construireLigne`
+        // les concatène (`… • Autre — "verbatim"`).
+        const chiffrables = vises.filter((v: any) => !estAutre(v));
+        libelleOption = chiffrables.map((v: any) => v.libelle).join(' • ') || undefined;
+        if (vises.some(estAutre) && entree.autreTexte) {
+          texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+        }
       }
     } else if (entree.texte) {
       // Compat pré-Phase E : texte joint « • » → appariement par libellés.
@@ -201,7 +255,15 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
         const moyenne = resoudreCasesMoyenne(cm, ids, prov);
         res = moyenne.statut === 'OK' ? { ...moyenne, source: 'MIGRATED' } : moyenne;
       }
-      libelleOption = vises.map((v: any) => v.libelle).join(' • ');
+      // Task 2 : même partition qu'au-dessus (libellés chiffrables seuls,
+      // verbatim Autre dans texteAutre quand il est fourni).
+      const chiffrablesLegacy = vises.filter((v: any) => !estAutre(v));
+      libelleOption = chiffrablesLegacy.map((v: any) => v.libelle).join(' • ')
+        || vises.map((v: any) => v.libelle).join(' • ');
+      if (vises.some(estAutre) && entree.autreTexte) {
+        texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+        if (chiffrablesLegacy.length === 0) libelleOption = undefined;
+      }
     } else {
       throw new HttpError(400, 'Sélection vide : cochez au moins un choix.');
     }
@@ -262,7 +324,7 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
   }
   return {
     critereId: entree.critereId,
-    texte: entree.texte,
+    texte: texteAutre ?? entree.texte,
     libelleOption,
     score_brut: res.score_officiel,
     score_officiel: res.score_officiel,

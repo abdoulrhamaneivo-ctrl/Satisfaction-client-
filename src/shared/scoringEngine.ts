@@ -104,6 +104,16 @@ function estExclusif(o: OptionMoteur, normaliser: (s: string) => string): boolea
   return LIBELLES_EXCLUSIFS.has(normaliser(o.libelle));
 }
 
+/**
+ * Task 2 — Convention « Autre (précisez) » : option à saisie libre.
+ * code_metier AUTRE_LIBRE → jamais scorée, jamais comptée dans une
+ * somme pondérée, exempte du contrôle d'exclusivité (cohabite avec
+ * « Aucun problème »). Garde : un EXCLUSIF n'est jamais un Autre.
+ */
+export function estAutreLibre(o: Pick<OptionMoteur, 'code_metier'>): boolean {
+  return ((o?.code_metier || '') as string).trim().toUpperCase() === 'AUTRE_LIBRE';
+}
+
 /** 1..5 → /100. */
 export function note5Vers100(score: number): number {
   return ((score - 1) / 4) * 100;
@@ -201,7 +211,7 @@ export function resoudreChoixUnique(
   if (!option) return ambigu('OPTION_INCONNUE');
   if (!option.est_scorable || option.score == null) {
     return {
-      ...nonNotable('OPTION_NON_SCORABLE'),
+      ...nonNotable(estAutreLibre(option) ? 'AUTRE_LIBRE' : 'OPTION_NON_SCORABLE'),
       options_retenues: [option.id],
     };
   }
@@ -367,6 +377,9 @@ export function agregerNPS(valeurs: number[]): AgregationNPS {
  * - CATEGORICAL (ou sans scores/poids) → NON_NOTABLE + ids (stats %).
  * - WEIGHTED → base 100 + Σ(poids), clampé 0-100 ; officiel = /20 arrondi.
  * - Exclusif (« Aucun ») + autres choix → AMBIGU (EXCLUSIVITE_VIOLÉE).
+ * - Task 2 : l'option Autre (AUTRE_LIBRE) est EXEMPTE d'exclusivité et
+ *   EXCLUE de la somme pondérée (texte libre, jamais un score). Seule, en
+ *   WEIGHTED, elle donne NON_NOTABLE — pas un 100 inventé.
  * - Sélection vide → AMBIGU (SELECTION_VIDE : rien à scorer, pas un 0).
  * - Option inconnue/inactive → AMBIGU (jamais ignorée silencieusement :
  *   ignorer un choix fausserait la moyenne ou la distribution).
@@ -388,15 +401,26 @@ export function resoudreCases(
     retenues.push(option);
   }
 
-  const exclusives = retenues.filter((o) => estExclusif(o, normaliser));
-  if (exclusives.length > 0 && retenues.length > 1) {
+  // Task 2 : l'exclusivité ne porte que sur les choix CHIFFRABLES —
+  // « Aucun problème » + « Autre (précisez) » cohabitent.
+  const chiffrables = retenues.filter((o) => !estAutreLibre(o));
+  const exclusives = chiffrables.filter((o) => estExclusif(o, normaliser));
+  if (exclusives.length > 0 && chiffrables.length > 1) {
     return ambigu('EXCLUSIVITE_VIOLEE');
   }
 
   const mode = (critere.scoring_mode || '').toUpperCase();
 
   if (mode === 'CASES_WEIGHTED') {
-    const poids = retenues.map((o) => o.poids);
+    // Task 2 : Autre seul → pas de signal pondéré, NON_NOTABLE conservé
+    // (jamais un 100/100 inventé sur du texte libre).
+    if (chiffrables.length === 0) {
+      return {
+        ...nonNotable('AUTRE_LIBRE'),
+        options_retenues: retenues.map((o) => o.id),
+      };
+    }
+    const poids = chiffrables.map((o) => o.poids);
     if (poids.some((p) => p == null)) return ambigu('POIDS_MANQUANTS');
     // MODÈLE MÉTIER DOCUMENTÉ (2026-09-27) : on part de 100 et on applique
     // les poids SIGNÉS des choix cochés — pénalités (poids négatifs, ex.
