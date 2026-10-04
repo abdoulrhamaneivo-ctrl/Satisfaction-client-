@@ -265,7 +265,7 @@ export const AlertesTachesPage = () => {
               value={recherche}
               onChange={(event) => setRecherche(event.target.value)}
               placeholder="Rechercher une alerte, tâche, responsable ou guichet…"
-              className="h-10 pl-9 rounded-xl border-border/60 focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-11 pl-9 rounded-xl border-border/60 focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Rechercher dans les alertes et tâches"
             />
           </div>
@@ -280,7 +280,7 @@ export const AlertesTachesPage = () => {
                 size="sm"
                 variant={filtreTaches === valeur ? 'default' : 'outline'}
                 onClick={() => setFiltreTaches(valeur)}
-                className="rounded-xl"
+                className="min-h-[44px] rounded-xl"
               >
                 {libelle}
               </Button>
@@ -317,7 +317,7 @@ export const AlertesTachesPage = () => {
                   icon={Search}
                   title="Aucune alerte ne correspond à votre recherche"
                   description="Essayez un autre mot-clé ou réinitialisez la recherche."
-                  action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>}
+                  action={<Button variant="outline" onClick={() => setRecherche('')} className="min-h-[44px] rounded-xl">Effacer la recherche</Button>}
                   className="py-10"
                 />
               ) : alertesNouvellesFiltrees.map((alerte: any, i: number) => (
@@ -327,7 +327,7 @@ export const AlertesTachesPage = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: Math.min(i * 0.04, 0.2) }}
                 >
-                  <MotionCard className="flex items-start justify-between gap-4 p-4 border-destructive/20">
+                  <MotionCard className="flex flex-col gap-4 p-4 border-destructive/20 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-3">
                       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                         <AlertTriangle className="size-4" />
@@ -339,11 +339,14 @@ export const AlertesTachesPage = () => {
                         </p>
                       </div>
                     </div>
-                    {peutGererAlertes && <div className="flex shrink-0 items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleCreerTache(alerte)}>
+                    {/* Task 1 tactile : boutons pleine largeur sur mobile
+                        (w-full sm:w-auto, 44px) — à 360px les deux actions
+                        côte à côte débordaient de la carte. */}
+                    {peutGererAlertes && <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                      <Button size="sm" variant="outline" onClick={() => handleCreerTache(alerte)} className="min-h-[44px] w-full sm:w-auto">
                         <PlusCircle className="size-3.5 mr-1" /> Créer tâche
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleMarquerTraitee(Number(alerte.id))}>
+                      <Button size="sm" variant="ghost" onClick={() => handleMarquerTraitee(Number(alerte.id))} className="min-h-[44px] w-full sm:w-auto">
                         <CheckCircle2 className="size-3.5 mr-1" /> Traiter
                       </Button>
                     </div>}
@@ -592,10 +595,10 @@ export const AlertesTachesPage = () => {
               </Select>
             </div>
             <DialogFooter className="gap-3 pt-2 sm:justify-stretch">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setModal({ alerteId: null, idAgence: null })}>
+              <Button type="button" variant="outline" className="min-h-[44px] flex-1" onClick={() => setModal({ alerteId: null, idAgence: null })}>
                 Annuler
               </Button>
-              <Button type="submit" className="flex-1" disabled={saving || !formTache.id_responsable}>
+              <Button type="submit" className="min-h-[44px] flex-1" disabled={saving || !formTache.id_responsable}>
                 {saving ? 'Création...' : 'Créer la tâche'}
               </Button>
             </DialogFooter>

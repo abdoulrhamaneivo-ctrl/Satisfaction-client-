@@ -271,7 +271,7 @@ export const AvisPage = () => {
             title="Derniers retours clients"
             description="Consultez et filtrez les avis collectés en temps réel sur l'ensemble de vos points de contact."
             actions={
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {allAvis.length > 0 && (
                   <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-strong">
                     {allAvis.length}{hasMore ? '+' : ''} retour{allAvis.length > 1 ? 's' : ''}
@@ -283,7 +283,7 @@ export const AvisPage = () => {
                   onClick={handleExportCSV}
                   disabled={exporting || allAvis.length === 0}
                   id="btn-export-csv"
-                  className="rounded-xl font-bold"
+                  className="min-h-[44px] rounded-xl font-bold"
                 >
                   {exporting ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -298,7 +298,7 @@ export const AvisPage = () => {
                   onClick={handleExportXLSX}
                   disabled={exportingXLSX || allAvis.length === 0}
                   id="btn-export-xlsx"
-                  className="rounded-xl font-bold"
+                  className="min-h-[44px] rounded-xl font-bold"
                 >
                   {exportingXLSX ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -312,8 +312,166 @@ export const AvisPage = () => {
           />
 
           {/* Filters Dashboard Panel — flottant : reste accessible en scrollant
-              la liste, potentiellement longue, des avis en dessous. */}
-          <MotionCard interactive={false} className="sticky top-16 lg:top-4 z-30 p-6 shadow-sm">
+              la liste, potentiellement longue, des avis en dessous.
+              Task 1 tactile : accordéon replié sur mobile (au pouce, 44px,
+              contenu replié = pas de scroll infini avant la liste), panneau
+              complet conservé sur desktop (hidden lg:block ci-dessous). */}
+          <details className="lg:hidden rounded-2xl border border-border/70 bg-card px-4">
+            <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 py-3 text-sm font-bold uppercase tracking-wider text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <Filter size={16} aria-hidden /> Filtres de recherche
+                  {((selectedAgenceId ? 1 : 0) + (selectedGuichetId ? 1 : 0) + (selectedServiceId ? 1 : 0) + (selectedScore ? 1 : 0) + (selectedTheme ? 1 : 0) + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                      {[selectedAgenceId, selectedGuichetId, selectedServiceId, selectedScore, selectedTheme, startDate, endDate].filter(Boolean).length}
+                    </span>
+                  )}
+                </span>
+              <ChevronDown size={16} aria-hidden className="shrink-0" />
+            </summary>
+            <div className="space-y-4 pb-4">
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleResetFilters}
+                      className="min-h-[44px] text-xs text-muted-foreground hover:text-primary"
+                    >
+                      <RotateCcw size={12} /> Réinitialiser
+                    </Button>
+                  </div>
+                  {isDirection && (
+                    <div className="space-y-1.5">
+                      <label htmlFor="avis-filtre-agence-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        <Building size={12} /> Agence
+                      </label>
+                      <Select
+                        value={selectedAgenceId ? String(selectedAgenceId) : 'ALL'}
+                        onValueChange={(v) => {
+                          setSelectedAgenceId(v !== 'ALL' ? Number(v) : undefined);
+                          setSelectedGuichetId(undefined);
+                        }}
+                      >
+                        <SelectTrigger id="avis-filtre-agence-m" className="h-11 w-full font-semibold" aria-label="Agence">
+                          <SelectValue placeholder="Toutes les agences" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">Toutes les agences</SelectItem>
+                          {agences?.map((a: any) => (
+                            <SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <label htmlFor="avis-filtre-guichet-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Store size={12} /> Guichet / Caisse
+                    </label>
+                    <Select
+                      value={selectedGuichetId ? String(selectedGuichetId) : 'ALL'}
+                      onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)}
+                      disabled={isDirection && !selectedAgenceId}
+                    >
+                      <SelectTrigger id="avis-filtre-guichet-m" className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
+                        <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</SelectItem>
+                        {guichets?.map((g: any) => (
+                          <SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet} ({g.type_guichet})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="avis-filtre-service-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Layers size={12} /> Opération / Service
+                    </label>
+                    <Select
+                      value={selectedServiceId ? String(selectedServiceId) : 'ALL'}
+                      onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}
+                    >
+                      <SelectTrigger id="avis-filtre-service-m" className="h-11 w-full font-semibold" aria-label="Opération ou service">
+                        <SelectValue placeholder="Toutes les opérations" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">Toutes les opérations</SelectItem>
+                        {services?.map((s: any) => (
+                          <SelectItem key={s.id} value={String(s.id)}>{s.libelle_service}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="avis-filtre-score-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <HelpCircle size={12} /> Évaluation (Note)
+                    </label>
+                    <Select
+                      value={selectedScore ? String(selectedScore) : 'ALL'}
+                      onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}
+                    >
+                      <SelectTrigger id="avis-filtre-score-m" className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
+                        <SelectValue placeholder="Tous les scores" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">Tous les scores</SelectItem>
+                        <SelectItem value="5">🤩 Très satisfait (5/5)</SelectItem>
+                        <SelectItem value="4">🙂 Satisfait (4/5)</SelectItem>
+                        <SelectItem value="3">😐 Neutre (3/5)</SelectItem>
+                        <SelectItem value="2">😟 Mécontent (2/5)</SelectItem>
+                        <SelectItem value="1">😡 Très mécontent (1/5)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="avis-filtre-theme-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Layers size={12} /> Étiquette IA
+                    </label>
+                    <Select
+                      value={selectedTheme ?? 'ALL'}
+                      onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}
+                    >
+                      <SelectTrigger id="avis-filtre-theme-m" className="h-11 w-full font-semibold" aria-label="Étiquette IA">
+                        <SelectValue placeholder="Toutes les étiquettes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">Toutes les étiquettes</SelectItem>
+                        {Object.entries(THEMES_LABELS).map(([code, label]) => (
+                          <SelectItem key={code} value={code}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="avis-filtre-debut-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Calendar size={12} aria-hidden /> Date Début
+                    </label>
+                    <Input
+                      id="avis-filtre-debut-m"
+                      type="date"
+                      aria-label="Filtrer les avis à partir du"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="h-11 font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="avis-filtre-fin-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <Calendar size={12} aria-hidden /> Date Fin
+                    </label>
+                    <Input
+                      id="avis-filtre-fin-m"
+                      type="date"
+                      aria-label="Filtrer les avis jusqu'au"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="h-11 font-semibold"
+                    />
+                  </div>
+                </div>
+          </details>
+          <MotionCard interactive={false} className="hidden lg:block sticky top-16 lg:top-4 z-30 p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Filter size={16} /> Filtres de recherche
@@ -323,7 +481,7 @@ export const AvisPage = () => {
                 variant="ghost"
                 size="sm"
                 onClick={handleResetFilters}
-                className="text-xs text-muted-foreground hover:text-primary"
+                className="min-h-[44px] text-xs text-muted-foreground hover:text-primary"
               >
                 <RotateCcw size={12} /> Réinitialiser
               </Button>
@@ -592,7 +750,7 @@ export const AvisPage = () => {
                     onClick={handleLoadMore}
                     disabled={isLoading}
                     id="btn-charger-plus"
-                    className="gap-2"
+                    className="min-h-[44px] gap-2"
                   >
                     {isLoading ? (
                       <Loader2 className="size-4 animate-spin" />

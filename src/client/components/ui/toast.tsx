@@ -29,9 +29,11 @@ function ToastViewport({
         "top-left": "top-0 left-0",
         "top-center": "top-0 left-1/2 -translate-x-1/2",
         "top-right": "top-0 right-0",
-        "bottom-left": "bottom-0 left-0",
-        "bottom-center": "bottom-0 left-1/2 -translate-x-1/2",
-        "bottom-right": "bottom-0 right-0",
+        // Task 1 tactile : bottom-center au pouce + safe-area iOS pour ne
+        // pas finir sous la barre système / la tab-bar mobile.
+        "bottom-left": "bottom-0 left-0 pb-[max(1rem,env(safe-area-inset-bottom))]",
+        "bottom-center": "bottom-0 left-1/2 -translate-x-1/2 pb-[max(5.5rem,calc(env(safe-area-inset-bottom)+5rem))]",
+        "bottom-right": "bottom-0 right-0 pb-[max(1rem,env(safe-area-inset-bottom))]",
       }[position]
     : "top-0 sm:bottom-0 sm:right-0 sm:top-auto";
 

@@ -376,21 +376,37 @@ export const DashboardPage = () => {
                       <SelectItem value="90">90 derniers jours</SelectItem>
                     </SelectContent>
                   </Select>
-                  <motion.div whileTap={{ scale: 0.97 }}>
-                    <Button variant="outline" onClick={() => (estDirection ? handlePrintReseau() : handlePrint())} disabled={isLoading} className="rounded-xl border-border/80 font-bold">
-                      <Printer className="size-4" /> Exporter (PDF)
-                    </Button>
-                  </motion.div>
-                  <motion.div whileTap={{ scale: 0.97 }}>
-                    <Button variant="outline" onClick={handleExportXLSX} disabled={isLoading || exportingXLSX} className="rounded-xl border-border/80 font-bold">
+                  {/* Task 1 tactile : menu Exports unique — les deux boutons
+                      côte à côte débordaient à 360px. Un seul <details>
+                      natif (44px, sans JS, clavier OK), desktop inchangé
+                      dans le même emplacement d'actions. */}
+                  <details className="group relative">
+                    <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 rounded-xl border border-border/80 px-4 py-2 text-sm font-bold hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden" aria-label="Exporter le rapport">
                       {exportingXLSX ? (
                         <Loader2 className="size-4 animate-spin" />
                       ) : (
                         <FileSpreadsheet className="size-4" />
                       )}
-                      Exporter XLSX
-                    </Button>
-                  </motion.div>
+                      Exporter
+                    </summary>
+                    <div className="absolute right-0 z-30 mt-2 flex w-56 flex-col gap-1 rounded-2xl border border-border/80 bg-card p-2 shadow-premium-lg">
+                      <motion.div whileTap={{ scale: 0.97 }}>
+                        <Button variant="ghost" onClick={() => (estDirection ? handlePrintReseau() : handlePrint())} disabled={isLoading} className="min-h-[44px] w-full justify-start rounded-xl font-bold">
+                          <Printer className="size-4" /> Exporter (PDF)
+                        </Button>
+                      </motion.div>
+                      <motion.div whileTap={{ scale: 0.97 }}>
+                        <Button variant="ghost" onClick={handleExportXLSX} disabled={isLoading || exportingXLSX} className="min-h-[44px] w-full justify-start rounded-xl font-bold">
+                          {exportingXLSX ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <FileSpreadsheet className="size-4" />
+                          )}
+                          Exporter XLSX
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </details>
                 </div>
               }
             />
@@ -837,7 +853,46 @@ export const DashboardPage = () => {
               </div>
 
               {avisGroupes.length > 0 ? (
-                <DataTable headers={['Note moyenne', 'Guichet', 'Critères', 'Date', '']}>
+                <>
+                  {/* Task 1 tactile : cartes sur mobile (le tableau
+                      min-w-640 forçait un scroll horizontal à 360px) ;
+                      tableau conservé dès sm (desktop inchangé). */}
+                  <ul className="space-y-3 sm:hidden">
+                    {avisGroupes.slice(0, 5).map((avis) => {
+                      const premiere = avis.reponses[0];
+                      return (
+                        <li key={avis.id_soumission ?? premiere.id}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(routes.AvisRoute.to)}
+                            aria-label={`Ouvrir l’avis du ${premiere.guichet?.nom_guichet || 'guichet inconnu'}, note ${avis.score_moyen ?? 'non chiffrée'}/5`}
+                            className="flex min-h-[44px] w-full flex-col gap-1.5 rounded-2xl border border-border/80 bg-card p-4 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-xs font-bold border ${
+                                  avis.score_moyen == null
+                                    ? 'bg-muted text-muted-foreground border-border'
+                                    : avis.score_moyen <= 2
+                                      ? 'bg-destructive/10 text-destructive-strong border-destructive/20'
+                                      : 'bg-success/10 text-success-strong border-success/20'
+                                }`}
+                              >
+                                {avis.score_moyen == null ? '—' : `${avis.score_moyen}/5`}
+                              </span>
+                              <span className="text-xs text-muted-foreground">{premiere.date_reponse ? new Date(premiere.date_reponse).toLocaleDateString() : ''}</span>
+                            </span>
+                            <span className="text-sm font-semibold text-foreground">{premiere.guichet?.nom_guichet || 'Guichet inconnu'}</span>
+                            <span className="line-clamp-2 text-xs text-muted-foreground">
+                              {avis.reponses.map((r: any) => r.critere?.libelle_critere).filter(Boolean).join(', ') || 'Critère inconnu'}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="hidden sm:block">
+                    <DataTable headers={['Note moyenne', 'Guichet', 'Critères', 'Date', '']}>
                   {avisGroupes.slice(0, 5).map((avis) => {
                     const premiere = avis.reponses[0];
                     return (
@@ -873,7 +928,9 @@ export const DashboardPage = () => {
                       </DataTableRow>
                     );
                   })}
-                </DataTable>
+                    </DataTable>
+                  </div>
+                </>
               ) : (
                 <EmptyState
                   icon={Inbox}
