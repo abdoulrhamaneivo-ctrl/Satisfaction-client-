@@ -6,13 +6,19 @@
 // TDD : ces tests sont écrits AVANT l'implémentation (doivent échouer).
 // ============================================================================
 import { expect, test, describe } from 'vitest';
+import { HttpError } from 'wasp/server';
 import {
   estAutreLibre,
   resoudreCases,
   type CritereMoteur,
   type OptionMoteur,
 } from '../shared/scoringEngine';
-import { normaliserEntree, resoudreEntree } from './resolutionSoumission';
+import {
+  normaliserEntree,
+  resoudreEntree,
+  messageAmbigu,
+  formaterReponseAutre,
+} from './resolutionSoumission';
 import { GABARIT_EXPRESS, GABARIT_QUALITE } from './gabarits';
 
 function opt(
@@ -195,6 +201,86 @@ describe('resoudreEntree : Autre → NON_NOTABLE + AUTRE::verbatim', () => {
   });
 });
 
+describe('review r1 (F1, fail-closed) : Autre sans verbatim → 400 AUTRE_VERBATIM_MANQUANT', () => {
+  test('QCM Autre via API directe sans verbatim → 400 (jamais de commentaire vide)', () => {
+    expect(() =>
+      resoudreEntree(ligneQcmMotif(), normaliserEntree({ critereId: 21, optionId: 'm9' })),
+    ).toThrowError(HttpError);
+    try {
+      resoudreEntree(ligneQcmMotif(), normaliserEntree({ critereId: 21, optionId: 'm9' }));
+      expect.unreachable('aurait dû lever 400');
+    } catch (e: any) {
+      expect(e?.statusCode ?? e?.status).toBe(400);
+      expect(String(e?.message ?? '')).toMatch(/précisez/);
+    }
+  });
+
+  test('QCM Autre avec verbatim espaces seuls → 400 (normalisé à vide)', () => {
+    expect(() =>
+      resoudreEntree(
+        ligneQcmMotif(),
+        normaliserEntree({ critereId: 21, optionId: 'm9', autreTexte: '   ' }),
+      ),
+    ).toThrowError(HttpError);
+  });
+
+  test('CASES [panne, Autre] sans verbatim → 400', () => {
+    expect(() =>
+      resoudreEntree(
+        ligneCasesProblemes(),
+        normaliserEntree({ critereId: 31, optionIds: ['panne', 'autre'] }),
+      ),
+    ).toThrowError(HttpError);
+  });
+
+  test('CASES Autre seul sans verbatim → 400', () => {
+    expect(() =>
+      resoudreEntree(
+        ligneCasesProblemes(),
+        normaliserEntree({ critereId: 31, optionIds: ['autre'] }),
+      ),
+    ).toThrowError(HttpError);
+  });
+
+  test('CASES legacy texte « Autre (précisez) » sans verbatim → 400', () => {
+    expect(() =>
+      resoudreEntree(
+        ligneCasesProblemes(),
+        normaliserEntree({ critereId: 31, texte: 'Autre (précisez)' }),
+      ),
+    ).toThrowError(HttpError);
+  });
+
+  test('CASES sans Autre et sans verbatim : comportement inchangé (pas de 400)', () => {
+    const r = resoudreEntree(
+      ligneCasesProblemes(),
+      normaliserEntree({ critereId: 31, optionIds: ['panne'] }),
+    );
+    expect(r.score_officiel).toBeNull();
+    expect(r.optionsRetnues).toEqual(['panne']);
+  });
+
+  test('messageAmbigu AUTRE_VERBATIM_MANQUANT : message actionnable', () => {
+    expect(messageAmbigu('AUTRE_VERBATIM_MANQUANT', 'QCM')).toMatch(/précisez/);
+  });
+});
+
+describe('review r1 (F5) : formaterReponseAutre centralisé', () => {
+  test('marqueur + libellé → concaténés, jamais de AUTRE:: exposé', () => {
+    expect(formaterReponseAutre('Panne réseau', 'AUTRE::clim HS')).toBe(
+      'Panne réseau • Autre — "clim HS"',
+    );
+    expect(formaterReponseAutre('', 'AUTRE::rideau fermé')).toBe('Autre — "rideau fermé"');
+    expect(formaterReponseAutre(undefined, 'AUTRE::x')).toBe('Autre — "x"');
+  });
+
+  test('sans marqueur → null (flux existants inchangés)', () => {
+    expect(formaterReponseAutre('Panne réseau', 'verbatim brut')).toBeNull();
+    expect(formaterReponseAutre('Panne réseau', undefined)).toBeNull();
+    expect(formaterReponseAutre(null, null)).toBeNull();
+  });
+});
+
 describe('gabarits seedés : valeurs exactes verbatim (brief Task 2)', () => {
   test('Express-30s : 4 critères exacts, Attente non scorable, Motif + AUTRE_LIBRE', () => {
     expect(GABARIT_EXPRESS.libelle_service).toBe('Express-30s');
@@ -232,7 +318,7 @@ describe('gabarits seedés : valeurs exactes verbatim (brief Task 2)', () => {
     expect(GABARIT_QUALITE.criteres).toHaveLength(4);
     const [efficace, politesse, nps, problemes] = GABARIT_QUALITE.criteres;
     expect(efficace.type_reponse).toBe('SMILEY');
-    expect(efficace.libelle_critere).toBe('Agent a répondu efficacement');
+    expect(efficace.libelle_critere).toBe("L'agent au guichet a-t-il répondu efficacement à votre demande ?");
     expect(politesse.libelle_critere).toBe('Politesse et clarté');
     expect(nps.type_reponse).toBe('NPS');
     expect(nps.libelle_critere).toBe('Recommanderiez-vous');

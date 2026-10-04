@@ -84,7 +84,7 @@ export const GABARIT_QUALITE: SpecService = {
   libelle_service: 'Qualité-45s',
   criteres: [
     {
-      libelle_critere: 'Agent a répondu efficacement',
+      libelle_critere: "L'agent au guichet a-t-il répondu efficacement à votre demande ?",
       type_reponse: 'SMILEY', obligatoire: true, options: [],
     },
     {

@@ -36,8 +36,7 @@ import {
 import {
   normaliserEntree,
   resoudreEntree,
-  PREFIXE_AUTRE,
-  formaterAutreStockage,
+  formaterReponseAutre,
   type EntreeBrute,
   type ItemResolu,
 } from './resolutionSoumission';
@@ -849,19 +848,10 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     // client requis pour afficher la bonne option (jamais positionnelle).
     // Task 2 : `AUTRE::verbatim` → `… • Autre — "verbatim"` (ou seul si
     // aucun libellé chiffrable). Le score reste NON_NOTABLE (NULL).
-    const verbatimAutre =
-      typeof item.texte === 'string' && item.texte.startsWith(PREFIXE_AUTRE)
-        ? item.texte.slice(PREFIXE_AUTRE.length)
-        : null;
-    let texteLigne: string;
-    if (verbatimAutre) {
-      const formate = formaterAutreStockage(verbatimAutre);
-      const base = (item.libelleOption || '').trim();
-      texteLigne = base ? `${base} • ${formate}` : formate;
-    } else {
-      texteLigne =
-        item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || '';
-    }
+    // Review r1 (F5) : format centralisé dans formaterReponseAutre.
+    const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
+    const texteLigne: string = reponseAutre
+      ?? (item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || '');
     return {
       // score_brut (legacy) = score officiel pour les nouvelles lignes
       // (NULL si non notable — fini les 3 fantômes). L'historique garde
@@ -984,15 +974,8 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     const texte = (item.texte || '').trim();
     // Task 2 : l'IA reçoit `Autre — "verbatim"` (concaténé aux libellés
     // chiffrables quand il y en a), jamais le marqueur interne AUTRE::.
-    const verbatimAutre =
-      typeof item.texte === 'string' && item.texte.startsWith(PREFIXE_AUTRE)
-        ? item.texte.slice(PREFIXE_AUTRE.length)
-        : null;
-    const reponseAutre = verbatimAutre
-      ? ((item.libelleOption || '').trim()
-        ? `${item.libelleOption!.trim()} • ${formaterAutreStockage(verbatimAutre)}`
-        : formaterAutreStockage(verbatimAutre))
-      : null;
+    // Review r1 (F5) : même helper que construireLigne ci-dessus.
+    const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
     if (type === 'TEXTE' || type === 'CASES') {
       if (reponseAutre) pousserMorceau(libelle, reponseAutre);
       else if (texte) pousserMorceau(libelle, texte);

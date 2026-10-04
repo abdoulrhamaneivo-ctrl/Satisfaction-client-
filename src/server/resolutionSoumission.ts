@@ -49,6 +49,22 @@ export function formaterAutreStockage(verbatim: string): string {
   return `Autre — "${verbatim}"`;
 }
 
+/**
+ * Review r1 (F5) — combine un libellé chiffrable et un texte `AUTRE::…`
+ * en réponse affichable (`base • Autre — "v"`), ou `null` sans verbatim.
+ * Factorise `construireLigne` et `morceauxIA` (actions.ts) : un seul
+ * endroit connaît le marqueur interne.
+ */
+export function formaterReponseAutre(
+  libelleOption: string | null | undefined,
+  texte: string | null | undefined,
+): string | null {
+  if (typeof texte !== 'string' || !texte.startsWith(PREFIXE_AUTRE)) return null;
+  const formate = formaterAutreStockage(texte.slice(PREFIXE_AUTRE.length));
+  const base = (libelleOption || '').trim();
+  return base ? `${base} • ${formate}` : formate;
+}
+
 export type ItemResolu = {
   critereId: number;
   texte?: string;
@@ -105,6 +121,8 @@ export function messageAmbigu(raison: string | undefined, type: string): string 
       return "Question mal configurée. Demandez à votre administrateur de vérifier l'échelle.";
     case 'POIDS_MANQUANTS':
       return 'Question à pondération incomplète. Demandez à votre administrateur de la configurer.';
+    case 'AUTRE_VERBATIM_MANQUANT':
+      return '« Autre » coché : précisez votre réponse en toutes lettres.';
     default:
       return `Réponse invalide pour cette question${type ? ` (${type})` : ''}.`;
   }
@@ -159,6 +177,15 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
   const estAutre = (vise: any): boolean =>
     !!vise && estAutreLibre({ code_metier: vise?.code_metier ?? null });
 
+  // Review r1 (F1, fail-closed) : un « Autre » coché SANS précision est
+  // rejeté en 400 — le client bloque déjà Continuer, mais un appel API
+  // direct ne doit jamais stocker un commentaire_texte vide.
+  const exigerVerbatimAutre = (autrePresent: boolean): void => {
+    if (autrePresent && !entree.autreTexte) {
+      throw new HttpError(400, messageAmbigu('AUTRE_VERBATIM_MANQUANT', type));
+    }
+  };
+
   if (type === 'TEXTE') {
     // Un texte libre ne devient JAMAIS une note officielle (fini le 3).
     if (!entree.texte) {
@@ -174,6 +201,7 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
       if (estAutre(vise)) {
         // Task 2 : Autre libre — score sur l'id (NON_NOTABLE, jamais
         // EXCLUSIVITE_VIOLEE), verbatim conservé avec marqueur.
+        exigerVerbatimAutre(true);
         res = {
           statut: 'NON_NOTABLE', score_officiel: null, score_normalise: null,
           source: null, options_retenues: [String(vise.id)], raison: 'AUTRE_LIBRE',
@@ -191,6 +219,7 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
       if (!vise) throw new HttpError(400, messageAmbigu('OPTION_INCONNUE', type));
       if (estAutre(vise)) {
         // Task 2 : legacy pointant sur l'option Autre — même traitement.
+        exigerVerbatimAutre(true);
         res = {
           statut: 'NON_NOTABLE', score_officiel: null, score_normalise: null,
           source: 'MIGRATED', options_retenues: [String(vise.id)], raison: 'AUTRE_LIBRE',
@@ -216,6 +245,8 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
       if (vises.some((v: any) => !v)) {
         throw new HttpError(400, messageAmbigu('OPTION_INCONNUE', type));
       }
+      // Review r1 (F1) : Autre coché sans précision → 400, avant scoring.
+      exigerVerbatimAutre(vises.some(estAutre));
       const prov: ProvenanceScore =
         vises.every((v: any) => v?.score_provenance === 'EXPLICIT') ? 'EXPLICIT' : 'INFERRED';
       res = resoudreCases(cm, entree.optionIds, prov, normaliserLibelle);
@@ -241,6 +272,8 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
       if (vises.some((v: any) => !v)) {
         throw new HttpError(400, messageAmbigu('OPTION_INCONNUE', type));
       }
+      // Review r1 (F1) : idem sur le chemin legacy.
+      exigerVerbatimAutre(vises.some(estAutre));
       const ids = vises.map((v: any) => String(v.id));
       const prov: ProvenanceScore =
         vises.every((v: any) => v?.score_provenance === 'EXPLICIT') ? 'EXPLICIT' : 'INFERRED';
