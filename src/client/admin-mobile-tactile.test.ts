@@ -39,6 +39,10 @@ describe('Task 1 — shell + nav tactile', () => {
   test('Toaster bottom-center (pouce, pas masqué par le drawer)', () => {
     const app = lire('src/client/App.tsx');
     expect(app, 'Toaster doit être bottom-center sur mobile').toContain('bottom-center');
+    // Fix round 1 : le retrait tab-bar (5.5rem) est mobile-only (max-sm:) —
+    // desktop inchangé.
+    const toast = lire('src/client/components/ui/toast.tsx');
+    expect(toast, 'toast : retrait tab-bar réservé mobile (max-sm:)').toContain('max-sm:');
   });
 
   test('head : viewport-fit=cover + theme-color', () => {
@@ -112,6 +116,10 @@ describe('Task 1 — dialogs bottom-sheet scrollables', () => {
     expect(dialog, 'dialog : overflow-y-auto requis').toContain('overflow-y-auto');
     expect(dialog, 'dialog : rounded-t-3xl mobile requis').toContain('rounded-t-3xl');
     expect(dialog, 'dialog : centrage desktop conservé (sm:)').toContain('sm:top-[50%]');
+    // Contrainte globale « desktop inchangé » (fix round 1) : le rayon
+    // desktop d'origine est sm:rounded-lg — sm:rounded-3xl est interdit.
+    expect(dialog, 'dialog : rayon desktop sm:rounded-lg conservé').toContain('sm:rounded-lg');
+    expect(dialog, 'dialog : aucun sm:rounded-3xl (desktop modifié)').not.toContain('sm:rounded-3xl');
   });
 
   test('AlertDialogContent : bottom-sheet mobile scrollable, centré desktop', () => {

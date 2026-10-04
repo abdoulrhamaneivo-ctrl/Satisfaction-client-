@@ -60,8 +60,9 @@ function DialogContent({
           //   arrondi, scroll interne max-h-[90vh] (les 5 dialogs admin :
           //   Alertes création, Guichets kit/confirmations, Planning
           //   reconduction/édition/suppression, Agences archivage) ;
-          // - desktop (sm+) : centré max-w-lg, visuel inchangé.
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] top-auto bottom-0 z-50 grid w-full max-w-none translate-x-[-50%] translate-y-0 gap-4 border p-6 shadow-lg duration-200 rounded-t-3xl rounded-b-none max-h-[90vh] overflow-y-auto momentum-scroll data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:top-[50%] sm:bottom-auto sm:translate-y-[-50%] sm:max-w-lg sm:rounded-3xl data-[state=closed]:sm:slide-out-to-left-1/2 data-[state=closed]:sm:slide-out-to-top-[48%] data-[state=open]:sm:slide-in-from-left-1/2 data-[state=open]:sm:slide-in-from-top-[48%]",
+          // - desktop (sm+) : centré max-w-lg, visuel strictement inchangé
+          //   (sm:rounded-lg d'origine conservé — contrainte globale).
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-[50%] top-auto bottom-0 z-50 grid w-full max-w-none translate-x-[-50%] translate-y-0 gap-4 border p-6 shadow-lg duration-200 rounded-t-3xl rounded-b-none max-h-[90vh] overflow-y-auto momentum-scroll data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:top-[50%] sm:bottom-auto sm:translate-y-[-50%] sm:max-w-lg sm:rounded-lg data-[state=closed]:sm:slide-out-to-left-1/2 data-[state=closed]:sm:slide-out-to-top-[48%] data-[state=open]:sm:slide-in-from-left-1/2 data-[state=open]:sm:slide-in-from-top-[48%]",
           className,
         )}
         {...props}

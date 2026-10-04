@@ -32,6 +32,194 @@ import { LigneReponse } from '../components/LigneReponse';
 import { THEMES_LABELS } from '../components/AIAnalysisBadge';
 import { PageShell, PageTopNav } from '../components/PageShell';
 
+// Task 1 tactile (fix round 1) — champs de filtres partagés entre l'accordéon
+// mobile (<details>, ids suffixés `-m`) et le panneau desktop (ids nus).
+// Un seul endroit à faire évoluer ; le suffixe garantit l'unicité des ids
+// (les deux instances coexistent dans le DOM : `hidden lg:block` /
+// `lg:hidden` ne retirent rien du DOM). Le desktop conserve ses ids
+// d'origine (`idSuffix=""`), la correction axe-core Vague 6 (labels
+// branchés sur les champs date) est préservée des deux côtés.
+export type FiltresAvisProps = {
+  idSuffix: string;
+  className?: string;
+  isDirection: boolean;
+  agences?: any[];
+  guichets?: any[];
+  services?: any[];
+  selectedAgenceId: number | undefined;
+  setSelectedAgenceId: (v: number | undefined) => void;
+  selectedGuichetId: number | undefined;
+  setSelectedGuichetId: (v: number | undefined) => void;
+  selectedServiceId: number | undefined;
+  setSelectedServiceId: (v: number | undefined) => void;
+  selectedScore: number | undefined;
+  setSelectedScore: (v: number | undefined) => void;
+  selectedTheme: string | undefined;
+  setSelectedTheme: (v: string | undefined) => void;
+  startDate: string;
+  setStartDate: (v: string) => void;
+  endDate: string;
+  setEndDate: (v: string) => void;
+};
+
+export function FiltresAvis({
+  idSuffix,
+  className,
+  isDirection,
+  agences,
+  guichets,
+  services,
+  selectedAgenceId,
+  setSelectedAgenceId,
+  selectedGuichetId,
+  setSelectedGuichetId,
+  selectedServiceId,
+  setSelectedServiceId,
+  selectedScore,
+  setSelectedScore,
+  selectedTheme,
+  setSelectedTheme,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
+}: FiltresAvisProps) {
+  const id = (base: string) => `avis-filtre-${base}${idSuffix}`;
+  return (
+    <div className={className}>
+      {isDirection && (
+        <div className="space-y-1.5">
+          <label htmlFor={id('agence')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <Building size={12} /> Agence
+          </label>
+          <Select
+            value={selectedAgenceId ? String(selectedAgenceId) : 'ALL'}
+            onValueChange={(v) => {
+              setSelectedAgenceId(v !== 'ALL' ? Number(v) : undefined);
+              setSelectedGuichetId(undefined);
+            }}
+          >
+            <SelectTrigger id={id('agence')} className="h-11 w-full font-semibold" aria-label="Agence">
+              <SelectValue placeholder="Toutes les agences" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Toutes les agences</SelectItem>
+              {agences?.map((a: any) => (
+                <SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <label htmlFor={id('guichet')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Store size={12} /> Guichet / Caisse
+        </label>
+        <Select
+          value={selectedGuichetId ? String(selectedGuichetId) : 'ALL'}
+          onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)}
+          disabled={isDirection && !selectedAgenceId}
+        >
+          <SelectTrigger id={id('guichet')} className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
+            <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</SelectItem>
+            {guichets?.map((g: any) => (
+              <SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet} ({g.type_guichet})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('service')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Layers size={12} /> Opération / Service
+        </label>
+        <Select
+          value={selectedServiceId ? String(selectedServiceId) : 'ALL'}
+          onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}
+        >
+          <SelectTrigger id={id('service')} className="h-11 w-full font-semibold" aria-label="Opération ou service">
+            <SelectValue placeholder="Toutes les opérations" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Toutes les opérations</SelectItem>
+            {services?.map((s: any) => (
+              <SelectItem key={s.id} value={String(s.id)}>{s.libelle_service}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('score')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <HelpCircle size={12} /> Évaluation (Note)
+        </label>
+        <Select
+          value={selectedScore ? String(selectedScore) : 'ALL'}
+          onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}
+        >
+          <SelectTrigger id={id('score')} className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
+            <SelectValue placeholder="Tous les scores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Tous les scores</SelectItem>
+            <SelectItem value="5">🤩 Très satisfait (5/5)</SelectItem>
+            <SelectItem value="4">🙂 Satisfait (4/5)</SelectItem>
+            <SelectItem value="3">😐 Neutre (3/5)</SelectItem>
+            <SelectItem value="2">😟 Mécontent (2/5)</SelectItem>
+            <SelectItem value="1">😡 Très mécontent (1/5)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('theme')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Layers size={12} /> Étiquette IA
+        </label>
+        <Select
+          value={selectedTheme ?? 'ALL'}
+          onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}
+        >
+          <SelectTrigger id={id('theme')} className="h-11 w-full font-semibold" aria-label="Étiquette IA">
+            <SelectValue placeholder="Toutes les étiquettes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Toutes les étiquettes</SelectItem>
+            {Object.entries(THEMES_LABELS).map(([code, label]) => (
+              <SelectItem key={code} value={code}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('debut')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Calendar size={12} aria-hidden /> Date Début
+        </label>
+        <Input
+          id={id('debut')}
+          type="date"
+          aria-label="Filtrer les avis à partir du"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="h-11 font-semibold"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('fin')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Calendar size={12} aria-hidden /> Date Fin
+        </label>
+        <Input
+          id={id('fin')}
+          type="date"
+          aria-label="Filtrer les avis jusqu'au"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="h-11 font-semibold"
+        />
+      </div>
+    </div>
+  );
+}
+
 export const AvisPage = () => {
   const { data: user } = useAuth();
   const { toast } = useToast();
@@ -340,135 +528,28 @@ export const AvisPage = () => {
                       <RotateCcw size={12} /> Réinitialiser
                     </Button>
                   </div>
-                  {isDirection && (
-                    <div className="space-y-1.5">
-                      <label htmlFor="avis-filtre-agence-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <Building size={12} /> Agence
-                      </label>
-                      <Select
-                        value={selectedAgenceId ? String(selectedAgenceId) : 'ALL'}
-                        onValueChange={(v) => {
-                          setSelectedAgenceId(v !== 'ALL' ? Number(v) : undefined);
-                          setSelectedGuichetId(undefined);
-                        }}
-                      >
-                        <SelectTrigger id="avis-filtre-agence-m" className="h-11 w-full font-semibold" aria-label="Agence">
-                          <SelectValue placeholder="Toutes les agences" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ALL">Toutes les agences</SelectItem>
-                          {agences?.map((a: any) => (
-                            <SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    <label htmlFor="avis-filtre-guichet-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <Store size={12} /> Guichet / Caisse
-                    </label>
-                    <Select
-                      value={selectedGuichetId ? String(selectedGuichetId) : 'ALL'}
-                      onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)}
-                      disabled={isDirection && !selectedAgenceId}
-                    >
-                      <SelectTrigger id="avis-filtre-guichet-m" className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
-                        <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</SelectItem>
-                        {guichets?.map((g: any) => (
-                          <SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet} ({g.type_guichet})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="avis-filtre-service-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <Layers size={12} /> Opération / Service
-                    </label>
-                    <Select
-                      value={selectedServiceId ? String(selectedServiceId) : 'ALL'}
-                      onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}
-                    >
-                      <SelectTrigger id="avis-filtre-service-m" className="h-11 w-full font-semibold" aria-label="Opération ou service">
-                        <SelectValue placeholder="Toutes les opérations" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Toutes les opérations</SelectItem>
-                        {services?.map((s: any) => (
-                          <SelectItem key={s.id} value={String(s.id)}>{s.libelle_service}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="avis-filtre-score-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <HelpCircle size={12} /> Évaluation (Note)
-                    </label>
-                    <Select
-                      value={selectedScore ? String(selectedScore) : 'ALL'}
-                      onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}
-                    >
-                      <SelectTrigger id="avis-filtre-score-m" className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
-                        <SelectValue placeholder="Tous les scores" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Tous les scores</SelectItem>
-                        <SelectItem value="5">🤩 Très satisfait (5/5)</SelectItem>
-                        <SelectItem value="4">🙂 Satisfait (4/5)</SelectItem>
-                        <SelectItem value="3">😐 Neutre (3/5)</SelectItem>
-                        <SelectItem value="2">😟 Mécontent (2/5)</SelectItem>
-                        <SelectItem value="1">😡 Très mécontent (1/5)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="avis-filtre-theme-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <Layers size={12} /> Étiquette IA
-                    </label>
-                    <Select
-                      value={selectedTheme ?? 'ALL'}
-                      onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}
-                    >
-                      <SelectTrigger id="avis-filtre-theme-m" className="h-11 w-full font-semibold" aria-label="Étiquette IA">
-                        <SelectValue placeholder="Toutes les étiquettes" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Toutes les étiquettes</SelectItem>
-                        {Object.entries(THEMES_LABELS).map(([code, label]) => (
-                          <SelectItem key={code} value={code}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="avis-filtre-debut-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <Calendar size={12} aria-hidden /> Date Début
-                    </label>
-                    <Input
-                      id="avis-filtre-debut-m"
-                      type="date"
-                      aria-label="Filtrer les avis à partir du"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="h-11 font-semibold"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="avis-filtre-fin-m" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <Calendar size={12} aria-hidden /> Date Fin
-                    </label>
-                    <Input
-                      id="avis-filtre-fin-m"
-                      type="date"
-                      aria-label="Filtrer les avis jusqu'au"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="h-11 font-semibold"
-                    />
-                  </div>
+                  <FiltresAvis
+                    idSuffix="-m"
+                    className="space-y-4"
+                    isDirection={isDirection}
+                    agences={agences}
+                    guichets={guichets}
+                    services={services}
+                    selectedAgenceId={selectedAgenceId}
+                    setSelectedAgenceId={setSelectedAgenceId}
+                    selectedGuichetId={selectedGuichetId}
+                    setSelectedGuichetId={setSelectedGuichetId}
+                    selectedServiceId={selectedServiceId}
+                    setSelectedServiceId={setSelectedServiceId}
+                    selectedScore={selectedScore}
+                    setSelectedScore={setSelectedScore}
+                    selectedTheme={selectedTheme}
+                    setSelectedTheme={setSelectedTheme}
+                    startDate={startDate}
+                    setStartDate={setStartDate}
+                    endDate={endDate}
+                    setEndDate={setEndDate}
+                  />
                 </div>
           </details>
           <MotionCard interactive={false} className="hidden lg:block sticky top-16 lg:top-4 z-30 p-6 shadow-sm">
@@ -487,153 +568,28 @@ export const AvisPage = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {/* Agency Filter (DIRECTION only) */}
-              {isDirection && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                    <Building size={12} /> Agence
-                  </label>
-                  <Select
-                    value={selectedAgenceId ? String(selectedAgenceId) : 'ALL'}
-                    onValueChange={(v) => {
-                      setSelectedAgenceId(v !== 'ALL' ? Number(v) : undefined);
-                      setSelectedGuichetId(undefined);
-                    }}
-                  >
-                    <SelectTrigger className="h-11 w-full font-semibold" aria-label="Agence">
-                      <SelectValue placeholder="Toutes les agences" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">Toutes les agences</SelectItem>
-                      {agences?.map((a: any) => (
-                        <SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Guichet Filter */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Store size={12} /> Guichet / Caisse
-                </label>
-                <Select
-                  value={selectedGuichetId ? String(selectedGuichetId) : 'ALL'}
-                  onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)}
-                  disabled={isDirection && !selectedAgenceId}
-                >
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
-                    <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</SelectItem>
-                    {guichets?.map((g: any) => (
-                      <SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet} ({g.type_guichet})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Service Filter */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Layers size={12} /> Opération / Service
-                </label>
-                <Select
-                  value={selectedServiceId ? String(selectedServiceId) : 'ALL'}
-                  onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}
-                >
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Opération ou service">
-                    <SelectValue placeholder="Toutes les opérations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Toutes les opérations</SelectItem>
-                    {services?.map((s: any) => (
-                      <SelectItem key={s.id} value={String(s.id)}>{s.libelle_service}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Score Filter */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <HelpCircle size={12} /> Évaluation (Note)
-                </label>
-                <Select
-                  value={selectedScore ? String(selectedScore) : 'ALL'}
-                  onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}
-                >
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
-                    <SelectValue placeholder="Tous les scores" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Tous les scores</SelectItem>
-                    <SelectItem value="5">🤩 Très satisfait (5/5)</SelectItem>
-                    <SelectItem value="4">🙂 Satisfait (4/5)</SelectItem>
-                    <SelectItem value="3">😐 Neutre (3/5)</SelectItem>
-                    <SelectItem value="2">😟 Mécontent (2/5)</SelectItem>
-                    <SelectItem value="1">😡 Très mécontent (1/5)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Theme Filter (étiquetage IA) */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Layers size={12} /> Étiquette IA
-                </label>
-                <Select
-                  value={selectedTheme ?? 'ALL'}
-                  onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}
-                >
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Étiquette IA">
-                    <SelectValue placeholder="Toutes les étiquettes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Toutes les étiquettes</SelectItem>
-                    {Object.entries(THEMES_LABELS).map(([code, label]) => (
-                      <SelectItem key={code} value={code}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Start Date Filter — Vague 6 : le <label> était purement
-                  décoratif (aucun htmlFor), le champ n'avait donc AUCUN nom
-                  accessible : un lecteur d'écran annonçait « date » sans
-                  savoir laquelle des deux. Détecté par axe-core. */}
-              <div className="space-y-1.5">
-                <label htmlFor="avis-filtre-debut" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} aria-hidden /> Date Début
-                </label>
-                <Input
-                  id="avis-filtre-debut"
-                  type="date"
-                  aria-label="Filtrer les avis à partir du"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="h-11 font-semibold"
-                />
-              </div>
-
-              {/* End Date Filter — même correction. */}
-              <div className="space-y-1.5">
-                <label htmlFor="avis-filtre-fin" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} aria-hidden /> Date Fin
-                </label>
-                <Input
-                  id="avis-filtre-fin"
-                  type="date"
-                  aria-label="Filtrer les avis jusqu'au"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-11 font-semibold"
-                />
-              </div>
-            </div>
+            <FiltresAvis
+              idSuffix=""
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+              isDirection={isDirection}
+              agences={agences}
+              guichets={guichets}
+              services={services}
+              selectedAgenceId={selectedAgenceId}
+              setSelectedAgenceId={setSelectedAgenceId}
+              selectedGuichetId={selectedGuichetId}
+              setSelectedGuichetId={setSelectedGuichetId}
+              selectedServiceId={selectedServiceId}
+              setSelectedServiceId={setSelectedServiceId}
+              selectedScore={selectedScore}
+              setSelectedScore={setSelectedScore}
+              selectedTheme={selectedTheme}
+              setSelectedTheme={setSelectedTheme}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+            />
           </MotionCard>
 
           {/* Responses List or states */}

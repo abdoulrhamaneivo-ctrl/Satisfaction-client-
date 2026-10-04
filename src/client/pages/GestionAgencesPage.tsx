@@ -257,7 +257,7 @@ export const GestionAgencesPage = () => {
                     icon={SearchX}
                     title="Aucune agence ne correspond à votre recherche"
                     description="Essayez un autre nom d'agence ou de commune."
-                    action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>}
+                    action={<Button variant="outline" onClick={() => setRecherche('')} className="min-h-[44px] rounded-xl">Effacer la recherche</Button>}
                     className="py-10"
                   />
                 )}
