@@ -319,6 +319,174 @@ const emailProvider = {
 };
 initSmtpEmailSender(emailProvider);
 
+function normaliserLibelle(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[''ʼ`]/g, "'").replace(/\s+/g, " ").trim();
+}
+
+const categorielle = (libelle) => ({
+  libelle,
+  est_scorable: false,
+  score: null,
+  poids: null,
+  code_metier: null
+});
+const autreLibre = () => ({
+  libelle: "Autre (pr\xE9cisez)",
+  est_scorable: false,
+  score: null,
+  poids: 0,
+  code_metier: "AUTRE_LIBRE"
+});
+const GABARIT_EXPRESS = {
+  libelle_service: "Express-30s",
+  criteres: [
+    {
+      libelle_critere: "Passage aujourd'hui",
+      type_reponse: "SMILEY",
+      obligatoire: true,
+      options: []
+    },
+    {
+      libelle_critere: "Attente",
+      type_reponse: "QCM",
+      obligatoire: true,
+      options: [
+        categorielle("Moins de 10 min"),
+        categorielle("Entre 10 et 30 min"),
+        categorielle("Plus de 30 min")
+      ]
+    },
+    {
+      libelle_critere: "Motif",
+      type_reponse: "QCM",
+      obligatoire: true,
+      options: [
+        categorielle("Envoi / Retrait colis ou courrier"),
+        categorielle("Services financiers / Mandat / Paiement"),
+        categorielle("Bo\xEEte postale / Gestion de compte"),
+        autreLibre()
+      ]
+    },
+    {
+      libelle_critere: "Commentaire ou suggestion",
+      type_reponse: "TEXTE",
+      obligatoire: false,
+      options: []
+    }
+  ]
+};
+const GABARIT_QUALITE = {
+  libelle_service: "Qualit\xE9-45s",
+  criteres: [
+    {
+      libelle_critere: "L'agent au guichet a-t-il r\xE9pondu efficacement \xE0 votre demande ?",
+      type_reponse: "SMILEY",
+      obligatoire: true,
+      options: []
+    },
+    {
+      libelle_critere: "Politesse et clart\xE9",
+      type_reponse: "SMILEY",
+      obligatoire: true,
+      options: []
+    },
+    {
+      libelle_critere: "Recommanderiez-vous",
+      type_reponse: "NPS",
+      obligatoire: true,
+      options: []
+    },
+    {
+      libelle_critere: "Probl\xE8me sp\xE9cifique",
+      type_reponse: "CASES",
+      scoring_mode: "CASES_CATEGORICAL",
+      obligatoire: true,
+      options: [
+        categorielle("Panne r\xE9seau / Syst\xE8me indisponible"),
+        categorielle("Absence monnaie / liquidit\xE9s"),
+        categorielle("File mal organis\xE9e"),
+        {
+          libelle: "Aucun probl\xE8me",
+          est_scorable: false,
+          score: null,
+          poids: 0,
+          code_metier: "EXCLUSIF"
+        },
+        autreLibre()
+      ]
+    }
+  ]
+};
+async function seedGabarits(prisma, idEntreprise, idAgence) {
+  for (const spec of [GABARIT_EXPRESS, GABARIT_QUALITE]) {
+    let service = await prisma.service.findFirst({
+      where: { libelle_service: spec.libelle_service, id_entreprise: idEntreprise }
+    });
+    if (!service) {
+      service = await prisma.service.create({
+        data: { libelle_service: spec.libelle_service, id_entreprise: idEntreprise }
+      });
+    }
+    let ordre = 0;
+    for (const c of spec.criteres) {
+      let critere = await prisma.critere.findFirst({
+        where: { libelle_critere: c.libelle_critere, id_entreprise: idEntreprise }
+      });
+      if (!critere) {
+        critere = await prisma.critere.create({
+          data: {
+            libelle_critere: c.libelle_critere,
+            description: c.description ?? null,
+            type_reponse: c.type_reponse,
+            scoring_mode: c.scoring_mode ?? null,
+            orientation: "HIGHER_BETTER",
+            obligatoire: c.obligatoire,
+            options_reponse: c.options.length > 0 ? c.options.map((o) => o.libelle).join(",") : null,
+            scores_reponse: null,
+            id_entreprise: idEntreprise
+          }
+        });
+        for (let i = 0; i < c.options.length; i++) {
+          const o = c.options[i];
+          await prisma.optionCritere.create({
+            data: {
+              id_critere: critere.id,
+              libelle: o.libelle,
+              libelle_normalise: normaliserLibelle(o.libelle),
+              ordre_affichage: i,
+              actif: true,
+              est_scorable: o.est_scorable,
+              score: o.score,
+              score_provenance: null,
+              poids: o.poids,
+              code_metier: o.code_metier,
+              valeur_metier: null
+            }
+          });
+        }
+      }
+      const liens = await prisma.critereService.findMany({
+        where: { id_critere: critere.id },
+        select: { id_service: true }
+      });
+      const ailleurs = liens.some((l) => l.id_service !== service.id);
+      if (!ailleurs) {
+        await prisma.critereService.upsert({
+          where: { id_critere_id_service: { id_critere: critere.id, id_service: service.id } },
+          update: { ordre },
+          create: { id_critere: critere.id, id_service: service.id, ordre }
+        });
+      }
+      await prisma.agenceCritere.upsert({
+        where: { id_agence_id_critere: { id_agence: idAgence, id_critere: critere.id } },
+        update: {},
+        create: { id_agence: idAgence, id_critere: critere.id }
+      });
+      ordre += 1;
+    }
+  }
+}
+
 const NOM_ENTREPRISE = "Mon Entreprise";
 const NOM_AGENCE = "Agence Centrale";
 const COMMUNE_AGENCE = "Plateau";
@@ -452,6 +620,8 @@ async function seedEntrepriseUnique(prismaClient) {
     );
   }
   console.log("S\xE9quences PostgreSQL resynchronis\xE9es (Critere, Service, Canal).");
+  console.log("Cr\xE9ation des gabarits Express-30s / Qualit\xE9-45s...");
+  await seedGabarits(prismaClient, entreprise.id, agence.id);
   console.log("Seeding mono-agence termin\xE9 avec succ\xE8s !");
 }
 async function seedSuperAdmin(prismaClient) {

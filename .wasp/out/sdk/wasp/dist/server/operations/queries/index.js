@@ -38,6 +38,9 @@ import { getArchives as getArchives_ext } from 'wasp/src/server/queries';
 import { getAIStatus as getAIStatus_ext } from 'wasp/src/server/queries';
 import { getThemesStats as getThemesStats_ext } from 'wasp/src/server/queries';
 import { getIndicateursExperience as getIndicateursExperience_ext } from 'wasp/src/server/queries';
+import { getMoyennesParCritere as getMoyennesParCritere_ext } from 'wasp/src/server/queries';
+import { getRepartitionOptions as getRepartitionOptions_ext } from 'wasp/src/server/queries';
+import { getTendanceParCritere as getTendanceParCritere_ext } from 'wasp/src/server/queries';
 import { getAnalysesGlobales as getAnalysesGlobales_ext } from 'wasp/src/server/globalExperience';
 import { getPlatformOverview as getPlatformOverview_ext } from 'wasp/src/server/queriesPlatform';
 import { getPlatformEntreprises as getPlatformEntreprises_ext } from 'wasp/src/server/queriesPlatform';
@@ -349,6 +352,36 @@ export const getIndicateursExperience = createAuthenticatedOperation(getIndicate
     Service: prisma.service,
     Critere: prisma.critere,
     GlobalExperienceAnalysis: prisma.globalExperienceAnalysis,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const getMoyennesParCritere = createAuthenticatedOperation(getMoyennesParCritere_ext, {
+    Reponse: prisma.reponse,
+    Critere: prisma.critere,
+    OptionCritere: prisma.optionCritere,
+    ReponseOption: prisma.reponseOption,
+    User: prisma.user,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const getRepartitionOptions = createAuthenticatedOperation(getRepartitionOptions_ext, {
+    Reponse: prisma.reponse,
+    Critere: prisma.critere,
+    OptionCritere: prisma.optionCritere,
+    ReponseOption: prisma.reponseOption,
+    User: prisma.user,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const getTendanceParCritere = createAuthenticatedOperation(getTendanceParCritere_ext, {
+    Reponse: prisma.reponse,
+    Critere: prisma.critere,
+    OptionCritere: prisma.optionCritere,
+    ReponseOption: prisma.reponseOption,
+    User: prisma.user,
+    Agence: prisma.agence,
     Entreprise: prisma.entreprise,
 });
 // PUBLIC API

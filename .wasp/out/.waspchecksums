@@ -396,7 +396,7 @@
             "file",
             "sdk/wasp/client/app/layout.tsx"
         ],
-        "86931208aeac7879aa352dafef5dae0496c7c88303a3b6af4e00f082c7a05d71"
+        "8623117d80cc319050d6742dfae1a960f146616053cd843d55e7443f583383db"
     ],
     [
         [
@@ -529,7 +529,7 @@
             "file",
             "sdk/wasp/client/operations/queries/index.ts"
         ],
-        "87fc4f2a8a2162d94eae34140351d10cc10024794fa4b0612b6358cc00f14a29"
+        "7e10766350794668151f74ba79b872433ce37e66c11ce88c037ff7d3a0cc9140"
     ],
     [
         [
@@ -1019,21 +1019,21 @@
             "file",
             "sdk/wasp/server/operations/index.ts"
         ],
-        "1ca494f8795eaf96f451db166179a00cd851d5b7765b6414b6472fa80cd44b4e"
+        "71db73c78bc1b8094a4a030f68152444858d7638d8b428917bac3a245d8d3eba"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/queries/index.ts"
         ],
-        "cece6f03f13f87f77f76c04d2143b901a91ecc949136ed1e106af1ee9b57a5e5"
+        "aa76be754a4707645e09c7e60817994fa99b4b44465d17e20401e4e003036fab"
     ],
     [
         [
             "file",
             "sdk/wasp/server/operations/queries/types.ts"
         ],
-        "9f7b0d501f428cd3acc15c5704ef6f15b34453a28acb694d8623990fd20ae114"
+        "c63ac75af831f4eaeee4d42e0e27e8bbfc9eb316c879a97da16d0eb0106e724e"
     ],
     [
         [
@@ -1145,7 +1145,7 @@
             "file",
             "sdk/wasp/src/client/App.tsx"
         ],
-        "500bf0e4bcc0b0d0e07a73c69cdaa46734d751a1c4de57079775eeb432b9794b"
+        "c1af196b4e44b97ae83267612f57d93ac6d8c85a3f0d6dcb9ae4f6faef10d470"
     ],
     [
         [
@@ -1187,21 +1187,35 @@
             "file",
             "sdk/wasp/src/client/__mocks__/waspClientOperations.ts"
         ],
-        "b2cdad6b986df6a3bfaa5f8eb4dfd02f3c96ffc15d474fbd97fd06f96f8f1c8a"
+        "2fe1d34a7580de4e0035a698b43f87d326a8b503ea2d445e7e753d2251be44bf"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/admin-mobile-tactile.test.ts"
+        ],
+        "459de4336df60a23ca1b9210af1db1ae1ccd14514311681114cbbe9fb175bad5"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/admin-mobile-tactile.test.tsx"
+        ],
+        "d0fb193fbee422a51d4008f864a643d6f01235d63bbbe469ce92457167ed05c8"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/collecte/payload.test.ts"
         ],
-        "ea1aba406329694df05785226ef04fd37528535ad1cea9324a3c19e373c62591"
+        "627c6d4885b54cc637d7b9eeb69d6581bbdb7862c6bfe1abc73b882522f9ab7c"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/collecte/payload.ts"
         ],
-        "0aaf03b43e76c5a4990674e3296dd0a3ec839b5400d55de5f0d5d1db1d72ee0a"
+        "afc27792ab9f402a587d1fe63fcdb39e3fc5fd1ac0787fd00c05cb4a11e9d45c"
     ],
     [
         [
@@ -1332,6 +1346,20 @@
     [
         [
             "file",
+            "sdk/wasp/src/client/components/KpiParTerme.test.tsx"
+        ],
+        "1ef1bb36d881c7bff3bcd2c1c62a4f1ca16959e9045586093e7627cec6e3905e"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/components/KpiParTerme.tsx"
+        ],
+        "af45fe4fcdf381c82749ee25a618c7817a0626e31a9bfb1a1595aee31b61edc2"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/client/components/LigneReponse.tsx"
         ],
         "8cb12ddc870d921f41b62050506d385e8796f4b0318962bf30722f36a855ccf9"
@@ -1341,7 +1369,14 @@
             "file",
             "sdk/wasp/src/client/components/MobileAppHeader.tsx"
         ],
-        "a0754816a1c01393cc9a776da61679ba59de320bd2df9649c272902d79c5bece"
+        "20a4919759b069eaa6c075c83899abdd19d6ebb420905361020db208e7689e67"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/client/components/MobileTabBar.tsx"
+        ],
+        "072114843f203a1324783f2cb683782f0968de24b8ca6a28606af3330ae68dad"
     ],
     [
         [
@@ -1404,14 +1439,14 @@
             "file",
             "sdk/wasp/src/client/components/PageHeader.tsx"
         ],
-        "ab33c9810f64eb4e2e642ad7a695abdca0dd69f4a832d071a86b0ec1bed50b7e"
+        "c09799142632fd3c59a221d524e0d927a3a13058f5e9398a98e6adb95737c960"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/components/PageShell.tsx"
         ],
-        "abb09bd3d12c9b5f2e461d91bf90906236982457a48d266005ea7cf3b4e2fd14"
+        "8cf95d872d1dabbaf9477a20dafb8d970e3fade8613921b80754763c42ac0efc"
     ],
     [
         [
@@ -1551,7 +1586,7 @@
             "file",
             "sdk/wasp/src/client/components/ui/DataTable.tsx"
         ],
-        "8be6f6067c3e865a4ee176716471f91d508c5747a0f331c3013c73b7de3c858d"
+        "eab04e96678134c67b1d7daad4d95547ffa9026c37bf91a3af01fa5bbcd6e5d9"
     ],
     [
         [
@@ -1565,7 +1600,7 @@
             "file",
             "sdk/wasp/src/client/components/ui/alert-dialog.tsx"
         ],
-        "8d8dff2b601bc2184ac5a38611c517eb0521cea0d59b590d44c50802cb973ecb"
+        "a328d8d017a76f83cf8533d1ad24e1cb56796e8b623c1cef505122b38bd83988"
     ],
     [
         [
@@ -1607,7 +1642,7 @@
             "file",
             "sdk/wasp/src/client/components/ui/dialog.tsx"
         ],
-        "1b6c058b4251fa781dc2a612779d3490399f033d8d7eca62761458f457e1f555"
+        "9834640fc8e6ee168ad37d1ef63b4e7faca647f3fa34f6a8444cfc5ec60ceb7c"
     ],
     [
         [
@@ -1705,7 +1740,7 @@
             "file",
             "sdk/wasp/src/client/components/ui/toast.tsx"
         ],
-        "7ffbed9d5c01557aec14ba0e76beb6317d73428d7ddc38dc65398a6e24002bd1"
+        "29182b19d23866bf7a450103f44b09e10f6d3e7ff86e8294833a45892baffa71"
     ],
     [
         [
@@ -1740,7 +1775,7 @@
             "file",
             "sdk/wasp/src/client/head.wasp.ts"
         ],
-        "119dc673d3fa00afe729b9a0c9242b3658812543e6645eb2042fa720bf6996fc"
+        "e34c86b1341f23663411ea17ae61215e4b21ab7d906901922c4d6223708efc84"
     ],
     [
         [
@@ -1817,7 +1852,7 @@
             "file",
             "sdk/wasp/src/client/pages/AlertesTachesPage.tsx"
         ],
-        "5ef17b20db4960495c24b9b5d545c3e866d569f5ffb80c7158ac25fcd0c5274b"
+        "c072284f36ca1cee9b2c364d0da756b8a5f8229c5dcc3f07afe24d6bfa01c1ef"
     ],
     [
         [
@@ -1852,7 +1887,7 @@
             "file",
             "sdk/wasp/src/client/pages/AvisPage.tsx"
         ],
-        "53afe63bceb870698a177a6fb1d25ae4983bad998f5651014eada80cecdd23ad"
+        "e89a85eef8c14c6d2d5f547b052360b059462857f2efe3aa8237549d9ae0cdd2"
     ],
     [
         [
@@ -1873,7 +1908,7 @@
             "file",
             "sdk/wasp/src/client/pages/CollectePage.tsx"
         ],
-        "2d1dddeeb7b6fa030bbdb15ac115016d9b5be3c58e10cc1e9f60be91b249591e"
+        "3eb016a90c8004ceec41f6fd6f38dd4b2b48ebc8a4dbea1ab4345df9df36c3d1"
     ],
     [
         [
@@ -1894,7 +1929,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "a6127ffcb4bec9e4911637fbea4322691a6845f7585dc10cddfae67bfb04acbc"
+        "3037027eedad82e64d2c0f0e2e58e0acba5a4517d1634c200b86adecbd90b247"
     ],
     [
         [
@@ -1908,7 +1943,7 @@
             "file",
             "sdk/wasp/src/client/pages/GestionAgencesPage.tsx"
         ],
-        "8bdfbc9c7b3c69cad8e025c71e9e393206c708a5c5b565e8d8c9c7148fcd97a7"
+        "3ab9e815c776aa0f5c2582deba5583cb3e95cebc553f269be7a1c3820432fa2e"
     ],
     [
         [
@@ -1922,7 +1957,7 @@
             "file",
             "sdk/wasp/src/client/pages/GuichetsPage.tsx"
         ],
-        "4e1fd98219a06895b223372947acc441bce2dedf3a9ed12036920093a0f5941a"
+        "0e8cb38e52f8d5e936317368e8814008652c561b89423ab1c4f1849a8eb204b9"
     ],
     [
         [
@@ -1943,7 +1978,7 @@
             "file",
             "sdk/wasp/src/client/pages/PlanningPage.tsx"
         ],
-        "2a006b3ef672a5e16fc396b1b13b5571ac7a7685f6947855653c3b65737025df"
+        "60cbce235eae0f88d7ae346f3ed8217ec00e826c54b92a6e776f022a6c4c213d"
     ],
     [
         [
@@ -1978,7 +2013,7 @@
             "file",
             "sdk/wasp/src/client/pages/SyntheseGlobalePage.tsx"
         ],
-        "efaf847e4b7628fb2605f983ab9a515d50931cfd153ff4223e179af6b07cc285"
+        "49b40fcd6be923b35130837520c122eb0d3321f8d4e010226b685a754ce85291"
     ],
     [
         [
@@ -2321,7 +2356,7 @@
             "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "3e7114eea8b369e3817414071b6c36375ac6c624ec538e9c12b89e8e2b90cc42"
+        "beab5145e85130e326bd70e280eed2a5aba79b0dfe84ab4044ef666dbbb9c652"
     ],
     [
         [
@@ -2445,6 +2480,20 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/gabarits.test.ts"
+        ],
+        "16b879efb09e3693279441dd400056fea3cc3452e0890fe5060d213811fd78b3"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/gabarits.ts"
+        ],
+        "962b54864befdb070dc9ab5bba66a4213476ab77fed5438fbc9186bdf86d5617"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/gex/budget.test.ts"
         ],
         "464a8552594d66681b5cf0e3d119e223fe31190167a856714014a47a8f0e1eec"
@@ -2550,6 +2599,20 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/kpiParTerme.test.ts"
+        ],
+        "6624dda11a46acdd4854f35d4cb589250f4bcee65445d5c8e1d0cfac2beaa9fa"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/kpiParTerme.ts"
+        ],
+        "c81377c6c79f61a4adbe20f1896a4f0a87f82f806bdbdc1f2366e9fc5e134a34"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/lib/emailBrevo.ts"
         ],
         "64d15de64d02dd0658c5b43c50c8b7545dc2bdf408a8c1fbb8b97e26a751c551"
@@ -2587,7 +2650,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "7bd34beb35656a3f201d73982966c0cf076ff217284b4dff7ff3728a706429be"
+        "b64a4c53b35cef94b8956d02bff10c187579dabd796c289040e07e7bec77c334"
     ],
     [
         [
@@ -2622,7 +2685,7 @@
             "file",
             "sdk/wasp/src/server/resolutionSoumission.ts"
         ],
-        "845c17a967bb390ad310ed97150d2f24220eaebf50f10a95159972297620724e"
+        "8485942cf82e8be96a42ea5c723b289a64cd2df928163bfd2252c0d642a698ed"
     ],
     [
         [
@@ -2650,7 +2713,7 @@
             "file",
             "sdk/wasp/src/server/scripts/dbSeeds.ts"
         ],
-        "607dbeac0c143828959f4385201432c7cc42dc1959f5abcb3296e30efae455f2"
+        "f525b3ab605da25278249d5976791f3e797873e005c43033d3d336127e587383"
     ],
     [
         [
@@ -2846,14 +2909,14 @@
             "file",
             "sdk/wasp/src/shared/scoringEngine.test.ts"
         ],
-        "461f1cd0767ff075cdc2550d9e8bd3a74f9f358564e803aa68cccd9dbcc7e4a1"
+        "307258ea6ebb0eb6860d7ad0429b94600a67393bb4aeb0e4e763fd1aa8d79dd6"
     ],
     [
         [
             "file",
             "sdk/wasp/src/shared/scoringEngine.ts"
         ],
-        "6720b7d87eb70ce80a3b69a15e3799d5cfd80a7a00ed750af1b06141732c869a"
+        "4d560d59fc8256bf55fe5b433943690769ae4761193c59cd2907436cbd4d0ed5"
     ],
     [
         [
@@ -3803,6 +3866,13 @@
     [
         [
             "file",
+            "server/src/queries/getMoyennesParCritere.ts"
+        ],
+        "7aa57eeef76fc8db0d96d725cdc2efa5e4e87ef902e1a7f0f50c468dacdba278"
+    ],
+    [
+        [
+            "file",
             "server/src/queries/getObjectifs.ts"
         ],
         "dff4cf9d48d2c17826748660593e16d1fed08e5bca0ab165e4e26532e0750937"
@@ -3866,6 +3936,13 @@
     [
         [
             "file",
+            "server/src/queries/getRepartitionOptions.ts"
+        ],
+        "7e4a33f362af4cc1245865a78ff4f5402f51b8a918c528e916989bb118020a4a"
+    ],
+    [
+        [
+            "file",
             "server/src/queries/getReponses.ts"
         ],
         "1e9331becbbe92a07760fd17178854a62badb6a391d6181aff4d92902f43e690"
@@ -3925,6 +4002,13 @@
             "server/src/queries/getTendanceMensuelle.ts"
         ],
         "bba3c163d889c1b0e5c146369f0d12e1983ec4cf5f0400359a2bf5b9cc92c22c"
+    ],
+    [
+        [
+            "file",
+            "server/src/queries/getTendanceParCritere.ts"
+        ],
+        "e9ba8c80fa08189edce0cbe6ab13caaebf2269310087143f9e8393e5c0c18435"
     ],
     [
         [
@@ -4412,6 +4496,13 @@
     [
         [
             "file",
+            "server/src/routes/operations/getMoyennesParCritere.js"
+        ],
+        "efe83f5bc61eb876f703002b95b8ab5fad81b0593a80e8b5156268de1c072886"
+    ],
+    [
+        [
+            "file",
             "server/src/routes/operations/getObjectifs.js"
         ],
         "ed2c15625409bba7887eb6ceaa65850bc02e9b1fe3ae350893b076dd5ae1c901"
@@ -4471,6 +4562,13 @@
             "server/src/routes/operations/getRechercheGlobale.js"
         ],
         "52d184ff0b7c7584d1e9d15c67f1dd6cdea7645ba4caa951758de7d174e6e25a"
+    ],
+    [
+        [
+            "file",
+            "server/src/routes/operations/getRepartitionOptions.js"
+        ],
+        "1899a6aae2b13170c3870c3b3dda5e347c076d94201b2376e3646387de60a8c3"
     ],
     [
         [
@@ -4538,6 +4636,13 @@
     [
         [
             "file",
+            "server/src/routes/operations/getTendanceParCritere.js"
+        ],
+        "40100a084cbba2fcee6d9031e02dbbfbfa0fb02b806a15859b0da92d862cc1cf"
+    ],
+    [
+        [
+            "file",
             "server/src/routes/operations/getThemesStats.js"
         ],
         "a60f750eecb30964527096a4f6e6c9e87a6b01c9fbcdd0e42e6bd59ba95e5558"
@@ -4547,7 +4652,7 @@
             "file",
             "server/src/routes/operations/index.js"
         ],
-        "db1c8554eb626a99d924ffffa2482351733f15c4d1c83ba06f1d391d5bf38196"
+        "fb466a09905766c2f06d62beee999c64b8e851d930da8b1916a31a36f92140cc"
     ],
     [
         [

@@ -10,7 +10,10 @@ import React from 'react';
 import { NavLink } from 'react-router';
 
 export const PageShell = ({ children }: { children: React.ReactNode }) => (
-  <div className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8">{children}</div>
+  // Task 1 tactile : gouttières réduites sur mobile (px-4) — le p-6
+  // d'origine laissait ~12px utiles à 360px une fois la marge du contenu
+  // déduite. Desktop inchangé (sm:p-6, lg:p-10).
+  <div className="mx-auto max-w-7xl px-4 py-6 sm:p-6 lg:p-10 space-y-8">{children}</div>
 );
 
 export type OngletPage = { label: string; to: string };
@@ -50,8 +53,8 @@ export const PageTopNav = ({ racine, agence, actuel, onglets }: PageTopNavProps)
           end
           className={({ isActive }: { isActive: boolean }) =>
             isActive
-              ? 'text-primary border-b-2 border-primary py-2 font-bold'
-              : 'text-muted-foreground hover:text-foreground py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm'
+              ? 'text-primary border-b-2 border-primary py-2 font-bold inline-flex min-h-[44px] items-center'
+              : 'text-muted-foreground hover:text-foreground py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm inline-flex min-h-[44px] items-center'
           }
         >
           {o.label}

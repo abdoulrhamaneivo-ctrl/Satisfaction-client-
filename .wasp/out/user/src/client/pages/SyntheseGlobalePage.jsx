@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { useToast } from '../hooks/use-toast';
 import { Link as WaspRouterLink, routes } from 'wasp/client/router';
 import { construireUrlAvis } from '../utils/drilldown';
+import { SectionKpiParTerme } from '../components/KpiParTerme';
 // ---------- Helpers purs (testables) ----------
 /**
  * Lecture du NPS persisté : l'objet agrégé `{nps, promoteurs, passifs,
@@ -384,6 +385,14 @@ export const SyntheseGlobalePage = () => {
                       </div>
                     </div>
                   </Reveal>)}
+
+                {/* KPI PAR TERME live (Task 3) : mêmes moyennes par question,
+                répartitions et courbes que le dashboard, mais scopées
+                réseau pour la Direction (resolveAgenceScope) — en
+                complément du snapshot IA figé ci-dessus. */}
+                <Reveal>
+                  <SectionKpiParTerme nbJours={30} nbMois={6} labelPeriode="30j"/>
+                </Reveal>
 
                 {/* Résumé exécutif */}
                 <Reveal>

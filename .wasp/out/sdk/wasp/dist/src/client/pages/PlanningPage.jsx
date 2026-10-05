@@ -333,22 +333,23 @@ export const PlanningPage = () => {
           {/* Sélecteur d'onglet + navigation date */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-2">
-              <Button size="sm" variant={onglet === 'jour' ? 'default' : 'outline'} onClick={() => setOnglet('jour')}>
+              {/* Task 1 tactile : onglets 44px (size="sm" = 32px avant). */}
+              <Button size="sm" variant={onglet === 'jour' ? 'default' : 'outline'} onClick={() => setOnglet('jour')} className="min-h-[44px]">
                 <CalendarDays className="mr-1.5 size-4"/> Jour
               </Button>
-              <Button size="sm" variant={onglet === 'semaine' ? 'default' : 'outline'} onClick={() => setOnglet('semaine')}>
+              <Button size="sm" variant={onglet === 'semaine' ? 'default' : 'outline'} onClick={() => setOnglet('semaine')} className="min-h-[44px]">
                 <LayoutTemplate className="mr-1.5 size-4"/> Semaine type
               </Button>
             </div>
             {onglet === 'jour' && (<div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setDateSelectionnee(decalerJour(dateSelectionnee, -1))} title="Jour précédent">
+                <Button size="sm" variant="outline" onClick={() => setDateSelectionnee(decalerJour(dateSelectionnee, -1))} title="Jour précédent" aria-label="Jour précédent" className="min-h-[44px] min-w-[44px]">
                   <ChevronLeft className="size-4"/>
                 </Button>
-                <Input type="date" value={dateSelectionnee} onChange={(e) => e.target.value && setDateSelectionnee(e.target.value)} className="h-9 w-auto font-semibold" aria-label="Date du planning"/>
-                <Button size="sm" variant="outline" onClick={() => setDateSelectionnee(decalerJour(dateSelectionnee, 1))} title="Jour suivant">
+                <Input type="date" value={dateSelectionnee} onChange={(e) => e.target.value && setDateSelectionnee(e.target.value)} className="h-11 w-auto font-semibold" aria-label="Date du planning"/>
+                <Button size="sm" variant="outline" onClick={() => setDateSelectionnee(decalerJour(dateSelectionnee, 1))} title="Jour suivant" aria-label="Jour suivant" className="min-h-[44px] min-w-[44px]">
                   <ChevronRight className="size-4"/>
                 </Button>
-                {!estAujourdhui && (<Button size="sm" variant="ghost" onClick={() => setDateSelectionnee(isoAujourdhui())}>
+                {!estAujourdhui && (<Button size="sm" variant="ghost" onClick={() => setDateSelectionnee(isoAujourdhui())} className="min-h-[44px]">
                     Aujourd'hui
                   </Button>)}
               </div>)}
@@ -372,14 +373,14 @@ export const PlanningPage = () => {
                   <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${couverture.pct}%` }}/>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setDateSource(decalerJour(dateSelectionnee, -1)); setDialogReconduire(true); }}>
+                  <Button size="sm" variant="outline" onClick={() => { setDateSource(decalerJour(dateSelectionnee, -1)); setDialogReconduire(true); }} className="min-h-[44px]">
                     <Copy className="mr-1.5 size-4"/> Reconduire une journée…
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleGenerer} disabled={actionEnCours !== null}>
+                  <Button size="sm" variant="outline" onClick={handleGenerer} disabled={actionEnCours !== null} className="min-h-[44px]">
                     <LayoutTemplate className="mr-1.5 size-4"/>
                     {actionEnCours === 'generer' ? 'Génération…' : 'Depuis la semaine type'}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleSuggerer} disabled={actionEnCours !== null}>
+                  <Button size="sm" variant="outline" onClick={handleSuggerer} disabled={actionEnCours !== null} className="min-h-[44px]">
                     <Sparkles className="mr-1.5 size-4"/>
                     {actionEnCours === 'suggerer' ? 'Analyse…' : 'Suggérer le planning'}
                   </Button>
@@ -395,8 +396,8 @@ export const PlanningPage = () => {
                       {suggestion.source && (<span className="font-normal text-muted-foreground">— base : {suggestion.source}</span>)}
                     </p>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setSuggestion(null)}>Ignorer</Button>
-                      <Button size="sm" onClick={handleAppliquerSuggestion} disabled={actionEnCours !== null || suggestion.propositions.length === 0}>
+                      <Button size="sm" variant="ghost" onClick={() => setSuggestion(null)} className="min-h-[44px]">Ignorer</Button>
+                      <Button size="sm" onClick={handleAppliquerSuggestion} disabled={actionEnCours !== null || suggestion.propositions.length === 0} className="min-h-[44px]">
                         {actionEnCours === 'appliquer' ? 'Application…' : `Tout appliquer (${suggestion.propositions.length})`}
                       </Button>
                     </div>
@@ -418,13 +419,13 @@ export const PlanningPage = () => {
                   <label htmlFor="heure-debut" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Heure de début
                   </label>
-                  <Input id="heure-debut" type="time" value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} className="h-10 w-auto font-semibold"/>
+                  <Input id="heure-debut" type="time" value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} className="h-11 w-auto font-semibold"/>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="heure-fin" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Heure de fin
                   </label>
-                  <Input id="heure-fin" type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} className="h-10 w-auto font-semibold"/>
+                  <Input id="heure-fin" type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} className="h-11 w-auto font-semibold"/>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Ce créneau s'appliquera à chaque validation ci-dessous. Modifiez-le avant de valider un guichet dont les
@@ -435,7 +436,7 @@ export const PlanningPage = () => {
               {/* Onglet Semaine type */}
               <MotionCard className="space-y-4 p-5">
                 <div className="flex flex-wrap gap-2">
-                  {JOURS_ORDRE.map((j) => (<Button key={j} size="sm" variant={jourType === j ? 'default' : 'outline'} onClick={() => setJourType(j)}>
+                  {JOURS_ORDRE.map((j) => (<Button key={j} size="sm" variant={jourType === j ? 'default' : 'outline'} onClick={() => setJourType(j)} className="min-h-[44px] min-w-[44px]">
                       {JOURS_LABELS[j]}
                     </Button>))}
                 </div>
@@ -448,7 +449,7 @@ export const PlanningPage = () => {
                               <AlertTriangle className="size-3"/> Inactif — ignoré à la génération
                             </span>)}
                         </span>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteType(m.id)} title="Retirer" className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteType(m.id)} title="Retirer" aria-label="Retirer ce créneau" className="size-11 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                           <Trash2 className="size-4"/>
                         </Button>
                       </li>))}
@@ -457,7 +458,7 @@ export const PlanningPage = () => {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Guichet</label>
                     <Select value={typeGuichet} onValueChange={setTypeGuichet}>
-                      <SelectTrigger className="h-10" aria-label="Agent"><SelectValue placeholder="Guichet…"/></SelectTrigger>
+                      <SelectTrigger className="h-11" aria-label="Agent"><SelectValue placeholder="Guichet…"/></SelectTrigger>
                       <SelectContent>
                         {(guichets ?? []).map((g) => (<SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet}</SelectItem>))}
                       </SelectContent>
@@ -466,7 +467,7 @@ export const PlanningPage = () => {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent</label>
                     <Select value={typeAgent} onValueChange={setTypeAgent}>
-                      <SelectTrigger className="h-10" aria-label="Agent"><SelectValue placeholder="Agent…"/></SelectTrigger>
+                      <SelectTrigger className="h-11" aria-label="Agent"><SelectValue placeholder="Agent…"/></SelectTrigger>
                       <SelectContent>
                         {(agents ?? []).map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.prenom} {a.nom}</SelectItem>))}
                       </SelectContent>
@@ -474,11 +475,11 @@ export const PlanningPage = () => {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Début</label>
-                    <Input type="time" value={typeDebut} onChange={(e) => setTypeDebut(e.target.value)} className="h-10"/>
+                    <Input type="time" value={typeDebut} onChange={(e) => setTypeDebut(e.target.value)} className="h-11"/>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fin</label>
-                    <Input type="time" value={typeFin} onChange={(e) => setTypeFin(e.target.value)} className="h-10"/>
+                    <Input type="time" value={typeFin} onChange={(e) => setTypeFin(e.target.value)} className="h-11"/>
                   </div>
                   <div className="flex items-end">
                     <Button onClick={handleSaveType} disabled={savingType} className="w-full">
@@ -493,14 +494,14 @@ export const PlanningPage = () => {
           {!!guichets?.length && (<section className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-                <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher un guichet…" className="h-10 pl-9 font-semibold" aria-label="Rechercher un guichet dans le planning"/>
+                <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher un guichet…" className="h-11 pl-9 font-semibold" aria-label="Rechercher un guichet dans le planning"/>
               </div>
               <div className="flex flex-wrap gap-2">
                 {[
                     ['TOUS', 'Tous'],
                     ['SANS_AGENT', 'Sans agent'],
                     ['AFFECTES', 'Affectés'],
-                ].map(([valeur, libelle]) => (<Button key={valeur} size="sm" variant={filtreCouverture === valeur ? 'default' : 'outline'} onClick={() => setFiltreCouverture(valeur)}>
+                ].map(([valeur, libelle]) => (<Button key={valeur} size="sm" variant={filtreCouverture === valeur ? 'default' : 'outline'} onClick={() => setFiltreCouverture(valeur)} className="min-h-[44px]">
                     {libelle}
                   </Button>))}
               </div>
@@ -547,10 +548,10 @@ export const PlanningPage = () => {
                                 <span className="text-muted-foreground">
                                   {aff.heure_debut} – {aff.heure_fin}
                                 </span>
-                                <Button type="button" variant="ghost" size="icon" onClick={() => ouvrirEdition({ ...aff, guichet: g })} title="Modifier cette affectation" className="size-6 text-muted-foreground hover:bg-primary/10 hover:text-primary">
+                                <Button type="button" variant="ghost" size="icon" onClick={() => ouvrirEdition({ ...aff, guichet: g })} title="Modifier cette affectation" aria-label="Modifier cette affectation" className="size-11 text-muted-foreground hover:bg-primary/10 hover:text-primary">
                                   <Pencil className="size-3.5"/>
                                 </Button>
-                                <Button type="button" variant="ghost" size="icon" onClick={() => setAffectationASupprimer({ ...aff, guichet: g })} title="Retirer cette affectation" className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                                <Button type="button" variant="ghost" size="icon" onClick={() => setAffectationASupprimer({ ...aff, guichet: g })} title="Retirer cette affectation" aria-label="Retirer cette affectation" className="size-11 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                                   <Trash2 className="size-3.5"/>
                                 </Button>
                               </div>
@@ -558,7 +559,7 @@ export const PlanningPage = () => {
                         </div>)}
 
                       <Select value={agentIdForGuichet} onValueChange={(value) => setSelectedAgent((prev) => ({ ...prev, [g.id]: value }))}>
-                        <SelectTrigger className="h-10" aria-label="Affecter un agent à ce guichet">
+                        <SelectTrigger className="h-11" aria-label="Affecter un agent à ce guichet">
                           <SelectValue placeholder="Sélectionner un agent..."/>
                         </SelectTrigger>
                         <SelectContent>
@@ -592,20 +593,20 @@ export const PlanningPage = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant={dateSource === decalerJour(dateSelectionnee, -1) ? 'default' : 'outline'} onClick={() => setDateSource(decalerJour(dateSelectionnee, -1))}>
+            <Button size="sm" variant={dateSource === decalerJour(dateSelectionnee, -1) ? 'default' : 'outline'} onClick={() => setDateSource(decalerJour(dateSelectionnee, -1))} className="min-h-[44px]">
               Hier
             </Button>
-            <Button size="sm" variant={dateSource === decalerJour(dateSelectionnee, -7) ? 'default' : 'outline'} onClick={() => setDateSource(decalerJour(dateSelectionnee, -7))}>
+            <Button size="sm" variant={dateSource === decalerJour(dateSelectionnee, -7) ? 'default' : 'outline'} onClick={() => setDateSource(decalerJour(dateSelectionnee, -7))} className="min-h-[44px]">
               Même jour, semaine dernière
             </Button>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date source</label>
-            <Input type="date" value={dateSource} onChange={(e) => e.target.value && setDateSource(e.target.value)} className="h-10"/>
+            <Input type="date" value={dateSource} onChange={(e) => e.target.value && setDateSource(e.target.value)} className="h-11"/>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogReconduire(false)}>Annuler</Button>
-            <Button onClick={handleReconduire} disabled={actionEnCours !== null}>
+            <Button variant="outline" onClick={() => setDialogReconduire(false)} className="min-h-[44px]">Annuler</Button>
+            <Button onClick={handleReconduire} disabled={actionEnCours !== null} className="min-h-[44px]">
               {actionEnCours === 'reconduire' ? 'Reconduction…' : 'Reconduire'}
             </Button>
           </DialogFooter>
@@ -625,7 +626,7 @@ export const PlanningPage = () => {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent</label>
                 <Select value={editAgentId} onValueChange={setEditAgentId}>
-                  <SelectTrigger className="h-10" aria-label="Agent">
+                  <SelectTrigger className="h-11" aria-label="Agent">
                     <SelectValue placeholder="Sélectionner un agent..."/>
                   </SelectTrigger>
                   <SelectContent>
@@ -638,19 +639,19 @@ export const PlanningPage = () => {
               <div className="flex gap-4">
                 <div className="flex flex-1 flex-col gap-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Heure de début</label>
-                  <Input type="time" value={editHeureDebut} onChange={(e) => setEditHeureDebut(e.target.value)} className="h-10"/>
+                  <Input type="time" value={editHeureDebut} onChange={(e) => setEditHeureDebut(e.target.value)} className="h-11"/>
                 </div>
                 <div className="flex flex-1 flex-col gap-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Heure de fin</label>
-                  <Input type="time" value={editHeureFin} onChange={(e) => setEditHeureFin(e.target.value)} className="h-10"/>
+                  <Input type="time" value={editHeureFin} onChange={(e) => setEditHeureFin(e.target.value)} className="h-11"/>
                 </div>
               </div>
             </div>)}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAffectationAEditer(null)}>
+            <Button variant="outline" onClick={() => setAffectationAEditer(null)} className="min-h-[44px]">
               Annuler
             </Button>
-            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+            <Button onClick={handleSaveEdit} disabled={savingEdit} className="min-h-[44px]">
               {savingEdit ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           </DialogFooter>
@@ -674,8 +675,8 @@ export const PlanningPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deletingId !== null} variant="destructive">
+            <AlertDialogCancel className="min-h-[44px]">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deletingId !== null} variant="destructive" className="min-h-[44px]">
               {deletingId !== null ? 'Suppression...' : 'Retirer'}
             </AlertDialogAction>
           </AlertDialogFooter>

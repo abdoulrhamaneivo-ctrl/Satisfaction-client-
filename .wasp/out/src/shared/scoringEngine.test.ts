@@ -424,6 +424,58 @@ describe('§10 + §63 CASES', () => {
     expect(seul.statut).toBe('NON_NOTABLE');
   });
 
+  test('review r1 (F2) : compat legacy + AUTRE_LIBRE — Autre exclu de la moyenne, jamais scoré', () => {
+    const c: CritereMoteur = {
+      scoring_mode: null,
+      type_reponse: 'CASES',
+      orientation: 'HIGHER_BETTER',
+      options: [
+        opt('a', 'Bon', 4),
+        opt('b', 'Excellent', 5),
+        opt('x', 'Autre (précisez)', null, { est_scorable: false, code_metier: 'AUTRE_LIBRE' }),
+      ],
+    };
+    // La moyenne ne porte que sur les cochés scorés : (4+5)/2 = 4.5 → 5.
+    const r = resoudreCasesMoyenne(c, ['a', 'b', 'x']);
+    expect(r.statut).toBe('OK');
+    expect(r.score_officiel).toBe(5);
+    // L'id Autre est conservé pour les stats, sans influencer la note.
+    expect(r.options_retenues).toEqual(expect.arrayContaining(['a', 'b', 'x']));
+  });
+
+  test('review r1 (F2) : compat legacy Autre seul → NON_NOTABLE (pas de note inventée)', () => {
+    const c: CritereMoteur = {
+      scoring_mode: null,
+      type_reponse: 'CASES',
+      orientation: 'HIGHER_BETTER',
+      options: [
+        opt('a', 'Bon', 4),
+        opt('x', 'Autre (précisez)', null, { est_scorable: false, code_metier: 'AUTRE_LIBRE' }),
+      ],
+    };
+    const r = resoudreCasesMoyenne(c, ['x']);
+    expect(r.statut).toBe('NON_NOTABLE');
+    expect(r.score_officiel).toBeNull();
+    expect(r.score_normalise).toBeNull();
+    expect(r.options_retenues).toEqual(['x']);
+  });
+
+  test('review r1 (F2) : compat legacy EXCLUSIF + Autre → pas de violation, moyenne sur le chiffrable', () => {
+    const c: CritereMoteur = {
+      scoring_mode: null,
+      type_reponse: 'CASES',
+      orientation: 'HIGHER_BETTER',
+      options: [
+        opt('aucun', 'Aucun problème', 5, { code_metier: 'EXCLUSIF' }),
+        opt('x', 'Autre (précisez)', null, { est_scorable: false, code_metier: 'AUTRE_LIBRE' }),
+      ],
+    };
+    const r = resoudreCasesMoyenne(c, ['aucun', 'x']);
+    expect(r.statut).toBe('OK');
+    expect(r.score_officiel).toBe(5);
+    expect(r.options_retenues).toEqual(expect.arrayContaining(['aucun', 'x']));
+  });
+
   test('compat legacy LOWER_BETTER : la moyenne est inversée', () => {
     const c: CritereMoteur = {
       scoring_mode: null,

@@ -156,18 +156,20 @@ export const GestionAgencesPage = () => {
             {agencePiloteeId != null && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/5 p-4">
                 <p className="text-sm font-bold text-primary">Cumul actif : vous pilotez l'agence #{agencePiloteeId} (verbatim + gestion partout, vue réseau conservée).</p>
-                <Button type="button" variant="outline" size="sm" disabled={cumulEnCours !== null} onClick={handleCouperCumul} className="rounded-xl font-bold">
+                <Button type="button" variant="outline" size="sm" disabled={cumulEnCours !== null} onClick={handleCouperCumul} className="min-h-[44px] rounded-xl font-bold">
                   {cumulEnCours === 'off' ? 'Retrait…' : 'Retirer le cumul'}
                 </Button>
               </div>
             )}
 
+            {/* Task 1 tactile : liste d'abord sur mobile (order-1),
+                formulaire après (order-2). Desktop inchangé (lg:order-*). */}
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
               {/* CARTE FORMULAIRE */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="lg:col-span-1 rounded-3xl border border-border/70 bg-card p-6 shadow-premium ring-premium"
+                className="order-2 lg:order-1 lg:col-span-1 rounded-3xl border border-border/70 bg-card p-6 shadow-premium ring-premium"
               >
                 <h2 className="mb-6 flex items-center gap-2 text-lg font-bold">
                   <PlusCircle className="text-primary" /> Nouvelle agence
@@ -210,7 +212,7 @@ export const GestionAgencesPage = () => {
                     />
                   </div>
 
-                  <Button type="submit" disabled={submitting} className="w-full rounded-xl font-bold">
+                  <Button type="submit" disabled={submitting} className="min-h-[44px] w-full rounded-xl font-bold">
                     {submitting ? 'Création…' : "Créer l'agence"}
                   </Button>
                 </form>
@@ -223,7 +225,7 @@ export const GestionAgencesPage = () => {
               </motion.div>
 
               {/* LISTE DES AGENCES */}
-              <div className="lg:col-span-2 space-y-4">
+              <div className="order-1 lg:order-2 lg:col-span-2 space-y-4">
                 {erreurChargement && (
                   <div className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm font-bold text-destructive">
                     <span>Impossible de charger vos agences. Vérifiez votre connexion.</span>
@@ -232,7 +234,7 @@ export const GestionAgencesPage = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => rechargerAgences()}
-                      className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl"
+                      className="min-h-[44px] shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl"
                     >
                       Réessayer
                     </Button>
@@ -245,7 +247,7 @@ export const GestionAgencesPage = () => {
                       value={recherche}
                       onChange={(event) => setRecherche(event.target.value)}
                       placeholder="Rechercher une agence ou une commune…"
-                      className="h-10 pl-9"
+                      className="h-11 pl-9"
                       aria-label="Rechercher une agence"
                     />
                   </div>
@@ -255,7 +257,7 @@ export const GestionAgencesPage = () => {
                     icon={SearchX}
                     title="Aucune agence ne correspond à votre recherche"
                     description="Essayez un autre nom d'agence ou de commune."
-                    action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>}
+                    action={<Button variant="outline" onClick={() => setRecherche('')} className="min-h-[44px] rounded-xl">Effacer la recherche</Button>}
                     className="py-10"
                   />
                 )}
@@ -271,7 +273,7 @@ export const GestionAgencesPage = () => {
                       <Button
                         type="button"
                         onClick={() => navigate(`/admin/personnel?agence=${agenceCree.id}`)}
-                        className="rounded-xl font-bold"
+                        className="min-h-[44px] rounded-xl font-bold"
                       >
                         <PlusCircle className="size-4" /> Désigner son chef
                       </Button>
@@ -279,7 +281,7 @@ export const GestionAgencesPage = () => {
                         type="button"
                         variant="ghost"
                         onClick={() => setAgenceCree(null)}
-                        className="rounded-xl font-bold"
+                        className="min-h-[44px] rounded-xl font-bold"
                       >
                         Plus tard
                       </Button>
@@ -357,8 +359,9 @@ export const GestionAgencesPage = () => {
                           variant="outline"
                           size="icon"
                           onClick={() => setAgenceAArchiver({ id: agence.id, nom: agence.nom_agence })}
-                          className="shrink-0 border-dashed hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+                          className="size-11 shrink-0 border-dashed hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
                           title="Fermer définitivement cette agence (archivage, aucune perte de données)"
+                          aria-label={`Archiver l'agence ${agence.nom_agence}`}
                         >
                           <Archive className="size-4" />
                         </Button>
@@ -398,11 +401,11 @@ export const GestionAgencesPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel className="min-h-[44px]">Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleArchiverAgence}
               disabled={archivingId !== null}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 min-h-[44px]"
             >
               {archivingId !== null ? 'Archivage...' : "Archiver l'agence"}
             </AlertDialogAction>

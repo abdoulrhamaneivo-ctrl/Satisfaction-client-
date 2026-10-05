@@ -16,7 +16,9 @@ export function MobileAppHeader({ onMenuOpen, menuOpen = false }: MobileAppHeade
   const { total, hasCritical } = useNotificationBadge();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/80 bg-card/95 shadow-sm">
+    // Task 1 tactile : header 64px + safe-area haut (encoche iOS), boutons
+    // 44px (menu + cloche) — avant size-10 = 40px < WCAG 2.5.8.
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/80 bg-card/95 shadow-sm" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="flex h-16 items-center justify-between gap-3 px-4">
         <div className="flex items-center gap-2 min-w-0">
           <Button
@@ -27,7 +29,7 @@ export function MobileAppHeader({ onMenuOpen, menuOpen = false }: MobileAppHeade
             aria-expanded={menuOpen}
             aria-controls="mobile-sidebar"
             aria-label="Ouvrir le menu de navigation"
-            className="size-10 shrink-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/70"
+            className="size-11 min-h-[44px] min-w-[44px] shrink-0 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/70"
           >
             <Menu className="size-5" aria-hidden />
           </Button>
@@ -48,7 +50,7 @@ export function MobileAppHeader({ onMenuOpen, menuOpen = false }: MobileAppHeade
             to="/alertes-taches"
             title={`${total} action${total > 1 ? 's' : ''} en attente`}
             aria-label={`${total} incident${total > 1 ? 's' : ''} en attente`}
-            className="relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/30 hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="relative flex size-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/30 hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Bell
               className={cn(

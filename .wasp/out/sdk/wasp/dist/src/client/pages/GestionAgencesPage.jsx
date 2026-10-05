@@ -141,14 +141,16 @@ export const GestionAgencesPage = () => {
             <PageHeader icon={Building2} eyebrow="Réseau" title="Gestion des agences" description="Créez les agences de votre réseau. Vous pourrez ensuite y rattacher un Chef d'Agence et des guichets — ou activer le cumul directeur-pilote pour tout gérer vous-même (petite structure)."/>
             {agencePiloteeId != null && (<div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-primary/30 bg-primary/5 p-4">
                 <p className="text-sm font-bold text-primary">Cumul actif : vous pilotez l'agence #{agencePiloteeId} (verbatim + gestion partout, vue réseau conservée).</p>
-                <Button type="button" variant="outline" size="sm" disabled={cumulEnCours !== null} onClick={handleCouperCumul} className="rounded-xl font-bold">
+                <Button type="button" variant="outline" size="sm" disabled={cumulEnCours !== null} onClick={handleCouperCumul} className="min-h-[44px] rounded-xl font-bold">
                   {cumulEnCours === 'off' ? 'Retrait…' : 'Retirer le cumul'}
                 </Button>
               </div>)}
 
+            {/* Task 1 tactile : liste d'abord sur mobile (order-1),
+            formulaire après (order-2). Desktop inchangé (lg:order-*). */}
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
               {/* CARTE FORMULAIRE */}
-              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-1 rounded-3xl border border-border/70 bg-card p-6 shadow-premium ring-premium">
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="order-2 lg:order-1 lg:col-span-1 rounded-3xl border border-border/70 bg-card p-6 shadow-premium ring-premium">
                 <h2 className="mb-6 flex items-center gap-2 text-lg font-bold">
                   <PlusCircle className="text-primary"/> Nouvelle agence
                 </h2>
@@ -167,7 +169,7 @@ export const GestionAgencesPage = () => {
                     <Input id="agence-adresse" name="adresse" placeholder="Ex : Rue des Jardins, immeuble…" value={formData.adresse} onChange={handleInputChange} className="h-11"/>
                   </div>
 
-                  <Button type="submit" disabled={submitting} className="w-full rounded-xl font-bold">
+                  <Button type="submit" disabled={submitting} className="min-h-[44px] w-full rounded-xl font-bold">
                     {submitting ? 'Création…' : "Créer l'agence"}
                   </Button>
                 </form>
@@ -180,18 +182,18 @@ export const GestionAgencesPage = () => {
               </motion.div>
 
               {/* LISTE DES AGENCES */}
-              <div className="lg:col-span-2 space-y-4">
+              <div className="order-1 lg:order-2 lg:col-span-2 space-y-4">
                 {erreurChargement && (<div className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm font-bold text-destructive">
                     <span>Impossible de charger vos agences. Vérifiez votre connexion.</span>
-                    <Button type="button" size="sm" variant="outline" onClick={() => rechargerAgences()} className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl">
+                    <Button type="button" size="sm" variant="outline" onClick={() => rechargerAgences()} className="min-h-[44px] shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl">
                       Réessayer
                     </Button>
                   </div>)}
                 {agenceCount > 0 && (<div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
-                    <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher une agence ou une commune…" className="h-10 pl-9" aria-label="Rechercher une agence"/>
+                    <Input value={recherche} onChange={(event) => setRecherche(event.target.value)} placeholder="Rechercher une agence ou une commune…" className="h-11 pl-9" aria-label="Rechercher une agence"/>
                   </div>)}
-                {!isLoading && agenceCount > 0 && agencesFiltrees.length === 0 && (<EmptyState icon={SearchX} title="Aucune agence ne correspond à votre recherche" description="Essayez un autre nom d'agence ou de commune." action={<Button variant="outline" onClick={() => setRecherche('')} className="rounded-xl">Effacer la recherche</Button>} className="py-10"/>)}
+                {!isLoading && agenceCount > 0 && agencesFiltrees.length === 0 && (<EmptyState icon={SearchX} title="Aucune agence ne correspond à votre recherche" description="Essayez un autre nom d'agence ou de commune." action={<Button variant="outline" onClick={() => setRecherche('')} className="min-h-[44px] rounded-xl">Effacer la recherche</Button>} className="py-10"/>)}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {/* FIX 05/09 : CTA post-création — l'agence naît sans chef,
             on propose aussitôt sa désignation au lieu de l'oublier. */}
@@ -200,10 +202,10 @@ export const GestionAgencesPage = () => {
                       « {agenceCree.nom} » créée. Désignez maintenant son Chef d'Agence :
                     </p>
                     <div className="flex gap-2">
-                      <Button type="button" onClick={() => navigate(`/admin/personnel?agence=${agenceCree.id}`)} className="rounded-xl font-bold">
+                      <Button type="button" onClick={() => navigate(`/admin/personnel?agence=${agenceCree.id}`)} className="min-h-[44px] rounded-xl font-bold">
                         <PlusCircle className="size-4"/> Désigner son chef
                       </Button>
-                      <Button type="button" variant="ghost" onClick={() => setAgenceCree(null)} className="rounded-xl font-bold">
+                      <Button type="button" variant="ghost" onClick={() => setAgenceCree(null)} className="min-h-[44px] rounded-xl font-bold">
                         Plus tard
                       </Button>
                     </div>
@@ -243,7 +245,7 @@ export const GestionAgencesPage = () => {
                               </span>)}
                           </div>
                         </div>
-                        <Button type="button" variant="outline" size="icon" onClick={() => setAgenceAArchiver({ id: agence.id, nom: agence.nom_agence })} className="shrink-0 border-dashed hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive" title="Fermer définitivement cette agence (archivage, aucune perte de données)">
+                        <Button type="button" variant="outline" size="icon" onClick={() => setAgenceAArchiver({ id: agence.id, nom: agence.nom_agence })} className="size-11 shrink-0 border-dashed hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive" title="Fermer définitivement cette agence (archivage, aucune perte de données)" aria-label={`Archiver l'agence ${agence.nom_agence}`}>
                           <Archive className="size-4"/>
                         </Button>
                       </div>
@@ -273,8 +275,8 @@ export const GestionAgencesPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleArchiverAgence} disabled={archivingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel className="min-h-[44px]">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchiverAgence} disabled={archivingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 min-h-[44px]">
               {archivingId !== null ? 'Archivage...' : "Archiver l'agence"}
             </AlertDialogAction>
           </AlertDialogFooter>

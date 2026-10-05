@@ -107,6 +107,24 @@ export declare const getThemesStats: import("vitest").Mock<() => Promise<{
     topThemes: never[];
 }>>;
 export declare const getIndicateursExperience: import("vitest").Mock<() => Promise<null>>;
+export declare const getMoyennesParCritere: import("vitest").Mock<() => Promise<{
+    nb_jours: number;
+    criteres: never[];
+}>>;
+export declare const getRepartitionOptions: import("vitest").Mock<() => Promise<{
+    id_critere: number;
+    libelle: string;
+    nb_jours: number;
+    nb_avis: number;
+    options: never[];
+}>>;
+export declare const getTendanceParCritere: import("vitest").Mock<() => Promise<{
+    nb_mois: number;
+    id_critere: null;
+    libelle: null;
+    points: never[];
+    series: never[];
+}>>;
 export declare const getReponses: import("vitest").Mock<() => Promise<never[]>>;
 export declare const logout: import("vitest").Mock<() => Promise<undefined>>;
 export declare const getPlatformMe: import("vitest").Mock<() => Promise<{

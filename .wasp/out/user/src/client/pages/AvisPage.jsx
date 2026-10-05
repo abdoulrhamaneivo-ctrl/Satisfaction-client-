@@ -21,6 +21,100 @@ import { GrandVisuelNote } from '../components/NoteVisuel';
 import { LigneReponse } from '../components/LigneReponse';
 import { THEMES_LABELS } from '../components/AIAnalysisBadge';
 import { PageShell, PageTopNav } from '../components/PageShell';
+export function FiltresAvis({ idSuffix, className, isDirection, agences, guichets, services, selectedAgenceId, setSelectedAgenceId, selectedGuichetId, setSelectedGuichetId, selectedServiceId, setSelectedServiceId, selectedScore, setSelectedScore, selectedTheme, setSelectedTheme, startDate, setStartDate, endDate, setEndDate, }) {
+    const id = (base) => `avis-filtre-${base}${idSuffix}`;
+    return (<div className={className}>
+      {isDirection && (<div className="space-y-1.5">
+          <label htmlFor={id('agence')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <Building size={12}/> Agence
+          </label>
+          <Select value={selectedAgenceId ? String(selectedAgenceId) : 'ALL'} onValueChange={(v) => {
+                setSelectedAgenceId(v !== 'ALL' ? Number(v) : undefined);
+                setSelectedGuichetId(undefined);
+            }}>
+            <SelectTrigger id={id('agence')} className="h-11 w-full font-semibold" aria-label="Agence">
+              <SelectValue placeholder="Toutes les agences"/>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Toutes les agences</SelectItem>
+              {agences?.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>))}
+            </SelectContent>
+          </Select>
+        </div>)}
+      <div className="space-y-1.5">
+        <label htmlFor={id('guichet')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Store size={12}/> Guichet / Caisse
+        </label>
+        <Select value={selectedGuichetId ? String(selectedGuichetId) : 'ALL'} onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)} disabled={isDirection && !selectedAgenceId}>
+          <SelectTrigger id={id('guichet')} className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
+            <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}/>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</SelectItem>
+            {guichets?.map((g) => (<SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet} ({g.type_guichet})</SelectItem>))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('service')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Layers size={12}/> Opération / Service
+        </label>
+        <Select value={selectedServiceId ? String(selectedServiceId) : 'ALL'} onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}>
+          <SelectTrigger id={id('service')} className="h-11 w-full font-semibold" aria-label="Opération ou service">
+            <SelectValue placeholder="Toutes les opérations"/>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Toutes les opérations</SelectItem>
+            {services?.map((s) => (<SelectItem key={s.id} value={String(s.id)}>{s.libelle_service}</SelectItem>))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('score')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <HelpCircle size={12}/> Évaluation (Note)
+        </label>
+        <Select value={selectedScore ? String(selectedScore) : 'ALL'} onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}>
+          <SelectTrigger id={id('score')} className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
+            <SelectValue placeholder="Tous les scores"/>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Tous les scores</SelectItem>
+            <SelectItem value="5">🤩 Très satisfait (5/5)</SelectItem>
+            <SelectItem value="4">🙂 Satisfait (4/5)</SelectItem>
+            <SelectItem value="3">😐 Neutre (3/5)</SelectItem>
+            <SelectItem value="2">😟 Mécontent (2/5)</SelectItem>
+            <SelectItem value="1">😡 Très mécontent (1/5)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('theme')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Layers size={12}/> Étiquette IA
+        </label>
+        <Select value={selectedTheme ?? 'ALL'} onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}>
+          <SelectTrigger id={id('theme')} className="h-11 w-full font-semibold" aria-label="Étiquette IA">
+            <SelectValue placeholder="Toutes les étiquettes"/>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Toutes les étiquettes</SelectItem>
+            {Object.entries(THEMES_LABELS).map(([code, label]) => (<SelectItem key={code} value={code}>{label}</SelectItem>))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('debut')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Calendar size={12} aria-hidden/> Date Début
+        </label>
+        <Input id={id('debut')} type="date" aria-label="Filtrer les avis à partir du" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 font-semibold"/>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={id('fin')} className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Calendar size={12} aria-hidden/> Date Fin
+        </label>
+        <Input id={id('fin')} type="date" aria-label="Filtrer les avis jusqu'au" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-11 font-semibold"/>
+      </div>
+    </div>);
+}
 export const AvisPage = () => {
     const { data: user } = useAuth();
     const { toast } = useToast();
@@ -230,139 +324,55 @@ export const AvisPage = () => {
             { label: 'Kanban Incidents', to: '/alertes-taches' },
         ]}/>
 
-          <PageHeader icon={MessageSquareQuote} eyebrow="Écoute client" title="Derniers retours clients" description="Consultez et filtrez les avis collectés en temps réel sur l'ensemble de vos points de contact." actions={<div className="flex items-center gap-3">
+          <PageHeader icon={MessageSquareQuote} eyebrow="Écoute client" title="Derniers retours clients" description="Consultez et filtrez les avis collectés en temps réel sur l'ensemble de vos points de contact." actions={<div className="flex flex-wrap items-center gap-3">
                 {allAvis.length > 0 && (<span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-strong">
                     {allAvis.length}{hasMore ? '+' : ''} retour{allAvis.length > 1 ? 's' : ''}
                   </span>)}
-                <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={exporting || allAvis.length === 0} id="btn-export-csv" className="rounded-xl font-bold">
+                <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={exporting || allAvis.length === 0} id="btn-export-csv" className="min-h-[44px] rounded-xl font-bold">
                   {exporting ? (<Loader2 className="size-4 animate-spin"/>) : (<Download className="size-4"/>)}
                   <span className="ml-1.5">CSV</span>
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleExportXLSX} disabled={exportingXLSX || allAvis.length === 0} id="btn-export-xlsx" className="rounded-xl font-bold">
+                <Button variant="outline" size="sm" onClick={handleExportXLSX} disabled={exportingXLSX || allAvis.length === 0} id="btn-export-xlsx" className="min-h-[44px] rounded-xl font-bold">
                   {exportingXLSX ? (<Loader2 className="size-4 animate-spin"/>) : (<FileSpreadsheet className="size-4"/>)}
                   <span className="ml-1.5">Excel (XLSX)</span>
                 </Button>
               </div>}/>
 
           {/* Filters Dashboard Panel — flottant : reste accessible en scrollant
-            la liste, potentiellement longue, des avis en dessous. */}
-          <MotionCard interactive={false} className="sticky top-16 lg:top-4 z-30 p-6 shadow-sm">
+            la liste, potentiellement longue, des avis en dessous.
+            Task 1 tactile : accordéon replié sur mobile (au pouce, 44px,
+            contenu replié = pas de scroll infini avant la liste), panneau
+            complet conservé sur desktop (hidden lg:block ci-dessous). */}
+          <details className="lg:hidden rounded-2xl border border-border/70 bg-card px-4">
+            <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 py-3 text-sm font-bold uppercase tracking-wider text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <Filter size={16} aria-hidden/> Filtres de recherche
+                  {((selectedAgenceId ? 1 : 0) + (selectedGuichetId ? 1 : 0) + (selectedServiceId ? 1 : 0) + (selectedScore ? 1 : 0) + (selectedTheme ? 1 : 0) + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (<span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                      {[selectedAgenceId, selectedGuichetId, selectedServiceId, selectedScore, selectedTheme, startDate, endDate].filter(Boolean).length}
+                    </span>)}
+                </span>
+              <ChevronDown size={16} aria-hidden className="shrink-0"/>
+            </summary>
+            <div className="space-y-4 pb-4">
+                  <div className="flex justify-end">
+                    <Button type="button" variant="ghost" size="sm" onClick={handleResetFilters} className="min-h-[44px] text-xs text-muted-foreground hover:text-primary">
+                      <RotateCcw size={12}/> Réinitialiser
+                    </Button>
+                  </div>
+                  <FiltresAvis idSuffix="-m" className="space-y-4" isDirection={isDirection} agences={agences} guichets={guichets} services={services} selectedAgenceId={selectedAgenceId} setSelectedAgenceId={setSelectedAgenceId} selectedGuichetId={selectedGuichetId} setSelectedGuichetId={setSelectedGuichetId} selectedServiceId={selectedServiceId} setSelectedServiceId={setSelectedServiceId} selectedScore={selectedScore} setSelectedScore={setSelectedScore} selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate}/>
+                </div>
+          </details>
+          <MotionCard interactive={false} className="hidden lg:block sticky top-16 lg:top-4 z-30 p-6 shadow-sm">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Filter size={16}/> Filtres de recherche
               </h2>
-              <Button type="button" variant="ghost" size="sm" onClick={handleResetFilters} className="text-xs text-muted-foreground hover:text-primary">
+              <Button type="button" variant="ghost" size="sm" onClick={handleResetFilters} className="min-h-[44px] text-xs text-muted-foreground hover:text-primary">
                 <RotateCcw size={12}/> Réinitialiser
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {/* Agency Filter (DIRECTION only) */}
-              {isDirection && (<div className="space-y-1.5">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                    <Building size={12}/> Agence
-                  </label>
-                  <Select value={selectedAgenceId ? String(selectedAgenceId) : 'ALL'} onValueChange={(v) => {
-                setSelectedAgenceId(v !== 'ALL' ? Number(v) : undefined);
-                setSelectedGuichetId(undefined);
-            }}>
-                    <SelectTrigger className="h-11 w-full font-semibold" aria-label="Agence">
-                      <SelectValue placeholder="Toutes les agences"/>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">Toutes les agences</SelectItem>
-                      {agences?.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.nom_agence} ({a.commune})</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>)}
-
-              {/* Guichet Filter */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Store size={12}/> Guichet / Caisse
-                </label>
-                <Select value={selectedGuichetId ? String(selectedGuichetId) : 'ALL'} onValueChange={(v) => setSelectedGuichetId(v !== 'ALL' ? Number(v) : undefined)} disabled={isDirection && !selectedAgenceId}>
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Guichet ou caisse">
-                    <SelectValue placeholder={isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}/>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">{isDirection && !selectedAgenceId ? "Sélectionnez une agence d'abord" : 'Tous les guichets'}</SelectItem>
-                    {guichets?.map((g) => (<SelectItem key={g.id} value={String(g.id)}>{g.nom_guichet} ({g.type_guichet})</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Service Filter */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Layers size={12}/> Opération / Service
-                </label>
-                <Select value={selectedServiceId ? String(selectedServiceId) : 'ALL'} onValueChange={(v) => setSelectedServiceId(v !== 'ALL' ? Number(v) : undefined)}>
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Opération ou service">
-                    <SelectValue placeholder="Toutes les opérations"/>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Toutes les opérations</SelectItem>
-                    {services?.map((s) => (<SelectItem key={s.id} value={String(s.id)}>{s.libelle_service}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Score Filter */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <HelpCircle size={12}/> Évaluation (Note)
-                </label>
-                <Select value={selectedScore ? String(selectedScore) : 'ALL'} onValueChange={(v) => setSelectedScore(v !== 'ALL' ? Number(v) : undefined)}>
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Évaluation (note)">
-                    <SelectValue placeholder="Tous les scores"/>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Tous les scores</SelectItem>
-                    <SelectItem value="5">🤩 Très satisfait (5/5)</SelectItem>
-                    <SelectItem value="4">🙂 Satisfait (4/5)</SelectItem>
-                    <SelectItem value="3">😐 Neutre (3/5)</SelectItem>
-                    <SelectItem value="2">😟 Mécontent (2/5)</SelectItem>
-                    <SelectItem value="1">😡 Très mécontent (1/5)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Theme Filter (étiquetage IA) */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Layers size={12}/> Étiquette IA
-                </label>
-                <Select value={selectedTheme ?? 'ALL'} onValueChange={(v) => setSelectedTheme(v !== 'ALL' ? v : undefined)}>
-                  <SelectTrigger className="h-11 w-full font-semibold" aria-label="Étiquette IA">
-                    <SelectValue placeholder="Toutes les étiquettes"/>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Toutes les étiquettes</SelectItem>
-                    {Object.entries(THEMES_LABELS).map(([code, label]) => (<SelectItem key={code} value={code}>{label}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Start Date Filter — Vague 6 : le <label> était purement
-            décoratif (aucun htmlFor), le champ n'avait donc AUCUN nom
-            accessible : un lecteur d'écran annonçait « date » sans
-            savoir laquelle des deux. Détecté par axe-core. */}
-              <div className="space-y-1.5">
-                <label htmlFor="avis-filtre-debut" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} aria-hidden/> Date Début
-                </label>
-                <Input id="avis-filtre-debut" type="date" aria-label="Filtrer les avis à partir du" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 font-semibold"/>
-              </div>
-
-              {/* End Date Filter — même correction. */}
-              <div className="space-y-1.5">
-                <label htmlFor="avis-filtre-fin" className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Calendar size={12} aria-hidden/> Date Fin
-                </label>
-                <Input id="avis-filtre-fin" type="date" aria-label="Filtrer les avis jusqu'au" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-11 font-semibold"/>
-              </div>
-            </div>
+            <FiltresAvis idSuffix="" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" isDirection={isDirection} agences={agences} guichets={guichets} services={services} selectedAgenceId={selectedAgenceId} setSelectedAgenceId={setSelectedAgenceId} selectedGuichetId={selectedGuichetId} setSelectedGuichetId={setSelectedGuichetId} selectedServiceId={selectedServiceId} setSelectedServiceId={setSelectedServiceId} selectedScore={selectedScore} setSelectedScore={setSelectedScore} selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate}/>
           </MotionCard>
 
           {/* Responses List or states */}
@@ -430,7 +440,7 @@ export const AvisPage = () => {
 
               {/* Bouton "Charger plus" */}
               {(hasMore || isLoading) && (<div className="flex justify-center pt-2">
-                  <Button variant="outline" onClick={handleLoadMore} disabled={isLoading} id="btn-charger-plus" className="gap-2">
+                  <Button variant="outline" onClick={handleLoadMore} disabled={isLoading} id="btn-charger-plus" className="min-h-[44px] gap-2">
                     {isLoading ? (<Loader2 className="size-4 animate-spin"/>) : (<ChevronDown className="size-4"/>)}
                     {isLoading ? 'Chargement...' : `Charger plus d'avis`}
                   </Button>

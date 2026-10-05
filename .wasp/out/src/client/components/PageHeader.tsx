@@ -52,7 +52,9 @@ export const PageHeader = ({
       </div>
 
       {actions && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2.5 sm:gap-3">{actions}</div>
+        // Task 1 tactile : actions pleine largeur sur mobile (empilées sous
+        // le titre, au pouce), alignées à droite dès sm. Desktop inchangé.
+        <div className="flex w-full sm:w-auto shrink-0 flex-wrap items-center gap-2.5 sm:gap-3">{actions}</div>
       )}
     </header>
   );

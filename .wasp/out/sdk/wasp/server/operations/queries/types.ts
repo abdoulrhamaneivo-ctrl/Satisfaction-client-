@@ -19,6 +19,8 @@ import {
   type _ModeleHoraire,
   type _AnalyseAvisIA,
   type _GlobalExperienceAnalysis,
+  type _OptionCritere,
+  type _ReponseOption,
   type _Invitation,
   type _AuditLog,
   type AuthenticatedQueryDefinition,
@@ -554,6 +556,54 @@ export type GetIndicateursExperience<Input extends Payload = never, Output exten
       _Service,
       _Critere,
       _GlobalExperienceAnalysis,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type GetMoyennesParCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _Reponse,
+      _Critere,
+      _OptionCritere,
+      _ReponseOption,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type GetRepartitionOptions<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _Reponse,
+      _Critere,
+      _OptionCritere,
+      _ReponseOption,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type GetTendanceParCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+  AuthenticatedQueryDefinition<
+    [
+      _Reponse,
+      _Critere,
+      _OptionCritere,
+      _ReponseOption,
+      _User,
+      _Agence,
       _Entreprise,
     ],
     Input,

@@ -106,6 +106,9 @@ import getArchives from './getArchives.js'
 import getAIStatus from './getAIStatus.js'
 import getThemesStats from './getThemesStats.js'
 import getIndicateursExperience from './getIndicateursExperience.js'
+import getMoyennesParCritere from './getMoyennesParCritere.js'
+import getRepartitionOptions from './getRepartitionOptions.js'
+import getTendanceParCritere from './getTendanceParCritere.js'
 import getAnalysesGlobales from './getAnalysesGlobales.js'
 import getPlatformOverview from './getPlatformOverview.js'
 import getPlatformEntreprises from './getPlatformEntreprises.js'
@@ -219,6 +222,9 @@ router.post('/get-archives', auth, getArchives)
 router.post('/get-aistatus', auth, getAIStatus)
 router.post('/get-themes-stats', auth, getThemesStats)
 router.post('/get-indicateurs-experience', auth, getIndicateursExperience)
+router.post('/get-moyennes-par-critere', auth, getMoyennesParCritere)
+router.post('/get-repartition-options', auth, getRepartitionOptions)
+router.post('/get-tendance-par-critere', auth, getTendanceParCritere)
 router.post('/get-analyses-globales', auth, getAnalysesGlobales)
 router.post('/get-platform-overview', auth, getPlatformOverview)
 router.post('/get-platform-entreprises', auth, getPlatformEntreprises)

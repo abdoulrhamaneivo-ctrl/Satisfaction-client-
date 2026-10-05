@@ -52,7 +52,7 @@ const GuichetQrPreview = ({ guichet }: { guichet: any }) => {
         type="button"
         variant="ghost"
         onClick={() => setOpen(true)}
-        className="group h-auto shrink-0 items-center gap-3 rounded-2xl border border-dashed border-border/80 bg-muted/50 px-4 py-3 text-left font-normal hover:border-primary/50 hover:bg-muted/80 transition-all"
+        className="group min-h-[44px] h-auto shrink-0 items-center gap-3 rounded-2xl border border-dashed border-border/80 bg-muted/50 px-4 py-3 text-left font-normal hover:border-primary/50 hover:bg-muted/80 transition-all"
         aria-label={`Afficher le QR code du guichet ${guichet.nom_guichet}`}
       >
         <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground grayscale transition-all group-hover:bg-primary/10 group-hover:text-primary group-hover:grayscale-0">
@@ -281,7 +281,7 @@ export const GuichetsPage = () => {
                 onValueChange={(v) => setSelectedAgenceId(Number(v))}
                 aria-label="Choisir une agence"
               >
-                <SelectTrigger className="h-8 w-auto min-w-[180px] border-border/70 text-foreground" aria-label="Choisir une agence">
+                <SelectTrigger className="min-h-[44px] w-auto min-w-[180px] border-border/70 text-foreground" aria-label="Choisir une agence">
                   <SelectValue placeholder="Choisir une agence" />
                 </SelectTrigger>
                 <SelectContent>
@@ -310,7 +310,7 @@ export const GuichetsPage = () => {
               actions={
                 guichetCount > 0 && (
                   <motion.div whileTap={{ scale: 0.97 }}>
-                    <Button onClick={handlePrint} className="rounded-xl font-bold">
+                    <Button onClick={handlePrint} className="min-h-[44px] rounded-xl font-bold">
                       <Printer className="size-4" /> Imprimer le Kit complet
                     </Button>
                   </motion.div>
@@ -319,11 +319,14 @@ export const GuichetsPage = () => {
             />
           </Reveal>
 
+          {/* Task 1 tactile : liste d'abord sur mobile (order-1), formulaire
+              après (order-2) — avant, le formulaire occupait 2 écrans avant
+              d'atteindre la liste. Desktop inchangé (lg:order-*). */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             {/* Formulaire d'ajout rapide — chefs ET direction (qui gère
                 tout le réseau via le sélecteur d'agence ci-dessus). */}
             {user?.role === 'CHEF_AGENCE' || isDirection ? (
-              <Reveal delay={0.05}>
+              <Reveal delay={0.05} className="order-2 lg:order-1">
                 <Card variant="feature" className="h-fit p-6 lg:sticky lg:top-8 rounded-3xl">
                   <div className="mb-5 flex items-center gap-2.5">
                     <span className="flex size-9 items-center justify-center rounded-xl bg-secondary/15 text-secondary border border-secondary/30">
@@ -426,7 +429,7 @@ export const GuichetsPage = () => {
                 </Card>
               </Reveal>
             ) : (
-              <Card className="h-fit p-6 lg:sticky lg:top-8 text-center rounded-3xl">
+              <Card className="order-2 h-fit p-6 lg:order-1 lg:sticky lg:top-8 text-center rounded-3xl">
                 <Store className="mx-auto mb-3 size-8 text-muted-foreground" />
                 <p className="font-bold text-foreground font-satoshi">
                   Gestion réservée au Chef d'Agence
@@ -438,7 +441,7 @@ export const GuichetsPage = () => {
             )}
 
             {/* Liste des Guichets */}
-            <div className="space-y-6 lg:col-span-2">
+            <div className="order-1 space-y-6 lg:order-2 lg:col-span-2">
               <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
                 <Eyebrow tone="amber">Points d'évaluation</Eyebrow>
                 {guichetCount > 0 && (
@@ -456,7 +459,7 @@ export const GuichetsPage = () => {
                       value={recherche}
                       onChange={(event) => setRecherche(event.target.value)}
                       placeholder="Rechercher un guichet, type ou opération…"
-                      className="h-10 pl-9 rounded-xl border-border/60"
+                      className="h-11 pl-9 rounded-xl border-border/60"
                       aria-label="Rechercher un guichet"
                     />
                   </div>
@@ -534,7 +537,7 @@ export const GuichetsPage = () => {
                               type="button"
                               variant="outline"
                               onClick={() => setGuichetAArchiver({ id: g.id, nom: g.nom_guichet })}
-                              className="h-auto border-dashed border-border/80 rounded-2xl px-3.5 py-3 text-xs font-bold hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              className="min-h-[44px] h-auto border-dashed border-border/80 rounded-2xl px-3.5 py-3 text-xs font-bold hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
                               title="Fermer définitivement ce guichet"
                               aria-label={`Archiver le guichet ${g.nom_guichet}`}
                             >
@@ -573,7 +576,7 @@ export const GuichetsPage = () => {
                                 size="sm" 
                                 variant="outline" 
                                 onClick={() => setEditingGuichetId(null)}
-                                className="h-8 text-xs gap-1 rounded-xl"
+                                className="min-h-[44px] text-xs gap-1 rounded-xl"
                               >
                                 <X className="size-3" /> Annuler
                               </Button>
@@ -581,7 +584,7 @@ export const GuichetsPage = () => {
                                 size="sm" 
                                 onClick={() => setGuichetAConfirmer({ id: g.id, nom: g.nom_guichet })}
                                 disabled={updatingServices}
-                                className="h-8 text-xs gap-1 bg-success hover:bg-success/90 text-success-foreground font-bold rounded-xl"
+                                className="min-h-[44px] text-xs gap-1 bg-success hover:bg-success/90 text-success-foreground font-bold rounded-xl"
                               >
                                 {updatingServices ? (
                                   <Loader2 size={12} className="animate-spin" />
@@ -617,7 +620,7 @@ export const GuichetsPage = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => startEditingServices(g)}
-                                className="h-8 text-xs font-bold shrink-0 gap-1 rounded-xl border-border/80 hover:border-primary/50 hover:text-primary transition-all"
+                                className="min-h-[44px] text-xs font-bold shrink-0 gap-1 rounded-xl border-border/80 hover:border-primary/50 hover:text-primary transition-all"
                               >
                                 <Settings2 size={12} /> Modifier
                               </Button>
@@ -670,9 +673,9 @@ export const GuichetsPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogCancel className="min-h-[44px] rounded-xl">Annuler</AlertDialogCancel>
             <AlertDialogAction
-              className="rounded-xl font-bold"
+              className="min-h-[44px] rounded-xl font-bold"
               onClick={() => {
                 if (guichetAConfirmer) handleSaveServices(guichetAConfirmer.id);
                 setGuichetAConfirmer(null);
@@ -702,11 +705,11 @@ export const GuichetsPage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogCancel className="min-h-[44px] rounded-xl">Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleArchiverGuichet}
               disabled={archivingId !== null}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 min-h-[44px] rounded-xl font-bold"
             >
               {archivingId !== null ? 'Archivage...' : 'Archiver le guichet'}
             </AlertDialogAction>

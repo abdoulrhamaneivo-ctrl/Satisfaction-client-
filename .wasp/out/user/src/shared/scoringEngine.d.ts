@@ -38,6 +38,13 @@ export interface ResolutionScoring {
     /** Code raison (AMBIGU / NON_NOTABLE) — jamais de texte libre inventé. */
     raison?: string;
 }
+/**
+ * Task 2 — Convention « Autre (précisez) » : option à saisie libre.
+ * code_metier AUTRE_LIBRE → jamais scorée, jamais comptée dans une
+ * somme pondérée, exempte du contrôle d'exclusivité (cohabite avec
+ * « Aucun problème »). Garde : un EXCLUSIF n'est jamais un Autre.
+ */
+export declare function estAutreLibre(o: OptionMoteur): boolean;
 /** 1..5 → /100. */
 export declare function note5Vers100(score: number): number;
 /** Valeur d'échelle [min,max] → /100 (avec orientation). */
@@ -101,6 +108,9 @@ export declare function agregerNPS(valeurs: number[]): AgregationNPS;
  * - CATEGORICAL (ou sans scores/poids) → NON_NOTABLE + ids (stats %).
  * - WEIGHTED → base 100 + Σ(poids), clampé 0-100 ; officiel = /20 arrondi.
  * - Exclusif (« Aucun ») + autres choix → AMBIGU (EXCLUSIVITE_VIOLÉE).
+ * - Task 2 : l'option Autre (AUTRE_LIBRE) est EXEMPTE d'exclusivité et
+ *   EXCLUE de la somme pondérée (texte libre, jamais un score). Seule, en
+ *   WEIGHTED, elle donne NON_NOTABLE — pas un 100 inventé.
  * - Sélection vide → AMBIGU (SELECTION_VIDE : rien à scorer, pas un 0).
  * - Option inconnue/inactive → AMBIGU (jamais ignorée silencieusement :
  *   ignorer un choix fausserait la moyenne ou la distribution).

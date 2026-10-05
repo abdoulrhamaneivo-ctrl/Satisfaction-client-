@@ -79,6 +79,12 @@ export { getThemesStats } from './queries/index.js'
 
 export { getIndicateursExperience } from './queries/index.js'
 
+export { getMoyennesParCritere } from './queries/index.js'
+
+export { getRepartitionOptions } from './queries/index.js'
+
+export { getTendanceParCritere } from './queries/index.js'
+
 export { getAnalysesGlobales } from './queries/index.js'
 
 export { getPlatformOverview } from './queries/index.js'

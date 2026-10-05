@@ -6,12 +6,27 @@ export type ReponseCollecte = {
     optionIds?: string[];
     valeur?: number;
     valeurOui?: boolean;
+    /** Verbatim de l'option « Autre (précisez) » (Task 2, nettoyé). */
+    autreTexte?: string;
 };
 /** Option telle qu'exposée par getFormDefinitionForGuichet (id stable). */
 export type OptionAffichage = {
     id: string | null;
     libelle: string;
+    code_metier?: string | null;
 };
+/**
+ * L'option est-elle un « Autre (précisez) » à saisie libre ?
+ * Convention : code_metier AUTRE_LIBRE (jamais EXCLUSIF).
+ */
+export declare function estOptionAutreLibre(o: OptionAffichage): boolean;
+/**
+ * Verbatim « Autre » : trim, 1000 max, séparateurs `•;|` interdits.
+ * Ces trois caractères servent de séparateurs au chemin legacy serveur
+ * (split « • ») : les laisser passer couperait le verbatim en morceaux
+ * appariés à tort. Miroir serveur : normaliserEntree (resolutionSoumission).
+ */
+export declare function nettoyerAutreTexte(brut: unknown): string;
 /**
  * Options à afficher pour un critère : table OptionCritere (ids stables)
  * en priorité, repli CSV legacy (sans id → le serveur apparie par libellé,
@@ -23,13 +38,13 @@ export declare function payloadSmiley(critereId: number, note: number): ReponseC
 /** Oui/Non : booléen + orientation gérée serveur. */
 export declare function payloadOuiNon(critereId: number, oui: boolean): ReponseCollecte;
 /** QCM : optionId si connu, sinon libellé (compat serveur MIGRATED). */
-export declare function payloadQCM(critereId: number, choix: OptionAffichage): ReponseCollecte;
+export declare function payloadQCM(critereId: number, choix: OptionAffichage, autreTexte?: string): ReponseCollecte;
 /** Texte libre : verbatim seul, jamais de note. */
 export declare function payloadTexte(critereId: number, texte: string): ReponseCollecte;
 /** Échelle / NPS : valeur brute (bornes validées serveur). */
 export declare function payloadValeur(critereId: number, valeur: number): ReponseCollecte;
 /** CASES : ids si connus, sinon libellés joints (compat serveur). */
-export declare function payloadCases(critereId: number, choix: OptionAffichage[]): ReponseCollecte;
+export declare function payloadCases(critereId: number, choix: OptionAffichage[], autreTexte?: string): ReponseCollecte;
 /** Échelle : bornes depuis options_reponse (défaut 1-5, miroir serveur). */
 export declare function bornesEchelle(critere: any): {
     min: number;

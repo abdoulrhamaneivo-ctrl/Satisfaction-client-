@@ -37,6 +37,9 @@ import { GetArchives_ext } from 'wasp/server/operations/queries'
 import { GetAIStatus_ext } from 'wasp/server/operations/queries'
 import { GetThemesStats_ext } from 'wasp/server/operations/queries'
 import { GetIndicateursExperience_ext } from 'wasp/server/operations/queries'
+import { GetMoyennesParCritere_ext } from 'wasp/server/operations/queries'
+import { GetRepartitionOptions_ext } from 'wasp/server/operations/queries'
+import { GetTendanceParCritere_ext } from 'wasp/server/operations/queries'
 import { GetAnalysesGlobales_ext } from 'wasp/server/operations/queries'
 import { GetPlatformOverview_ext } from 'wasp/server/operations/queries'
 import { GetPlatformEntreprises_ext } from 'wasp/server/operations/queries'
@@ -270,6 +273,24 @@ export const getThemesStats: QueryFor<GetThemesStats_ext> = createQuery<GetTheme
 export const getIndicateursExperience: QueryFor<GetIndicateursExperience_ext> = createQuery<GetIndicateursExperience_ext>(
   'operations/get-indicateurs-experience',
   ['Reponse', 'AnalyseAvisIA', 'Agence', 'Guichet', 'Service', 'Critere', 'GlobalExperienceAnalysis', 'Entreprise'],
+)
+
+// PUBLIC API
+export const getMoyennesParCritere: QueryFor<GetMoyennesParCritere_ext> = createQuery<GetMoyennesParCritere_ext>(
+  'operations/get-moyennes-par-critere',
+  ['Reponse', 'Critere', 'OptionCritere', 'ReponseOption', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const getRepartitionOptions: QueryFor<GetRepartitionOptions_ext> = createQuery<GetRepartitionOptions_ext>(
+  'operations/get-repartition-options',
+  ['Reponse', 'Critere', 'OptionCritere', 'ReponseOption', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const getTendanceParCritere: QueryFor<GetTendanceParCritere_ext> = createQuery<GetTendanceParCritere_ext>(
+  'operations/get-tendance-par-critere',
+  ['Reponse', 'Critere', 'OptionCritere', 'ReponseOption', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API

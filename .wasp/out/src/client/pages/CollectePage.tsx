@@ -22,6 +22,8 @@ import {
   payloadCases,
   bornesEchelle,
   choixEchelle,
+  nettoyerAutreTexte,
+  estOptionAutreLibre,
   type ReponseCollecte,
   type OptionAffichage,
 } from '../collecte/payload';
@@ -240,6 +242,8 @@ export const CollectePage = () => {
   const [commentaire, setCommentaire] = useState('');
   const [texteReponseCourante, setTexteReponseCourante] = useState('');
   const [casesSelectionnes, setCasesSelectionnes] = useState<OptionAffichage[]>([]);
+  // Task 2 : verbatim de l'option « Autre (précisez) » (QCM ou CASES).
+  const [autreTexteCourant, setAutreTexteCourant] = useState('');
   const [telephone, setTelephone] = useState('');
   // T1 (notes) et T2 (commentaire) : états séparés, jamais de bouton bloquant.
   const [t1, setT1] = useState<EtatT1>({ etat: 'attente', erreur: null });
@@ -273,6 +277,7 @@ export const CollectePage = () => {
   useEffect(() => {
     setTexteReponseCourante('');
     setCasesSelectionnes([]);
+    setAutreTexteCourant('');
     setAccuse(null);
     setChoixEnCours(null);
     if (delaiRef.current) {
@@ -963,51 +968,94 @@ export const CollectePage = () => {
                     </div>
                   )}
 
-                  {/* QCM Input — optionId stable (jamais de position). */}
-                  {currentCritere.type_reponse === 'QCM' && (
+                  {/* QCM Input — optionId stable (jamais de position).
+                      Task 2 : « Autre (précisez) » (AUTRE_LIBRE) n'avance
+                      pas tout de suite — champ de saisie + Continuer
+                      (désactivé tant que le verbatim est vide). */}
+                  {currentCritere.type_reponse === 'QCM' && (() => {
+                    const options = optionsAffichage(currentCritere);
+                    const autre = options.find((o) => estOptionAutreLibre(o));
+                    const cleAutre = autre ? (autre.id ?? `t:${autre.libelle}`) : null;
+                    const autreChoisi = cleAutre !== null && choixEnCours === cleAutre;
+                    const autrePropre = nettoyerAutreTexte(autreTexteCourant);
+                    const idChampAutre = `autre-texte-qcm-${currentCritere.id}`;
+                    const choisir = (choix: OptionAffichage, cle: string) => {
+                      if (estOptionAutreLibre(choix)) {
+                        // Sélection sans accusé ni avance : le client doit
+                        // d'abord préciser (Continuer ci-dessous).
+                        setChoixEnCours(cle);
+                      } else {
+                        void repondreAvecAccuse(
+                          payloadQCM(currentCritere.id, choix),
+                          cle,
+                          choix.libelle,
+                          <span aria-hidden>✓</span>,
+                        );
+                      }
+                    };
+                    return (
                     <div
                       role="radiogroup"
                       aria-label={currentCritere.libelle_critere || 'Question à choix unique'}
                       className="flex flex-col gap-2.5 pt-2"
                     >
-                      {(() => {
-                        const options = optionsAffichage(currentCritere);
-                        return options.map((choix, position) => {
-                          const cle = choix.id ?? `t:${choix.libelle}`;
-                          const choisi = choixEnCours === cle;
-                          return (
-                          <button
-                            key={cle}
-                            type="button"
-                            role="radio"
-                            aria-checked={choisi}
-                            onKeyDown={(e) =>
-                              deplacerChoix(e, position, options.length, (i) => {
-                                const cible = options[i];
-                                const cleCible = cible.id ?? `t:${cible.libelle}`;
-                                void repondreAvecAccuse(
-                                  payloadQCM(currentCritere.id, cible),
-                                  cleCible,
-                                  cible.libelle,
-                                  <span aria-hidden>✓</span>,
-                                );
-                              })
-                            }
-                            onClick={() => repondreAvecAccuse(payloadQCM(currentCritere.id, choix), cle, choix.libelle, <span aria-hidden>✓</span>)}
-                            className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${
-                              choisi
-                                ? 'border-primary bg-primary/15 text-primary-strong'
-                                : 'border-border/80 hover:bg-muted text-foreground'
-                            }`}
+                      {options.map((choix, position) => {
+                        const cle = choix.id ?? `t:${choix.libelle}`;
+                        const choisi = choixEnCours === cle;
+                        return (
+                        <button
+                          key={cle}
+                          type="button"
+                          role="radio"
+                          aria-checked={choisi}
+                          onKeyDown={(e) =>
+                            deplacerChoix(e, position, options.length, (i) => {
+                              const cible = options[i];
+                              const cleCible = cible.id ?? `t:${cible.libelle}`;
+                              choisir(cible, cleCible);
+                            })
+                          }
+                          onClick={() => choisir(choix, cle)}
+                          className={`w-full text-left p-4 border rounded-2xl text-sm font-bold transition-colors flex items-center gap-3 min-h-[52px] ${BTN_BASE} ${
+                            choisi
+                              ? 'border-primary bg-primary/15 text-primary-strong'
+                              : 'border-border/80 hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0" aria-hidden />
+                          <span>{choix.libelle}</span>
+                        </button>
+                        );
+                      })}
+                      {autre && autreChoisi && (
+                        <div className="space-y-3 pt-1">
+                          <label
+                            htmlFor={idChampAutre}
+                            className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest"
                           >
-                            <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0" aria-hidden />
-                            <span>{choix.libelle}</span>
-                          </button>
-                          );
-                        });
-                      })()}
+                            Précisez votre réponse
+                          </label>
+                          <Textarea
+                            id={idChampAutre}
+                            value={autreTexteCourant}
+                            onChange={(e) => setAutreTexteCourant(e.target.value)}
+                            placeholder="Précisez votre réponse…"
+                            rows={2}
+                            maxLength={1000}
+                            className="text-base text-left rounded-2xl border-border/80"
+                          />
+                          <Button
+                            onClick={() => avancer(payloadQCM(currentCritere.id, autre, autreTexteCourant))}
+                            disabled={!autrePropre}
+                            className="w-full py-6 rounded-2xl text-base font-bold shadow-sm"
+                          >
+                            Continuer <ChevronRight size={18} className="ml-1" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Text Input — verbatim seul, jamais de note. */}
                   {currentCritere.type_reponse === 'TEXTE' && (
@@ -1129,8 +1177,17 @@ export const CollectePage = () => {
                   {/* Choix multiples — optionIds stables. Vague 4 : le groupe
                       porte un nom accessible ; chaque option reste un bouton
                       à bascule (`aria-pressed`), le motif ARIA correct pour
-                      une sélection multiple. */}
-                  {currentCritere.type_reponse === 'CASES' && (
+                      une sélection multiple.
+                      Task 2 : si « Autre (précisez) » est coché, un champ de
+                      saisie apparaît et Continuer reste désactivé tant que le
+                      verbatim est vide. */}
+                  {currentCritere.type_reponse === 'CASES' && (() => {
+                    const autreCoche = casesSelectionnes.some((c) => estOptionAutreLibre(c));
+                    const autrePropre = nettoyerAutreTexte(autreTexteCourant);
+                    const peutContinuer =
+                      casesSelectionnes.length > 0 && (!autreCoche || !!autrePropre);
+                    const idChampAutre = `autre-texte-cases-${currentCritere.id}`;
+                    return (
                     <div className="space-y-4 pt-2">
                       <div
                         role="group"
@@ -1170,15 +1227,35 @@ export const CollectePage = () => {
                           );
                         })}
                       </div>
+                      {autreCoche && (
+                        <div className="space-y-1.5">
+                          <label
+                            htmlFor={idChampAutre}
+                            className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest"
+                          >
+                            Précisez votre réponse
+                          </label>
+                          <Textarea
+                            id={idChampAutre}
+                            value={autreTexteCourant}
+                            onChange={(e) => setAutreTexteCourant(e.target.value)}
+                            placeholder="Précisez votre réponse…"
+                            rows={2}
+                            maxLength={1000}
+                            className="text-base text-left rounded-2xl border-border/80"
+                          />
+                        </div>
+                      )}
                       <Button
-                        onClick={() => avancer(payloadCases(currentCritere.id, casesSelectionnes))}
-                        disabled={casesSelectionnes.length === 0}
+                        onClick={() => avancer(payloadCases(currentCritere.id, casesSelectionnes, autreTexteCourant))}
+                        disabled={!peutContinuer}
                         className="w-full py-6 rounded-2xl text-base font-bold shadow-sm"
                       >
                         Continuer <ChevronRight size={18} className="ml-1" />
                       </Button>
                     </div>
-                  )}
+                    );
+                  })()}
 
                   {currentCritere.obligatoire === false && (
                     <Button

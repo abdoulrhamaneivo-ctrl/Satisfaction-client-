@@ -36,6 +36,7 @@ import {
 import {
   normaliserEntree,
   resoudreEntree,
+  formaterReponseAutre,
   type EntreeBrute,
   type ItemResolu,
 } from './resolutionSoumission';
@@ -845,8 +846,12 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     // de texte) > verbatim > commentaire final. Les écrans existants
     // (LigneReponse, exports) lisent commentaire_texte : aucun changement
     // client requis pour afficher la bonne option (jamais positionnelle).
-    const texteLigne =
-      item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || '';
+    // Task 2 : `AUTRE::verbatim` → `… • Autre — "verbatim"` (ou seul si
+    // aucun libellé chiffrable). Le score reste NON_NOTABLE (NULL).
+    // Review r1 (F5) : format centralisé dans formaterReponseAutre.
+    const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
+    const texteLigne: string = reponseAutre
+      ?? (item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || '');
     return {
       // score_brut (legacy) = score officiel pour les nouvelles lignes
       // (NULL si non notable — fini les 3 fantômes). L'historique garde
@@ -967,11 +972,16 @@ const soumettreAvisImpl = async (args: any, context: any) => {
     const libelle = critere?.libelle_critere || 'Question';
     const type = critere?.type_reponse;
     const texte = (item.texte || '').trim();
+    // Task 2 : l'IA reçoit `Autre — "verbatim"` (concaténé aux libellés
+    // chiffrables quand il y en a), jamais le marqueur interne AUTRE::.
+    // Review r1 (F5) : même helper que construireLigne ci-dessus.
+    const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
     if (type === 'TEXTE' || type === 'CASES') {
-      if (texte) pousserMorceau(libelle, texte);
+      if (reponseAutre) pousserMorceau(libelle, reponseAutre);
+      else if (texte) pousserMorceau(libelle, texte);
     } else if (type === 'QCM') {
       // Vague 1 : libellé résolu par id (jamais options[score-1]).
-      pousserMorceau(libelle, item.libelleOption || texte || 'Option');
+      pousserMorceau(libelle, reponseAutre || item.libelleOption || texte || 'Option');
     } else if (type === 'OUI_NON') {
       pousserMorceau(libelle, (item.score_officiel ?? 1) >= 4 ? 'Oui' : 'Non');
     } else {

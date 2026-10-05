@@ -90,6 +90,11 @@ export const getTempsTraitement = vi.fn(async () => ({ nb_jours: 30, prise_en_ch
 // Forme réelle : { total, topThemes } — un tableau ici vide les blocs.
 export const getThemesStats = vi.fn(async () => ({ total: 0, topThemes: [] }));
 export const getIndicateursExperience = vi.fn(async () => null);
+// Task 3 — KPI par terme : formes réelles de queries.ts (moyennes,
+// répartition sur ids d'options, tendances mensuelles + séries).
+export const getMoyennesParCritere = vi.fn(async () => ({ nb_jours: 30, criteres: [] }));
+export const getRepartitionOptions = vi.fn(async () => ({ id_critere: 0, libelle: '', nb_jours: 30, nb_avis: 0, options: [] }));
+export const getTendanceParCritere = vi.fn(async () => ({ nb_mois: 12, id_critere: null, libelle: null, points: [], series: [] }));
 export const getReponses = vi.fn(async () => []);
 export const logout = vi.fn(async () => undefined);
 // Console /platform (SecurityPage, pages Entreprises) — forme réelle de

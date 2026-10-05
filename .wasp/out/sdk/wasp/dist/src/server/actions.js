@@ -10,7 +10,7 @@ import { journaliser } from './audit';
 import { estScoringMode, estOrientationNote, estTypeReponse, scoringModeAdmis, } from '../shared/domaines';
 import { normaliserTelephoneE164, sanitiserCommentaire, hmacSHA256, validerSecretEnv, versHttpSiEntreeInvalide, } from './validation';
 import { construireScoresAStocker, parseOptionsCSV, normaliserLibelle, } from '../shared/scoringQCM';
-import { normaliserEntree, resoudreEntree, } from './resolutionSoumission';
+import { normaliserEntree, resoudreEntree, formaterReponseAutre, } from './resolutionSoumission';
 import { requireAuth, requireRole, assertAgenceAccess, assertEntrepriseActive, resolveAgenceId, } from './middleware/rowLevelSecurity';
 // Utilisé pour construire des liens directs vers l'application dans les
 // notifications SMS/WhatsApp (ex. lien vers /alertes-taches).
@@ -725,7 +725,12 @@ const soumettreAvisImpl = async (args, context) => {
         // de texte) > verbatim > commentaire final. Les écrans existants
         // (LigneReponse, exports) lisent commentaire_texte : aucun changement
         // client requis pour afficher la bonne option (jamais positionnelle).
-        const texteLigne = item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || '';
+        // Task 2 : `AUTRE::verbatim` → `… • Autre — "verbatim"` (ou seul si
+        // aucun libellé chiffrable). Le score reste NON_NOTABLE (NULL).
+        // Review r1 (F5) : format centralisé dans formaterReponseAutre.
+        const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
+        const texteLigne = reponseAutre
+            ?? (item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || '');
         return {
             // score_brut (legacy) = score officiel pour les nouvelles lignes
             // (NULL si non notable — fini les 3 fantômes). L'historique garde
@@ -849,13 +854,19 @@ const soumettreAvisImpl = async (args, context) => {
         const libelle = critere?.libelle_critere || 'Question';
         const type = critere?.type_reponse;
         const texte = (item.texte || '').trim();
+        // Task 2 : l'IA reçoit `Autre — "verbatim"` (concaténé aux libellés
+        // chiffrables quand il y en a), jamais le marqueur interne AUTRE::.
+        // Review r1 (F5) : même helper que construireLigne ci-dessus.
+        const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
         if (type === 'TEXTE' || type === 'CASES') {
-            if (texte)
+            if (reponseAutre)
+                pousserMorceau(libelle, reponseAutre);
+            else if (texte)
                 pousserMorceau(libelle, texte);
         }
         else if (type === 'QCM') {
             // Vague 1 : libellé résolu par id (jamais options[score-1]).
-            pousserMorceau(libelle, item.libelleOption || texte || 'Option');
+            pousserMorceau(libelle, reponseAutre || item.libelleOption || texte || 'Option');
         }
         else if (type === 'OUI_NON') {
             pousserMorceau(libelle, (item.score_officiel ?? 1) >= 4 ? 'Oui' : 'Non');

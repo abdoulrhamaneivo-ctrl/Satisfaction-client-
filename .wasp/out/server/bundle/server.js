@@ -1822,6 +1822,9 @@ function estExclusif(o, normaliser) {
   if ((o.code_metier || "").trim().toUpperCase() === "EXCLUSIF") return true;
   return LIBELLES_EXCLUSIFS.has(normaliser(o.libelle));
 }
+function estAutreLibre(o) {
+  return (o?.code_metier || "").trim().toUpperCase() === "AUTRE_LIBRE";
+}
 function echelleVers100(valeur, min, max, orientation = "HIGHER_BETTER") {
   const ratio = (valeur - min) / (max - min);
   const direct = ratio * 100;
@@ -1871,7 +1874,7 @@ function resoudreChoixUnique(critere, optionId, provenance = "INFERRED") {
   if (!option) return ambigu("OPTION_INCONNUE");
   if (!option.est_scorable || option.score == null) {
     return {
-      ...nonNotable("OPTION_NON_SCORABLE"),
+      ...nonNotable(estAutreLibre(option) ? "AUTRE_LIBRE" : "OPTION_NON_SCORABLE"),
       options_retenues: [option.id]
     };
   }
@@ -1992,13 +1995,20 @@ function resoudreCases(critere, optionIds, provenance = "INFERRED", normaliser =
     if (!option) return ambigu("OPTION_INCONNUE");
     retenues.push(option);
   }
-  const exclusives = retenues.filter((o) => estExclusif(o, normaliser));
-  if (exclusives.length > 0 && retenues.length > 1) {
+  const chiffrables = retenues.filter((o) => !estAutreLibre(o));
+  const exclusives = chiffrables.filter((o) => estExclusif(o, normaliser));
+  if (exclusives.length > 0 && chiffrables.length > 1) {
     return ambigu("EXCLUSIVITE_VIOLEE");
   }
   const mode = (critere.scoring_mode || "").toUpperCase();
   if (mode === "CASES_WEIGHTED") {
-    const poids = retenues.map((o) => o.poids);
+    if (chiffrables.length === 0) {
+      return {
+        ...nonNotable("AUTRE_LIBRE"),
+        options_retenues: retenues.map((o) => o.id)
+      };
+    }
+    const poids = chiffrables.map((o) => o.poids);
     if (poids.some((p) => p == null)) return ambigu("POIDS_MANQUANTS");
     const total = 100 + poids.reduce((s, p) => s + p, 0);
     const normalise = Math.max(0, Math.min(100, total));
@@ -2074,6 +2084,16 @@ function resoudreReponse(critere, entree, provenance = "INFERRED") {
   }
 }
 
+const PREFIXE_AUTRE = "AUTRE::";
+function formaterAutreStockage(verbatim) {
+  return `Autre \u2014 "${verbatim}"`;
+}
+function formaterReponseAutre(libelleOption, texte) {
+  if (typeof texte !== "string" || !texte.startsWith(PREFIXE_AUTRE)) return null;
+  const formate = formaterAutreStockage(texte.slice(PREFIXE_AUTRE.length));
+  const base = (libelleOption || "").trim();
+  return base ? `${base} \u2022 ${formate}` : formate;
+}
 function normaliserEntree(r) {
   const e = { critereId: Number(r?.critereId) };
   if (r?.score !== void 0 && r?.score !== null && r?.score !== "") e.score = Number(r.score);
@@ -2085,6 +2105,10 @@ function normaliserEntree(r) {
   }
   if (r?.valeur !== void 0 && r?.valeur !== null && r?.valeur !== "") e.valeur = Number(r.valeur);
   if (typeof r?.valeurOui === "boolean") e.valeurOui = r.valeurOui;
+  if (typeof r?.autreTexte === "string") {
+    const propre = r.autreTexte.replace(/[•;|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 1e3);
+    if (propre) e.autreTexte = propre;
+  }
   return e;
 }
 function messageAmbigu(raison, type) {
@@ -2106,6 +2130,8 @@ function messageAmbigu(raison, type) {
       return "Question mal configur\xE9e. Demandez \xE0 votre administrateur de v\xE9rifier l'\xE9chelle.";
     case "POIDS_MANQUANTS":
       return "Question \xE0 pond\xE9ration incompl\xE8te. Demandez \xE0 votre administrateur de la configurer.";
+    case "AUTRE_VERBATIM_MANQUANT":
+      return "\xAB Autre \xBB coch\xE9 : pr\xE9cisez votre r\xE9ponse en toutes lettres.";
     default:
       return `R\xE9ponse invalide pour cette question${type ? ` (${type})` : ""}.`;
   }
@@ -2143,6 +2169,13 @@ function resoudreEntree(critere, entree) {
   const version = Number(critere?.version) || 1;
   let res;
   let libelleOption;
+  let texteAutre;
+  const estAutre = (vise) => !!vise && estAutreLibre(vise);
+  const exigerVerbatimAutre = (autrePresent) => {
+    if (autrePresent && !entree.autreTexte) {
+      throw new HttpError(400, messageAmbigu("AUTRE_VERBATIM_MANQUANT", type));
+    }
+  };
   if (type === "TEXTE") {
     if (!entree.texte) {
       throw new HttpError(400, "Le commentaire est vide.");
@@ -2157,25 +2190,51 @@ function resoudreEntree(critere, entree) {
   } else if (type === "QCM") {
     if (entree.optionId) {
       const vise = (critere.options ?? []).find((o) => String(o.id) === entree.optionId);
-      res = resoudreReponse(
-        cm,
-        { type: "option", optionId: entree.optionId },
-        vise ? provenanceDe(vise) : "INFERRED"
-      );
-      if (res.statut === "OK") libelleOption = vise?.libelle;
+      if (estAutre(vise)) {
+        exigerVerbatimAutre(true);
+        res = {
+          statut: "NON_NOTABLE",
+          score_officiel: null,
+          score_normalise: null,
+          source: null,
+          options_retenues: [String(vise.id)],
+          raison: "AUTRE_LIBRE"
+        };
+        if (entree.autreTexte) texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+      } else {
+        res = resoudreReponse(
+          cm,
+          { type: "option", optionId: entree.optionId },
+          vise ? provenanceDe(vise) : "INFERRED"
+        );
+        if (res.statut === "OK") libelleOption = vise?.libelle;
+      }
     } else if (entree.texte) {
       const vise = apparierParLibelle(critere, entree.texte);
       if (!vise) throw new HttpError(400, messageAmbigu("OPTION_INCONNUE", type));
-      res = resoudreReponse(
-        cm,
-        { type: "option", optionId: String(vise.id) },
-        provenanceDe(vise)
-      );
-      if (res.statut === "OK") {
-        libelleOption = vise.libelle;
-        res = { ...res, source: "MIGRATED" };
-      } else if (res.statut === "NON_NOTABLE") {
-        libelleOption = vise.libelle;
+      if (estAutre(vise)) {
+        exigerVerbatimAutre(true);
+        res = {
+          statut: "NON_NOTABLE",
+          score_officiel: null,
+          score_normalise: null,
+          source: "MIGRATED",
+          options_retenues: [String(vise.id)],
+          raison: "AUTRE_LIBRE"
+        };
+        if (entree.autreTexte) texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+      } else {
+        res = resoudreReponse(
+          cm,
+          { type: "option", optionId: String(vise.id) },
+          provenanceDe(vise)
+        );
+        if (res.statut === "OK") {
+          libelleOption = vise.libelle;
+          res = { ...res, source: "MIGRATED" };
+        } else if (res.statut === "NON_NOTABLE") {
+          libelleOption = vise.libelle;
+        }
       }
     } else {
       throw new HttpError(400, "Choix manquant pour cette question.");
@@ -2186,13 +2245,18 @@ function resoudreEntree(critere, entree) {
       if (vises.some((v) => !v)) {
         throw new HttpError(400, messageAmbigu("OPTION_INCONNUE", type));
       }
+      exigerVerbatimAutre(vises.some(estAutre));
       const prov = vises.every((v) => v?.score_provenance === "EXPLICIT") ? "EXPLICIT" : "INFERRED";
       res = resoudreCases(cm, entree.optionIds, prov, normaliserLibelle);
       if (res.statut === "NON_NOTABLE" && !cm.scoring_mode) {
         res = resoudreCasesMoyenne(cm, entree.optionIds, prov);
       }
       if (res.statut === "OK" || res.statut === "NON_NOTABLE") {
-        libelleOption = vises.map((v) => v.libelle).join(" \u2022 ");
+        const chiffrables = vises.filter((v) => !estAutre(v));
+        libelleOption = chiffrables.map((v) => v.libelle).join(" \u2022 ") || void 0;
+        if (vises.some(estAutre) && entree.autreTexte) {
+          texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+        }
       }
     } else if (entree.texte) {
       const morceaux = entree.texte.split(/[•;|]/).map((s) => s.trim()).filter(Boolean);
@@ -2200,6 +2264,7 @@ function resoudreEntree(critere, entree) {
       if (vises.some((v) => !v)) {
         throw new HttpError(400, messageAmbigu("OPTION_INCONNUE", type));
       }
+      exigerVerbatimAutre(vises.some(estAutre));
       const ids = vises.map((v) => String(v.id));
       const prov = vises.every((v) => v?.score_provenance === "EXPLICIT") ? "EXPLICIT" : "INFERRED";
       const directe = resoudreCases(cm, ids, prov, normaliserLibelle);
@@ -2211,7 +2276,12 @@ function resoudreEntree(critere, entree) {
         const moyenne = resoudreCasesMoyenne(cm, ids, prov);
         res = moyenne.statut === "OK" ? { ...moyenne, source: "MIGRATED" } : moyenne;
       }
-      libelleOption = vises.map((v) => v.libelle).join(" \u2022 ");
+      const chiffrablesLegacy = vises.filter((v) => !estAutre(v));
+      libelleOption = chiffrablesLegacy.map((v) => v.libelle).join(" \u2022 ") || vises.map((v) => v.libelle).join(" \u2022 ");
+      if (vises.some(estAutre) && entree.autreTexte) {
+        texteAutre = `${PREFIXE_AUTRE}${entree.autreTexte}`;
+        if (chiffrablesLegacy.length === 0) libelleOption = void 0;
+      }
     } else {
       throw new HttpError(400, "S\xE9lection vide : cochez au moins un choix.");
     }
@@ -2267,7 +2337,7 @@ function resoudreEntree(critere, entree) {
   }
   return {
     critereId: entree.critereId,
-    texte: entree.texte,
+    texte: texteAutre ?? entree.texte,
     libelleOption,
     score_brut: res.score_officiel,
     score_officiel: res.score_officiel,
@@ -2780,7 +2850,8 @@ const soumettreAvisImpl = async (args, context) => {
     }
   };
   const construireLigne = (item) => {
-    const texteLigne = item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || "";
+    const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
+    const texteLigne = reponseAutre ?? (item.texte && item.texte.length > 0 ? item.texte : item.libelleOption || "");
     return {
       // score_brut (legacy) = score officiel pour les nouvelles lignes
       // (NULL si non notable — fini les 3 fantômes). L'historique garde
@@ -2869,10 +2940,12 @@ R : ${r}`);
     const libelle = critere?.libelle_critere || "Question";
     const type = critere?.type_reponse;
     const texte = (item.texte || "").trim();
+    const reponseAutre = formaterReponseAutre(item.libelleOption, item.texte);
     if (type === "TEXTE" || type === "CASES") {
-      if (texte) pousserMorceau(libelle, texte);
+      if (reponseAutre) pousserMorceau(libelle, reponseAutre);
+      else if (texte) pousserMorceau(libelle, texte);
     } else if (type === "QCM") {
-      pousserMorceau(libelle, item.libelleOption || texte || "Option");
+      pousserMorceau(libelle, reponseAutre || item.libelleOption || texte || "Option");
     } else if (type === "OUI_NON") {
       pousserMorceau(libelle, (item.score_officiel ?? 1) >= 4 ? "Oui" : "Non");
     } else {
@@ -7076,7 +7149,7 @@ function moyenne(notes) {
   if (notes.length === 0) return null;
   return notes.reduce((s, n) => s + n, 0) / notes.length;
 }
-function arrondi1$1(n) {
+function arrondi1$2(n) {
   return Math.round(n * 10) / 10;
 }
 function niveauConfianceGlobal(volumeAvis, qualiteDonnees, tauxIncoherence) {
@@ -7157,7 +7230,7 @@ async function calculerAgregats(db, p) {
     (r) => typeof r.score_normalise === "number" && Number.isFinite(r.score_normalise)
   );
   const notesSatisfaction = scoresAvisSatisfaction(reponses);
-  const csat = notesSatisfaction.length > 0 ? arrondi1$1(moyenne(notesSatisfaction)) : null;
+  const csat = notesSatisfaction.length > 0 ? arrondi1$2(moyenne(notesSatisfaction)) : null;
   const distribution5 = distributionParAvis(reponses);
   const notesNPS = reponses.filter((r) => r.critere?.type_reponse === "NPS" && Number.isInteger(r.score_officiel)).map((r) => Number(r.score_officiel));
   const nps = notesNPS.length > 0 ? agregerNPS(notesNPS) : null;
@@ -7265,7 +7338,7 @@ async function calculerAgregats(db, p) {
       id: a.id,
       nom: a.nom_agence,
       volume: parAvis.length,
-      csat: scores.length > 0 ? arrondi1$1(moyenne(scores)) : null
+      csat: scores.length > 0 ? arrondi1$2(moyenne(scores)) : null
     };
   });
   const servicesMap = /* @__PURE__ */ new Map();
@@ -7285,7 +7358,7 @@ async function calculerAgregats(db, p) {
       id,
       nom: e.nom,
       volume: parAvis.length,
-      csat: scores.length > 0 ? arrondi1$1(moyenne(scores)) : null
+      csat: scores.length > 0 ? arrondi1$2(moyenne(scores)) : null
     };
   });
   const guichetsMap = /* @__PURE__ */ new Map();
@@ -7304,7 +7377,7 @@ async function calculerAgregats(db, p) {
       id,
       nom: e.nom,
       volume: parAvis.length,
-      csat: scores.length > 0 ? arrondi1$1(moyenne(scores)) : null
+      csat: scores.length > 0 ? arrondi1$2(moyenne(scores)) : null
     };
   }).filter((g) => g.csat !== null && g.volume >= 5).sort((a, b) => b.csat - a.csat);
   const guichetsTop = guichetsNotables.slice(0, 3);
@@ -7326,8 +7399,8 @@ async function calculerAgregats(db, p) {
   const notesPrev = scoresAvisSatisfaction(prev);
   const volumePrev = compterAvisDans(prev);
   const csatPrev = notesPrev.length > 0 ? moyenne(notesPrev) : null;
-  const evolutionVolumePct = volumePrev > 0 && volumeAvis >= 0 ? arrondi1$1((volumeAvis - volumePrev) / volumePrev * 100) : null;
-  const evolutionCsatPts = csat !== null && csatPrev !== null ? arrondi1$1(csat - csatPrev) : null;
+  const evolutionVolumePct = volumePrev > 0 && volumeAvis >= 0 ? arrondi1$2((volumeAvis - volumePrev) / volumePrev * 100) : null;
+  const evolutionCsatPts = csat !== null && csatPrev !== null ? arrondi1$2(csat - csatPrev) : null;
   const analysesPrev = await db.analyseAvisIA.findMany({
     where: {
       status: "DONE",
@@ -7377,7 +7450,7 @@ async function calculerAgregats(db, p) {
     sentiments,
     totalAnalyses: analyses.length,
     incoherents,
-    tauxIncoherence: arrondi1$1(tauxIncoherence * 100) / 100,
+    tauxIncoherence: arrondi1$2(tauxIncoherence * 100) / 100,
     themesTop,
     themesDetail,
     /** Sous-thèmes les plus fréquents (top 10) — 2026-09-27, ex-colonne morte. */
@@ -7449,8 +7522,8 @@ function construirePromptSynthese(entrepriseNom, periodeLabel, a, irritants) {
       echelle: `1-${a.ces.echelle}`,
       volume: a.ces.volume,
       note_effort_moyenne: a.ces.note_effort_moyenne,
-      top_box_faible_effort_pct: arrondi1$1(a.ces.top_box),
-      taux_effort_eleve_pct: arrondi1$1(a.ces.taux_effort_eleve),
+      top_box_faible_effort_pct: arrondi1$2(a.ces.top_box),
+      taux_effort_eleve_pct: arrondi1$2(a.ces.taux_effort_eleve),
       repartition: a.ces.repartition,
       rappel: "1 = tr\xE8s facile (bonne exp\xE9rience), valeur max = tr\xE8s difficile"
     } : "non disponible (aucune question d'effort CES)",
@@ -7464,9 +7537,9 @@ function construirePromptSynthese(entrepriseNom, periodeLabel, a, irritants) {
     irritants_priorises: irritants.map((i) => ({
       theme: i.theme,
       priorite_sur_100: i.priorite,
-      frequence: arrondi1$1(i.frequence * 100) / 100,
+      frequence: arrondi1$2(i.frequence * 100) / 100,
       gravite_sur_4: i.gravite,
-      evolution_relative: arrondi1$1(i.evolution * 100) / 100,
+      evolution_relative: arrondi1$2(i.evolution * 100) / 100,
       confiance: i.confiance
     })),
     par_agence: a.parAgence,
@@ -7640,7 +7713,7 @@ function commentairesDeGroupe(groupe) {
   }
   return textes.join(" \u2022 ");
 }
-function compterAvis(reponses) {
+function compterAvis$1(reponses) {
   return regrouperParSoumission(reponses).length;
 }
 function scoreNormaliseSur5(reponse) {
@@ -7652,6 +7725,156 @@ function scoreMoyenParAvis(reponses) {
     if (scores.length === 0) return null;
     return scores.reduce((s, score) => s + score, 0) / scores.length;
   }).filter((score) => score !== null);
+}
+
+const SEUIL_KPI_N = 5;
+const NB_JOURS_DEFAUT = 30;
+const NB_JOURS_MIN = 1;
+const NB_JOURS_MAX = 90;
+const NB_MOIS_DEFAUT = 12;
+const NB_MOIS_MIN = 1;
+const NB_MOIS_MAX = 24;
+function normaliserNbJours(valeur, defaut = NB_JOURS_DEFAUT) {
+  if (!Number.isFinite(valeur)) return defaut;
+  return Math.min(NB_JOURS_MAX, Math.max(NB_JOURS_MIN, Math.round(valeur)));
+}
+function normaliserNbMois(valeur, defaut = NB_MOIS_DEFAUT) {
+  if (!Number.isFinite(valeur)) return defaut;
+  return Math.min(NB_MOIS_MAX, Math.max(NB_MOIS_MIN, Math.round(valeur)));
+}
+function classifierCritere(critere) {
+  const type = String(critere?.type_reponse || "").toUpperCase();
+  if (type === "NPS") return "NPS";
+  if (reconnaitreEchelleCES(critere) !== null) return "CES";
+  if (estCritereSatisfaction(critere)) return "SATISFACTION";
+  if (type === "TEXTE" || String(critere?.scoring_mode || "").toUpperCase() === "FREE_TEXT") return "TEXTE";
+  return "CATEGORIEL";
+}
+function noteDepuisNormalise(ligne) {
+  if (!estCritereSatisfaction(ligne.critere ?? null)) return null;
+  const s = ligne.score_normalise;
+  if (typeof s !== "number" || !Number.isFinite(s)) return null;
+  return Math.max(1, Math.min(5, s / 20));
+}
+function clesAvis(lignes) {
+  const cles = /* @__PURE__ */ new Set();
+  for (const l of lignes) {
+    cles.add(l.id_soumission ? `s:${l.id_soumission}` : `r:${String(l.id)}`);
+  }
+  return cles;
+}
+function compterAvis(lignes) {
+  return clesAvis(lignes).size;
+}
+function arrondi1$1(n) {
+  return Math.round(n * 10) / 10;
+}
+function arrondi2(n) {
+  return Math.round(n * 100) / 100;
+}
+function distributionVide() {
+  return { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+}
+function agregerLignesCritere(lignes) {
+  const distribution = distributionVide();
+  const notes = [];
+  for (const l of lignes) {
+    const note = noteDepuisNormalise(l);
+    if (note === null) continue;
+    notes.push(note);
+    const bande = String(Math.max(1, Math.min(5, Math.round(note))));
+    distribution[bande] += 1;
+  }
+  const nb_notables = notes.length;
+  if (nb_notables < SEUIL_KPI_N) {
+    return { nb_avis: compterAvis(lignes), nb_notables, moyenne_sur5: null, satisfaction_pct: null, distribution };
+  }
+  return {
+    nb_avis: compterAvis(lignes),
+    nb_notables,
+    moyenne_sur5: arrondi2(notes.reduce((s, n) => s + n, 0) / nb_notables),
+    satisfaction_pct: arrondi1$1(notes.filter((n) => n >= 4).length / nb_notables * 100),
+    distribution
+  };
+}
+function repartirOptionsParAvis(selections, optionsRef) {
+  const nb_avis = clesAvis(selections.map((s) => ({ id: s.id, id_soumission: s.id_soumission }))).size;
+  const cochesParOption = /* @__PURE__ */ new Map();
+  for (const s of selections) {
+    const cle = s.id_soumission ? `s:${s.id_soumission}` : `r:${String(s.id)}`;
+    for (const opt of new Set(s.options)) {
+      let set = cochesParOption.get(opt);
+      if (!set) {
+        set = /* @__PURE__ */ new Set();
+        cochesParOption.set(opt, set);
+      }
+      set.add(cle);
+    }
+  }
+  const options = optionsRef.map((o) => {
+    const nb = cochesParOption.get(o.id)?.size ?? 0;
+    return {
+      option_id: o.id,
+      libelle: o.libelle,
+      nb,
+      pct: nb_avis < SEUIL_KPI_N ? null : arrondi1$1(nb / nb_avis * 100)
+    };
+  });
+  return { nb_avis, options };
+}
+function reconnaitreEchelleCES(c) {
+  if (!c) return null;
+  const [minStr, maxStr] = String(c.options_reponse || "").split(",").map((v) => String(v).trim());
+  return reconnaitreCES({
+    scoring_mode: c.scoring_mode,
+    type_reponse: c.type_reponse,
+    echelle_min: minStr ? Number(minStr) : null,
+    echelle_max: maxStr ? Number(maxStr) : null
+  });
+}
+function cleMois(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function libelleMois(cle) {
+  const [a, m] = cle.split("-");
+  return new Date(Number(a), Number(m) - 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+}
+function moisGlissants(nb, ref = /* @__PURE__ */ new Date()) {
+  const cles = [];
+  for (let i = nb - 1; i >= 0; i -= 1) {
+    const d = new Date(ref.getFullYear(), ref.getMonth() - i, 1);
+    cles.push(cleMois(d));
+  }
+  return cles;
+}
+function construireTendance(lignes, cles) {
+  const parMois = /* @__PURE__ */ new Map();
+  for (const c of cles) parMois.set(c, []);
+  for (const l of lignes) {
+    if (!l.date_reponse) continue;
+    const cle = cleMois(new Date(l.date_reponse));
+    const bucket = parMois.get(cle);
+    if (bucket) bucket.push(l);
+  }
+  return cles.map((cle) => {
+    const duMois = parMois.get(cle) ?? [];
+    const agreg = agregerLignesCritere(duMois);
+    const valeursNPS = duMois.filter((l) => String(l.critere?.type_reponse || "").toUpperCase() === "NPS" && Number.isInteger(l.score_officiel)).map((l) => Number(l.score_officiel));
+    const detailNPS = agregerNPS(valeursNPS);
+    return {
+      cle,
+      libelle: libelleMois(cle),
+      nb_avis: agreg.nb_notables,
+      moyenne_sur5: agreg.moyenne_sur5,
+      nps: detailNPS.volume < SEUIL_KPI_N ? null : detailNPS.nps,
+      nps_detail: {
+        volume: detailNPS.volume,
+        promoteurs: detailNPS.promoteurs,
+        passifs: detailNPS.passifs,
+        detracteurs: detailNPS.detracteurs
+      }
+    };
+  });
 }
 
 const BRANDING = {
@@ -8342,10 +8565,12 @@ const getFormDefinitionForGuichet$2 = async (args, context) => {
                   // QCM/CASES (le client envoie des optionIds, jamais de
                   // position). Actives seules, ordre d'affichage. AUCUN
                   // score/poids ne quitte le serveur (résolution serveur).
+                  // Task 2 : code_metier exposé (AUTRE_LIBRE/EXCLUSIF) pour
+                  // le champ Autre conditionnel — jamais un score.
                   options: {
                     where: { actif: true },
                     orderBy: { ordre_affichage: "asc" },
-                    select: { id: true, libelle: true }
+                    select: { id: true, libelle: true, code_metier: true }
                   }
                 }
               }
@@ -8377,7 +8602,7 @@ const getFormDefinitionForGuichet$2 = async (args, context) => {
                   options: {
                     where: { actif: true },
                     orderBy: { ordre_affichage: "asc" },
-                    select: { id: true, libelle: true }
+                    select: { id: true, libelle: true, code_metier: true }
                   }
                 }
               }
@@ -8551,7 +8776,7 @@ const getRadarStats$2 = async (args, context) => {
     where: { id_agence: idAgence, date_reponse: { gte: debutCollecte } },
     select: { id: true, id_soumission: true }
   });
-  const totalAvis = compterAvis(reponsesPourComptage);
+  const totalAvis = compterAvis$1(reponsesPourComptage);
   const targetReponses = totalGuichetsCount * 15;
   const mesurageScore = targetReponses > 0 ? Math.min(100, Math.round(totalAvis / targetReponses * 100)) : 100;
   const totalAlertes = await context.entities.Alerte.count({
@@ -8847,7 +9072,7 @@ const getStatsByAgent$2 = async (args, context) => {
   }
   const stats = agents.map((agent) => {
     const reponsesAgent = reponsesParAgent.get(agent.id) || [];
-    const nb = compterAvis(reponsesAgent);
+    const nb = compterAvis$1(reponsesAgent);
     const scoresParAvis = scoreMoyenParAvis(reponsesAgent);
     const scoreMoyen = scoresParAvis.length > 0 ? parseFloat((scoresParAvis.reduce((s, score) => s + score, 0) / scoresParAvis.length).toFixed(2)) : 0;
     return {
@@ -8896,7 +9121,7 @@ const getStatsByGuichet$2 = async (args, context) => {
   }
   const stats = guichets.map((g) => {
     const reponsesGuichet = reponsesParGuichet.get(g.id) || [];
-    const nb = compterAvis(reponsesGuichet);
+    const nb = compterAvis$1(reponsesGuichet);
     const scoresParAvis = scoreMoyenParAvis(reponsesGuichet);
     const scoreMoyen = scoresParAvis.length > 0 ? parseFloat((scoresParAvis.reduce((s, score) => s + score, 0) / scoresParAvis.length).toFixed(2)) : 0;
     return {
@@ -9635,6 +9860,199 @@ const getIndicateursExperience$2 = async (args, context) => {
     derniereAnalyse
   };
 };
+const getMoyennesParCritere$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const scope = await resolveAgenceScope(context, context.entities, args?.id_agence);
+  const nbJours = normaliserNbJours(args?.nbJours);
+  const debut = /* @__PURE__ */ new Date();
+  debut.setDate(debut.getDate() - nbJours);
+  const reponses = await context.entities.Reponse.findMany({
+    where: { id_agence: scope.id_agence, date_reponse: { gte: debut } },
+    select: {
+      id: true,
+      id_soumission: true,
+      // Vague 1 (P2) : sans score_normalise, l'agrégat retomberait sur
+      // score_brut et inverserait le CES / compterait le NPS en étoiles.
+      score_normalise: true,
+      score_officiel: true,
+      id_critere: true,
+      critere: { select: { id: true, libelle_critere: true, type_reponse: true, scoring_mode: true, options_reponse: true } }
+    }
+  });
+  const parCritere = /* @__PURE__ */ new Map();
+  for (const r of reponses) {
+    let g = parCritere.get(r.id_critere);
+    if (!g) {
+      g = { meta: r.critere, lignes: [] };
+      parCritere.set(r.id_critere, g);
+    }
+    g.lignes.push(r);
+  }
+  const arrondi1 = (n) => Math.round(n * 10) / 10;
+  const criteres = [];
+  for (const [id_critere, g] of parCritere.entries()) {
+    const kind = classifierCritere(g.meta ?? null);
+    const agreg = agregerLignesCritere(g.lignes);
+    let nps = null;
+    let nps_detail = null;
+    let ces_volume = 0;
+    let ces_top_box = null;
+    let ces_effort_moyen = null;
+    if (kind === "NPS") {
+      const valeurs = g.lignes.filter((l) => Number.isInteger(l.score_officiel)).map((l) => Number(l.score_officiel));
+      const a = agregerNPS(valeurs);
+      nps_detail = { volume: a.volume, promoteurs: a.promoteurs, passifs: a.passifs, detracteurs: a.detracteurs };
+      nps = a.volume < SEUIL_KPI_N ? null : a.nps;
+    }
+    if (kind === "CES") {
+      const echelle = reconnaitreEchelleCES(g.meta ?? null);
+      if (echelle) {
+        const notes = g.lignes.filter((l) => Number.isInteger(l.score_officiel)).map((l) => Number(l.score_officiel));
+        const a = agregerCES(notes, echelle);
+        ces_volume = a.volume;
+        if (a.volume >= SEUIL_KPI_N) {
+          ces_top_box = arrondi1(a.top_box);
+          ces_effort_moyen = a.note_effort_moyenne === null ? null : arrondi1(a.note_effort_moyenne);
+        }
+      }
+    }
+    criteres.push({
+      id_critere,
+      libelle: g.meta?.libelle_critere ?? `Question ${id_critere}`,
+      type: g.meta?.type_reponse ?? "?",
+      scoring_mode: g.meta?.scoring_mode ?? null,
+      kind,
+      nb_avis: agreg.nb_avis,
+      nb_notables: agreg.nb_notables,
+      moyenne_sur5: agreg.moyenne_sur5,
+      satisfaction_pct: agreg.satisfaction_pct,
+      distribution: agreg.distribution,
+      nps,
+      nps_detail,
+      ces_volume,
+      ces_top_box,
+      ces_effort_moyen
+    });
+  }
+  criteres.sort((a, b) => b.nb_avis - a.nb_avis);
+  return { nb_jours: nbJours, criteres };
+};
+async function verifierCritereEntreprise(context, idCritere) {
+  const critere = await context.entities.Critere.findUnique({
+    where: { id: idCritere },
+    select: { id: true, libelle_critere: true, type_reponse: true, scoring_mode: true, id_entreprise: true }
+  });
+  if (!critere) {
+    throw new HttpError(404, "Question introuvable.");
+  }
+  const idEntreprise = context.user?.id_entreprise ?? null;
+  if (critere.id_entreprise != null && idEntreprise != null && critere.id_entreprise !== idEntreprise) {
+    throw new HttpError(403, "Acc\xE8s refus\xE9 : cette question appartient \xE0 une autre entreprise.");
+  }
+  return critere;
+}
+const getRepartitionOptions$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const idCritere = requireNumber(args?.id_critere, "id_critere");
+  const critere = await verifierCritereEntreprise(context, idCritere);
+  const scope = await resolveAgenceScope(context, context.entities, args?.id_agence);
+  const nbJours = normaliserNbJours(args?.nbJours);
+  const debut = /* @__PURE__ */ new Date();
+  debut.setDate(debut.getDate() - nbJours);
+  const [reponses, options] = await Promise.all([
+    context.entities.Reponse.findMany({
+      where: { id_agence: scope.id_agence, id_critere: idCritere, date_reponse: { gte: debut } },
+      select: {
+        id: true,
+        id_soumission: true,
+        optionsChoisies: { select: { id_option: true } }
+      }
+    }),
+    context.entities.OptionCritere.findMany({
+      where: { id_critere: idCritere },
+      select: { id: true, libelle: true },
+      orderBy: { ordre_affichage: "asc" }
+    })
+  ]);
+  const repart = repartirOptionsParAvis(
+    reponses.map((r) => ({
+      id: r.id,
+      id_soumission: r.id_soumission,
+      options: (r.optionsChoisies ?? []).map((o) => o.id_option)
+    })),
+    options
+  );
+  return {
+    id_critere: idCritere,
+    libelle: critere.libelle_critere,
+    nb_jours: nbJours,
+    nb_avis: repart.nb_avis,
+    options: repart.options
+  };
+};
+const getTendanceParCritere$2 = async (args, context) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const idCritere = args?.id_critere != null ? requireNumber(args.id_critere, "id_critere") : null;
+  let libelleCible = null;
+  if (idCritere !== null) {
+    libelleCible = (await verifierCritereEntreprise(context, idCritere)).libelle_critere;
+  }
+  const scope = await resolveAgenceScope(context, context.entities, args?.id_agence);
+  const nbMois = normaliserNbMois(args?.nbMois);
+  const cles = moisGlissants(nbMois);
+  const debut = new Date(Number(cles[0].slice(0, 4)), Number(cles[0].slice(5, 7)) - 1, 1, 0, 0, 0, 0);
+  const reponses = await context.entities.Reponse.findMany({
+    where: {
+      id_agence: scope.id_agence,
+      date_reponse: { gte: debut },
+      ...idCritere !== null ? { id_critere: idCritere } : {}
+    },
+    select: {
+      id: true,
+      id_soumission: true,
+      score_normalise: true,
+      score_officiel: true,
+      date_reponse: true,
+      id_critere: true,
+      critere: { select: { libelle_critere: true, type_reponse: true, scoring_mode: true, options_reponse: true } }
+    }
+  });
+  const points = construireTendance(reponses, cles);
+  const parCritere = /* @__PURE__ */ new Map();
+  for (const r of reponses) {
+    if (noteDepuisNormalise(r) === null) continue;
+    let g = parCritere.get(r.id_critere);
+    if (!g) {
+      g = { libelle: r.critere?.libelle_critere ?? `Question ${r.id_critere}`, lignes: [] };
+      parCritere.set(r.id_critere, g);
+    }
+    g.lignes.push(r);
+  }
+  const series = [...parCritere.entries()].map(([cid, g]) => {
+    const parMois = /* @__PURE__ */ new Map();
+    for (const c of cles) parMois.set(c, []);
+    for (const l of g.lignes) {
+      if (!l.date_reponse) continue;
+      const bucket = parMois.get(cleMois(new Date(l.date_reponse)));
+      if (bucket) bucket.push(l);
+    }
+    return {
+      id_critere: cid,
+      libelle: g.libelle,
+      points: cles.map((cle) => {
+        const a = agregerLignesCritere(parMois.get(cle) ?? []);
+        return { cle, nb: a.nb_notables, moyenne_sur5: a.moyenne_sur5 };
+      })
+    };
+  });
+  series.sort(
+    (a, b) => b.points.reduce((s, p) => s + p.nb, 0) - a.points.reduce((s, p) => s + p.nb, 0)
+  );
+  return { nb_mois: nbMois, id_critere: idCritere, libelle: libelleCible, points, series };
+};
 
 async function getGuichets$1(args, context) {
   return getGuichets$2(args, {
@@ -10185,6 +10603,57 @@ async function getIndicateursExperience$1(args, context) {
 
 var getIndicateursExperience = createQuery(getIndicateursExperience$1);
 
+async function getMoyennesParCritere$1(args, context) {
+  return getMoyennesParCritere$2(args, {
+    ...context,
+    entities: {
+      Reponse: dbClient.reponse,
+      Critere: dbClient.critere,
+      OptionCritere: dbClient.optionCritere,
+      ReponseOption: dbClient.reponseOption,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var getMoyennesParCritere = createQuery(getMoyennesParCritere$1);
+
+async function getRepartitionOptions$1(args, context) {
+  return getRepartitionOptions$2(args, {
+    ...context,
+    entities: {
+      Reponse: dbClient.reponse,
+      Critere: dbClient.critere,
+      OptionCritere: dbClient.optionCritere,
+      ReponseOption: dbClient.reponseOption,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var getRepartitionOptions = createQuery(getRepartitionOptions$1);
+
+async function getTendanceParCritere$1(args, context) {
+  return getTendanceParCritere$2(args, {
+    ...context,
+    entities: {
+      Reponse: dbClient.reponse,
+      Critere: dbClient.critere,
+      OptionCritere: dbClient.optionCritere,
+      ReponseOption: dbClient.reponseOption,
+      User: dbClient.user,
+      Agence: dbClient.agence,
+      Entreprise: dbClient.entreprise
+    }
+  });
+}
+
+var getTendanceParCritere = createQuery(getTendanceParCritere$1);
+
 async function getAnalysesGlobales$1(args, context) {
   return getAnalysesGlobales$2(args, {
     ...context,
@@ -10569,6 +11038,9 @@ router$3.post("/get-archives", auth, getArchives);
 router$3.post("/get-aistatus", auth, getAIStatus);
 router$3.post("/get-themes-stats", auth, getThemesStats);
 router$3.post("/get-indicateurs-experience", auth, getIndicateursExperience);
+router$3.post("/get-moyennes-par-critere", auth, getMoyennesParCritere);
+router$3.post("/get-repartition-options", auth, getRepartitionOptions);
+router$3.post("/get-tendance-par-critere", auth, getTendanceParCritere);
 router$3.post("/get-analyses-globales", auth, getAnalysesGlobales);
 router$3.post("/get-platform-overview", auth, getPlatformOverview);
 router$3.post("/get-platform-entreprises", auth, getPlatformEntreprises);

@@ -17,7 +17,7 @@ export const DataTable = ({
       className="overflow-x-auto momentum-scroll scroll-fade-x"
       style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}
     >
-      <table className="w-full min-w-[640px] text-left text-sm">
+      <table className="w-full min-w-0 sm:min-w-[640px] text-left text-sm">
         {headers && (
           <thead className="sticky top-0 z-10 bg-muted/60 text-muted-foreground uppercase font-semibold text-[11px] tracking-wider border-b border-border/70">
             <tr>

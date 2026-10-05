@@ -6,6 +6,7 @@ import { Toaster } from "../client/components/ui/toaster";
 import "./Main.css";
 import { Sidebar, MobileSidebarDrawer } from "./components/Sidebar";
 import { MobileAppHeader } from "./components/MobileAppHeader";
+import { MobileTabBar } from "./components/MobileTabBar";
 import { OnboardingTour } from "./components/OnboardingTour";
 import { BrandProvider } from "./context/BrandContext";
 import { CommandPalette } from "./components/CommandPalette";
@@ -100,15 +101,23 @@ export function App() {
               <MobileSidebarDrawer open={mobileNavOpen} onOpenChange={setMobileNavOpen}/>
               <CommandPalette />
 
-              <main id="contenu-principal" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto pt-20 lg:pt-8">
+              {/* Task 1 tactile : tab-bar 4 actions au pouce (mobile seul,
+                `lg:hidden` dans le composant) — le contenu reçoit un
+                padding bas équivalent sur mobile pour ne jamais finir
+                sous la barre. Desktop inchangé (lg:pt-8, pas de tab-bar). */}
+              <main id="contenu-principal" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto pt-20 pb-24 lg:pt-8 lg:pb-8">
                 <Outlet />
               </main>
+              <MobileTabBar />
             </div>
           </div>) : (<main id="contenu-principal" tabIndex={-1}>
             <Outlet />
           </main>)}
         </div>
       </div>
-      <Toaster position="bottom-right"/>
+      {/* Task 1 tactile : toasts bottom-center au pouce sur mobile (la
+            position bottom-right finissait sous le pouce / hors écran sur
+            petit viewport). */}
+      <Toaster position="bottom-center"/>
     </BrandProvider>);
 }

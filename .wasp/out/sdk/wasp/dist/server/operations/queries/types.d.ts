@@ -1,4 +1,4 @@
-import { type _User, type _File, type _Guichet, type _Service, type _Agence, type _Entreprise, type _Reponse, type _Critere, type _Alerte, type _AgenceCritere, type _CritereService, type _BrandingConfig, type _AffectationGuichet, type _TacheCorrective, type _Objectif, type _TacheCorrectiveHistorique, type _ModeleHoraire, type _AnalyseAvisIA, type _GlobalExperienceAnalysis, type _Invitation, type _AuditLog, type AuthenticatedQueryDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _File, type _Guichet, type _Service, type _Agence, type _Entreprise, type _Reponse, type _Critere, type _Alerte, type _AgenceCritere, type _CritereService, type _BrandingConfig, type _AffectationGuichet, type _TacheCorrective, type _Objectif, type _TacheCorrectiveHistorique, type _ModeleHoraire, type _AnalyseAvisIA, type _GlobalExperienceAnalysis, type _OptionCritere, type _ReponseOption, type _Invitation, type _AuditLog, type AuthenticatedQueryDefinition, type Payload } from 'wasp/server/_types';
 export type GetAllFilesByUser<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
     _User,
     _File
@@ -266,6 +266,33 @@ export type GetIndicateursExperience<Input extends Payload = never, Output exten
     _Service,
     _Critere,
     _GlobalExperienceAnalysis,
+    _Entreprise
+], Input, Output>;
+export type GetMoyennesParCritere<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
+    _Reponse,
+    _Critere,
+    _OptionCritere,
+    _ReponseOption,
+    _User,
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type GetRepartitionOptions<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
+    _Reponse,
+    _Critere,
+    _OptionCritere,
+    _ReponseOption,
+    _User,
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type GetTendanceParCritere<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
+    _Reponse,
+    _Critere,
+    _OptionCritere,
+    _ReponseOption,
+    _User,
+    _Agence,
     _Entreprise
 ], Input, Output>;
 export type GetAnalysesGlobales<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[

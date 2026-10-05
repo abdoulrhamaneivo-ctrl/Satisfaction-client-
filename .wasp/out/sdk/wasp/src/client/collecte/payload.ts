@@ -14,10 +14,31 @@ export type ReponseCollecte = {
   optionIds?: string[];
   valeur?: number;
   valeurOui?: boolean;
+  /** Verbatim de l'option « Autre (précisez) » (Task 2, nettoyé). */
+  autreTexte?: string;
 };
 
 /** Option telle qu'exposée par getFormDefinitionForGuichet (id stable). */
-export type OptionAffichage = { id: string | null; libelle: string };
+export type OptionAffichage = { id: string | null; libelle: string; code_metier?: string | null };
+
+/**
+ * L'option est-elle un « Autre (précisez) » à saisie libre ?
+ * Convention : code_metier AUTRE_LIBRE (jamais EXCLUSIF).
+ */
+export function estOptionAutreLibre(o: OptionAffichage): boolean {
+  return (o?.code_metier ?? '').trim().toUpperCase() === 'AUTRE_LIBRE';
+}
+
+/**
+ * Verbatim « Autre » : trim, 1000 max, séparateurs `•;|` interdits.
+ * Ces trois caractères servent de séparateurs au chemin legacy serveur
+ * (split « • ») : les laisser passer couperait le verbatim en morceaux
+ * appariés à tort. Miroir serveur : normaliserEntree (resolutionSoumission).
+ */
+export function nettoyerAutreTexte(brut: unknown): string {
+  if (typeof brut !== 'string') return '';
+  return brut.replace(/[•;|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1000);
+}
 
 /**
  * Options à afficher pour un critère : table OptionCritere (ids stables)
@@ -30,13 +51,18 @@ export function optionsAffichage(critere: any): OptionAffichage[] {
     return table.map((o: any) => ({
       id: typeof o?.id === 'string' && o.id ? o.id : null,
       libelle: String(o?.libelle ?? '').trim(),
+      // Task 2 : le client doit reconnaître l'option « Autre (précisez) »
+      // pour afficher le champ de saisie (jamais de score exposé ici).
+      code_metier: typeof o?.code_metier === 'string' && o.code_metier.trim()
+        ? o.code_metier.trim()
+        : null,
     })).filter((o) => o.libelle);
   }
   return String(critere?.options_reponse ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
-    .map((libelle) => ({ id: null, libelle }));
+    .map((libelle) => ({ id: null, libelle, code_metier: null }));
 }
 
 /** Smiley 1-5 (échelle fixe, aucun biais de position possible). */
@@ -50,9 +76,17 @@ export function payloadOuiNon(critereId: number, oui: boolean): ReponseCollecte 
 }
 
 /** QCM : optionId si connu, sinon libellé (compat serveur MIGRATED). */
-export function payloadQCM(critereId: number, choix: OptionAffichage): ReponseCollecte {
-  if (choix.id) return { critereId, optionId: choix.id };
-  return { critereId, texte: choix.libelle };
+export function payloadQCM(critereId: number, choix: OptionAffichage, autreTexte?: string): ReponseCollecte {
+  const base: ReponseCollecte = choix.id
+    ? { critereId, optionId: choix.id }
+    : { critereId, texte: choix.libelle };
+  // Task 2 : « Autre (précisez) » → le verbatim voyage avec l'identifiant.
+  // Vide → absent (le bouton Continuer reste désactivé côté collecte).
+  if (estOptionAutreLibre(choix)) {
+    const propre = nettoyerAutreTexte(autreTexte);
+    if (propre) return { ...base, autreTexte: propre };
+  }
+  return base;
 }
 
 /** Texte libre : verbatim seul, jamais de note. */
@@ -66,12 +100,18 @@ export function payloadValeur(critereId: number, valeur: number): ReponseCollect
 }
 
 /** CASES : ids si connus, sinon libellés joints (compat serveur). */
-export function payloadCases(critereId: number, choix: OptionAffichage[]): ReponseCollecte {
+export function payloadCases(critereId: number, choix: OptionAffichage[], autreTexte?: string): ReponseCollecte {
   const avecId = choix.filter((c) => c.id).map((c) => c.id as string);
-  if (avecId.length === choix.length && choix.length > 0) {
-    return { critereId, optionIds: avecId };
+  const base: ReponseCollecte =
+    avecId.length === choix.length && choix.length > 0
+      ? { critereId, optionIds: avecId }
+      : { critereId, texte: choix.map((c) => c.libelle).join(' • ') };
+  // Task 2 : le verbatim n'est conservé que si « Autre » est coché.
+  if (choix.some(estOptionAutreLibre)) {
+    const propre = nettoyerAutreTexte(autreTexte);
+    if (propre) return { ...base, autreTexte: propre };
   }
-  return { critereId, texte: choix.map((c) => c.libelle).join(' • ') };
+  return base;
 }
 
 /** Échelle : bornes depuis options_reponse (défaut 1-5, miroir serveur). */

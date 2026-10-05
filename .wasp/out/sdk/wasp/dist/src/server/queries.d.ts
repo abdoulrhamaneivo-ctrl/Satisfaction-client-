@@ -302,5 +302,116 @@ export declare const getIndicateursExperience: (args: {
     };
     derniereAnalyse: any;
 } | null>;
+export type MoyenneParCritere = {
+    id_critere: number;
+    libelle: string;
+    type: string;
+    scoring_mode: string | null;
+    kind: 'SATISFACTION' | 'NPS' | 'CES' | 'CATEGORIEL' | 'TEXTE';
+    /** Avis distincts ayant répondu à ce critère (toutes lignes). */
+    nb_avis: number;
+    /** Lignes notables (base réelle des moyennes). */
+    nb_notables: number;
+    /** Moyenne /5 (null si non-satisfaction ou n<5). */
+    moyenne_sur5: number | null;
+    /** % d'avis >= 4/5 (null si non-satisfaction ou n<5). */
+    satisfaction_pct: number | null;
+    distribution: {
+        '1': number;
+        '2': number;
+        '3': number;
+        '4': number;
+        '5': number;
+    };
+    /** NPS %promoteurs − %détracteurs (null si volume<5 ; null hors NPS). */
+    nps: number | null;
+    nps_detail: {
+        volume: number;
+        promoteurs: number;
+        passifs: number;
+        detracteurs: number;
+    } | null;
+    ces_volume: number;
+    ces_top_box: number | null;
+    ces_effort_moyen: number | null;
+};
+export type MoyennesParCritereResult = {
+    nb_jours: number;
+    criteres: MoyenneParCritere[];
+};
+export declare const getMoyennesParCritere: (args: {
+    id_agence?: number;
+    nbJours?: number;
+} | void, context: any) => Promise<{
+    nb_jours: number;
+    criteres: MoyenneParCritere[];
+}>;
+export type RepartitionOptionsResult = {
+    id_critere: number;
+    libelle: string;
+    nb_jours: number;
+    /** Avis distincts ayant répondu (dénominateur unique des %). */
+    nb_avis: number;
+    options: {
+        option_id: string;
+        libelle: string;
+        nb: number;
+        pct: number | null;
+    }[];
+};
+export declare const getRepartitionOptions: (args: {
+    id_critere: number;
+    id_agence?: number;
+    nbJours?: number;
+}, context: any) => Promise<{
+    id_critere: number;
+    libelle: any;
+    nb_jours: number;
+    nb_avis: number;
+    options: import("./kpiParTerme").LigneRepartition[];
+}>;
+export type PointTendanceCritere = {
+    cle: string;
+    libelle: string;
+    nb_avis: number;
+    moyenne_sur5: number | null;
+    nps: number | null;
+    nps_detail: {
+        volume: number;
+        promoteurs: number;
+        passifs: number;
+        detracteurs: number;
+    };
+};
+export type SerieParCritere = {
+    id_critere: number;
+    libelle: string;
+    points: {
+        cle: string;
+        nb: number;
+        moyenne_sur5: number | null;
+    }[];
+};
+export type TendanceParCritereResult = {
+    nb_mois: number;
+    /** Filtre éventuel (null = tous les critères). */
+    id_critere: number | null;
+    libelle: string | null;
+    /** Série globale : moyenne satisfaction + série NPS par mois. */
+    points: PointTendanceCritere[];
+    /** Courbes par terme (critères de satisfaction présents, seuil par point). */
+    series: SerieParCritere[];
+};
+export declare const getTendanceParCritere: (args: {
+    id_agence?: number;
+    nbMois?: number;
+    id_critere?: number;
+} | void, context: any) => Promise<{
+    nb_mois: number;
+    id_critere: number | null;
+    libelle: string | null;
+    points: import("./kpiParTerme").PointTendance[];
+    series: SerieParCritere[];
+}>;
 export {};
 //# sourceMappingURL=queries.d.ts.map

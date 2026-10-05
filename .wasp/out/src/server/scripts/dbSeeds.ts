@@ -5,6 +5,7 @@ import {
   createUser,
   sanitizeAndSerializeProviderData,
 } from 'wasp/server/auth';
+import { seedGabarits } from '../gabarits';
 
 // Constantes de configuration pour le seed mono-agence.
 // `NOM_ENTREPRISE` n'est utilisé QUE lors de la toute première exécution
@@ -132,6 +133,10 @@ export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
     });
   }
 
+  // 4b. Gabarits Express-30s / Qualité-45s (Task 2 — voir après la
+  // resynchronisation des séquences : les creates autoincrement ne doivent
+  // pas rejouer les ids explicites 1,2,3 ci-dessus).
+
   // 5. Création des canaux de communication inclusifs
   console.log("Création des canaux de communication...");
   await prismaClient.canal.createMany({
@@ -206,6 +211,13 @@ export async function seedEntrepriseUnique(prismaClient: PrismaClient) {
     );
   }
   console.log("Séquences PostgreSQL resynchronisées (Critere, Service, Canal).");
+
+  // 4b. Gabarits Express-30s / Qualité-45s (Task 2 : questionnaires prêts à
+  // l'emploi avec option « Autre (précisez) » à saisie libre). APRES la
+  // resynchronisation (creates autoincrement) et idempotent : relançable
+  // sans doublon (skip si les services existent déjà).
+  console.log("Création des gabarits Express-30s / Qualité-45s...");
+  await seedGabarits(prismaClient, entreprise.id, agence.id);
 
   console.log("Seeding mono-agence terminé avec succès !");
 }

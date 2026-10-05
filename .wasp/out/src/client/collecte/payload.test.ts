@@ -13,6 +13,8 @@ import {
   estCritereCES,
   libellesCES,
   choixEchelle,
+  nettoyerAutreTexte,
+  estOptionAutreLibre,
 } from './payload';
 
 describe('optionsAffichage : ids stables en priorité', () => {
@@ -25,15 +27,15 @@ describe('optionsAffichage : ids stables en priorité', () => {
       options_reponse: 'IGNORE,ME',
     });
     expect(r).toEqual([
-      { id: 'o2', libelle: 'Neutre' },
-      { id: 'o1', libelle: 'Très satisfait' },
+      { id: 'o2', libelle: 'Neutre', code_metier: null },
+      { id: 'o1', libelle: 'Très satisfait', code_metier: null },
     ]);
   });
 
   test('sans table → repli CSV sans id (compat serveur)', () => {
     expect(optionsAffichage({ options_reponse: 'Oui, Non' })).toEqual([
-      { id: null, libelle: 'Oui' },
-      { id: null, libelle: 'Non' },
+      { id: null, libelle: 'Oui', code_metier: null },
+      { id: null, libelle: 'Non', code_metier: null },
     ]);
     expect(optionsAffichage({})).toEqual([]);
   });
@@ -140,5 +142,76 @@ describe('Phase L — libellés d\'effort (CES) sur le formulaire public', () =>
     const r = choixEchelle({ scoring_mode: 'CES', options_reponse: '0,5' });
     expect(r[0].libelle).toBe('0');
     expect(r[1].libelle).toBe('1');
+  });
+});
+
+describe('Task 2 — Autre libre : code_metier + autreTexte', () => {
+  test('optionsAffichage expose code_metier (AUTRE_LIBRE / EXCLUSIF)', () => {
+    const r = optionsAffichage({
+      options: [
+        { id: 'o1', libelle: 'Envoi / Retrait colis ou courrier' },
+        { id: 'o9', libelle: 'Autre (précisez)', code_metier: 'AUTRE_LIBRE' },
+      ],
+    });
+    expect(r).toEqual([
+      { id: 'o1', libelle: 'Envoi / Retrait colis ou courrier', code_metier: null },
+      { id: 'o9', libelle: 'Autre (précisez)', code_metier: 'AUTRE_LIBRE' },
+    ]);
+  });
+
+  test('estOptionAutreLibre : code insensible casse/espaces, jamais EXCLUSIF', () => {
+    expect(estOptionAutreLibre({ id: 'a', libelle: 'Autre (précisez)', code_metier: 'AUTRE_LIBRE' })).toBe(true);
+    expect(estOptionAutreLibre({ id: 'a', libelle: 'Autre (précisez)', code_metier: ' autre_libre ' })).toBe(true);
+    expect(estOptionAutreLibre({ id: 'a', libelle: 'Aucun problème', code_metier: 'EXCLUSIF' })).toBe(false);
+    expect(estOptionAutreLibre({ id: 'a', libelle: 'Autre (précisez)' })).toBe(false);
+  });
+
+  test('nettoyerAutreTexte : trim, 1000 max, séparateurs •;| interdits', () => {
+    expect(nettoyerAutreTexte('  colis fragile  ')).toBe('colis fragile');
+    expect(nettoyerAutreTexte('a•b;c|d')).toBe('a b c d');
+    expect(nettoyerAutreTexte('x'.repeat(1500))).toHaveLength(1000);
+    expect(nettoyerAutreTexte('')).toBe('');
+    expect(nettoyerAutreTexte(null)).toBe('');
+  });
+
+  test('payloadQCM Autre → {optionId, autreTexte} conservés, jamais de score', () => {
+    const r = payloadQCM(
+      12,
+      { id: 'o-autre', libelle: 'Autre (précisez)', code_metier: 'AUTRE_LIBRE' },
+      ' colis fragile ',
+    );
+    expect(r).toEqual({ critereId: 12, optionId: 'o-autre', autreTexte: 'colis fragile' });
+    expect(r).not.toHaveProperty('score');
+  });
+
+  test('payloadQCM Autre vide → autreTexte absent (Continuer restera désactivé)', () => {
+    const r = payloadQCM(
+      12,
+      { id: 'o-autre', libelle: 'Autre (précisez)', code_metier: 'AUTRE_LIBRE' },
+      '   ',
+    );
+    expect(r).toEqual({ critereId: 12, optionId: 'o-autre' });
+  });
+
+  test('payloadQCM non-Autre ignore autreTexte', () => {
+    const r = payloadQCM(12, { id: 'o1', libelle: 'Moins de 10 min' }, 'parasite');
+    expect(r).toEqual({ critereId: 12, optionId: 'o1' });
+  });
+
+  test('payloadCases avec Autre → {optionIds, autreTexte} conservés', () => {
+    const r = payloadCases(
+      15,
+      [
+        { id: 'opt_1', libelle: 'Panne réseau / Système indisponible' },
+        { id: 'opt_9', libelle: 'Autre (précisez)', code_metier: 'AUTRE_LIBRE' },
+      ],
+      ' clim en panne ',
+    );
+    expect(r).toEqual({ critereId: 15, optionIds: ['opt_1', 'opt_9'], autreTexte: 'clim en panne' });
+  });
+
+  test('payloadCases sans Autre ignore autreTexte', () => {
+    const r = payloadCases(15, [{ id: 'opt_1', libelle: 'Panne réseau' }], 'parasite');
+    expect(r).toEqual({ critereId: 15, optionIds: ['opt_1'] });
   });
 });
