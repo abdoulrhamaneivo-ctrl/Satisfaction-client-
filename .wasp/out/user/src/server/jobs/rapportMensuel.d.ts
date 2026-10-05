@@ -8,6 +8,9 @@ interface StatsAgence {
     alertesCritiques: number;
     tachesOuvertes: number;
 }
+/** Calcule les stats d'une période [debut, fin] pour une agence donnée.
+ * Exportée pour les tests (volumesAvis) — le job l'appelle en interne. */
+export declare function calculeStatsAgence(idAgence: number, debut: Date, fin: Date): Promise<StatsAgence | null>;
 /**
  * Consolidation multi-agences (pure, testée) : la Direction reçoit UN email
  * avec les chiffres de son entreprise, pas N emails par agence.

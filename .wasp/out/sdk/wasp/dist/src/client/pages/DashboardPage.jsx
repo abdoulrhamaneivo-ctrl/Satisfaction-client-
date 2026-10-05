@@ -103,8 +103,13 @@ export const DashboardPage = () => {
     const objectifsList = objectifs || [];
     const isLoading = loadingReponses || loadingRadar || loadingAlertes || loadingTaches;
     const periodeActuelle = kpisPeriode?.periode_actuelle;
-    const satisfaction = periodeActuelle ? periodeActuelle.satisfaction.toFixed(0) : '0';
-    const noteMoyenne = periodeActuelle ? periodeActuelle.moyenne.toFixed(1) : '0.0';
+    // Correctif 2026-10-05 : sans avis NOTÉ, « 0 % » et « 0,0/5 » mentiraient
+    // (ils prétendraient un score mesuré nul). On affiche « — », comme le
+    // fait déjà l'export XLSX (`satisfaction ? … : '—'`). Le volume, lui,
+    // compte tous les avis (totalAvisPeriode).
+    const nbNotesPeriode = periodeActuelle?.nb_notes ?? 0;
+    const satisfaction = periodeActuelle && nbNotesPeriode > 0 ? periodeActuelle.satisfaction.toFixed(0) : null;
+    const noteMoyenne = periodeActuelle && nbNotesPeriode > 0 ? periodeActuelle.moyenne.toFixed(1) : null;
     const totalAvisPeriode = periodeActuelle ? periodeActuelle.nb : 0;
     const labelPeriode = periodeJours === 1 ? '24h' : `${periodeJours}j`;
     const alertesNouvelles = alertesList.filter((a) => a.statut_alerte === 'NOUVELLE').length;
@@ -429,10 +434,10 @@ export const DashboardPage = () => {
           {/* NIVEAU 2 — KPIs exécutifs */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
             <div title="Taux d'avis satisfaits : % d'avis dont la note moyenne /5 atteint 4 ou plus. Distinct du CSAT (moyenne), complémentaire : un taux haut + une moyenne basse = quelques avis très mécontents.">
-            <StatCard title={`Avis ≥ 4/5 (${labelPeriode})`} value={`${satisfaction}%`} icon={Smile} accent="success" index={0} trend={!loadingKpis ? formatDelta(deltaSatisfaction, ' pts') : undefined} trendDirection={deltaSatisfaction >= 0 ? 'up' : 'down'}/>
+            <StatCard title={`Avis ≥ 4/5 (${labelPeriode})`} value={satisfaction !== null ? `${satisfaction}%` : '—'} icon={Smile} accent="success" index={0} trend={!loadingKpis ? formatDelta(deltaSatisfaction, ' pts') : undefined} trendDirection={deltaSatisfaction >= 0 ? 'up' : 'down'}/>
             </div>
             <StatCard title={`Total Avis (${labelPeriode})`} value={String(totalAvisPeriode)} icon={MessageSquare} accent="primary" index={1} trend={!loadingKpis ? formatDelta(deltaVolume, '%') : undefined} trendDirection={deltaVolume >= 0 ? 'up' : 'down'}/>
-            <StatCard title={`Note Moyenne (${labelPeriode})`} value={`${noteMoyenne} / 5`} icon={Star} accent="secondary" index={2} trend={!loadingKpis ? formatDelta(deltaNote, ' pts') : undefined} trendDirection={deltaNote >= 0 ? 'up' : 'down'}/>
+            <StatCard title={`Note Moyenne (${labelPeriode})`} value={noteMoyenne !== null ? `${noteMoyenne} / 5` : '—'} icon={Star} accent="secondary" index={2} trend={!loadingKpis ? formatDelta(deltaNote, ' pts') : undefined} trendDirection={deltaNote >= 0 ? 'up' : 'down'}/>
             <StatCard title="Alertes nouvelles" value={String(alertesNouvelles)} icon={AlertTriangle} accent={alertesNouvelles > 0 ? 'destructive' : 'success'} index={3}/>
           </div>
 
@@ -756,12 +761,12 @@ export const DashboardPage = () => {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-lg font-bold font-satoshi text-foreground">
-                          {o.nb > 0 ? `${o.moyenne}/5` : '—'}
+                          {o.nb_notes > 0 ? `${o.moyenne}/5` : '—'}
                         </p>
-                        {o.nb > 0 && (<p className="text-[11px] font-semibold text-muted-foreground">{o.satisfaction}% satisfaits</p>)}
+                        {o.nb_notes > 0 && (<p className="text-[11px] font-semibold text-muted-foreground">{o.satisfaction}% satisfaits</p>)}
                       </div>
                     </div>
-                    {o.nb > 0 && (<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/60">
+                    {o.nb_notes > 0 && (<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/60">
                         <div className={`h-full rounded-full ${o.moyenne >= 4 ? 'bg-success' : o.moyenne >= 3 ? 'bg-warning' : 'bg-destructive'}`} style={{ width: `${(o.moyenne / 5) * 100}%` }}/>
                       </div>)}
                   </div>))}

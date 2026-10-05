@@ -157,8 +157,13 @@ export const DashboardPage = () => {
   const isLoading = loadingReponses || loadingRadar || loadingAlertes || loadingTaches;
 
   const periodeActuelle = kpisPeriode?.periode_actuelle;
-  const satisfaction = periodeActuelle ? periodeActuelle.satisfaction.toFixed(0) : '0';
-  const noteMoyenne = periodeActuelle ? periodeActuelle.moyenne.toFixed(1) : '0.0';
+  // Correctif 2026-10-05 : sans avis NOTÉ, « 0 % » et « 0,0/5 » mentiraient
+  // (ils prétendraient un score mesuré nul). On affiche « — », comme le
+  // fait déjà l'export XLSX (`satisfaction ? … : '—'`). Le volume, lui,
+  // compte tous les avis (totalAvisPeriode).
+  const nbNotesPeriode = (periodeActuelle as any)?.nb_notes ?? 0;
+  const satisfaction = periodeActuelle && nbNotesPeriode > 0 ? periodeActuelle.satisfaction.toFixed(0) : null;
+  const noteMoyenne = periodeActuelle && nbNotesPeriode > 0 ? periodeActuelle.moyenne.toFixed(1) : null;
   const totalAvisPeriode = periodeActuelle ? periodeActuelle.nb : 0;
   const labelPeriode = periodeJours === 1 ? '24h' : `${periodeJours}j`;
 
@@ -602,7 +607,7 @@ export const DashboardPage = () => {
             <div title="Taux d'avis satisfaits : % d'avis dont la note moyenne /5 atteint 4 ou plus. Distinct du CSAT (moyenne), complémentaire : un taux haut + une moyenne basse = quelques avis très mécontents.">
             <StatCard
               title={`Avis ≥ 4/5 (${labelPeriode})`}
-              value={`${satisfaction}%`}
+              value={satisfaction !== null ? `${satisfaction}%` : '—'}
               icon={Smile}
               accent="success"
               index={0}
@@ -621,7 +626,7 @@ export const DashboardPage = () => {
             />
             <StatCard
               title={`Note Moyenne (${labelPeriode})`}
-              value={`${noteMoyenne} / 5`}
+              value={noteMoyenne !== null ? `${noteMoyenne} / 5` : '—'}
               icon={Star}
               accent="secondary"
               index={2}
@@ -1102,14 +1107,14 @@ export const DashboardPage = () => {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-lg font-bold font-satoshi text-foreground">
-                          {o.nb > 0 ? `${o.moyenne}/5` : '—'}
+                          {(o as any).nb_notes > 0 ? `${o.moyenne}/5` : '—'}
                         </p>
-                        {o.nb > 0 && (
+                        {(o as any).nb_notes > 0 && (
                           <p className="text-[11px] font-semibold text-muted-foreground">{o.satisfaction}% satisfaits</p>
                         )}
                       </div>
                     </div>
-                    {o.nb > 0 && (
+                    {(o as any).nb_notes > 0 && (
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/60">
                         <div
                           className={`h-full rounded-full ${o.moyenne >= 4 ? 'bg-success' : o.moyenne >= 3 ? 'bg-warning' : 'bg-destructive'}`}

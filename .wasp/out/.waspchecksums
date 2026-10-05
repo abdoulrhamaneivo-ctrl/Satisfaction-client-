@@ -1929,7 +1929,7 @@
             "file",
             "sdk/wasp/src/client/pages/DashboardPage.tsx"
         ],
-        "3037027eedad82e64d2c0f0e2e58e0acba5a4517d1634c200b86adecbd90b247"
+        "a60bb14548c642ad641f73c6a0f7c441bcbb7ba8e262ea061d1fd0a989b54a74"
     ],
     [
         [
@@ -2587,7 +2587,7 @@
             "file",
             "sdk/wasp/src/server/jobs/rapportMensuel.ts"
         ],
-        "cfc5664e37ae6849c11a29bacb1e8ff352b128ecda8d74f04909883e2093c691"
+        "91e3449704fbfbfa0183f98f2056d4af57fd1cbcdbd69a3f7e25de67b9e463e1"
     ],
     [
         [
@@ -2650,7 +2650,7 @@
             "file",
             "sdk/wasp/src/server/queries.ts"
         ],
-        "b64a4c53b35cef94b8956d02bff10c187579dabd796c289040e07e7bec77c334"
+        "82c7561bd21681c553a18a6da5ee2e174598e69c264fca5f6e3b36d68aa90322"
     ],
     [
         [
@@ -2798,6 +2798,13 @@
             "sdk/wasp/src/server/validation.ts"
         ],
         "5ec82462b99179bc8d50d9c6de587ce5bd20e6844b88b8484be4a38b54e75b69"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/volumesAvis.test.ts"
+        ],
+        "d80763392e356ccbe663c7b48358e3e86dd3d3e2fdecb6cca565ea837104063b"
     ],
     [
         [

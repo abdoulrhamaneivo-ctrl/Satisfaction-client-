@@ -9,7 +9,7 @@
 
 import { envoyerEmailBrevo } from '../lib/emailBrevo';
 import { prisma } from 'wasp/server';
-import { scoreMoyenParAvis } from '../soumissions';
+import { scoreMoyenParAvis, compterAvis } from '../soumissions';
 
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
 
@@ -24,8 +24,9 @@ interface StatsAgence {
   tachesOuvertes: number;
 }
 
-/** Calcule les stats d'une période [debut, fin] pour une agence donnée */
-async function calculeStatsAgence(
+/** Calcule les stats d'une période [debut, fin] pour une agence donnée.
+ * Exportée pour les tests (volumesAvis) — le job l'appelle en interne. */
+export async function calculeStatsAgence(
   idAgence: number,
   debut: Date,
   fin: Date
@@ -64,15 +65,19 @@ async function calculeStatsAgence(
     },
   });
 
-  // MÉTRIQUE MÉTIER (règle « avis = 1 soumission ») : même logique que
-  // getKPIsPeriode — le taux de satisfaction et la note moyenne sont calculés
-  // sur le score moyen PAR AVIS. Une soumission à 5 critères compte 1 fois
-  // (avec la moyenne de ses 5 scores), pas 5 fois.
-  const scoresParAvis = scoreMoyenParAvis(reponses);
-  const totalAvis = scoresParAvis.length;
-  const noteMoyenne = totalAvis > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / totalAvis : 0;
-  const satisfaits = scoresParAvis.filter((v) => v >= 4).length;
-  const tauxSatisfaction = totalAvis > 0 ? (satisfaits / totalAvis) * 100 : 0;
+  // MÉTRIQUE MÉTIER (règle « avis = 1 soumission ») : même logique que
+  // getKPIsPeriode — le taux de satisfaction et la note moyenne sont calculés
+  // sur le score moyen PAR AVIS. Une soumission à 5 critères compte 1 fois
+  // (avec la moyenne de ses 5 scores), pas 5 fois.
+  // Correctif 2026-10-05 : le VOLUME compte TOUS les avis (un avis sans note
+  // existe — questions non scorées), seules moyenne et taux restent sur les
+  // notés. Avant : « Total avis : 0 » avec des avis en base.
+  const scoresParAvis = scoreMoyenParAvis(reponses);
+  const totalAvis = compterAvis(reponses);
+  const nbScorables = scoresParAvis.length;
+  const noteMoyenne = nbScorables > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nbScorables : 0;
+  const satisfaits = scoresParAvis.filter((v) => v >= 4).length;
+  const tauxSatisfaction = nbScorables > 0 ? (satisfaits / nbScorables) * 100 : 0;
 
   return {
     agenceNom: agence.nom_agence,

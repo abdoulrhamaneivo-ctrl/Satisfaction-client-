@@ -1386,7 +1386,9 @@ export const getTendanceMensuelle = async (args: { id_agence?: number }, context
     return {
       mois: new Date(Number(annee), Number(mois) - 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
       score_moyen: parseFloat(scoreMoyen.toFixed(2)),
-      nb_avis: scoresParAvis.length,
+      // Correctif 2026-10-05 : volume = TOUS les avis du mois, pas les
+      // seuls notés (même cause que getKPIsPeriode — mois à 0 avis sinon).
+      nb_avis: compterAvis(reponsesDuMois as any),
     };
   });
 };
@@ -1660,17 +1662,25 @@ export const getKPIsPeriode = async (args: { nbJours?: number } | void, context:
     }),
   ]);
 
-  // "nb" = nombre d'avis (soumissions), pas de lignes Reponse. La moyenne et
-  // le taux de satisfaction sont calculés sur le score moyen PAR AVIS (une
-  // soumission à N critères compte 1 fois, avec la moyenne de ses N scores),
-  // pas sur chaque ligne individuellement.
+  // "nb" = nombre d'avis (soumissions), pas de lignes Reponse — et pas
+  // seulement les avis NOTÉS. Correctif 2026-10-05 : `nb` valait
+  // `scoresParAvis.length`, donc un avis sans aucune note (questions non
+  // scorées : QCM/CASES sans scores, TEXTE) ÉTAIT INVISIBLE — « Total Avis :
+  // 0 » alors que des avis existaient. La moyenne et le taux restent
+  // calculés sur les seuls avis notés (dénominateur `nbScorables`) : un
+  // avis non noté compte en volume, jamais en note.
   const calc = (list: any[]) => {
     const scoresParAvis = scoreMoyenParAvis(list);
-    const nb = scoresParAvis.length;
-    const moyenne = nb > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nb : 0;
-    const satisfaction = nb > 0 ? (scoresParAvis.filter((v) => v >= 4).length / nb) * 100 : 0;
+    const nb = compterAvis(list as any);
+    const nbScorables = scoresParAvis.length;
+    const moyenne = nbScorables > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nbScorables : 0;
+    const satisfaction = nbScorables > 0 ? (scoresParAvis.filter((v) => v >= 4).length / nbScorables) * 100 : 0;
     return {
       nb,
+      // Correctif 2026-10-05 (affichage) : sans ce compteur, le front ne
+      // peut pas distinguer « 0/5 mesuré » de « rien à mesurer » — il
+      // affichait « 0/5 » et « 0 % » pour des avis non notés.
+      nb_notes: nbScorables,
       moyenne: parseFloat(moyenne.toFixed(2)),
       satisfaction: parseFloat(satisfaction.toFixed(1)),
     };
@@ -1895,10 +1905,15 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
     },
   });
 
-  // Grouper par agence puis par soumission (score moyen par avis)
-  const parAgence = new Map<number, { nom: string; commune: string; scoresParAvis: number[]; nbLignes: number }>();
+  // Grouper par agence puis par soumission (score moyen par avis).
+  // Correctif 2026-10-05 : `nbAvis` compte TOUS les avis de l'agence, pas
+  // les seuls notés — sinon une agence dont les questions ne sont pas
+  // scorées affichait « 0 avis » malgré des avis en base (même cause que
+  // getKPIsPeriode). Moyenne et taux restent calculés sur les seuls avis
+  // notés.
+  const parAgence = new Map<number, { nom: string; commune: string; scoresParAvis: number[]; nbLignes: number; nbAvis: number }>();
   for (const a of agences) {
-    parAgence.set(a.id, { nom: a.nom_agence, commune: a.commune ?? '', scoresParAvis: [], nbLignes: 0 });
+    parAgence.set(a.id, { nom: a.nom_agence, commune: a.commune ?? '', scoresParAvis: [], nbLignes: 0, nbAvis: 0 });
   }
   const parSoumission = new Map<string, { id_agence: number; scores: number[] }>();
   for (const rep of reponses as any[]) {
@@ -1909,14 +1924,17 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
   }
   for (const { id_agence, scores } of parSoumission.values()) {
     const agence = parAgence.get(id_agence);
-    if (!agence || scores.length === 0) continue;
+    if (!agence) continue;
+    agence.nbAvis += 1;
+    if (scores.length === 0) continue;
     agence.scoresParAvis.push(scores.reduce((s, v) => s + v, 0) / scores.length);
     agence.nbLignes++;
   }
 
   const resultats = Array.from(parAgence.entries()).map(([id, a]) => {
-    const nbAvis = a.scoresParAvis.length;
-    const moyenne = nbAvis > 0 ? a.scoresParAvis.reduce((s, v) => s + v, 0) / nbAvis : null;
+    const nbAvis = a.nbAvis;
+    const nbScorables = a.scoresParAvis.length;
+    const moyenne = nbScorables > 0 ? a.scoresParAvis.reduce((s, v) => s + v, 0) / nbScorables : null;
     const satisfaits = a.scoresParAvis.filter((v) => v >= 4).length;
     return {
       id_agence: id,
@@ -1924,7 +1942,7 @@ export const getComparaisonAgences = async (args: { nbJours?: number } | void, c
       commune: a.commune,
       nb_avis: nbAvis,
       score_moyen: moyenne !== null ? parseFloat(moyenne.toFixed(2)) : null,
-      taux_satisfaction: nbAvis > 0 ? Math.round((satisfaits / nbAvis) * 100) : null,
+      taux_satisfaction: nbScorables > 0 ? Math.round((satisfaits / nbScorables) * 100) : null,
     };
   });
 

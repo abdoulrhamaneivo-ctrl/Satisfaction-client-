@@ -9031,7 +9031,9 @@ const getTendanceMensuelle$2 = async (args, context) => {
     return {
       mois: new Date(Number(annee), Number(mois) - 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
       score_moyen: parseFloat(scoreMoyen.toFixed(2)),
-      nb_avis: scoresParAvis.length
+      // Correctif 2026-10-05 : volume = TOUS les avis du mois, pas les
+      // seuls notés (même cause que getKPIsPeriode — mois à 0 avis sinon).
+      nb_avis: compterAvis$1(reponsesDuMois)
     };
   });
 };
@@ -9239,11 +9241,16 @@ const getKPIsPeriode$2 = async (args, context) => {
   ]);
   const calc = (list) => {
     const scoresParAvis = scoreMoyenParAvis(list);
-    const nb = scoresParAvis.length;
-    const moyenne = nb > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nb : 0;
-    const satisfaction = nb > 0 ? scoresParAvis.filter((v) => v >= 4).length / nb * 100 : 0;
+    const nb = compterAvis$1(list);
+    const nbScorables = scoresParAvis.length;
+    const moyenne = nbScorables > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nbScorables : 0;
+    const satisfaction = nbScorables > 0 ? scoresParAvis.filter((v) => v >= 4).length / nbScorables * 100 : 0;
     return {
       nb,
+      // Correctif 2026-10-05 (affichage) : sans ce compteur, le front ne
+      // peut pas distinguer « 0/5 mesuré » de « rien à mesurer » — il
+      // affichait « 0/5 » et « 0 % » pour des avis non notés.
+      nb_notes: nbScorables,
       moyenne: parseFloat(moyenne.toFixed(2)),
       satisfaction: parseFloat(satisfaction.toFixed(1))
     };
@@ -9408,7 +9415,7 @@ const getComparaisonAgences$2 = async (args, context) => {
   });
   const parAgence = /* @__PURE__ */ new Map();
   for (const a of agences) {
-    parAgence.set(a.id, { nom: a.nom_agence, commune: a.commune ?? "", scoresParAvis: [], nbLignes: 0 });
+    parAgence.set(a.id, { nom: a.nom_agence, commune: a.commune ?? "", scoresParAvis: [], nbLignes: 0, nbAvis: 0 });
   }
   const parSoumission = /* @__PURE__ */ new Map();
   for (const rep of reponses) {
@@ -9419,13 +9426,16 @@ const getComparaisonAgences$2 = async (args, context) => {
   }
   for (const { id_agence, scores } of parSoumission.values()) {
     const agence = parAgence.get(id_agence);
-    if (!agence || scores.length === 0) continue;
+    if (!agence) continue;
+    agence.nbAvis += 1;
+    if (scores.length === 0) continue;
     agence.scoresParAvis.push(scores.reduce((s, v) => s + v, 0) / scores.length);
     agence.nbLignes++;
   }
   const resultats = Array.from(parAgence.entries()).map(([id, a]) => {
-    const nbAvis = a.scoresParAvis.length;
-    const moyenne = nbAvis > 0 ? a.scoresParAvis.reduce((s, v) => s + v, 0) / nbAvis : null;
+    const nbAvis = a.nbAvis;
+    const nbScorables = a.scoresParAvis.length;
+    const moyenne = nbScorables > 0 ? a.scoresParAvis.reduce((s, v) => s + v, 0) / nbScorables : null;
     const satisfaits = a.scoresParAvis.filter((v) => v >= 4).length;
     return {
       id_agence: id,
@@ -9433,7 +9443,7 @@ const getComparaisonAgences$2 = async (args, context) => {
       commune: a.commune,
       nb_avis: nbAvis,
       score_moyen: moyenne !== null ? parseFloat(moyenne.toFixed(2)) : null,
-      taux_satisfaction: nbAvis > 0 ? Math.round(satisfaits / nbAvis * 100) : null
+      taux_satisfaction: nbScorables > 0 ? Math.round(satisfaits / nbScorables * 100) : null
     };
   });
   resultats.sort((a, b) => (b.score_moyen ?? -1) - (a.score_moyen ?? -1));
@@ -12152,10 +12162,11 @@ async function calculeStatsAgence(idAgence, debut, fin) {
     }
   });
   const scoresParAvis = scoreMoyenParAvis(reponses);
-  const totalAvis = scoresParAvis.length;
-  const noteMoyenne = totalAvis > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / totalAvis : 0;
+  const totalAvis = compterAvis$1(reponses);
+  const nbScorables = scoresParAvis.length;
+  const noteMoyenne = nbScorables > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nbScorables : 0;
   const satisfaits = scoresParAvis.filter((v) => v >= 4).length;
-  const tauxSatisfaction = totalAvis > 0 ? satisfaits / totalAvis * 100 : 0;
+  const tauxSatisfaction = nbScorables > 0 ? satisfaits / nbScorables * 100 : 0;
   return {
     agenceNom: agence.nom_agence,
     commune: agence.commune,

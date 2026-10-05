@@ -185,11 +185,13 @@ export declare const getKPIsPeriode: (args: {
     nb_jours: number;
     periode_actuelle: {
         nb: number;
+        nb_notes: number;
         moyenne: number;
         satisfaction: number;
     };
     periode_precedente: {
         nb: number;
+        nb_notes: number;
         moyenne: number;
         satisfaction: number;
     };

@@ -8,10 +8,11 @@
 // ============================================================================
 import { envoyerEmailBrevo } from '../lib/emailBrevo';
 import { prisma } from 'wasp/server';
-import { scoreMoyenParAvis } from '../soumissions';
+import { scoreMoyenParAvis, compterAvis } from '../soumissions';
 const FRONTEND_URL = process.env.WASP_WEB_CLIENT_URL || 'http://localhost:3000';
-/** Calcule les stats d'une période [debut, fin] pour une agence donnée */
-async function calculeStatsAgence(idAgence, debut, fin) {
+/** Calcule les stats d'une période [debut, fin] pour une agence donnée.
+ * Exportée pour les tests (volumesAvis) — le job l'appelle en interne. */
+export async function calculeStatsAgence(idAgence, debut, fin) {
     const agence = await prisma.agence.findUnique({ where: { id: idAgence } });
     if (!agence)
         return null;
@@ -47,11 +48,15 @@ async function calculeStatsAgence(idAgence, debut, fin) {
     // getKPIsPeriode — le taux de satisfaction et la note moyenne sont calculés
     // sur le score moyen PAR AVIS. Une soumission à 5 critères compte 1 fois
     // (avec la moyenne de ses 5 scores), pas 5 fois.
+    // Correctif 2026-10-05 : le VOLUME compte TOUS les avis (un avis sans note
+    // existe — questions non scorées), seules moyenne et taux restent sur les
+    // notés. Avant : « Total avis : 0 » avec des avis en base.
     const scoresParAvis = scoreMoyenParAvis(reponses);
-    const totalAvis = scoresParAvis.length;
-    const noteMoyenne = totalAvis > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / totalAvis : 0;
+    const totalAvis = compterAvis(reponses);
+    const nbScorables = scoresParAvis.length;
+    const noteMoyenne = nbScorables > 0 ? scoresParAvis.reduce((s, v) => s + v, 0) / nbScorables : 0;
     const satisfaits = scoresParAvis.filter((v) => v >= 4).length;
-    const tauxSatisfaction = totalAvis > 0 ? (satisfaits / totalAvis) * 100 : 0;
+    const tauxSatisfaction = nbScorables > 0 ? (satisfaits / nbScorables) * 100 : 0;
     return {
         agenceNom: agence.nom_agence,
         commune: agence.commune,
