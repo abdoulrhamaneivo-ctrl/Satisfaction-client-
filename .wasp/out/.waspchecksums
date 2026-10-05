@@ -2405,7 +2405,7 @@
             "file",
             "sdk/wasp/src/server/ai/openrouterProvider.ts"
         ],
-        "b873f2a14b710f6867bbebcbd9bd698aab3f705e4af58a531b4a53a12a46263c"
+        "ccf83639f7e6c4bd1761430fc49bce419825c861f9b7fe8223755aaeec8f3dae"
     ],
     [
         [
@@ -2420,6 +2420,13 @@
             "sdk/wasp/src/server/ai/prompts.ts"
         ],
         "771f5e9bdd6b5163c01ce054563395051a36f12f557a6739e39f20cbd439dbd7"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/ai/providers.test.ts"
+        ],
+        "158847402b5a7ac6002985dca1fde927aca1daefecf5a29aa6c14c841ac9e620"
     ],
     [
         [

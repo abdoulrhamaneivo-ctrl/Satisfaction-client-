@@ -22,7 +22,11 @@ export class OpenRouterProvider implements AIProvider {
     if (apiKey && apiKey.trim().length > 0) {
       this.client = new OpenAI({
         baseURL: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
-        apiKey: apiKey,
+        // Correctif 2026-10-05 : la clé était envoyée BRUTE (espaces d'un
+        // copier-coller dashboard → 401 chez le provider), alors que NVIDIA
+        // et DeepSeek triment déjà. Une clé ne commence/finit jamais par un
+        // espace : le trim est sans risque.
+        apiKey: apiKey.trim(),
         // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
         timeout: 25000,
       });
