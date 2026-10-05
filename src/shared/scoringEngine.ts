@@ -110,7 +110,7 @@ function estExclusif(o: OptionMoteur, normaliser: (s: string) => string): boolea
  * somme pondérée, exempte du contrôle d'exclusivité (cohabite avec
  * « Aucun problème »). Garde : un EXCLUSIF n'est jamais un Autre.
  */
-export function estAutreLibre(o: Pick<OptionMoteur, 'code_metier'>): boolean {
+export function estAutreLibre(o: OptionMoteur): boolean {
   return ((o?.code_metier || '') as string).trim().toUpperCase() === 'AUTRE_LIBRE';
 }
 

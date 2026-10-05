@@ -174,8 +174,10 @@ export function resoudreEntree(critere: any, entree: EntreeBrute): ItemResolu {
   let texteAutre: string | undefined;
 
   // Task 2 : l'option visée est-elle un « Autre (précisez) » ?
+  // `vise` est l'objet option complet (any) : on le transmet tel quel,
+  // la signature exige l'option entière, pas un fragment.
   const estAutre = (vise: any): boolean =>
-    !!vise && estAutreLibre({ code_metier: vise?.code_metier ?? null });
+    !!vise && estAutreLibre(vise);
 
   // Review r1 (F1, fail-closed) : un « Autre » coché SANS précision est
   // rejeté en 400 — le client bloque déjà Continuer, mais un appel API

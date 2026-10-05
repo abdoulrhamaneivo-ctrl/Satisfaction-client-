@@ -25,7 +25,7 @@ export type OptionAffichage = { id: string | null; libelle: string; code_metier?
  * L'option est-elle un « Autre (précisez) » à saisie libre ?
  * Convention : code_metier AUTRE_LIBRE (jamais EXCLUSIF).
  */
-export function estOptionAutreLibre(o: { code_metier?: string | null }): boolean {
+export function estOptionAutreLibre(o: OptionAffichage): boolean {
   return (o?.code_metier ?? '').trim().toUpperCase() === 'AUTRE_LIBRE';
 }
 
