@@ -254,6 +254,18 @@ export const getAvisGroupes = async (args, context) => {
             reponses: g.reponses.map((r) => ({
                 id: r.id,
                 score_brut: r.score_brut,
+                // Correctif 2026-10-05 : le mapping JETTAIT `optionsChoisies` (et
+                // les scores) pourtant chargés juste au-dessus — les réponses QCM
+                // sans commentaire affichaient « Réponse non restituable » alors
+                // que l'option choisie est en base, et les futures notes
+                // SMILEY/ECHELLE n'auraient eu ni normalisé ni officiel. Le front
+                // (LigneReponse) lit exactement ces champs.
+                score_normalise: r.score_normalise ?? null,
+                score_officiel: r.score_officiel ?? null,
+                optionsChoisies: (r.optionsChoisies ?? []).map((co) => ({
+                    id_option: co.id_option,
+                    option: co.option ? { id: co.option.id, libelle: co.option.libelle } : null,
+                })),
                 // Le texte PAR QUESTION (réponse TEXTE, choix QCM/CASES) : sans lui,
                 // le front ne peut afficher que des barres X/5 mensongères.
                 commentaire_texte: r.commentaire_texte ?? null,

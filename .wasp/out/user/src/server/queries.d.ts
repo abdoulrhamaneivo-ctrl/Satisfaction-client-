@@ -39,6 +39,9 @@ export declare const getAvisGroupes: (args: GetAvisGroupesArgs, context: any) =>
         reponses: {
             id: any;
             score_brut: any;
+            score_normalise: any;
+            score_officiel: any;
+            optionsChoisies: any;
             commentaire_texte: any;
             critere: any;
             analyseIA: any;
