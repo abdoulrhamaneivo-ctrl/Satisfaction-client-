@@ -136,7 +136,10 @@ import {
   getAIStatus,
   getThemesStats,
   getComparaisonAgences,
-  getIndicateursExperience,} from "./src/server/queries" with { type: "ref" };
+  getIndicateursExperience,
+  getMoyennesParCritere,
+  getRepartitionOptions,
+  getTendanceParCritere,} from "./src/server/queries" with { type: "ref" };
 
 import { adminSpec } from "./src/admin/admin.wasp";
 import { authConfig, authSpec } from "./src/auth/auth.wasp";
@@ -275,6 +278,11 @@ const getAIStatusQuery = query(getAIStatus, { entities: ["AnalyseAvisIA", "Entre
 const getThemesStatsQuery = query(getThemesStats, { entities: ["AnalyseAvisIA", "Agence", "Reponse", "Entreprise"] });
 // Indicateurs d'expérience, zone décisionnelle (§49) : même moteur que l'IA globale.
 const getIndicateursExperienceQuery = query(getIndicateursExperience, { entities: ["Reponse", "AnalyseAvisIA", "Agence", "Guichet", "Service", "Critere", "GlobalExperienceAnalysis", "Entreprise"] });
+// Task 3 — KPI par terme : moyennes par question, répartitions, tendances.
+// Lecture seule d'agrégats (aucun verbatim : répartition sur ids d'options).
+const getMoyennesParCritereQuery = query(getMoyennesParCritere, { entities: ["Reponse", "Critere", "OptionCritere", "ReponseOption", "User", "Agence", "Entreprise"] });
+const getRepartitionOptionsQuery = query(getRepartitionOptions, { entities: ["Reponse", "Critere", "OptionCritere", "ReponseOption", "User", "Agence", "Entreprise"] });
+const getTendanceParCritereQuery = query(getTendanceParCritere, { entities: ["Reponse", "Critere", "OptionCritere", "ReponseOption", "User", "Agence", "Entreprise"] });
 // IA globale (vague 1, Phase G) : lectures scoped entreprise + déclenchement DIRECTION.
 const getAnalysesGlobalesQuery = query(getAnalysesGlobales, { entities: ["GlobalExperienceAnalysis", "Entreprise"] });
 const declencherAnalyseGlobaleAction = action(declencherAnalyseGlobale, { entities: ["GlobalExperienceAnalysis", "Entreprise"] });
@@ -472,6 +480,9 @@ export default app({
     getAIStatusQuery,
     getThemesStatsQuery,
     getIndicateursExperienceQuery,
+    getMoyennesParCritereQuery,
+    getRepartitionOptionsQuery,
+    getTendanceParCritereQuery,
     getAnalysesGlobalesQuery,
     declencherAnalyseGlobaleAction,
     // SAAS Platform

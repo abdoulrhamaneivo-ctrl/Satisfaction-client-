@@ -47,6 +47,7 @@ import { PageShell, PageTopNav } from '../components/PageShell';
 import { DataTable, DataTableRow } from '../components/ui/DataTable';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { ActionsPrioritaires } from '../components/ActionsPrioritaires';
+import { SectionKpiParTerme } from '../components/KpiParTerme';
 import { ObjectifsProgress } from '../components/ObjectifsProgress';
 import { regrouperAvisParSoumission, scoreNormaliseSur5Client, decrireReponseCourte } from '../utils';
 import { exportToXLSX } from '../utils/exportData';
@@ -1120,6 +1121,14 @@ export const DashboardPage = () => {
                 ))}
               </div>
             </section>
+          )}
+
+          {/* KPI PAR TERME (Task 3) : moyennes par question (satisfaction
+              seule, score_normalise seul, seuil 5 avis), barres
+              motifs/problèmes, détail NPS, courbes par terme. Suit la
+              période sélectionnée comme tous les autres blocs. */}
+          {!isLoading && (
+            <SectionKpiParTerme nbJours={periodeJours} nbMois={6} labelPeriode={labelPeriode} />
           )}
 
         <div className="hidden">

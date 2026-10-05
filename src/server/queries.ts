@@ -13,6 +13,21 @@ import {
 } from './middleware/rowLevelSecurity';
 import { regrouperParSoumission, compterAvis, scoreMoyenParAvis, scoreNormaliseSur5, commentairesDeGroupe } from './soumissions';
 import {
+  SEUIL_KPI_N,
+  classifierCritere,
+  normaliserNbJours,
+  normaliserNbMois,
+  agregerLignesCritere,
+  repartirOptionsParAvis,
+  reconnaitreEchelleCES,
+  construireTendance,
+  moisGlissants,
+  cleMois,
+  noteDepuisNormalise,
+} from './kpiParTerme';
+import { agregerNPS } from '../shared/scoringEngine';
+import { agregerCES } from '../shared/ces';
+import {
   BRANDING,
   fondWhiteLabelRecevable,
   varianteTextePourFond,
@@ -2499,4 +2514,306 @@ export const getIndicateursExperience = async (args: { nbJours?: number }, conte
     indice,
     derniereAnalyse,
   };
+};
+
+// ============================================================================
+// KPI PAR TERME (Task 3) : moyennes par question, répartitions, tendances.
+// La logique pure vit dans `src/server/kpiParTerme.ts` — ici : scope
+// (resolveAgenceScope), chargement, regroupement. Règles appliquées :
+// `score_normalise` seul, satisfaction seule, NPS via `agregerNPS`,
+// CES via `reconnaitreCES`/`agregerCES`, seuil n>=5 → null.
+// ============================================================================
+
+// NOTE Wasp : `type` (et non `interface`) — contrainte Payload/SuperJSONObject
+// des queries qui renvoient ce type (cf. scoringEngine.ts).
+export type MoyenneParCritere = {
+  id_critere: number;
+  libelle: string;
+  type: string;
+  scoring_mode: string | null;
+  kind: 'SATISFACTION' | 'NPS' | 'CES' | 'CATEGORIEL' | 'TEXTE';
+  /** Avis distincts ayant répondu à ce critère (toutes lignes). */
+  nb_avis: number;
+  /** Lignes notables (base réelle des moyennes). */
+  nb_notables: number;
+  /** Moyenne /5 (null si non-satisfaction ou n<5). */
+  moyenne_sur5: number | null;
+  /** % d'avis >= 4/5 (null si non-satisfaction ou n<5). */
+  satisfaction_pct: number | null;
+  distribution: { '1': number; '2': number; '3': number; '4': number; '5': number };
+  /** NPS %promoteurs − %détracteurs (null si volume<5 ; null hors NPS). */
+  nps: number | null;
+  nps_detail: { volume: number; promoteurs: number; passifs: number; detracteurs: number } | null;
+  ces_volume: number;
+  ces_top_box: number | null;
+  ces_effort_moyen: number | null;
+};
+
+export type MoyennesParCritereResult = {
+  nb_jours: number;
+  criteres: MoyenneParCritere[];
+};
+
+// Note Wasp : signature volontairement simple (args objet typé inline, sans
+// virgule traînante) — voir getIndicateursExperience ci-dessus.
+export const getMoyennesParCritere = async (args: { id_agence?: number; nbJours?: number } | void, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
+  // Scope Task 3 : fenêtre glissante configurable, bornée [1,90].
+  const nbJours = normaliserNbJours((args as any)?.nbJours);
+  const debut = new Date();
+  debut.setDate(debut.getDate() - nbJours);
+
+  const reponses = await context.entities.Reponse.findMany({
+    where: { id_agence: scope.id_agence, date_reponse: { gte: debut } },
+    select: {
+      id: true,
+      id_soumission: true,
+      // Vague 1 (P2) : sans score_normalise, l'agrégat retomberait sur
+      // score_brut et inverserait le CES / compterait le NPS en étoiles.
+      score_normalise: true,
+      score_officiel: true,
+      id_critere: true,
+      critere: { select: { id: true, libelle_critere: true, type_reponse: true, scoring_mode: true, options_reponse: true } },
+    },
+  });
+
+  const parCritere = new Map<number, { meta: any; lignes: any[] }>();
+  for (const r of reponses) {
+    let g = parCritere.get(r.id_critere);
+    if (!g) {
+      g = { meta: r.critere, lignes: [] };
+      parCritere.set(r.id_critere, g);
+    }
+    g.lignes.push(r);
+  }
+
+  const arrondi1 = (n: number) => Math.round(n * 10) / 10;
+  const criteres: MoyenneParCritere[] = [];
+  for (const [id_critere, g] of parCritere.entries()) {
+    const kind = classifierCritere(g.meta ?? null);
+    const agreg = agregerLignesCritere(g.lignes);
+    let nps: number | null = null;
+    let nps_detail: MoyenneParCritere['nps_detail'] = null;
+    let ces_volume = 0;
+    let ces_top_box: number | null = null;
+    let ces_effort_moyen: number | null = null;
+    if (kind === 'NPS') {
+      const valeurs = g.lignes
+        .filter((l: any) => Number.isInteger(l.score_officiel))
+        .map((l: any) => Number(l.score_officiel));
+      const a = agregerNPS(valeurs);
+      nps_detail = { volume: a.volume, promoteurs: a.promoteurs, passifs: a.passifs, detracteurs: a.detracteurs };
+      // Seuil : le détail reste visible, l'indice passe à null.
+      nps = a.volume < SEUIL_KPI_N ? null : a.nps;
+    }
+    if (kind === 'CES') {
+      const echelle = reconnaitreEchelleCES(g.meta ?? null);
+      if (echelle) {
+        const notes = g.lignes
+          .filter((l: any) => Number.isInteger(l.score_officiel))
+          .map((l: any) => Number(l.score_officiel));
+        const a = agregerCES(notes, echelle);
+        ces_volume = a.volume;
+        if (a.volume >= SEUIL_KPI_N) {
+          ces_top_box = arrondi1(a.top_box);
+          ces_effort_moyen = a.note_effort_moyenne === null ? null : arrondi1(a.note_effort_moyenne);
+        }
+      }
+    }
+    criteres.push({
+      id_critere,
+      libelle: g.meta?.libelle_critere ?? `Question ${id_critere}`,
+      type: g.meta?.type_reponse ?? '?',
+      scoring_mode: g.meta?.scoring_mode ?? null,
+      kind,
+      nb_avis: agreg.nb_avis,
+      nb_notables: agreg.nb_notables,
+      moyenne_sur5: agreg.moyenne_sur5,
+      satisfaction_pct: agreg.satisfaction_pct,
+      distribution: agreg.distribution,
+      nps,
+      nps_detail,
+      ces_volume,
+      ces_top_box,
+      ces_effort_moyen,
+    });
+  }
+
+  // Tri par volume décroissant : les questions les plus répondues d'abord.
+  criteres.sort((a, b) => b.nb_avis - a.nb_avis);
+  return { nb_jours: nbJours, criteres };
+};
+
+/**
+ * Vérifie qu'un critère ciblé existe et appartient au tenant de
+ * l'utilisateur (socle plateforme = visible par tous ; critère d'une
+ * autre entreprise = 403). Les critères n'ont pas d'id_agence propre :
+ * le périmètre agence est appliqué sur les RÉPONSES, pas sur le critère.
+ */
+async function verifierCritereEntreprise(context: any, idCritere: number) {
+  const critere = await context.entities.Critere.findUnique({
+    where: { id: idCritere },
+    select: { id: true, libelle_critere: true, type_reponse: true, scoring_mode: true, id_entreprise: true },
+  });
+  if (!critere) {
+    throw new HttpError(404, 'Question introuvable.');
+  }
+  const idEntreprise = context.user?.id_entreprise ?? null;
+  if (critere.id_entreprise != null && idEntreprise != null && critere.id_entreprise !== idEntreprise) {
+    throw new HttpError(403, 'Accès refusé : cette question appartient à une autre entreprise.');
+  }
+  return critere;
+}
+
+export type RepartitionOptionsResult = {
+  id_critere: number;
+  libelle: string;
+  nb_jours: number;
+  /** Avis distincts ayant répondu (dénominateur unique des %). */
+  nb_avis: number;
+  options: { option_id: string; libelle: string; nb: number; pct: number | null }[];
+};
+
+export const getRepartitionOptions = async (args: { id_critere: number; id_agence?: number; nbJours?: number }, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const idCritere = requireNumber(args?.id_critere, 'id_critere');
+  const critere = await verifierCritereEntreprise(context, idCritere);
+  const scope = await resolveAgenceScope(context, context.entities, args?.id_agence);
+  const nbJours = normaliserNbJours(args?.nbJours);
+  const debut = new Date();
+  debut.setDate(debut.getDate() - nbJours);
+
+  // Les stats portent sur les identifiants (ReponseOption), jamais sur le
+  // texte joint (commentaire_texte) : aucun verbatim ne transite ici (le
+  // texte libre d'une option AUTRE_LIBRE n'est donc jamais exposé).
+  const [reponses, options] = await Promise.all([
+    context.entities.Reponse.findMany({
+      where: { id_agence: scope.id_agence, id_critere: idCritere, date_reponse: { gte: debut } },
+      select: {
+        id: true,
+        id_soumission: true,
+        optionsChoisies: { select: { id_option: true } },
+      },
+    }),
+    context.entities.OptionCritere.findMany({
+      where: { id_critere: idCritere },
+      select: { id: true, libelle: true },
+      orderBy: { ordre_affichage: 'asc' },
+    }),
+  ]);
+
+  const repart = repartirOptionsParAvis(
+    reponses.map((r: any) => ({
+      id: r.id,
+      id_soumission: r.id_soumission,
+      options: (r.optionsChoisies ?? []).map((o: any) => o.id_option),
+    })),
+    options,
+  );
+  return {
+    id_critere: idCritere,
+    libelle: critere.libelle_critere,
+    nb_jours: nbJours,
+    nb_avis: repart.nb_avis,
+    options: repart.options,
+  };
+};
+
+export type PointTendanceCritere = {
+  cle: string;
+  libelle: string;
+  nb_avis: number;
+  moyenne_sur5: number | null;
+  nps: number | null;
+  nps_detail: { volume: number; promoteurs: number; passifs: number; detracteurs: number };
+};
+
+export type SerieParCritere = {
+  id_critere: number;
+  libelle: string;
+  points: { cle: string; nb: number; moyenne_sur5: number | null }[];
+};
+
+export type TendanceParCritereResult = {
+  nb_mois: number;
+  /** Filtre éventuel (null = tous les critères). */
+  id_critere: number | null;
+  libelle: string | null;
+  /** Série globale : moyenne satisfaction + série NPS par mois. */
+  points: PointTendanceCritere[];
+  /** Courbes par terme (critères de satisfaction présents, seuil par point). */
+  series: SerieParCritere[];
+};
+
+export const getTendanceParCritere = async (args: { id_agence?: number; nbMois?: number; id_critere?: number } | void, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  const idCritere = (args as any)?.id_critere != null ? requireNumber((args as any).id_critere, 'id_critere') : null;
+  let libelleCible: string | null = null;
+  if (idCritere !== null) {
+    libelleCible = (await verifierCritereEntreprise(context, idCritere)).libelle_critere;
+  }
+  const scope = await resolveAgenceScope(context, context.entities, (args as any)?.id_agence);
+  const nbMois = normaliserNbMois((args as any)?.nbMois);
+  const cles = moisGlissants(nbMois);
+  const debut = new Date(Number(cles[0]!.slice(0, 4)), Number(cles[0]!.slice(5, 7)) - 1, 1, 0, 0, 0, 0);
+
+  const reponses = await context.entities.Reponse.findMany({
+    where: {
+      id_agence: scope.id_agence,
+      date_reponse: { gte: debut },
+      ...(idCritere !== null ? { id_critere: idCritere } : {}),
+    },
+    select: {
+      id: true,
+      id_soumission: true,
+      score_normalise: true,
+      score_officiel: true,
+      date_reponse: true,
+      id_critere: true,
+      critere: { select: { libelle_critere: true, type_reponse: true, scoring_mode: true, options_reponse: true } },
+    },
+  });
+
+  const points = construireTendance(reponses, cles);
+
+  // Courbes par terme : seules les lignes notables de satisfaction
+  // (noteDepuisNormalise non-null) alimentent les séries — TEXTE, choix
+  // catégoriels, NPS et CES n'y entrent jamais.
+  const parCritere = new Map<number, { libelle: string; lignes: any[] }>();
+  for (const r of reponses) {
+    if (noteDepuisNormalise(r) === null) continue;
+    let g = parCritere.get(r.id_critere);
+    if (!g) {
+      g = { libelle: r.critere?.libelle_critere ?? `Question ${r.id_critere}`, lignes: [] };
+      parCritere.set(r.id_critere, g);
+    }
+    g.lignes.push(r);
+  }
+  const series: SerieParCritere[] = [...parCritere.entries()].map(([cid, g]) => {
+    const parMois = new Map<string, any[]>();
+    for (const c of cles) parMois.set(c, []);
+    for (const l of g.lignes) {
+      if (!l.date_reponse) continue;
+      const bucket = parMois.get(cleMois(new Date(l.date_reponse)));
+      if (bucket) bucket.push(l);
+    }
+    return {
+      id_critere: cid,
+      libelle: g.libelle,
+      points: cles.map((cle) => {
+        const a = agregerLignesCritere(parMois.get(cle) ?? []);
+        return { cle, nb: a.nb_notables, moyenne_sur5: a.moyenne_sur5 };
+      }),
+    };
+  });
+  // Tri par volume total décroissant (même ordre que le tableau par question).
+  series.sort(
+    (a, b) => b.points.reduce((s, p) => s + p.nb, 0) - a.points.reduce((s, p) => s + p.nb, 0),
+  );
+
+  return { nb_mois: nbMois, id_critere: idCritere, libelle: libelleCible, points, series };
 };
