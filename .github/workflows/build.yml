@@ -1,0 +1,30 @@
+name: Vérification du build Yéba
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      WASP_VERSION: "0.24.0"
+      # Hôte jetable uniquement pour valider la compilation cliente en CI.
+      REACT_APP_API_URL: "https://build.invalid"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.14.1"
+          cache: npm
+
+      - name: Installer Wasp CLI
+        run: npm install --global @wasp.sh/wasp-cli@${WASP_VERSION}
+
+      - name: Construire les artefacts Render
+        run: npm run build

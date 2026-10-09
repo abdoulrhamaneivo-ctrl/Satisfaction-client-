@@ -98,7 +98,6 @@ model Entreprise {
   suspendue_le        DateTime?
   motif_suspension    String?
 
-  branding            BrandingConfig?
   auditLogs           AuditLog[]
   invitations         Invitation[]
 
@@ -462,6 +461,7 @@ model Reponse {
   alertes             Alerte[]
   analyseIA           AnalyseAvisIA?
   optionsChoisies     ReponseOption[]
+  contactRappel       ContactRappel?
 
   // PERFORMANCE : toutes les stats (dashboard, rapport, radar) filtrent par
   // (agence, période) ou (guichet, période) ; le rattachement avis→agent du
@@ -866,6 +866,22 @@ model VoteAntiRejeu {
   @@index([date_vote])
 }
 
+/// Coordonnées de rappel fournies avec consentement explicite sur le QR.
+/// Le numéro n'est jamais stocké en clair et reste séparé des avis/export.
+model ContactRappel {
+  id          BigInt   @id @default(autoincrement())
+  reponseId   BigInt   @unique
+  reponse     Reponse  @relation(fields: [reponseId], references: [id], onDelete: Cascade)
+  ciphertext  String
+  iv          String   @db.VarChar(24)
+  tag         String   @db.VarChar(24)
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}
+
 
 // ============================================================================
 // TABLES TECHNIQUES ET ANALYTICS REQUISES PAR LE TEMPLATE OPEN SAAS
@@ -937,43 +953,4 @@ model AuditLog {
   @@index([entreprise_id, created_at])
   @@index([actor_id, created_at])
   @@index([action, created_at])
-}
-
-/// Personnalisation par entreprise (Doc 13). Champs null = hérite du thème
-/// Yeba par défaut (src/shared/branding.ts). Validation stricte côté serveur
-/// (HEX, longueurs, MIME logos) — jamais de CSS/HTML libre.
-model BrandingConfig {
-  id             BigInt  @id @default(autoincrement())
-  id_entreprise  Int     @unique
-  entreprise     Entreprise @relation(fields: [id_entreprise], references: [id], onDelete: Cascade)
-
-  // ── Identité ──
-  logo_url       String?
-  logo_light_url String?
-  favicon_url    String?
-  nom_affiche    String?
-
-  // ── Couleurs (format "H S% L%" compatible branding.ts, ou null) ──
-  color_primary   String?
-  color_secondary String?
-  color_accent    String?
-  color_background String?
-
-  // ── Messages expérience client (bornés) ──
-  form_title      String? @db.VarChar(120)
-  form_subtitle   String? @db.VarChar(200)
-  form_thank_you  String? @db.VarChar(120)
-  qr_slogan       String? @db.VarChar(80)
-
-  // ── QR global (surcharge par guichet = GuichetQrStyle, phase P2) ──
-  qr_style        String  @default("CLASSIQUE") // CLASSIQUE | MODERNE | PREMIUM
-  qr_color        String?
-  qr_bg_color     String?
-  qr_frame        String  @default("SIMPLE")    // AUCUN | SIMPLE | PREMIUM
-
-  hide_yeba_branding Boolean @default(false)   // plan ENTERPRISE uniquement
-
-  updated_by      String?
-  updated_at      DateTime @updatedAt
-  created_at      DateTime @default(now())
 }

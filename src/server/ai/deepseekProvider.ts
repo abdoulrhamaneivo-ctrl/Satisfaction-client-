@@ -42,13 +42,6 @@ ${contexte?.score !== undefined && contexte?.score !== null ? contexte.score : '
 AVIS :
 ${commentaire.trim()}
 
-CONTEXTE OPTIONNEL :
-Agence : ${contexte?.agence || 'null'}
-Guichet : ${contexte?.guichet || 'null'}
-Service : ${contexte?.service || 'null'}
-Critere : ${contexte?.critere || 'null'}
-Agent : ${contexte?.agent || 'null'}
-
 Retourne exclusivement le JSON demandé.`;
 
     const response = await this.client.chat.completions.create({

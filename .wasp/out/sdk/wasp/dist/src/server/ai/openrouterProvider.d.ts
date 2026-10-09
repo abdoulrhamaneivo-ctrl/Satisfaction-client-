@@ -6,6 +6,9 @@ export declare class OpenRouterProvider implements AIProvider {
     private client;
     private model;
     constructor();
+    modeleGratuit(): boolean;
+    private completion;
+    testerConnexion(): Promise<void>;
     analyserAvis(commentaire: string, contexte?: ContextAvis): Promise<AnalyseResult>;
     /**
      * Synthèse globale (vague 1, Phase G) : verbalise des agrégats DÉJÀ

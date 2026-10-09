@@ -28,7 +28,8 @@ import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions'
 import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions'
 import { reactivateAgent as reactivateAgent_ext } from 'wasp/src/server/actions'
 import { promouvoirAgent as promouvoirAgent_ext } from 'wasp/src/server/actions'
-import { updateBranding as updateBranding_ext } from 'wasp/src/server/actions'
+import { marquerContactRappelTraite as marquerContactRappelTraite_ext } from 'wasp/src/server/actions'
+import { testerConnexionIA as testerConnexionIA_ext } from 'wasp/src/server/actions'
 import { inviteAgent as inviteAgent_ext } from 'wasp/src/server/actions'
 import { renvoyerInvitationAgent as renvoyerInvitationAgent_ext } from 'wasp/src/server/actions'
 import { demanderReinitialisation as demanderReinitialisation_ext } from 'wasp/src/server/actions'
@@ -330,6 +331,7 @@ export const completerSoumission: AuthenticatedOperationFor<CompleterSoumission_
       Agence: prisma.agence,
       VoteAntiRejeu: prisma.voteAntiRejeu,
       AnalyseAvisIA: prisma.analyseAvisIA,
+      ContactRappel: prisma.contactRappel,
     },
   )
 
@@ -404,17 +406,31 @@ export const promouvoirAgent: AuthenticatedOperationFor<PromouvoirAgent_ext> =
   )
 
 // PRIVATE API
-export type UpdateBranding_ext = typeof updateBranding_ext
+export type MarquerContactRappelTraite_ext = typeof marquerContactRappelTraite_ext
 
 // PUBLIC API
-export const updateBranding: AuthenticatedOperationFor<UpdateBranding_ext> =
+export const marquerContactRappelTraite: AuthenticatedOperationFor<MarquerContactRappelTraite_ext> =
   createAuthenticatedOperation(
-    updateBranding_ext,
+    marquerContactRappelTraite_ext,
     {
-      BrandingConfig: prisma.brandingConfig,
+      ContactRappel: prisma.contactRappel,
+      Reponse: prisma.reponse,
+      User: prisma.user,
+      Agence: prisma.agence,
+      Entreprise: prisma.entreprise,
+    },
+  )
+
+// PRIVATE API
+export type TesterConnexionIA_ext = typeof testerConnexionIA_ext
+
+// PUBLIC API
+export const testerConnexionIA: AuthenticatedOperationFor<TesterConnexionIA_ext> =
+  createAuthenticatedOperation(
+    testerConnexionIA_ext,
+    {
       User: prisma.user,
       Entreprise: prisma.entreprise,
-      AuditLog: prisma.auditLog,
     },
   )
 

@@ -73,6 +73,14 @@ export const routes = {
         to: "/q/:code",
         build: (options) => interpolatePath("/q/:code", options.params, options?.search, options?.hash),
     },
+    ConditionsUtilisationRoute: {
+        to: "/conditions",
+        build: (options) => interpolatePath("/conditions", undefined, options?.search, options?.hash),
+    },
+    PolitiqueConfidentialiteRoute: {
+        to: "/confidentialite",
+        build: (options) => interpolatePath("/confidentialite", undefined, options?.search, options?.hash),
+    },
     AlertesTachesRoute: {
         to: "/alertes-taches",
         build: (options) => interpolatePath("/alertes-taches", undefined, options?.search, options?.hash),

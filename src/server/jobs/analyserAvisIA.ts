@@ -1,6 +1,6 @@
 // src/server/jobs/analyserAvisIA.ts
 // ============================================================================
-// Cron / Worker Job — Analyse sémantique IA des avis clients via DeepSeek
+// Cron / Worker Job — Analyse sémantique des avis via un modèle OpenRouter gratuit
 //
 // Exécuté de manière asynchrone par PgBoss sans bloquer les requêtes usagers.
 // ============================================================================
@@ -105,7 +105,7 @@ async function creerAlerteIncoherenceNote(reponse: any, note: number | null, coh
 
 export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
   if (!AIService.isConfigured()) {
-    return { status: 'skipped', message: 'Clé IA non configurée (NVIDIA_API_KEY, OPENROUTER_API_KEY ou DEEPSEEK_API_KEY).' };
+    return { status: 'skipped', message: 'Aucun modèle OpenRouter gratuit conforme n’est configuré.' };
   }
 
   // RÉCUPÉRATION (Vague 1, P3) : un traitement resté PROCESSING plus de
@@ -219,18 +219,11 @@ export const analyserAvisIAJob = async (_args: unknown, _context: any) => {
       continue;
     }
 
-    const agentNom = reponse.agent ? `${reponse.agent.prenom || ''} ${reponse.agent.nom || ''}`.trim() : null;
-
     try {
-      // Vague 1 Phase F : le service renvoie provider/modèle effectifs
-      // (secours inclus) pour traçabilité.
+      // Seule la note accompagne le commentaire : aucun nom d'agent,
+      // d'agence, de guichet ou de service ne part chez le fournisseur.
       const { result, provider, model } = await AIService.analyserAvis(commentaire, {
         score: reponse.score_brut,
-        agence: reponse.agence?.nom_agence,
-        guichet: reponse.guichet?.nom_guichet,
-        service: reponse.service?.libelle_service,
-        critere: reponse.critere?.libelle_critere,
-        agent: agentNom,
       });
 
       // --- CROISEMENT NOTE ↔ TEXTE (cohérence) ---

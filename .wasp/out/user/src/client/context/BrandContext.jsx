@@ -1,6 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
-import { useAuth } from 'wasp/client/auth';
-import { useQuery, getBranding } from 'wasp/client/operations';
+import React, { createContext, useContext, useEffect } from 'react';
 import { BRANDING } from '../../shared/branding';
 const BrandContext = createContext({
     brandConfig: BRANDING,
@@ -8,41 +6,8 @@ const BrandContext = createContext({
 });
 export const useBrand = () => useContext(BrandContext);
 export const BrandProvider = ({ children }) => {
-    const { data: user } = useAuth();
-    // Personnalisation tenant (FIX 05/09) : le contexte était 100% statique —
-    // la Direction enregistrait (updateBranding) mais rien ne lisait. On charge
-    // la config de l'entreprise connectée (lecture seule, même tenant).
-    // Page publique de collecte (non connectée) : le contexte garde les
-    // défauts, c'est CollectePage qui utilise formDef.brandConfig du guichet.
-    const { data: brandingServeur } = useQuery(getBranding, undefined, { enabled: !!user?.id_entreprise });
-    const brandConfig = useMemo(() => {
-        const s = brandingServeur;
-        if (!s)
-            return BRANDING;
-        // Fusion CHAMPS TEXTE uniquement : les couleurs serveur sont en HEX
-        // (#RRGGBB) alors que le thème attend du HSL (« H S% L% ») — les appliquer
-        // brutes casserait tout le CSS. Textes + logo + favicon : sûrs.
-        const texte = (v, defaut) => typeof v === 'string' && v.trim() ? v : defaut;
-        return {
-            ...BRANDING,
-            platform_name: texte(s.nom_affiche, BRANDING.platform_name),
-            logo_url: s.logo_url ?? BRANDING.logo_url,
-            favicon_url: s.favicon_url ?? BRANDING.favicon_url,
-            form_title: texte(s.form_title, BRANDING.form_title),
-            form_subtitle: texte(s.form_subtitle, BRANDING.form_subtitle),
-            form_thank_you: texte(s.form_thank_you, BRANDING.form_thank_you),
-            qr_slogan: texte(s.qr_slogan, BRANDING.qr_slogan),
-            hide_yeba_branding: !!s.hide_yeba_branding,
-            // QR : style/cadre en MAJUSCULES validées, couleurs HEX validées —
-            // une valeur invalide retombe sur le défaut (jamais de QR illisible).
-            qr_style: ['CLASSIQUE', 'MODERNE', 'PREMIUM'].includes(String(s.qr_style)) ? s.qr_style : BRANDING.qr_style,
-            qr_frame: ['AUCUN', 'SIMPLE', 'PREMIUM'].includes(String(s.qr_frame)) ? s.qr_frame : BRANDING.qr_frame,
-            qr_color: /^#[0-9a-fA-F]{6}$/.test(String(s.qr_color ?? '')) ? s.qr_color : null,
-            qr_bg_color: /^#[0-9a-fA-F]{6}$/.test(String(s.qr_bg_color ?? '')) ? s.qr_bg_color : null,
-        };
-    }, [brandingServeur]);
-    return (<BrandContext.Provider value={{ brandConfig, isLoading: false }}>
-      <AppliqueThemeMarque brandConfig={brandConfig}/>
+    return (<BrandContext.Provider value={{ brandConfig: BRANDING, isLoading: false }}>
+      <AppliqueThemeMarque brandConfig={BRANDING}/>
       {children}
     </BrandContext.Provider>);
 };

@@ -20,11 +20,11 @@ import {
   type TacheCorrective,
   type TacheCorrectiveHistorique,
   type VoteAntiRejeu,
+  type ContactRappel,
   type File,
   type Logs,
   type Invitation,
   type AuditLog,
-  type BrandingConfig,
 } from "@prisma/client"
 
 export {
@@ -49,11 +49,11 @@ export {
   type TacheCorrective,
   type TacheCorrectiveHistorique,
   type VoteAntiRejeu,
+  type ContactRappel,
   type File,
   type Logs,
   type Invitation,
   type AuditLog,
-  type BrandingConfig,
   type Auth,
   type AuthIdentity,
 } from "@prisma/client"
@@ -80,11 +80,11 @@ export type Entity =
   | TacheCorrective
   | TacheCorrectiveHistorique
   | VoteAntiRejeu
+  | ContactRappel
   | File
   | Logs
   | Invitation
   | AuditLog
-  | BrandingConfig
   | never
 
 export type EntityName = 
@@ -109,9 +109,9 @@ export type EntityName =
   | "TacheCorrective"
   | "TacheCorrectiveHistorique"
   | "VoteAntiRejeu"
+  | "ContactRappel"
   | "File"
   | "Logs"
   | "Invitation"
   | "AuditLog"
-  | "BrandingConfig"
   | never

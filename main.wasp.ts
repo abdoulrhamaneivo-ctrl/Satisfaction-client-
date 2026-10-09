@@ -20,6 +20,8 @@ import { seedEntrepriseUnique, seedSuperAdmin } from "./src/server/scripts/dbSee
 import { GuichetsPage } from "./src/client/pages/GuichetsPage" with { type: "ref" };
 import { PlanningPage } from "./src/client/pages/PlanningPage" with { type: "ref" };
 import { CollectePage } from "./src/client/pages/CollectePage" with { type: "ref" };
+import { ConditionsUtilisationPage } from "./src/client/pages/ConditionsUtilisationPage" with { type: "ref" };
+import { PolitiqueConfidentialitePage } from "./src/client/pages/PolitiqueConfidentialitePage" with { type: "ref" };
 import { DashboardPage } from "./src/client/pages/DashboardPage" with { type: "ref" };
 import { AdminPersonnelPage } from "./src/client/pages/AdminPersonnelPage" with { type: "ref" };
 import { GestionAgencesPage } from "./src/client/pages/GestionAgencesPage" with { type: "ref" };
@@ -36,6 +38,7 @@ import {
   assignAgent,
   soumettreAvis,
   completerSoumissionPublic as completerSoumission,
+  testerConnexionIA,
   updateAgent,
   deleteAgent,
   reactivateAgent,
@@ -43,7 +46,7 @@ import {
   inviteAgent,
   renvoyerInvitationAgent,
   demanderReinitialisation,
-  updateBranding,
+  marquerContactRappelTraite,
   createAgence,
   toggleCritereAgence,
   createCritere,
@@ -116,7 +119,7 @@ import {
   getAgenceCriteres,
   getFormDefinitionForGuichet,
   getServices,
-  getBranding,
+  getContactRappel,
   getRadarStats,
   getObjectifs,
   getObjectifsParAgence,
@@ -160,6 +163,8 @@ const syntheseGlobaleRoute = route("SyntheseGlobaleRoute", "/synthese", page(Syn
 // C4 : seule voie publique — code opaque non prédictible (/q/:code).
 // L'ancienne route /q/:guichetId (ID séquentiel énumérable) est supprimée.
 const collecteCodeRoute = route("CollecteCodeRoute", "/q/:code", page(CollectePage));
+const conditionsRoute = route("ConditionsUtilisationRoute", "/conditions", page(ConditionsUtilisationPage));
+const confidentialiteRoute = route("PolitiqueConfidentialiteRoute", "/confidentialite", page(PolitiqueConfidentialitePage));
 const alertesTachesRoute = route("AlertesTachesRoute", "/alertes-taches", page(AlertesTachesPage));
 const archivesRoute = route("ArchivesRoute", "/archives", page(ArchivesPage));
 const settingsRoute = route("SettingsRoute", "/settings", page(SettingsPage));
@@ -194,14 +199,17 @@ const soumettreAvisAction = action(soumettreAvis, {
 // l’action appelle désormais le wrapper qui traduit une erreur de saisie en
 // 4xx explicite (au lieu d’un 500 sans message).
 const completerSoumissionAction = action(completerSoumission, {
-  entities: ["Reponse", "Guichet", "Agence", "VoteAntiRejeu", "AnalyseAvisIA"],
+  entities: ["Reponse", "Guichet", "Agence", "VoteAntiRejeu", "AnalyseAvisIA", "ContactRappel"],
 });
 const createAgenceAction = action(createAgence, { entities: ["Agence", "User", "Entreprise"] });
 const updateAgentAction = action(updateAgent, { entities: ["User", "Agence", "Entreprise"] });
 const deleteAgentAction = action(deleteAgent, { entities: ["User", "Agence", "Entreprise"] });
 const reactivateAgentAction = action(reactivateAgent, { entities: ["User", "Agence", "Entreprise"] });
 const promouvoirAgentAction = action(promouvoirAgent, { entities: ["User", "Agence", "Entreprise"] });
-const updateBrandingAction = action(updateBranding, { entities: ["BrandingConfig", "User", "Entreprise", "AuditLog"] });
+const marquerContactRappelTraiteAction = action(marquerContactRappelTraite, {
+  entities: ["ContactRappel", "Reponse", "User", "Agence", "Entreprise"],
+});
+const testerConnexionIAAction = action(testerConnexionIA, { entities: ["User", "Entreprise"] });
 const inviteAgentAction = action(inviteAgent, { entities: ["User", "Agence", "Entreprise", "Invitation"] });
 const renvoyerInvitationAgentAction = action(renvoyerInvitationAgent, { entities: ["User", "Agence", "Invitation", "AuditLog", "Entreprise"] });
 // Reset maison (Brevo HTTP) : le reset interne Wasp part par SMTP (bloqué Render).
@@ -251,9 +259,9 @@ const getAgencesQuery = query(getAgences, { entities: ["Agence", "User", "Entrep
 const getAlertesQuery = query(getAlertes, { entities: ["Alerte", "Guichet", "Reponse", "User", "Agence", "Entreprise"] });
 const getCriteresQuery = query(getCriteres, { entities: ["Critere", "User", "Entreprise"] });
 const getAgenceCriteresQuery = query(getAgenceCriteres, { entities: ["AgenceCritere", "User", "Agence", "Entreprise"] });
-const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, { entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise", "BrandingConfig"] });
+const getFormDefinitionForGuichetQuery = query(getFormDefinitionForGuichet, { entities: ["Guichet", "AgenceCritere", "Critere", "Service", "CritereService", "Entreprise"] });
 const getServicesQuery = query(getServices, { entities: ["Service", "User", "Entreprise"] });
-const getBrandingQuery = query(getBranding, { entities: ["BrandingConfig", "User", "Entreprise"] });
+const getContactRappelQuery = query(getContactRappel, { entities: ["ContactRappel", "Reponse", "User", "Agence", "Entreprise"] });
 const getRadarStatsQuery = query(getRadarStats, { entities: ["User", "Guichet", "AffectationGuichet", "Reponse", "Alerte", "TacheCorrective", "Agence", "Entreprise"] });
 const getObjectifsQuery = query(getObjectifs, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse", "Entreprise"] });
 const getObjectifsParAgenceQuery = query(getObjectifsParAgence, { entities: ["Objectif", "Critere", "Agence", "User", "Reponse", "Entreprise"] });
@@ -371,6 +379,8 @@ export default app({
     configurationCriteresRoute,
     syntheseGlobaleRoute,
     collecteCodeRoute,
+    conditionsRoute,
+    confidentialiteRoute,
     alertesTachesRoute,
     archivesRoute,
     settingsRoute,
@@ -399,7 +409,8 @@ export default app({
     deleteAgentAction,
     reactivateAgentAction,
     promouvoirAgentAction,
-    updateBrandingAction,
+    marquerContactRappelTraiteAction,
+    testerConnexionIAAction,
     inviteAgentAction,
     renvoyerInvitationAgentAction,
     demanderReinitialisationAction,
@@ -456,7 +467,7 @@ export default app({
     getAgenceCriteresQuery,
     getFormDefinitionForGuichetQuery,
     getServicesQuery,
-    getBrandingQuery,
+    getContactRappelQuery,
     getRadarStatsQuery,
     getObjectifsQuery,
     getObjectifsParAgenceQuery,
@@ -516,7 +527,7 @@ export default app({
     }),
     job(archiverElementsResolusAnciens, {
       executor: "PgBoss",
-      entities: ["Alerte", "TacheCorrective"],
+      entities: ["Alerte", "TacheCorrective", "ContactRappel"],
       schedule: { cron: "0 3 * * *" },
     }),
     job(analyserAvisIAJob, {

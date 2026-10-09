@@ -98,11 +98,6 @@ export type CoherenceNoteAvis = {
 export declare function evaluerCoherenceNote(note: number | null | undefined, sentimentTexte: SentimentAutorise, resume: string): CoherenceNoteAvis;
 export type ContextAvis = {
     score?: number | null;
-    agence?: string | null;
-    guichet?: string | null;
-    service?: string | null;
-    critere?: string | null;
-    agent?: string | null;
 };
 export interface AIProvider {
     name: string;

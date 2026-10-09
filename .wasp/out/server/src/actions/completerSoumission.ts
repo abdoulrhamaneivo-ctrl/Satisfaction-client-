@@ -12,6 +12,7 @@ export default async function (args, context) {
       Agence: prisma.agence,
       VoteAntiRejeu: prisma.voteAntiRejeu,
       AnalyseAvisIA: prisma.analyseAvisIA,
+      ContactRappel: prisma.contactRappel,
     },
   })
 }

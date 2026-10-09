@@ -32,7 +32,7 @@ export const appliquerSuggestion = createAction('operations/appliquer-suggestion
 // PUBLIC API
 export const soumettreAvis = createAction('operations/soumettre-avis', ['Reponse', 'Critere', 'OptionCritere', 'ReponseOption', 'AgenceCritere', 'CritereService', 'Guichet', 'AffectationGuichet', 'Alerte', 'VoteAntiRejeu', 'Service', 'User', 'AnalyseAvisIA', 'Canal']);
 // PUBLIC API
-export const completerSoumission = createAction('operations/completer-soumission', ['Reponse', 'Guichet', 'Agence', 'VoteAntiRejeu', 'AnalyseAvisIA']);
+export const completerSoumission = createAction('operations/completer-soumission', ['Reponse', 'Guichet', 'Agence', 'VoteAntiRejeu', 'AnalyseAvisIA', 'ContactRappel']);
 // PUBLIC API
 export const createAgence = createAction('operations/create-agence', ['Agence', 'User', 'Entreprise']);
 // PUBLIC API
@@ -44,7 +44,9 @@ export const reactivateAgent = createAction('operations/reactivate-agent', ['Use
 // PUBLIC API
 export const promouvoirAgent = createAction('operations/promouvoir-agent', ['User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const updateBranding = createAction('operations/update-branding', ['BrandingConfig', 'User', 'Entreprise', 'AuditLog']);
+export const marquerContactRappelTraite = createAction('operations/marquer-contact-rappel-traite', ['ContactRappel', 'Reponse', 'User', 'Agence', 'Entreprise']);
+// PUBLIC API
+export const testerConnexionIA = createAction('operations/tester-connexion-ia', ['User', 'Entreprise']);
 // PUBLIC API
 export const inviteAgent = createAction('operations/invite-agent', ['User', 'Agence', 'Entreprise', 'Invitation']);
 // PUBLIC API

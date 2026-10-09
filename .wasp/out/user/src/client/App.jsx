@@ -11,6 +11,7 @@ import { OnboardingTour } from "./components/OnboardingTour";
 import { BrandProvider } from "./context/BrandContext";
 import { CommandPalette } from "./components/CommandPalette";
 import { afficherBlobsGlobaux } from "./utils/decorations";
+import { LegalLinks } from "./components/LegalLinks";
 // PERFORMANCE FRONT (FIX 05/09) : sans staleTime, chaque focus de fenêtre /
 // retour d'onglet re-déclenche TOUTES les queries visibles (14 sur le
 // dashboard) → sensations de lenteur et surcharge Neon. Politique :
@@ -40,6 +41,8 @@ export function App() {
             '/request-password-reset',
             '/password-reset',
             '/email-verification',
+            '/conditions',
+            '/confidentialite',
         ];
         return !standaloneRoutes.includes(location.pathname) && !location.pathname.startsWith('/q/');
     }, [location]);
@@ -108,10 +111,12 @@ export function App() {
               <main id="contenu-principal" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto pt-20 pb-24 lg:pt-8 lg:pb-8">
                 <Outlet />
               </main>
+              <LegalLinks className="px-4 py-4 lg:pl-8"/>
               <MobileTabBar />
             </div>
           </div>) : (<main id="contenu-principal" tabIndex={-1}>
             <Outlet />
+            <LegalLinks className="px-4 py-5"/>
           </main>)}
         </div>
       </div>

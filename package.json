@@ -8,7 +8,7 @@
   "main": ".wasp/out/server/bundle/server.js",
   "scripts": {
     "start": "cd .wasp/out/server && npm run start-production",
-    "build": "wasp build",
+    "build": "./scripts-render/build-artifacts.sh",
     "test": "vitest run",
     "test:coverage": "vitest run --project pur --coverage.enabled",
     "test:all": "vitest run"
@@ -87,6 +87,7 @@
     "vitest": "^4.0.16"
   },
   "overrides": {
+    "morgan": "^1.12.1",
     "nodemailer": "^9.1.1"
   },
   "allowScripts": {

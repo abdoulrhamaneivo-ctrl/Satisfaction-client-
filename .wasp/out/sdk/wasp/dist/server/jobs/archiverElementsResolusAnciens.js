@@ -3,6 +3,7 @@ import { createJobDefinition } from 'wasp/server/jobs/core/pgBoss';
 const entities = {
     Alerte: prisma.alerte,
     TacheCorrective: prisma.tacheCorrective,
+    ContactRappel: prisma.contactRappel,
 };
 const jobSchedule = {
     cron: "0 3 * * *",

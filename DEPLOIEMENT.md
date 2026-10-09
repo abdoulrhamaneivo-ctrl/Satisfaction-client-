@@ -1,290 +1,50 @@
-# Déploiement Yeba — Vercel + Render + Neon
+# Déploiement Yéba — Render et Neon
 
-> Guide pas-à-pas pour déployer Yeba gratuitement.
-> Frontend sur Vercel (0€) · Backend sur Render (0€ ou 7$/mois) · Base de données sur Neon (0€)
+Yéba est actuellement déployé comme un service Docker Render relié à une base PostgreSQL Neon. L’application, le serveur Wasp et le client React sont servis par le même service Render ; il n’y a pas de déploiement Vercel séparé.
 
----
+## Chemin de déploiement
 
-## Architecture
+1. Modifier le code source et `schema.prisma`.
+2. Fournir à Vite l’URL publique actuelle du serveur Render, puis lancer `REACT_APP_API_URL="https://<url-render>" npm run build`. Ce script installe les dépendances, régénère le code Wasp, compile le bundle serveur et le client Vite statique dans `.wasp/out`.
+3. Relire les changements source **et générés** avant le commit. Le déploiement Render actuel est configuré avec le déploiement automatique du dépôt ; une mise à jour de la branche suivie peut donc déclencher un déploiement.
+4. Au démarrage, `scripts-render/start-render.sh` attend le réveil de Neon, exécute les migrations Prisma avec tentatives différées, puis lance le serveur. Ne lancez pas une migration manuelle en même temps que ce démarrage.
+5. Contrôler l’état du service et les journaux Render après le déploiement. Le script arrête le démarrage si les migrations échouent après ses tentatives.
 
-```
-┌─────────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
-│   Vercel (Client)   │────▶│  Render (Serveur)     │────▶│  Neon (BDD)     │
-│   yeba.vercel.app   │     │  yeba-api.onrender.com│     │  PostgreSQL     │
-│   Vite + React      │     │  Node.js + Express    │     │  Géré, gratuit  │
-│   Gratuit           │     │  PgBoss (jobs cron)   │     │  0.5 GB Free    │
-└─────────────────────┘     └──────────────────────┘     └─────────────────┘
-```
+`Dockerfile.render`, `render.yaml`, les URLs configurées dans le tableau de bord Render et la région réelle de la base Neon sont les sources de vérité opérationnelles. Ne déduisez pas leur valeur de ce guide ou d’un ancien exemple. Les migrations ne sont pas appliquées par le travail local de préparation.
 
-**Pourquoi séparer ?**
-- Vercel compile le frontend lourd (Vite + toutes les libs React/charts/PDF) avec beaucoup de RAM → pas de crash
-- Render ne fait que lancer le serveur Node.js léger → pas de build Vite, pas de problème mémoire
-- Neon fournit PostgreSQL géré gratuitement, compatible avec Prisma et PgBoss
+## Variables Render
 
----
+Conserver les valeurs existantes du service Render. Vérifier dans son tableau de bord les variables suivantes et les renseigner sans les committer :
 
-## Prérequis
+| Variable | Usage |
+| --- | --- |
+| `DATABASE_URL` | Connexion PostgreSQL Neon. Garder le format SSL et utiliser l’URL approuvée pour l’application. |
+| `JWT_SECRET` | Signature des sessions, clé forte distincte. |
+| `TOTP_ENCRYPTION_KEY` | Chiffrement des secrets 2FA, clé forte distincte. |
+| `ANTI_REPLAY_SALT` | HMAC temporaire des téléphones, clé forte distincte. |
+| `WASP_SERVER_URL` | URL publique actuelle du service Render. |
+| `WASP_WEB_CLIENT_URL` | Origine publique du client servi par Render. |
+| Variables SMTP / Brevo | Envoi des invitations et notifications par la configuration déjà en place. |
+| `OPENROUTER_API_KEY` | Facultative. À utiliser avec un modèle dont le nom finit par `:free`. |
+| `OPENROUTER_MODEL` | Facultative ; défaut `nvidia/nemotron-3.5-lightning:free`. Les modèles payants sont refusés. |
+| `CALLBACK_PHONE_ENCRYPTION_KEY` | Clé hexadécimale distincte de 32 octets, générée avec `openssl rand -hex 32`. Sans elle, l’enregistrement d’une demande de rappel est désactivé. |
 
-| Compte | URL | Coût |
-|---|---|---|
-| GitHub | github.com | Gratuit |
-| Neon | console.neon.tech | Gratuit (0.5 GB) |
-| Vercel | vercel.com | Gratuit |
-| Render | render.com | Gratuit (sleep 15min) ou $7/mois |
-| Brevo | brevo.com | Gratuit (300 emails/jour) |
+Après avoir ajouté `CALLBACK_PHONE_ENCRYPTION_KEY` dans Render, vérifier la nouvelle instance avant d’annoncer la fonction de rappel. Cette clé ne peut pas être remplacée sans stratégie de rechiffrement : la perte de la clé rend les contacts encore en base illisibles.
 
----
+## Analyse IA gratuite
 
-## Étape 1 — Préparer les secrets
+L’IA utilise uniquement OpenRouter. Chaque requête exige un modèle `:free`, un prix maximal nul, le refus de collecte, la demande ZDR et l’absence de bascule fournisseur. Les noms d’agents, d’agences et de guichets sont exclus des prompts ; les coordonnées courantes sont masquées localement. Les conditions du fournisseur restent applicables : la page du modèle gratuit NVIDIA configuré par défaut indique que ses requêtes peuvent être journalisées pour la sécurité et l’amélioration de ses produits, et demande de ne pas transmettre de données personnelles ou confidentielles. Ne saisissez pas ces données dans un commentaire et vérifiez l’avis du modèle sélectionné. Un rejet du fournisseur laisse l’analyse indisponible. Aucun fournisseur payant n’est utilisé comme secours.
 
-> **CRITIQUE** : une ancienne clé SendGrid a été exposée dans l'historique Git.
-> SendGrid n'est plus utilisé (offre gratuite supprimée) : le projet envoie
-> désormais via **Brevo SMTP** (gratuit, 300/jour).
+Dans Paramètres, la Direction peut lancer une vérification avec un texte synthétique. Une clé configurée ne signifie pas que le modèle est joignable ou qu’il accepte les règles de confidentialité ; seule une vérification réussie confirme son état au moment du test. Les modèles gratuits peuvent être soumis à des quotas et à des périodes d’indisponibilité.
 
-1. **Brevo** → brevo.com → créer un compte → **Expéditeurs** : ajouter et
-   valider `abdoulrhamane.ivo@gmail.com` → **SMTP & API** : générer une
-   **clé SMTP** (commence par `xsmtpsib-`, ce n'est pas le mot de passe)
-2. **JWT_SECRET** → générer localement :
-   ```bash
-   openssl rand -hex 32
-   ```
-3. **TELEPHONE_HASH_SALT** → générer localement :
-   ```bash
-   openssl rand -hex 32
-   ```
-4. Noter ces 3 valeurs — tu en auras besoin pour Render.
+## Vérifications après déploiement
 
----
+- Ouvrir l’application sur l’URL Render configurée et vérifier connexion, navigation, et collecte sur un QR valide.
+- Vérifier les journaux Render pour les migrations et le démarrage des tâches planifiées.
+- Si le rappel est activé, soumettre un avis synthétique avec accord, vérifier l’accès depuis le compte Chef de l’agence, puis vérifier que la Direction et un autre périmètre n’y accèdent pas.
+- Depuis Paramètres, exécuter la vérification IA gratuite ; une erreur de politique doit laisser l’IA indisponible.
+- Avant publication définitive, compléter les coordonnées légales de Yéba, les durées de conservation des avis bruts et les régions/sous-traitants réellement utilisés dans les pages publiques.
 
-## Étape 2 — Créer la base Neon
+## Variables locales
 
-1. Aller sur **[console.neon.tech](https://console.neon.tech)**
-2. **Create Project** :
-   - Nom : `yeba-prod`
-   - Région : `AWS eu-west-1` (Europe, la plus proche d'Abidjan)
-   - PostgreSQL version : 16 (défaut)
-3. Une fois créé, copier la **Connection String** :
-   ```
-   postgresql://neondb_owner:XXXXXXX@ep-xxx-yyy.eu-west-1.aws.neon.tech/neondb?sslmode=require
-   ```
-4. **Appliquer les migrations** depuis ta machine :
-   ```bash
-   # Exporter temporairement la DATABASE_URL Neon
-   export DATABASE_URL="postgresql://neondb_owner:XXXXXXX@ep-xxx.eu-west-1.aws.neon.tech/neondb?sslmode=require"
-
-   # Appliquer toutes les migrations Prisma
-   npx prisma migrate deploy --schema .wasp/out/db/schema.prisma
-
-   # Seeder la base (crée l'entreprise, l'agence, le compte CHEF_AGENCE)
-   wasp db seed
-   ```
-   > ⚠️ **Utilise la connexion DIRECTE de Neon, pas la pooler.**
-   > L'URL ci-dessus est volontairement celle sans `-pooler`. Avec l'URL
-   > pooler (`ep-xxx-pooler.…`), `migrate deploy` échoue en `P1002` (timeout) :
-   > Prisma a besoin de verrous consultatifs et d'une transaction longue, ce
-   > que le pooler de Neon ne fournit pas. Constaté sur la base de
-   > développement le 2026-09-26. Le `psql` et l'application, eux, foncent
-   > avec la pooler — c'est donc bien une contrainte propre aux migrations.
-   > Si le timeout survient malgré tout, la migration peut avoir été
-   > appliquée : vérifier `SELECT migration_name, finished_at FROM
-   > _prisma_migrations ORDER BY started_at DESC LIMIT 3;` avant de relancer,
-   > pour ne pas créer de doublon de ligne de bookkeeping.
-5. **NOTER** le mot de passe affiché en console (celui du compte CHEF_AGENCE seedé).
-
----
-
-## Étape 3 — Build local Wasp
-
-Wasp doit être compilé localement. Le résultat est ensuite poussé vers GitHub.
-
-```bash
-# Depuis la racine du projet
-bash scripts/deploy-build.sh
-```
-
-Ce script :
-- Lance `wasp build` → génère `.wasp/out/`
-- Crée le `Dockerfile` pour le serveur Render
-- Crée le `vercel.json` pour le client Vercel
-
-Résultat :
-```
-.wasp/out/
-├── server/          ← pour Render
-│   ├── Dockerfile
-│   ├── package.json
-│   └── src/
-└── web-app/         ← pour Vercel
-    ├── vercel.json
-    ├── package.json
-    └── src/
-```
-
----
-
-## Étape 4 — Pousser vers GitHub
-
-### Option A : Deux repos séparés (recommandé)
-
-```bash
-# 1. Repo serveur
-cd .wasp/out/server
-git init && git add -A && git commit -m "Yeba server build"
-gh repo create yeba-server --private --push
-
-# 2. Repo client
-cd ../web-app
-git init && git add -A && git commit -m "Yeba client build"
-gh repo create yeba-client --private --push
-```
-
-### Option B : Un seul repo (plus simple)
-
-Attention, cette option part du principe que `.wasp/out/` est versionné. C'est le
-cas dans ce dépôt : `.gitignore` n'ignore que `.wasp/out/**/node_modules/`,
-car `Dockerfile.render` copie `.wasp/out` et a besoin du bundle serveur. Il
-faut donc vérifier que le dossier est bien suivi avant de pousser :
-suivi (`git ls-files .wasp/out/server/bundle` doit répondre). Sinon, créer un repo dédié :
-
-```bash
-mkdir ~/yeba-deploy && cd ~/yeba-deploy
-cp -r /chemin/vers/app/.wasp/out/* .
-git init && git add -A && git commit -m "Yeba deploy build"
-gh repo create yeba-deploy --private --push
-```
-
----
-
-## Étape 5 — Déployer le Backend sur Render
-
-1. Aller sur **[dashboard.render.com](https://dashboard.render.com)**
-2. **New → Web Service**
-3. Connecter le repo GitHub du serveur (`yeba-server` ou `yeba-deploy`)
-4. Configurer :
-
-   | Champ | Valeur |
-   |---|---|
-   | **Name** | `yeba-server` |
-   | **Region** | Frankfurt (EU) |
-   | **Root Directory** | `server` (si repo unique) ou `.` (si repo séparé) |
-   | **Runtime** | Node |
-   | **Build Command** | `npm install && npx prisma generate` |
-   | **Start Command** | `npm run start-production` |
-   | **Plan** | Free (ou Starter à $7/mois) |
-
-5. **Environment Variables** (onglet Environment) :
-
-   | Variable | Valeur |
-   |---|---|
-   | `DATABASE_URL` | `postgresql://...@neon.tech/...?sslmode=require` |
-   | `WASP_SERVER_URL` | `https://yeba-server.onrender.com` |
-   | `WASP_WEB_CLIENT_URL` | `https://yeba-client.vercel.app` |
-   | `PORT` | `10000` |
-   | `JWT_SECRET` | *(ta valeur générée à l'étape 1)* |
-    | `TELEPHONE_HASH_SALT` | *(ta valeur générée à l'étape 1)* |
-    | `SMTP_HOST` | `smtp-relay.brevo.com` |
-    | `SMTP_PORT` | `587` |
-    | `SMTP_USERNAME` | *(ton email de connexion Brevo)* |
-    | `SMTP_PASSWORD` | *(ta clé SMTP Brevo `xsmtpsib-...`)* |
-   | `AWS_S3_REGION` | `eu-west-3` |
-   | `AWS_S3_IAM_ACCESS_KEY` | `mock` *(ou ta vraie clé AWS si tu utilises S3)* |
-   | `AWS_S3_IAM_SECRET_KEY` | `mock` |
-   | `AWS_S3_FILES_BUCKET` | `yeba-files` |
-   | `NODE_ENV` | `production` |
-
-6. Cliquer **Create Web Service**
-
-> **Note Free tier** : le serveur Render gratuit se met en veille après 15 minutes d'inactivité. Le premier appel après le réveil prend ~30 secondes. Pour un service permanent, passer au Starter ($7/mois).
-
----
-
-## Étape 6 — Déployer le Frontend sur Vercel
-
-1. Aller sur **[vercel.com](https://vercel.com)**
-2. **Add New → Project**
-3. Connecter le repo GitHub du client (`yeba-client` ou `yeba-deploy`)
-4. Configurer :
-
-   | Champ | Valeur |
-   |---|---|
-   | **Framework Preset** | Vite |
-   | **Root Directory** | `web-app` (si repo unique) ou `.` (si repo séparé) |
-   | **Build Command** | `npm install && npm run build` |
-   | **Output Directory** | `dist` |
-
-5. **Environment Variables** :
-
-   | Variable | Valeur |
-   |---|---|
-   | `REACT_APP_API_URL` | `https://yeba-server.onrender.com` |
-
-6. Cliquer **Deploy**
-
-Vercel compile le frontend Vite avec beaucoup de RAM disponible — **aucun crash possible**.
-
----
-
-## Étape 7 — Vérification post-déploiement
-
-### 1. Tester le serveur
-```bash
-curl https://yeba-server.onrender.com
-```
-
-### 2. Tester le client
-Ouvrir `https://yeba-client.vercel.app` dans le navigateur.
-
-### 3. Se connecter
-- Email : `abdoulivo5@gmail.com`
-- Mot de passe : celui affiché lors du seed (étape 2)
-
-### 4. Tester la collecte QR
-Ouvrir `https://yeba-client.vercel.app/q/<code_public>` (le code du guichet seedé).
-
-### 5. Vérifier les jobs cron
-Dans les logs Render, tu devrais voir les jobs PgBoss s'exécuter :
-- `detecterAlertesSilence` — toutes les 30 minutes
-- `analyserAvisIAJob` — toutes les minutes (si OPENROUTER_API_KEY configurée)
-
----
-
-## Checklist finale
-
-- [ ] `wasp build` vert **puis** bundle serveur reconstruit + commité :
-  `cd .wasp/out/server && npm run bundle && cd ../.. && git add .wasp/out/server/bundle`
-  (sans ça, `bundle/server.js` manque dans l'image → crash `MODULE_NOT_FOUND` au `start` ;
-  `wasp build` efface `.wasp/out` sans reconstruire le bundle)
-- [ ] Expéditeur Brevo validé + clé SMTP `xsmtpsib-...` en place (Render + `.env.server`)
-- [ ] JWT_SECRET généré (32 octets hex)
-- [ ] TELEPHONE_HASH_SALT généré (32 octets hex)
-- [ ] Projet Neon créé, DATABASE_URL récupérée
-- [ ] `npx prisma migrate deploy --schema .wasp/out/db/schema.prisma` exécuté sur Neon
-      **avec l'URL directe** (sans `-pooler`), puis vérifié dans `_prisma_migrations`
-- [ ] `wasp db seed` exécuté, mot de passe noté
-- [ ] `bash scripts/deploy-build.sh` exécuté
-- [ ] Code poussé sur GitHub
-- [ ] Render Web Service créé et configuré
-- [ ] Vercel Static Site créé et configuré
-- [ ] Login testé sur le frontend Vercel
-- [ ] Collecte QR testée
-- [ ] CORS OK (WASP_WEB_CLIENT_URL = URL Vercel exacte)
-
----
-
-## Troubleshooting
-
-### Le frontend affiche une page blanche
-- Vérifier `REACT_APP_API_URL` dans Vercel → doit pointer vers l'URL Render
-- Vérifier que `WASP_WEB_CLIENT_URL` sur Render = l'URL Vercel exacte (CORS)
-
-### Erreur 502 sur Render
-- Le serveur met ~30s à démarrer après un sleep (Free tier)
-- Vérifier les logs Render pour les erreurs de connexion à Neon
-
-### Erreur "Database connection failed"
-- Vérifier que `?sslmode=require` est bien dans la DATABASE_URL
-- Neon Free tier éteint le compute après 5min d'inactivité — PgBoss le réveille automatiquement
-
-### Jobs PgBoss ne s'exécutent pas
-- Free tier Render : le serveur dort après 15min → les jobs ne tournent pas
-- Solution : passer au Starter ($7/mois) ou ajouter un cron externe (cron-job.org) qui ping le serveur toutes les 14 minutes
+Voir [`.env.example`](.env.example). Ne jamais placer de clé, URL Neon complète ou secret Render dans Git, les journaux, ou une capture d’écran partagée.

@@ -1,26 +1,31 @@
-import { AnalyseResult, ContextAvis, SyntheseGlobale } from './types';
-type ProviderName = 'nvidia' | 'openrouter' | 'deepseek';
+import type { ContextAvis, AnalyseResult, SyntheseGlobale } from './types';
+type ProbeStatus = 'success' | 'failed' | null;
 declare class AIServiceManager {
-    providerName: ProviderName;
-    constructor();
-    /** Ordre d'essai : provider principal puis secours configurés. */
-    private ordreEssai;
+    private lastProbeAt;
+    private lastProbeStatus;
+    private provider;
+    model(): string;
+    modelIsFree(): boolean;
     isConfigured(): boolean;
-    /** Provider principal effectif (pour getAIStatus). */
     nomProviderEffectif(): string;
-    /**
-     * Analyse + traçabilité (vague 1, Phase F) : renvoie le résultat ET le
-     * provider/modèle EFFECTIVEMENT utilisé (secours inclus) pour stockage.
-     */
+    status(): {
+        configured: boolean;
+        modelIsFree: boolean;
+        provider: string;
+        model: string;
+        baseUrl: string;
+        verifiedAt: string | null;
+        lastProbeStatus: ProbeStatus;
+    };
+    testerConnexion(): Promise<{
+        verifiedAt: string;
+        lastProbeStatus: 'success';
+    }>;
     analyserAvis(commentaire: string, contexte?: ContextAvis): Promise<{
         result: AnalyseResult;
         provider: string;
         model: string;
     }>;
-    /**
-     * Synthèse globale (vague 1, Phase G) : même bascule multi-provider que
-     * l'analyse individuelle, avec traçabilité du provider/modèle effectifs.
-     */
     syntheseGlobale(promptAgregats: string): Promise<{
         synthese: SyntheseGlobale;
         provider: string;

@@ -1,9 +1,9 @@
 import * as React from "react";
 import { type VariantProps } from "class-variance-authority";
 declare const badgeStyles: (props?: ({
-    tone?: "outline" | "navy" | "neutral" | "warning" | "amber" | "accent" | "positive" | "danger" | null | undefined;
+    tone?: "outline" | "warning" | "accent" | "danger" | "neutral" | "amber" | "navy" | "positive" | null | undefined;
     size?: "sm" | "lg" | "md" | null | undefined;
-    variant?: "solid" | "soft" | null | undefined;
+    variant?: "soft" | "solid" | null | undefined;
 } & import("class-variance-authority/types").ClassProp) | undefined) => string;
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeStyles> {
 }

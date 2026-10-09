@@ -3,13 +3,9 @@
 // Cron Job — Archivage logique automatique
 // Déclenché une fois par jour à 03:00 (heure creuse).
 //
-// Principe : on n'efface JAMAIS rien. Ce job se contente de poser
-// `archive: true` sur les alertes et tâches correctives déjà résolues
-// depuis longtemps (traitées/terminées il y a plus de RETENTION_JOURS
-// jours), pour que les vues actives (Kanban "Alertes & Tâches", tableau de
-// bord) restent légères sur le long terme sans jamais perdre de données —
-// tout reste consultable dans la page Archives et continue de compter dans
-// les statistiques et rapports mensuels.
+// Les alertes et tâches résolues sont archivées après RETENTION_JOURS.
+// Les données techniques temporaires (anti-rejeu et contacts de rappel)
+// sont supprimées à l'expiration de leur durée de conservation.
 //
 // Un manager peut aussi archiver manuellement plus tôt via les actions
 // archiverAlerte / archiverTache si besoin (voir actions.ts).
@@ -58,9 +54,14 @@ export const archiverElementsResolusAnciens = async (_args: unknown, _context: a
     where: { date_vote: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
   });
 
+  const purgeContactsRappel = await prisma.contactRappel.deleteMany({
+    where: { expiresAt: { lte: maintenant } },
+  });
+
   return {
     alertesArchivees: alertesArchivees.count,
     tachesArchivees: tachesArchivees.count,
     antiRejeuPurge: purgeAntiRejeu.count,
+    contactsRappelPurge: purgeContactsRappel.count,
   };
 };

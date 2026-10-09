@@ -1,15 +1,10 @@
 // src/server/ai/prompts.ts
 // ============================================================================
-// VAGUE 7 — Un seul prompt, un seul budget de tokens (audit P14 g).
+// OpenRouter uniquement : un prompt et un budget de tokens communs.
 //
 // AVANT
-// `SYSTEM_PROMPT` (3 036 caractères) était recopié à l'identique dans les
-// trois providers. Le fragment `CHAMPS_ETENDUS_PROMPT` était déjà partagé et
-// interpolé, donc les trois copies ne divergeaient pas — elles étaient
-// simplement trois exemplaires à resynchroniser à la main. Le piège est
-// ailleurs : rien ne l'empêchait. Il suffisait d'un edit sur un provider
-// pour que les trois analysent différemment le même avis, sans qu'aucun
-// test ne le voie.
+// Le fragment `CHAMPS_ETENDUS_PROMPT` reste partagé par le prompt et les
+// schémas de sortie. Aucun autre fournisseur n'est utilisé par le service.
 //
 // Les plafonds de tokens divergeaient, eux, pour de vrai : 1500 chez
 // NVIDIA et OpenRouter, 1000 chez DeepSeek. Le même JSON, donc la même
@@ -41,7 +36,7 @@ export const MAX_TOKENS_ANALYSE = 1500;
 export const MAX_TOKENS_SYNTHESE = 2000;
 
 /**
- * Prompt système de l'analyse d'un avis. UNIQUE pour les trois providers.
+ * Prompt système de l'analyse d'un avis.
  */
 export const SYSTEM_PROMPT = `Tu es le moteur d'analyse des avis clients de YEBA.
 

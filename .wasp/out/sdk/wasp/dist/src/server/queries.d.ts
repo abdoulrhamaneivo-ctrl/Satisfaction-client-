@@ -52,6 +52,18 @@ export declare const getAvisGroupes: (args: GetAvisGroupesArgs, context: any) =>
     page: number;
     pageSize: number;
 }>;
+/** Contact de rappel déchiffré à la demande, uniquement pour le chef de l'agence. */
+export declare const getContactRappel: (args: {
+    id_soumission?: string;
+}, context: any) => Promise<{
+    telephone: null;
+    processedAt: any;
+    createdAt: any;
+} | {
+    telephone: string;
+    processedAt: null;
+    createdAt: any;
+} | null>;
 export declare const exportAvisGroupes: (args: GetReponsesArgs & {
     curseurId?: number;
 }, context: any) => Promise<{
@@ -78,63 +90,12 @@ export declare const getAgenceCriteres: (args: {
     id_agence?: number;
 }, context: any) => Promise<any>;
 export declare const getServices: (_args: void, context: any) => Promise<any>;
-export declare const getBranding: (_args: void, context: any) => Promise<any>;
 export declare const getFormDefinitionForGuichet: (args: {
     code_public?: string;
 }, context: any) => Promise<{
     guichetName: any;
     services: any;
     agencyCriteres: any;
-    brandConfig: {
-        color_background: string;
-        color_primary_strong: string;
-        color_ring: string;
-        hide_yeba_branding: any;
-        color_accent: any;
-        color_secondary: any;
-        color_primary_foreground: string;
-        color_primary: any;
-        platform_name: any;
-        logo_url: any;
-        form_title: any;
-        form_subtitle: any;
-        form_thank_you: any;
-        qr_slogan: any;
-        platform_description: string;
-        logo_dark_url: null;
-        favicon_url: null;
-        color_foreground: string;
-        color_card: string;
-        color_card_foreground: string;
-        color_popover: string;
-        color_popover_foreground: string;
-        color_secondary_foreground: string;
-        color_secondary_muted: string;
-        color_secondary_muted_foreground: string;
-        color_accent_foreground: string;
-        color_muted: string;
-        color_muted_foreground: string;
-        color_destructive: string;
-        color_destructive_foreground: string;
-        color_success: string;
-        color_success_foreground: string;
-        color_warning: string;
-        color_warning_foreground: string;
-        color_success_strong: string;
-        color_warning_strong: string;
-        color_destructive_strong: string;
-        color_border: string;
-        color_input: string;
-        border_radius: string;
-        shadow_style: string;
-        font_family: string;
-        font_url: null;
-        ussd_help_text: string;
-        qr_style: string;
-        qr_frame: string;
-        qr_color: null;
-        qr_bg_color: null;
-    };
 } | null>;
 export declare const getCriteresParOperation: (args: {
     id_agence?: number;
@@ -268,16 +229,19 @@ export declare const getRechercheGlobale: (args: {
     avis: any;
 }>;
 export declare const getAIStatus: (_args: void, context: any) => Promise<{
-    configured: boolean;
-    provider: string;
-    model: string;
-    baseUrl: string;
     stats: {
         total: any;
         done: any;
         pending: any;
         failed: any;
     };
+    configured: boolean;
+    modelIsFree: boolean;
+    provider: string;
+    model: string;
+    baseUrl: string;
+    verifiedAt: string | null;
+    lastProbeStatus: "success" | "failed" | null;
 }>;
 export declare const getThemesStats: (args: {
     nbJours?: number;

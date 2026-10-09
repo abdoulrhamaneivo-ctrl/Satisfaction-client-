@@ -22,7 +22,8 @@ import { updateAgent as updateAgent_ext } from 'wasp/src/server/actions';
 import { deleteAgent as deleteAgent_ext } from 'wasp/src/server/actions';
 import { reactivateAgent as reactivateAgent_ext } from 'wasp/src/server/actions';
 import { promouvoirAgent as promouvoirAgent_ext } from 'wasp/src/server/actions';
-import { updateBranding as updateBranding_ext } from 'wasp/src/server/actions';
+import { marquerContactRappelTraite as marquerContactRappelTraite_ext } from 'wasp/src/server/actions';
+import { testerConnexionIA as testerConnexionIA_ext } from 'wasp/src/server/actions';
 import { inviteAgent as inviteAgent_ext } from 'wasp/src/server/actions';
 import { renvoyerInvitationAgent as renvoyerInvitationAgent_ext } from 'wasp/src/server/actions';
 import { demanderReinitialisation as demanderReinitialisation_ext } from 'wasp/src/server/actions';
@@ -189,6 +190,7 @@ export const completerSoumission = createAuthenticatedOperation(completerSoumiss
     Agence: prisma.agence,
     VoteAntiRejeu: prisma.voteAntiRejeu,
     AnalyseAvisIA: prisma.analyseAvisIA,
+    ContactRappel: prisma.contactRappel,
 });
 // PUBLIC API
 export const createAgence = createAuthenticatedOperation(createAgence_ext, {
@@ -221,11 +223,17 @@ export const promouvoirAgent = createAuthenticatedOperation(promouvoirAgent_ext,
     Entreprise: prisma.entreprise,
 });
 // PUBLIC API
-export const updateBranding = createAuthenticatedOperation(updateBranding_ext, {
-    BrandingConfig: prisma.brandingConfig,
+export const marquerContactRappelTraite = createAuthenticatedOperation(marquerContactRappelTraite_ext, {
+    ContactRappel: prisma.contactRappel,
+    Reponse: prisma.reponse,
+    User: prisma.user,
+    Agence: prisma.agence,
+    Entreprise: prisma.entreprise,
+});
+// PUBLIC API
+export const testerConnexionIA = createAuthenticatedOperation(testerConnexionIA_ext, {
     User: prisma.user,
     Entreprise: prisma.entreprise,
-    AuditLog: prisma.auditLog,
 });
 // PUBLIC API
 export const inviteAgent = createAuthenticatedOperation(inviteAgent_ext, {

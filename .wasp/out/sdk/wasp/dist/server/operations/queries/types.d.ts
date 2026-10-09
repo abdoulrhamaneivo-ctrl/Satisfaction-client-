@@ -1,4 +1,4 @@
-import { type _User, type _File, type _Guichet, type _Service, type _Agence, type _Entreprise, type _Reponse, type _Critere, type _Alerte, type _AgenceCritere, type _CritereService, type _BrandingConfig, type _AffectationGuichet, type _TacheCorrective, type _Objectif, type _TacheCorrectiveHistorique, type _ModeleHoraire, type _AnalyseAvisIA, type _GlobalExperienceAnalysis, type _OptionCritere, type _ReponseOption, type _Invitation, type _AuditLog, type AuthenticatedQueryDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _File, type _Guichet, type _Service, type _Agence, type _Entreprise, type _Reponse, type _Critere, type _Alerte, type _AgenceCritere, type _CritereService, type _ContactRappel, type _AffectationGuichet, type _TacheCorrective, type _Objectif, type _TacheCorrectiveHistorique, type _ModeleHoraire, type _AnalyseAvisIA, type _GlobalExperienceAnalysis, type _OptionCritere, type _ReponseOption, type _Invitation, type _AuditLog, type AuthenticatedQueryDefinition, type Payload } from 'wasp/server/_types';
 export type GetAllFilesByUser<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
     _User,
     _File
@@ -78,17 +78,18 @@ export type GetFormDefinitionForGuichet<Input extends Payload = never, Output ex
     _Critere,
     _Service,
     _CritereService,
-    _Entreprise,
-    _BrandingConfig
+    _Entreprise
 ], Input, Output>;
 export type GetServices<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
     _Service,
     _User,
     _Entreprise
 ], Input, Output>;
-export type GetBranding<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
-    _BrandingConfig,
+export type GetContactRappel<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[
+    _ContactRappel,
+    _Reponse,
     _User,
+    _Agence,
     _Entreprise
 ], Input, Output>;
 export type GetRadarStats<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedQueryDefinition<[

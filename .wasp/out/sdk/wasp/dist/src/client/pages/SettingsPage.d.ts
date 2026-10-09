@@ -1,4 +1,2 @@
-import React from 'react';
-export declare const SettingsPage: () => React.JSX.Element;
-export default SettingsPage;
+export declare const SettingsPage: () => import("react").JSX.Element;
 //# sourceMappingURL=SettingsPage.d.ts.map

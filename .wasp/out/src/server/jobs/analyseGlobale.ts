@@ -73,7 +73,6 @@ async function assurerProgrammee(
 
 async function traiterLigne(
   row: any,
-  entrepriseNom: string,
   budget: number,
 ): Promise<'ok' | 'budget' | 'echec'> {
   const debut = new Date(row.debut);
@@ -178,7 +177,7 @@ async function traiterLigne(
         : row.periode === 'PERSONNALISEE'
           ? `période du ${debut.toLocaleDateString('fr-FR')} au ${fin.toLocaleDateString('fr-FR')}`
           : `mois de ${debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
-    const prompt = construirePromptSynthese(entrepriseNom, periodeLabel, agregats, irritants);
+    const prompt = construirePromptSynthese('organisation cliente', periodeLabel, agregats, irritants);
     const { synthese, provider, model } = await AIService.syntheseGlobale(prompt);
 
     /* Vague 5, P10 — la priorité DÉTERMINISTE fait foi, sans exception.
@@ -251,7 +250,7 @@ export async function analyserGlobaleJob(_args: any, _context: any) {
 
   const entreprises = await prisma.entreprise.findMany({
     where: { status: 'ACTIVE' },
-    select: { id: true, nom_entreprise: true },
+    select: { id: true },
   });
 
   for (const e of entreprises) {
@@ -282,7 +281,6 @@ export async function analyserGlobaleJob(_args: any, _context: any) {
     },
     orderBy: { createdAt: 'asc' },
     take: budget * 3,
-    include: { entreprise: { select: { nom_entreprise: true } } },
   });
 
   const files = [...candidats].sort(comparerParPriorite).slice(0, budget);
@@ -291,7 +289,7 @@ export async function analyserGlobaleJob(_args: any, _context: any) {
   let budgetAtteint = false;
   for (const row of files) {
     if (budgetAtteint) break;
-    const res = await traiterLigne(row, row.entreprise?.nom_entreprise || 'Entreprise', budget);
+    const res = await traiterLigne(row, budget);
     if (res === 'budget') budgetAtteint = true;
     else traitees += 1;
   }

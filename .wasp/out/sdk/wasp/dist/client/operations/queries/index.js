@@ -24,11 +24,11 @@ export const getCriteres = createQuery('operations/get-criteres', ['Critere', 'U
 // PUBLIC API
 export const getAgenceCriteres = createQuery('operations/get-agence-criteres', ['AgenceCritere', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
-export const getFormDefinitionForGuichet = createQuery('operations/get-form-definition-for-guichet', ['Guichet', 'AgenceCritere', 'Critere', 'Service', 'CritereService', 'Entreprise', 'BrandingConfig']);
+export const getFormDefinitionForGuichet = createQuery('operations/get-form-definition-for-guichet', ['Guichet', 'AgenceCritere', 'Critere', 'Service', 'CritereService', 'Entreprise']);
 // PUBLIC API
 export const getServices = createQuery('operations/get-services', ['Service', 'User', 'Entreprise']);
 // PUBLIC API
-export const getBranding = createQuery('operations/get-branding', ['BrandingConfig', 'User', 'Entreprise']);
+export const getContactRappel = createQuery('operations/get-contact-rappel', ['ContactRappel', 'Reponse', 'User', 'Agence', 'Entreprise']);
 // PUBLIC API
 export const getRadarStats = createQuery('operations/get-radar-stats', ['User', 'Guichet', 'AffectationGuichet', 'Reponse', 'Alerte', 'TacheCorrective', 'Agence', 'Entreprise']);
 // PUBLIC API

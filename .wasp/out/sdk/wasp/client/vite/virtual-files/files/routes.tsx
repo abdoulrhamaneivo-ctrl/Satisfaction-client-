@@ -137,6 +137,20 @@ const routesMapping = {
         .then(component => ({ default: component }))
       ),
   },
+  ConditionsUtilisationRoute: {
+    Component:
+      lazy(() =>
+        import('./src/client/pages/ConditionsUtilisationPage').then(m => m.ConditionsUtilisationPage)
+        .then(component => ({ default: component }))
+      ),
+  },
+  PolitiqueConfidentialiteRoute: {
+    Component:
+      lazy(() =>
+        import('./src/client/pages/PolitiqueConfidentialitePage').then(m => m.PolitiqueConfidentialitePage)
+        .then(component => ({ default: component }))
+      ),
+  },
   AlertesTachesRoute: {
     Component:
       lazy(() =>

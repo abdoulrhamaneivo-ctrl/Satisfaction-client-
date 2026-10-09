@@ -1,4 +1,4 @@
-import { type _User, type _AuditLog, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _ModeleHoraire, type _Reponse, type _Critere, type _OptionCritere, type _ReponseOption, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _BrandingConfig, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _GlobalExperienceAnalysis, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
+import { type _User, type _AuditLog, type _File, type _Guichet, type _Service, type _AffectationGuichet, type _Agence, type _Entreprise, type _ModeleHoraire, type _Reponse, type _Critere, type _OptionCritere, type _ReponseOption, type _AgenceCritere, type _CritereService, type _Alerte, type _VoteAntiRejeu, type _AnalyseAvisIA, type _Canal, type _ContactRappel, type _Invitation, type _Objectif, type _TacheCorrective, type _TacheCorrectiveHistorique, type _GlobalExperienceAnalysis, type AuthenticatedActionDefinition, type Payload } from 'wasp/server/_types';
 export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User
 ], Input, Output>;
@@ -104,7 +104,8 @@ export type CompleterSoumission<Input extends Payload = never, Output extends Pa
     _Guichet,
     _Agence,
     _VoteAntiRejeu,
-    _AnalyseAvisIA
+    _AnalyseAvisIA,
+    _ContactRappel
 ], Input, Output>;
 export type CreateAgence<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _Agence,
@@ -131,11 +132,16 @@ export type PromouvoirAgent<Input extends Payload = never, Output extends Payloa
     _Agence,
     _Entreprise
 ], Input, Output>;
-export type UpdateBranding<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
-    _BrandingConfig,
+export type MarquerContactRappelTraite<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _ContactRappel,
+    _Reponse,
     _User,
-    _Entreprise,
-    _AuditLog
+    _Agence,
+    _Entreprise
+], Input, Output>;
+export type TesterConnexionIA<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
+    _User,
+    _Entreprise
 ], Input, Output>;
 export type InviteAgent<Input extends Payload = never, Output extends Payload = Payload> = AuthenticatedActionDefinition<[
     _User,

@@ -167,5 +167,5 @@ export declare function moisContenant(ref: Date): {
     fin: Date;
 };
 /** Prompt LLM déterministe : même entrée → même chaîne (testé). */
-export declare function construirePromptSynthese(entrepriseNom: string, periodeLabel: string, a: AgregatsGlobaux, irritants: ReturnType<typeof prioriserIrritants>): string;
+export declare function construirePromptSynthese(_entrepriseNom: string, periodeLabel: string, a: AgregatsGlobaux, irritants: ReturnType<typeof prioriserIrritants>): string;
 //# sourceMappingURL=moteurGlobal.d.ts.map

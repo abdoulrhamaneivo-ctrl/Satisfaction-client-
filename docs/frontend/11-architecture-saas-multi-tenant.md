@@ -1,5 +1,7 @@
-# YEBA PLATFORM — Architecture SaaS multi-entreprises
+# ARCHIVE — YEBA PLATFORM — Architecture SaaS multi-entreprises
 ## Doc 11 — Vision, modèle mental, rôles plateforme et sécurité SaaS
+
+> **Archive, ne pas implémenter** : cette ancienne proposition décrit un produit multi-entreprise avec branding et fonctions commerciales. Le périmètre actuel est une entreprise cliente, multi-agences, sans facturation ni personnalisation de marque. Voir `CLAUDE.md` et `docs/branding-white-label.md` comme références actuelles.
 
 > **Statut** : SPÉCIFICATION DE RÉFÉRENCE (à implémenter en phases).
 > **Contexte** : Yeba est aujourd'hui un outil interne mono-entreprise (déploiement mono-agence, cf. AGENTS.md). Cette doc définit l'évolution vers une **plateforme SaaS multi-entreprises** : Super Admin Yeba crée des entreprises clientes, chaque entreprise est isolée (données, branding), avec console dédiée et onboarding guidé.

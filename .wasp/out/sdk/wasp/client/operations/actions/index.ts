@@ -21,7 +21,8 @@ import { UpdateAgent_ext } from 'wasp/server/operations/actions'
 import { DeleteAgent_ext } from 'wasp/server/operations/actions'
 import { ReactivateAgent_ext } from 'wasp/server/operations/actions'
 import { PromouvoirAgent_ext } from 'wasp/server/operations/actions'
-import { UpdateBranding_ext } from 'wasp/server/operations/actions'
+import { MarquerContactRappelTraite_ext } from 'wasp/server/operations/actions'
+import { TesterConnexionIA_ext } from 'wasp/server/operations/actions'
 import { InviteAgent_ext } from 'wasp/server/operations/actions'
 import { RenvoyerInvitationAgent_ext } from 'wasp/server/operations/actions'
 import { DemanderReinitialisation_ext } from 'wasp/server/operations/actions'
@@ -165,7 +166,7 @@ export const soumettreAvis: ActionFor<SoumettreAvis_ext> = createAction<Soumettr
 // PUBLIC API
 export const completerSoumission: ActionFor<CompleterSoumission_ext> = createAction<CompleterSoumission_ext>(
   'operations/completer-soumission',
-  ['Reponse', 'Guichet', 'Agence', 'VoteAntiRejeu', 'AnalyseAvisIA'],
+  ['Reponse', 'Guichet', 'Agence', 'VoteAntiRejeu', 'AnalyseAvisIA', 'ContactRappel'],
 )
 
 // PUBLIC API
@@ -199,9 +200,15 @@ export const promouvoirAgent: ActionFor<PromouvoirAgent_ext> = createAction<Prom
 )
 
 // PUBLIC API
-export const updateBranding: ActionFor<UpdateBranding_ext> = createAction<UpdateBranding_ext>(
-  'operations/update-branding',
-  ['BrandingConfig', 'User', 'Entreprise', 'AuditLog'],
+export const marquerContactRappelTraite: ActionFor<MarquerContactRappelTraite_ext> = createAction<MarquerContactRappelTraite_ext>(
+  'operations/marquer-contact-rappel-traite',
+  ['ContactRappel', 'Reponse', 'User', 'Agence', 'Entreprise'],
+)
+
+// PUBLIC API
+export const testerConnexionIA: ActionFor<TesterConnexionIA_ext> = createAction<TesterConnexionIA_ext>(
+  'operations/tester-connexion-ia',
+  ['User', 'Entreprise'],
 )
 
 // PUBLIC API

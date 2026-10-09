@@ -103,11 +103,11 @@ export type PrismaDelegate = {
   "TacheCorrective": typeof prisma.tacheCorrective,
   "TacheCorrectiveHistorique": typeof prisma.tacheCorrectiveHistorique,
   "VoteAntiRejeu": typeof prisma.voteAntiRejeu,
+  "ContactRappel": typeof prisma.contactRappel,
   "File": typeof prisma.file,
   "Logs": typeof prisma.logs,
   "Invitation": typeof prisma.invitation,
   "AuditLog": typeof prisma.auditLog,
-  "BrandingConfig": typeof prisma.brandingConfig,
 }
 
 type Context<Entities extends _Entity[]> = Expand<{

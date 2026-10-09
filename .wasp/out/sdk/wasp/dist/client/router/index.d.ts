@@ -80,6 +80,14 @@ export declare const routes: {
             };
         }) => string;
     };
+    readonly ConditionsUtilisationRoute: {
+        readonly to: "/conditions";
+        readonly build: (options?: OptionalRouteOptions) => string;
+    };
+    readonly PolitiqueConfidentialiteRoute: {
+        readonly to: "/confidentialite";
+        readonly build: (options?: OptionalRouteOptions) => string;
+    };
     readonly AlertesTachesRoute: {
         readonly to: "/alertes-taches";
         readonly build: (options?: OptionalRouteOptions) => string;

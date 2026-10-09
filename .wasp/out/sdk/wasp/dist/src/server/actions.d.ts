@@ -59,8 +59,24 @@ export declare const completerSoumission: (args: {
     id_soumission?: string;
     commentaire?: string;
     telephone?: string;
+    consentementRappel?: boolean;
 }, context: any) => Promise<{
     ok: true;
+}>;
+/** Marque un rappel comme traité; réservée au chef de l'agence concernée. */
+export declare const marquerContactRappelTraite: (args: {
+    id_soumission?: string;
+}, context: any) => Promise<{
+    ok: true;
+    alreadyProcessed: true;
+} | {
+    ok: true;
+    alreadyProcessed: false;
+}>;
+/** Vérification synthétique ; n'envoie aucune donnée réelle de l'entreprise. */
+export declare const testerConnexionIA: (_args: void, context: any) => Promise<{
+    verifiedAt: string;
+    lastProbeStatus: "success";
 }>;
 /**
  * Wrapper public de `completerSoumission` (Vague 5, P11).
@@ -95,7 +111,6 @@ export declare const reactivateAgent: (args: {
 export declare const promouvoirAgent: (args: {
     id_agent: string;
 }, context: any) => Promise<any>;
-export declare const updateBranding: (args: Record<string, any>, context: any) => Promise<any>;
 export declare const createAgence: (args: {
     nom_agence: string;
     commune: string;

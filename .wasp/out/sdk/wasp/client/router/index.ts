@@ -14,7 +14,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/",
         undefined,
         options?.search,
@@ -27,7 +27,7 @@ export const routes = {
       options: OptionalRouteOptions
       & { params: {"*": ParamValue;}}
     ) => interpolatePath(
-        
+
         "*",
         options.params,
         options?.search,
@@ -40,7 +40,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/login",
         undefined,
         options?.search,
@@ -53,7 +53,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/apres-connexion",
         undefined,
         options?.search,
@@ -66,7 +66,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/request-password-reset",
         undefined,
         options?.search,
@@ -79,7 +79,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/password-reset",
         undefined,
         options?.search,
@@ -92,7 +92,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/email-verification",
         undefined,
         options?.search,
@@ -105,7 +105,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/account",
         undefined,
         options?.search,
@@ -118,7 +118,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/file-upload",
         undefined,
         options?.search,
@@ -131,7 +131,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/guichets",
         undefined,
         options?.search,
@@ -144,7 +144,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/planning",
         undefined,
         options?.search,
@@ -157,7 +157,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/dashboard",
         undefined,
         options?.search,
@@ -170,7 +170,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/admin/personnel",
         undefined,
         options?.search,
@@ -183,7 +183,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/admin/agences",
         undefined,
         options?.search,
@@ -196,7 +196,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/avis",
         undefined,
         options?.search,
@@ -209,7 +209,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/criteres",
         undefined,
         options?.search,
@@ -222,7 +222,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/synthese",
         undefined,
         options?.search,
@@ -235,9 +235,35 @@ export const routes = {
       options: OptionalRouteOptions
       & { params: {"code": ParamValue;}}
     ) => interpolatePath(
-        
+
         "/q/:code",
         options.params,
+        options?.search,
+        options?.hash
+      ),
+  },
+  ConditionsUtilisationRoute: {
+    to: "/conditions",
+    build: (
+      options?:
+      OptionalRouteOptions
+    ) => interpolatePath(
+
+        "/conditions",
+        undefined,
+        options?.search,
+        options?.hash
+      ),
+  },
+  PolitiqueConfidentialiteRoute: {
+    to: "/confidentialite",
+    build: (
+      options?:
+      OptionalRouteOptions
+    ) => interpolatePath(
+
+        "/confidentialite",
+        undefined,
         options?.search,
         options?.hash
       ),
@@ -248,7 +274,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/alertes-taches",
         undefined,
         options?.search,
@@ -261,7 +287,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/archives",
         undefined,
         options?.search,
@@ -274,7 +300,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/settings",
         undefined,
         options?.search,
@@ -287,7 +313,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/platform",
         undefined,
         options?.search,
@@ -300,7 +326,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/platform/entreprises",
         undefined,
         options?.search,
@@ -313,7 +339,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/platform/entreprises/nouvelle",
         undefined,
         options?.search,
@@ -326,7 +352,7 @@ export const routes = {
       options: OptionalRouteOptions
       & { params: {"id": ParamValue;}}
     ) => interpolatePath(
-        
+
         "/platform/entreprises/:id",
         options.params,
         options?.search,
@@ -339,7 +365,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/platform/audit",
         undefined,
         options?.search,
@@ -352,7 +378,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/platform/securite",
         undefined,
         options?.search,
@@ -365,7 +391,7 @@ export const routes = {
       options?:
       OptionalRouteOptions
     ) => interpolatePath(
-        
+
         "/account/activate",
         undefined,
         options?.search,

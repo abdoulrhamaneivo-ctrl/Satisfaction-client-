@@ -74,26 +74,18 @@ export const BRANDING = {
     qr_slogan: "Scannez ce QR Code",
     ussd_help_text: "Pas de connexion internet ?",
     hide_yeba_branding: false,
-    // Personnalisation QR (table BrandingConfig) : valeurs par défaut quand
-    // l'entreprise n'a rien configuré. Voir KitGuichet pour le rendu.
+    // Styles utilisés par le kit QR Yéba, fixés dans le code.
     qr_style: "CLASSIQUE",
     qr_frame: "SIMPLE",
     qr_color: null,
     qr_bg_color: null,
 };
 /* ============================================================================
- * Vague 4 — Garde-fous de contraste pour le white-label (WCAG 2.2 AA 1.4.3)
+ * Garde-fous de contraste WCAG 2.2 AA pour les jetons de marque.
  * ============================================================================
- * Un tenant peut surcharger `color_primary` et `color_background`
- * (BrandingConfig, fusion contrôlée dans `src/server/queries.ts`). Sans
- * garde-fou, ces deux champs dérogent implicitement aux mesures de
- * contraste ci-dessus : un fond sombre, ou un primaire trop clair, rend
- * tous les jetons texte — et l'anneau de focus — non conformes, sans
- * qu'aucun test ne le voie (les tests de contraste portent sur BRANDING,
- * pas sur la valeur effectivement injectée).
- *
- * Les deux fonctions ci-dessous sont pures et testées : elles rendent la
- * règle de contraste vérifiable quelle que soit la valeur du tenant.
+ * Ces utilitaires conservent les calculs de contraste réutilisables. La
+ * charte de production demeure fixée dans BRANDING ; aucune configuration
+ * de marque n'est chargée depuis la base.
  * */
 /** HSL « H S% L% » → luminance relative WCAG. */
 export function luminanceHsl(token) {

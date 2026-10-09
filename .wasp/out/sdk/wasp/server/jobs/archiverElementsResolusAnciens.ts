@@ -5,6 +5,7 @@ import { type JobFn, createJobDefinition } from 'wasp/server/jobs/core/pgBoss'
 const entities = {
   Alerte: prisma.alerte,
   TacheCorrective: prisma.tacheCorrective,
+  ContactRappel: prisma.contactRappel,
 }
 
 // PUBLIC API

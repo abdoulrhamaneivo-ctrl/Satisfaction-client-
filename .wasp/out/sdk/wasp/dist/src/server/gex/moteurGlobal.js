@@ -509,9 +509,9 @@ export function moisContenant(ref) {
     return { debut, fin };
 }
 /** Prompt LLM déterministe : même entrée → même chaîne (testé). */
-export function construirePromptSynthese(entrepriseNom, periodeLabel, a, irritants) {
+export function construirePromptSynthese(_entrepriseNom, periodeLabel, a, irritants) {
     const doc = {
-        entreprise: entrepriseNom,
+        entreprise: 'organisation cliente',
         periode: periodeLabel,
         volumes: {
             avis: a.volumeAvis,
@@ -548,10 +548,11 @@ export function construirePromptSynthese(entrepriseNom, periodeLabel, a, irritan
             evolution_relative: arrondi1(i.evolution * 100) / 100,
             confiance: i.confiance,
         })),
-        par_agence: a.parAgence,
-        par_service: a.parService,
-        guichets_top: a.guichetsTop,
-        guichets_flop: a.guichetsFlop,
+        // Volumes uniquement : aucun nom de site, de service ou identifiant.
+        par_agence: a.parAgence.map(({ volume, csat }) => ({ volume, csat })),
+        par_service: a.parService.map(({ volume, csat }) => ({ volume, csat })),
+        guichets_top: a.guichetsTop.map(({ volume, csat }) => ({ volume, csat })),
+        guichets_flop: a.guichetsFlop.map(({ volume, csat }) => ({ volume, csat })),
         evolution_vs_periode_precedente: {
             volume_pct: a.evolutionVolumePct ?? 'non disponible',
             csat_points: a.evolutionCsatPts ?? 'non disponible',
@@ -559,7 +560,7 @@ export function construirePromptSynthese(entrepriseNom, periodeLabel, a, irritan
         qualite_donnees_sur_100: a.qualiteDonnees,
         confiance_globale: a.confiance,
     };
-    return (`Synthèse d'expérience client (période : ${periodeLabel}, entreprise : ${entrepriseNom}).\n` +
+    return (`Synthèse agrégée d'expérience client (période : ${periodeLabel}).\n` +
         `DONNÉES VÉRIFIÉES (seule source autorisée — cite ces nombres, n'en invente aucun) :\n` +
         `${JSON.stringify(doc)}\n` +
         `Retourne exclusivement le JSON demandé (resume_executif, points_positifs, points_negatifs, irritants, tendances, anomalies, priorites, confiance, limites).`);

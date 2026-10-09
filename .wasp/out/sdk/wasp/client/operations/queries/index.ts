@@ -13,7 +13,7 @@ import { GetCriteres_ext } from 'wasp/server/operations/queries'
 import { GetAgenceCriteres_ext } from 'wasp/server/operations/queries'
 import { GetFormDefinitionForGuichet_ext } from 'wasp/server/operations/queries'
 import { GetServices_ext } from 'wasp/server/operations/queries'
-import { GetBranding_ext } from 'wasp/server/operations/queries'
+import { GetContactRappel_ext } from 'wasp/server/operations/queries'
 import { GetRadarStats_ext } from 'wasp/server/operations/queries'
 import { GetObjectifs_ext } from 'wasp/server/operations/queries'
 import { GetObjectifsParAgence_ext } from 'wasp/server/operations/queries'
@@ -122,7 +122,7 @@ export const getAgenceCriteres: QueryFor<GetAgenceCriteres_ext> = createQuery<Ge
 // PUBLIC API
 export const getFormDefinitionForGuichet: QueryFor<GetFormDefinitionForGuichet_ext> = createQuery<GetFormDefinitionForGuichet_ext>(
   'operations/get-form-definition-for-guichet',
-  ['Guichet', 'AgenceCritere', 'Critere', 'Service', 'CritereService', 'Entreprise', 'BrandingConfig'],
+  ['Guichet', 'AgenceCritere', 'Critere', 'Service', 'CritereService', 'Entreprise'],
 )
 
 // PUBLIC API
@@ -132,9 +132,9 @@ export const getServices: QueryFor<GetServices_ext> = createQuery<GetServices_ex
 )
 
 // PUBLIC API
-export const getBranding: QueryFor<GetBranding_ext> = createQuery<GetBranding_ext>(
-  'operations/get-branding',
-  ['BrandingConfig', 'User', 'Entreprise'],
+export const getContactRappel: QueryFor<GetContactRappel_ext> = createQuery<GetContactRappel_ext>(
+  'operations/get-contact-rappel',
+  ['ContactRappel', 'Reponse', 'User', 'Agence', 'Entreprise'],
 )
 
 // PUBLIC API

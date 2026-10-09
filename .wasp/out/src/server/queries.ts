@@ -27,17 +27,13 @@ import {
 } from './kpiParTerme';
 import { agregerNPS } from '../shared/scoringEngine';
 import { agregerCES } from '../shared/ces';
-import {
-  BRANDING,
-  fondWhiteLabelRecevable,
-  varianteTextePourFond,
-  foregroundPourAplat,
-} from '../shared/branding';
 import { decrireReponse } from '../shared/libelleReponse';
 import { calculerAgregats } from './gex/moteurGlobal';
 import { indiceGlobalExperience } from '../shared/indicateurs';
 import { checkRateLimit, extraireIp } from './rateLimit';
 import { journaliser } from './audit';
+import { dechiffrerTelephoneRappel } from './callbackPhoneCrypto';
+import { AIService } from './ai/service';
 
 // Petit garde-fou commun : un id_agence "obligatoire" côté TypeScript n'est
 // PAS validé au runtime par Wasp. On le vérifie explicitement partout où on
@@ -391,6 +387,42 @@ export const getAvisGroupes = async (args: GetAvisGroupesArgs, context: any) => 
   return { avis: paginated, total: totalGroupes, hasMore, page, pageSize };
 };
 
+/** Contact de rappel déchiffré à la demande, uniquement pour le chef de l'agence. */
+export const getContactRappel = async (args: { id_soumission?: string }, context: any) => {
+  requireAuth(context);
+  await assertEntrepriseActive(context, context.entities);
+  requireRole(context, ['CHEF_AGENCE']);
+  const idSoumission = typeof args?.id_soumission === 'string' ? args.id_soumission.trim() : '';
+  if (!idSoumission || idSoumission.length > 100) throw new HttpError(404, 'Rappel introuvable.');
+
+  const reponse = await context.entities.Reponse.findFirst({
+    where: { id_soumission: idSoumission },
+    orderBy: { id: 'asc' },
+    select: { id: true, id_agence: true },
+  });
+  if (!reponse) throw new HttpError(404, 'Rappel introuvable.');
+  await assertAgenceAccess(context, context.entities, reponse.id_agence, 'rappel');
+
+  const contact = await context.entities.ContactRappel.findUnique({
+    where: { reponseId: reponse.id },
+    select: { ciphertext: true, iv: true, tag: true, createdAt: true, processedAt: true, expiresAt: true },
+  });
+  if (!contact || contact.expiresAt <= new Date()) return null;
+  if (contact.processedAt) {
+    return { telephone: null, processedAt: contact.processedAt, createdAt: contact.createdAt };
+  }
+
+  try {
+    return {
+      telephone: dechiffrerTelephoneRappel(contact),
+      processedAt: null,
+      createdAt: contact.createdAt,
+    };
+  } catch {
+    throw new HttpError(503, 'Le déchiffrement du contact est indisponible. Vérifiez la clé de rappel du serveur.');
+  }
+};
+
 // ============================================================================
 // EXPORT AVIS COMPLET (pour CSV — sans pagination, limité à 20 000 lignes)
 // ============================================================================
@@ -636,22 +668,6 @@ export const getServices = async (_args: void, context: any) => {
   });
 };
 
-// Personnalisation : configuration brute de l'entreprise (FIX 05/09 —
-// l'onglet Paramètres de la Direction). Les valeurs nulles signifient
-// « défaut Yéba » (voir BRANDING dans shared/branding.ts).
-export const getBranding = async (_args: void, context: any) => {
-  requireAuth(context);
-  await assertEntrepriseActive(context, context.entities);
-  // FIX 05/09 : lecture étendue au Chef d'Agence — le kit QR des guichets
-  // est géré par les chefs, ils doivent voir la personnalisation de leur
-  // entreprise (lecture seule, même tenant, aucun secret).
-  requireRole(context, ['DIRECTION', 'CHEF_AGENCE']);
-  if (!context.user.id_entreprise) return null;
-  return context.entities.BrandingConfig.findUnique({
-    where: { id_entreprise: context.user.id_entreprise },
-  });
-};
-
 // Route PUBLIQUE volontairement (formulaire de collecte scanné par un client
 // anonyme via QR code) : pas d'authentification requise ici par design.
 // C4 : résolution UNIQUEMENT par code_public OPAQUE (10 caractères,
@@ -684,7 +700,7 @@ export const getFormDefinitionForGuichet = async (
 
   /* Vague 5, P11 — anti-bot sur la lecture publique.
      Cette query est le point d'entrée du parcours : elle est anonyme, elle
-     interroge la base à chaque appel (guichet, branding, critères, services)
+     interroge la base à chaque appel (guichet, critères, services)
      et rien n'en limitait la fréquence. La garde temporelle de 250 ms
      gêne un script, mais 4 requêtes/seconde restent un amplificateur
      de charge sur la base et un moyen de fatiguer une connexion.
@@ -774,7 +790,6 @@ export const getFormDefinitionForGuichet = async (
       agence: {
         select: {
           archive: true,
-          id_entreprise: true,
           agencesCriteres: {
             orderBy: { id_critere: 'asc' },
             select: {
@@ -815,76 +830,6 @@ export const getFormDefinitionForGuichet = async (
     return null;
   }
 
-  const brandingTenant = await context.entities.BrandingConfig.findUnique({
-    where: { id_entreprise: guichet.agence.id_entreprise },
-    select: {
-      logo_url: true,
-      nom_affiche: true,
-      color_primary: true,
-      color_secondary: true,
-      color_accent: true,
-      color_background: true,
-      form_title: true,
-      form_subtitle: true,
-      form_thank_you: true,
-      qr_slogan: true,
-      hide_yeba_branding: true,
-    },
-  });
-
-  // Fusion contrôlée : les champs null héritent du thème Yéba (BRANDING).
-  // Aucune donnée autre que ces champs ne quitte le serveur.
-  //
-  // Vague 4 (WCAG 2.2 AA 1.4.3) : la personnalisation ne peut pas déroger
-  // implicitement au contraste. Un `color_background` qui ne porterait pas
-  // le texte par défaut, ou qui ne serait pas une surface claire, est
-  // IGNORÉ (retour à la charte) ; un `color_primary` personnalisé voit sa
-  // variante « texte » et son anneau de focus recalculés sur le fond réel,
-  // pour que les usages texte de la couleur du client restent lisibles.
-  const fondRecu = brandingTenant?.color_background;
-  const fondApplique = fondWhiteLabelRecevable(fondRecu, BRANDING.color_foreground)
-    ? (fondRecu as string)
-    : BRANDING.color_background;
-
-  // La dérivation ne concerne que le tenant qui personnalise RÉELLEMENT une
-  // couleur. Un tenant qui ne touche qu'à son nom ou à ses libellés
-  // conserve exactement la charte Yéba — y compris ses valeurs d'anneau et
-  // de variante texte, qui sont plus contrastées que leur version dérivée
-  // (minimalement assombrie, elle s'arrête au seuil et pas au-delà).
-  const couleurPersonnalisee = Boolean(brandingTenant?.color_primary || fondRecu);
-  const primaireApplique = brandingTenant?.color_primary ?? BRANDING.color_primary;
-  const primaireStrongApplique = couleurPersonnalisee
-    ? varianteTextePourFond(brandingTenant?.color_primary ?? BRANDING.color_primary, fondApplique, 4.5)
-    : BRANDING.color_primary_strong;
-  const ringApplique = couleurPersonnalisee
-    ? varianteTextePourFond(brandingTenant?.color_primary ?? BRANDING.color_primary, fondApplique, 3)
-    : BRANDING.color_ring;
-
-  const brandConfig = brandingTenant
-    ? {
-        ...BRANDING,
-        platform_name: brandingTenant.nom_affiche?.trim() ? brandingTenant.nom_affiche : BRANDING.platform_name,
-        logo_url: brandingTenant.logo_url ?? BRANDING.logo_url,
-        form_title: brandingTenant.form_title ?? BRANDING.form_title,
-        form_subtitle: brandingTenant.form_subtitle ?? BRANDING.form_subtitle,
-        form_thank_you: brandingTenant.form_thank_you ?? BRANDING.form_thank_you,
-        qr_slogan: brandingTenant.qr_slogan ?? BRANDING.qr_slogan,
-        ...(brandingTenant.color_primary ? { color_primary: primaireApplique } : {}),
-        // Libellé de l'aplat : blanc si le tenant le permet, noir sinon.
-        // On ne peut pas assombrir son aplat sans casser son identité —
-        // c'est donc l'autre terme du couple qui s'adapte.
-        ...(brandingTenant.color_primary
-          ? { color_primary_foreground: foregroundPourAplat(brandingTenant.color_primary) }
-          : {}),
-        ...(brandingTenant.color_secondary ? { color_secondary: brandingTenant.color_secondary } : {}),
-        ...(brandingTenant.color_accent ? { color_accent: brandingTenant.color_accent } : {}),
-        color_background: fondApplique,
-        color_primary_strong: primaireStrongApplique,
-        color_ring: ringApplique,
-        hide_yeba_branding: brandingTenant.hide_yeba_branding,
-      }
-    : BRANDING;
-
   const agencyCriteres = guichet.agence.agencesCriteres
     .map((ac: any) => ac.critere)
     .filter((c: any) => c && !c.archive);
@@ -915,9 +860,6 @@ export const getFormDefinitionForGuichet = async (
       }).map((cs: any) => cs.critere),
     })),
     agencyCriteres: agencyCriteres,
-    // BRANDING TENANT : fusion contrôlée guichet → entreprise → défaut Yéba
-    // (calculée plus haut). Aucune donnée interne ne quitte le serveur.
-    brandConfig,
   };
 };
 
@@ -2357,23 +2299,7 @@ export const getAIStatus = async (_args: void, context: any) => {
   // IA ni du modèle configuré.
   requireRole(context, ['DIRECTION']);
 
-  const providerRaw = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
-  const usingDeepseek = providerRaw === 'deepseek';
-  const usingNvidia = providerRaw === 'nvidia';
-  const nvidiaKey = (process.env.NVIDIA_API_KEY ?? '').trim();
-  const openrouterKey = (process.env.OPENROUTER_API_KEY ?? '').trim();
-  const deepseekKey = (process.env.DEEPSEEK_API_KEY ?? '').trim();
-  const hasApiKey = Boolean(nvidiaKey || openrouterKey || deepseekKey);
-  const baseUrl = usingNvidia
-    ? process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1'
-    : usingDeepseek
-      ? process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
-      : process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-  const model = usingNvidia
-    ? process.env.NVIDIA_MODEL || 'mistralai/mistral-nemotron'
-    : usingDeepseek
-      ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
-      : process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free';
+  const ai = AIService.status();
 
   // FIX isolation (audit 09/2026) : les compteurs étaient GLOBAUX (toutes
   // entreprises confondues). Scope via reponse → agence → entreprise.
@@ -2388,10 +2314,7 @@ export const getAIStatus = async (_args: void, context: any) => {
   ]);
 
   return {
-    configured: hasApiKey,
-    provider: usingNvidia ? 'Nvidia' : usingDeepseek ? 'DeepSeek' : 'OpenRouter',
-    model,
-    baseUrl,
+    ...ai,
     stats: {
       total: totalAnalyses,
       done: doneAnalyses,

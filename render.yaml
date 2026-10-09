@@ -28,20 +28,6 @@ services:
         sync: false
       # Variables sensibles (définies dans le dashboard Render) :
       # - DATABASE_URL (Neon)
-      # - JWT_SECRET, OPENROUTER_API_KEY, TWILIO_*
+      # - JWT_SECRET, OPENROUTER_API_KEY, CALLBACK_PHONE_ENCRYPTION_KEY, TWILIO_*
       # - Email Brevo API HTTP : BREVO_API_KEY (clé xkeysib-...) ; SMTP_* requis
       #   au démarrage (fallback) mais non utilisés pour les envois.
-
-  # ── CLIENT (Static Site : build Vite servi par le CDN Render) ──
-  # En Wasp 0.24 le client se construit depuis la RACINE du projet :
-  #   npm install && npx vite build  (REACT_APP_API_URL = URL du serveur)
-  # L'artefact sort dans .wasp/out/web-app/build.
-  # ⚠️ Le build client nécessite `wasp install && wasp build` AVANT (le SDK
-  # .wasp/out/sdk est importé par le front). Render Static Sites ne permettant
-  # pas de pré-étape Docker, on passe par un service web "buildbox" en Docker
-  # qui génère l'artefact… OU plus simple : ce client est déjà compilé par
-  # le Dockerfile.render du serveur (COPY final). Si tu préfères un vrai
-  # CDN séparé, créer un Static Site avec :
-  #   Build command: wasp install && wasp build && npm install && npx vite build
-  #   Publish directory: .wasp/out/web-app/build
-  # (nécessite wasp CLI installable sur l'image Node de Render — voir docs)

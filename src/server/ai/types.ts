@@ -142,11 +142,6 @@ export function evaluerCoherenceNote(
 
 export type ContextAvis = {
   score?: number | null;
-  agence?: string | null;
-  guichet?: string | null;
-  service?: string | null;
-  critere?: string | null;
-  agent?: string | null;
 };
 
 export interface AIProvider {

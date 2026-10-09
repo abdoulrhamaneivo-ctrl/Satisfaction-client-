@@ -7,6 +7,8 @@ import crypto from 'node:crypto';
 import { envoyerAlerteWhatsApp } from './notifications/gateway';
 import { checkRateLimit, extraireIp } from './rateLimit';
 import { journaliser } from './audit';
+import { chiffrerTelephoneRappel } from './callbackPhoneCrypto';
+import { AIService } from './ai/service';
 import { estScoringMode, estOrientationNote, estTypeReponse, scoringModeAdmis, } from '../shared/domaines';
 import { normaliserTelephoneE164, sanitiserCommentaire, hmacSHA256, validerSecretEnv, versHttpSiEntreeInvalide, } from './validation';
 import { construireScoresAStocker, parseOptionsCSV, normaliserLibelle, } from '../shared/scoringQCM';
@@ -1006,8 +1008,8 @@ export const soumettreAvis = async (args, context) => {
 // - le commentaire met à jour la PREMIÈRE ligne (celle qui porte l'analyse
 //   IA) ; l'analyse repasse PENDING (requeue, sans reset attempts) si elle
 //   n'a pas définitivement échoué ;
-// - téléphone optionnel : enregistré dans l'anti-rejeu (même règle qu'en
-//   T1), jamais en clair.
+// - le numéro est facultatif ; sa conservation pour rappel nécessite un
+//   accord explicite et un chiffrement AES-256-GCM, séparé de l'avis.
 // PUBLIQUE (même régime que soumettreAvis : route /q/* sans session).
 // ============================================================================
 const FENETRE_COMPLETION_MS = 30 * 60 * 1000;
@@ -1018,8 +1020,12 @@ export const completerSoumission = async (args, context) => {
     }
     const commentaireBrut = typeof args?.commentaire === 'string' ? args.commentaire.trim() : '';
     const telephoneBrut = typeof args?.telephone === 'string' ? args.telephone.trim() : '';
-    if (!commentaireBrut && !telephoneBrut) {
+    const telephoneTransmis = typeof args?.telephone === 'string';
+    if (!commentaireBrut && !telephoneBrut && !telephoneTransmis) {
         throw new HttpError(400, 'Rien à enregistrer.');
+    }
+    if (telephoneBrut && args?.consentementRappel !== true) {
+        throw new HttpError(400, 'Cochez votre accord avant de demander un rappel.');
     }
     if (commentaireBrut.length > 1000) {
         throw new HttpError(400, 'Le commentaire est trop long (1000 caractères maximum).');
@@ -1086,6 +1092,20 @@ export const completerSoumission = async (args, context) => {
         catch {
             throw new HttpError(400, 'Numéro de téléphone invalide.');
         }
+        let telephoneChiffre;
+        try {
+            telephoneChiffre = chiffrerTelephoneRappel(telephoneE164);
+        }
+        catch {
+            throw new HttpError(503, 'Le rappel téléphonique est temporairement indisponible. Votre avis n’a pas été complété.');
+        }
+        const contactExistant = await context.entities.ContactRappel.findUnique({
+            where: { reponseId: premiere.id },
+            select: { processedAt: true },
+        });
+        if (contactExistant?.processedAt) {
+            throw new HttpError(409, 'Ce rappel a déjà été pris en charge.');
+        }
         const hachage = hmacSHA256(getAntiReplaySalt(), telephoneE164);
         // ENREGISTREMENT, PAS REJET — c'est le seul endroit du parcours public
         // où le téléphone est traité. L'`upsert` ci-dessous ne peut pas
@@ -1111,6 +1131,21 @@ export const completerSoumission = async (args, context) => {
                 hachage_tel: hachage,
                 date_vote: new Date(),
             },
+        });
+        const expirationInitiale = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+        await context.entities.ContactRappel.upsert({
+            where: { reponseId: premiere.id },
+            update: telephoneChiffre,
+            create: {
+                reponseId: premiere.id,
+                ...telephoneChiffre,
+                expiresAt: expirationInitiale,
+            },
+        });
+    }
+    else if (telephoneTransmis) {
+        await context.entities.ContactRappel.deleteMany({
+            where: { reponseId: premiere.id, processedAt: null },
         });
     }
     if (commentaireBrut) {
@@ -1141,6 +1176,64 @@ export const completerSoumission = async (args, context) => {
         }
     }
     return { ok: true };
+};
+/** Marque un rappel comme traité; réservée au chef de l'agence concernée. */
+export const marquerContactRappelTraite = async (args, context) => {
+    requireAuth(context);
+    await assertEntrepriseActive(context, context.entities);
+    requireRole(context, ['CHEF_AGENCE']);
+    const idSoumission = typeof args?.id_soumission === 'string' ? args.id_soumission.trim() : '';
+    if (!idSoumission || idSoumission.length > 100)
+        throw new HttpError(404, 'Rappel introuvable.');
+    const reponse = await context.entities.Reponse.findFirst({
+        where: { id_soumission: idSoumission },
+        orderBy: { id: 'asc' },
+        select: { id: true, id_agence: true },
+    });
+    if (!reponse)
+        throw new HttpError(404, 'Rappel introuvable.');
+    await assertAgenceAccess(context, context.entities, reponse.id_agence, 'rappel');
+    const contact = await context.entities.ContactRappel.findUnique({
+        where: { reponseId: reponse.id },
+        select: { id: true, processedAt: true, expiresAt: true },
+    });
+    if (!contact || contact.expiresAt <= new Date())
+        throw new HttpError(404, 'Rappel introuvable ou expiré.');
+    if (contact.processedAt)
+        return { ok: true, alreadyProcessed: true };
+    const now = new Date();
+    await context.entities.ContactRappel.update({
+        where: { id: contact.id },
+        data: {
+            // Effacement immédiat du numéro dès que le chef termine le rappel ;
+            // seule la trace de traitement reste jusqu'à sa purge automatique.
+            ciphertext: '',
+            iv: '',
+            tag: '',
+            processedAt: now,
+            expiresAt: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+        },
+    });
+    return { ok: true, alreadyProcessed: false };
+};
+/** Vérification synthétique ; n'envoie aucune donnée réelle de l'entreprise. */
+export const testerConnexionIA = async (_args, context) => {
+    requireAuth(context);
+    await assertEntrepriseActive(context, context.entities);
+    requireRole(context, ['DIRECTION']);
+    const limite = await checkRateLimit(`ai-probe:${context.user.id}`, { capacity: 3, refillPerMinute: 1 });
+    if (!limite.allowed) {
+        throw new HttpError(429, 'Trop de vérifications rapprochées. Réessayez dans une minute.');
+    }
+    try {
+        return await AIService.testerConnexion();
+    }
+    catch (error) {
+        const message = error?.message === 'AI_NOT_CONFIGURED_OR_NOT_FREE'
+            ? 'Configurez une clé OpenRouter et un modèle dont l’identifiant se termine par :free.'
+            : 'Aucun endpoint gratuit compatible avec les règles de confidentialité ne répond. L’IA reste désactivée.';
+        throw new HttpError(503, message);
+    }
 };
 /**
  * Wrapper public de `completerSoumission` (Vague 5, P11).
@@ -1351,93 +1444,6 @@ export const promouvoirAgent = async (args, context) => {
         where: { id: args.id_agent },
         data: { role: 'CHEF_AGENCE' }
     });
-};
-// ============================================================================
-// PERSONNALISATION (BRANDING) — FIX 05/09 : la table existait mais aucune
-// écriture ni interface. La Direction personnalise ici l'expérience client :
-// formulaires de collecte, kits QR et slogan. Règles : DIRECTION uniquement,
-// textes bornés, masquage du branding Yeba réservé au plan ENTERPRISE.
-// ============================================================================
-const CHAMPS_BRANDING_TEXTE = {
-    logo_url: 500,
-    logo_light_url: 500,
-    favicon_url: 500,
-    nom_affiche: 80,
-    form_title: 120,
-    form_subtitle: 200,
-    form_thank_you: 120,
-    qr_slogan: 80,
-    qr_color: 20,
-    qr_bg_color: 20,
-};
-const QR_STYLES = ['CLASSIQUE', 'MODERNE', 'PREMIUM'];
-const QR_FRAMES = ['AUCUN', 'SIMPLE', 'PREMIUM'];
-const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-export const updateBranding = async (args, context) => {
-    requireAuth(context);
-    await assertEntrepriseActive(context, context.entities);
-    requireRole(context, ['DIRECTION']);
-    const idEntreprise = context.user.id_entreprise;
-    if (!idEntreprise)
-        throw new HttpError(400, "Votre compte n'est rattaché à aucune entreprise.");
-    const data = {};
-    for (const [champ, max] of Object.entries(CHAMPS_BRANDING_TEXTE)) {
-        if (args[champ] === undefined)
-            continue;
-        const v = String(args[champ] ?? '').trim();
-        if (v.length > max) {
-            throw new HttpError(400, `Le champ ${champ} dépasse ${max} caractères.`);
-        }
-        data[champ] = v ? v : null;
-    }
-    for (const c of ['qr_color', 'qr_bg_color']) {
-        if (data[c] && !HEX_RE.test(data[c])) {
-            throw new HttpError(400, `Couleur QR invalide (${c}) : format #RRGGBB attendu.`);
-        }
-    }
-    if (args.qr_style !== undefined) {
-        const s = String(args.qr_style).toUpperCase();
-        if (!QR_STYLES.includes(s))
-            throw new HttpError(400, 'Style QR invalide.');
-        data.qr_style = s;
-    }
-    if (args.qr_frame !== undefined) {
-        const f = String(args.qr_frame).toUpperCase();
-        if (!QR_FRAMES.includes(f))
-            throw new HttpError(400, 'Cadre QR invalide.');
-        data.qr_frame = f;
-    }
-    if (args.hide_yeba_branding !== undefined) {
-        const veutMasquer = Boolean(args.hide_yeba_branding);
-        if (veutMasquer) {
-            const entreprise = await context.entities.Entreprise.findUnique({
-                where: { id: idEntreprise },
-                select: { plan: true },
-            });
-            if (entreprise?.plan !== 'ENTERPRISE') {
-                throw new HttpError(403, 'Le masquage du branding Yeba est réservé au plan ENTERPRISE.');
-            }
-        }
-        data.hide_yeba_branding = veutMasquer;
-    }
-    if (Object.keys(data).length === 0) {
-        throw new HttpError(400, 'Aucune modification fournie.');
-    }
-    data.updated_by = context.user.id;
-    const actuel = await context.entities.BrandingConfig.upsert({
-        where: { id_entreprise: idEntreprise },
-        update: data,
-        create: { id_entreprise: idEntreprise, ...data },
-    });
-    await journaliser({
-        context,
-        action: 'branding.update',
-        resource: 'BrandingConfig',
-        resource_id: String(actuel.id),
-        entreprise_id: idEntreprise,
-        details: { champs: Object.keys(data) },
-    });
-    return actuel;
 };
 // ============================================================================
 // GESTION DES AGENCES

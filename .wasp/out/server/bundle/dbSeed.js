@@ -94,7 +94,11 @@ const serverEnvValidationSchema = defineEnvValidationSchema(z.object({
   // Utilisé pour HMAC-SHA256 du téléphone E.164 dans VoteAntiRejeu.
   // Sans sel, hachage prévisible → ré-identification + contournement anti-rejeu.
   ANTI_REPLAY_SALT: secretFort("ANTI_REPLAY_SALT"),
-  ANTI_REPLAY_SALT_PREVIOUS: z.string().min(32).optional()
+  ANTI_REPLAY_SALT_PREVIOUS: z.string().min(32).optional(),
+  // Facultative au démarrage pour ne pas interrompre le service.
+  // Le rappel téléphonique QR reste désactivé tant que cette clé
+  // dédiée de 32 octets n'est pas définie sur l'environnement.
+  CALLBACK_PHONE_ENCRYPTION_KEY: z.preprocess((value) => typeof value === "string" && value.trim() === "" ? void 0 : value, z.string().regex(/^[\da-fA-F]{64}$/, "CALLBACK_PHONE_ENCRYPTION_KEY doit \xEAtre une cl\xE9 hexad\xE9cimale de 32 octets.").optional())
 }));
 
 const userServerEnvSchema = serverEnvValidationSchema;

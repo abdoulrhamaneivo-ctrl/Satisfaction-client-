@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
-import { useQuery, getAvisGroupes, getAgences, getGuichets, getServices, exportAvisGroupes } from 'wasp/client/operations';
+import { useQuery, useAction, getAvisGroupes, getAgences, getGuichets, getServices, exportAvisGroupes, getContactRappel, marquerContactRappelTraite } from 'wasp/client/operations';
 import { useAuth } from 'wasp/client/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquareQuote, Inbox, Filter, RotateCcw, Calendar,
   User as UserIcon, HelpCircle, Layers, Building, Store,
   Download, Loader2, ChevronDown, FileSpreadsheet,
+  PhoneCall, Copy, CheckCircle2,
 } from 'lucide-react';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
@@ -217,6 +218,90 @@ export function FiltresAvis({
         />
       </div>
     </div>
+  );
+}
+
+function ContactRappelPanel({ idSoumission }: { idSoumission: string }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [messageCopie, setMessageCopie] = useState('');
+  const [messageErreur, setMessageErreur] = useState('');
+  const { data: contact, isLoading, isError, refetch } = useQuery(
+    getContactRappel,
+    { id_soumission: idSoumission },
+    { enabled: ouvert },
+  );
+  const marquerTraite = useAction(marquerContactRappelTraite);
+  const [enregistrement, setEnregistrement] = useState(false);
+
+  async function traiter() {
+    if (enregistrement) return;
+    setEnregistrement(true);
+    try {
+      await marquerTraite({ id_soumission: idSoumission });
+      await refetch();
+      setMessageErreur('');
+    } catch {
+      setMessageErreur('Le statut du rappel n’a pas pu être enregistré. Réessayez.');
+    } finally {
+      setEnregistrement(false);
+    }
+  }
+
+  async function copier(numero: string) {
+    try {
+      await navigator.clipboard.writeText(numero);
+      setMessageCopie('Numéro copié.');
+    } catch {
+      setMessageCopie('Copie indisponible sur cet appareil.');
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-border/70 bg-muted/20 p-3" aria-label="Coordonnées de rappel">
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        onClick={() => setOuvert((value) => !value)}
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-primary-strong hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <PhoneCall className="size-4" aria-hidden />
+        {ouvert ? 'Masquer le rappel' : 'Vérifier une demande de rappel'}
+      </button>
+      {ouvert && (
+        <div className="px-3 pb-2 pt-1 text-sm" aria-live="polite">
+          {isLoading ? <p className="text-muted-foreground">Chargement du contact…</p> : null}
+          {isError ? (
+            <div className="space-y-2 text-destructive-strong">
+              <p>Le contact n’a pas pu être chargé. Vérifiez la configuration du chiffrement.</p>
+              <button type="button" onClick={() => void refetch()} className="min-h-10 rounded-lg px-2 font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Réessayer</button>
+            </div>
+          ) : null}
+          {!isLoading && !isError && contact == null ? <p className="text-muted-foreground">Aucun rappel n’a été demandé pour cet avis.</p> : null}
+          {contact?.processedAt ? (
+            <p className="inline-flex items-center gap-2 font-semibold text-success-strong">
+              <CheckCircle2 className="size-4" aria-hidden /> Rappel marqué comme traité.
+            </p>
+          ) : null}
+          {contact?.telephone ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <a className="font-bold tracking-wide text-foreground underline underline-offset-4" href={`tel:${contact.telephone}`}>
+                {contact.telephone}
+              </a>
+              <button type="button" onClick={() => void copier(contact.telephone)} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border px-3 font-semibold text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Copy className="size-3.5" aria-hidden /> Copier
+              </button>
+              <button type="button" onClick={() => void traiter()} disabled={enregistrement} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 font-semibold text-primary-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                {enregistrement ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <CheckCircle2 className="size-3.5" aria-hidden />}
+                Marquer traité
+              </button>
+            </div>
+          ) : null}
+          {messageCopie ? <p className="mt-2 text-xs text-muted-foreground">{messageCopie}</p> : null}
+          {messageErreur ? <p role="alert" className="mt-2 text-xs font-semibold text-destructive-strong">{messageErreur}</p> : null}
+          <p className="mt-2 text-xs text-muted-foreground">Accès réservé au Chef de l’agence. Le numéro n’est pas inclus dans les exports.</p>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -664,7 +749,11 @@ export const AvisPage = () => {
                             )}
                           </p>
 
-                          {/* Analyse Sémantique IA (DeepSeek) */}
+                          {user?.role === 'CHEF_AGENCE' && rep.id_soumission && (
+                            <ContactRappelPanel idSoumission={rep.id_soumission} />
+                          )}
+
+                          {/* Analyse sémantique IA */}
                           <AIAnalysisBadge analyse={rep.analyseIA} />
 
                           {rep.agent && (

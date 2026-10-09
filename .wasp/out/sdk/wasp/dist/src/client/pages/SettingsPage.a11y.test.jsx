@@ -11,7 +11,7 @@ import React from 'react';
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { getAIStatus, getBranding } from 'wasp/client/operations';
+import { getAIStatus } from 'wasp/client/operations';
 import { SettingsPage } from './SettingsPage';
 import { auditerPage } from '../__mocks__/harnaisA11y';
 vi.mock('react-router', async () => (await import('../__mocks__/harnaisA11y')).routerMock());
@@ -27,13 +27,6 @@ const AI_STATUS = {
     baseUrl: 'https://openrouter.ai/api/v1',
     stats: { total: 120, done: 110, pending: 6, failed: 4 },
 };
-const BRANDING = {
-    platform_name: 'Yéba',
-    form_title: 'Votre avis compte !',
-    form_subtitle: 'Notez-nous en 10 secondes',
-    hide_yeba_branding: false,
-    color_primary: '148 100% 26%',
-};
 const monter = () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, cacheTime: 0 } } });
     return render(<QueryClientProvider client={client}>
@@ -44,7 +37,6 @@ const monter = () => {
 };
 beforeEach(() => {
     vi.mocked(getAIStatus).mockResolvedValue(AI_STATUS);
-    vi.mocked(getBranding).mockResolvedValue(BRANDING);
 });
 describe('A4 — audit axe-core de la page Réglages', () => {
     test('la page chargée ne présente aucune violation WCAG', async () => {

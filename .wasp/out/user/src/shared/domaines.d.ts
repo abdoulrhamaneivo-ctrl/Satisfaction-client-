@@ -9,10 +9,10 @@ export declare const STATUTS_TACHE: readonly ["A_FAIRE", "EN_COURS", "TERMINEE"]
 export declare const STATUTS_AVANT_TACHE: readonly ["CREATION", "A_FAIRE", "EN_COURS", "TERMINEE"];
 export declare const STATUTS_ALERTE: readonly ["NOUVELLE", "TRAITEE"];
 export declare const TYPES_ALERTE: readonly ["NOTE_CRITIQUE", "SILENCE_EVALUATION", "IA_INCOHERENCE_NOTE", "IA_URGENCE"];
-export declare const estTypeReponse: (v: unknown) => v is "SMILEY" | "NPS" | "QCM" | "TEXTE" | "CASES" | "OUI_NON" | "ECHELLE";
-export declare const estScoringMode: (v: unknown) => v is "CES" | "NUMERIC" | "SMILEY" | "NPS" | "CASES_CATEGORICAL" | "CASES_WEIGHTED" | "ORDINAL" | "BINARY" | "FREE_TEXT";
+export declare const estTypeReponse: (v: unknown) => v is "NPS" | "TEXTE" | "CASES" | "QCM" | "OUI_NON" | "ECHELLE" | "SMILEY";
+export declare const estScoringMode: (v: unknown) => v is "CES" | "NPS" | "FREE_TEXT" | "NUMERIC" | "SMILEY" | "ORDINAL" | "BINARY" | "CASES_CATEGORICAL" | "CASES_WEIGHTED";
 export declare const estRoleUtilisateur: (v: unknown) => v is "AGENT" | "CHEF_AGENCE" | "DIRECTION";
-export declare const estStatutEntreprise: (v: unknown) => v is "ACTIVE" | "TRIAL" | "SUSPENDED" | "CANCELLED";
+export declare const estStatutEntreprise: (v: unknown) => v is "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELLED";
 export declare const estStatutIa: (v: unknown) => v is "PENDING" | "PROCESSING" | "FAILED" | "DONE";
 export declare const estNiveauGravite: (v: unknown) => v is "LOW" | "CRITICAL" | "HIGH" | "MEDIUM";
 export declare const estStatutTache: (v: unknown) => v is "EN_COURS" | "TERMINEE" | "A_FAIRE";

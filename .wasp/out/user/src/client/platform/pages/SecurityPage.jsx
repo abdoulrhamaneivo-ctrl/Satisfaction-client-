@@ -237,14 +237,14 @@ function SecurityInner() {
               </span>
               <div className="space-y-2 font-mono text-xs text-foreground">
                 <div className="rounded-lg border border-border/80 bg-card p-2.5">
-                  <span className="text-muted-foreground"># Clé API OpenRouter (requise)</span>
+                  <span className="text-muted-foreground"># Clé OpenRouter (facultative, IA gratuite)</span>
                   <br />
                   <span className="font-semibold text-success">OPENROUTER_API_KEY</span>=sk-or-…
                 </div>
                 <div className="rounded-lg border border-border/80 bg-card p-2.5">
-                  <span className="text-muted-foreground"># Modèle (optionnel, défaut DeepSeek V3 via OpenRouter)</span>
+                  <span className="text-muted-foreground"># Modèle gratuit (suffixe :free obligatoire)</span>
                   <br />
-                  <span className="font-semibold text-primary">OPENROUTER_MODEL</span>=deepseek/deepseek-chat-v3-0324
+                  <span className="font-semibold text-primary">OPENROUTER_MODEL</span>=nvidia/nemotron-3.5-lightning:free
                 </div>
               </div>
             </div>
@@ -269,6 +269,10 @@ function SecurityInner() {
                 <li className="flex items-start gap-2">
                   <span className="text-success">✓</span>
                   <span><strong>Synthèse automatique</strong> : Résumé concis généré pour les équipes qualité.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-success">✓</span>
+                  <span>Modèle payant interdit ; si les contraintes ne sont pas acceptées, l’analyse reste indisponible.</span>
                 </li>
               </ul>
             </div>

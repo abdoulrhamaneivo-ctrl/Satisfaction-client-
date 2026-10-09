@@ -18,7 +18,7 @@ import {
   type _VoteAntiRejeu,
   type _AnalyseAvisIA,
   type _Canal,
-  type _BrandingConfig,
+  type _ContactRappel,
   type _Invitation,
   type _Objectif,
   type _TacheCorrective,
@@ -29,7 +29,7 @@ import {
 } from 'wasp/server/_types'
 
 // PUBLIC API
-export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpdateProfile<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -39,7 +39,7 @@ export type UpdateProfile<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type ChangePassword<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ChangePassword<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -50,7 +50,7 @@ export type ChangePassword<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type ChangeEmail<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ChangeEmail<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -60,18 +60,7 @@ export type ChangeEmail<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type AddFileToDb<Input extends Payload = never, Output extends Payload = Payload> = 
-  AuthenticatedActionDefinition<
-    [
-      _User,
-      _File,
-    ],
-    Input,
-    Output
-  >
-
-// PUBLIC API
-export type CreateFileUploadUrl<Input extends Payload = never, Output extends Payload = Payload> = 
+export type AddFileToDb<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -82,7 +71,7 @@ export type CreateFileUploadUrl<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type DeleteFile<Input extends Payload = never, Output extends Payload = Payload> = 
+export type CreateFileUploadUrl<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -93,7 +82,18 @@ export type DeleteFile<Input extends Payload = never, Output extends Payload = P
   >
 
 // PUBLIC API
-export type CreateGuichet<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DeleteFile<Input extends Payload = never, Output extends Payload = Payload> =
+  AuthenticatedActionDefinition<
+    [
+      _User,
+      _File,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type CreateGuichet<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Guichet,
@@ -108,7 +108,7 @@ export type CreateGuichet<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type AssignAgent<Input extends Payload = never, Output extends Payload = Payload> = 
+export type AssignAgent<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -122,7 +122,7 @@ export type AssignAgent<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type UpdateAffectationGuichet<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpdateAffectationGuichet<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -136,7 +136,7 @@ export type UpdateAffectationGuichet<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type DeleteAffectationGuichet<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DeleteAffectationGuichet<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _AffectationGuichet,
@@ -149,7 +149,7 @@ export type DeleteAffectationGuichet<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type UpsertModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpsertModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _ModeleHoraire,
@@ -163,7 +163,7 @@ export type UpsertModeleHoraire<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type DeleteModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DeleteModeleHoraire<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _ModeleHoraire,
@@ -175,7 +175,7 @@ export type DeleteModeleHoraire<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type GenererPlanning<Input extends Payload = never, Output extends Payload = Payload> = 
+export type GenererPlanning<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _ModeleHoraire,
@@ -190,7 +190,7 @@ export type GenererPlanning<Input extends Payload = never, Output extends Payloa
   >
 
 // PUBLIC API
-export type ReconduirePlanning<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ReconduirePlanning<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _AffectationGuichet,
@@ -204,7 +204,7 @@ export type ReconduirePlanning<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type AppliquerSuggestion<Input extends Payload = never, Output extends Payload = Payload> = 
+export type AppliquerSuggestion<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _AffectationGuichet,
@@ -218,7 +218,7 @@ export type AppliquerSuggestion<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type SoumettreAvis<Input extends Payload = never, Output extends Payload = Payload> = 
+export type SoumettreAvis<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Reponse,
@@ -241,7 +241,7 @@ export type SoumettreAvis<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type CompleterSoumission<Input extends Payload = never, Output extends Payload = Payload> = 
+export type CompleterSoumission<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Reponse,
@@ -249,13 +249,14 @@ export type CompleterSoumission<Input extends Payload = never, Output extends Pa
       _Agence,
       _VoteAntiRejeu,
       _AnalyseAvisIA,
+      _ContactRappel,
     ],
     Input,
     Output
   >
 
 // PUBLIC API
-export type CreateAgence<Input extends Payload = never, Output extends Payload = Payload> = 
+export type CreateAgence<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Agence,
@@ -267,7 +268,7 @@ export type CreateAgence<Input extends Payload = never, Output extends Payload =
   >
 
 // PUBLIC API
-export type UpdateAgent<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpdateAgent<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -279,7 +280,7 @@ export type UpdateAgent<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type DeleteAgent<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DeleteAgent<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -291,7 +292,7 @@ export type DeleteAgent<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type ReactivateAgent<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ReactivateAgent<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -303,7 +304,7 @@ export type ReactivateAgent<Input extends Payload = never, Output extends Payloa
   >
 
 // PUBLIC API
-export type PromouvoirAgent<Input extends Payload = never, Output extends Payload = Payload> = 
+export type PromouvoirAgent<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -315,39 +316,51 @@ export type PromouvoirAgent<Input extends Payload = never, Output extends Payloa
   >
 
 // PUBLIC API
-export type UpdateBranding<Input extends Payload = never, Output extends Payload = Payload> = 
+export type MarquerContactRappelTraite<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
-      _BrandingConfig,
+      _ContactRappel,
+      _Reponse,
+      _User,
+      _Agence,
+      _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type TesterConnexionIA<Input extends Payload = never, Output extends Payload = Payload> =
+  AuthenticatedActionDefinition<
+    [
       _User,
       _Entreprise,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type InviteAgent<Input extends Payload = never, Output extends Payload = Payload> =
+  AuthenticatedActionDefinition<
+    [
+      _User,
+      _Agence,
+      _Entreprise,
+      _Invitation,
+    ],
+    Input,
+    Output
+  >
+
+// PUBLIC API
+export type RenvoyerInvitationAgent<Input extends Payload = never, Output extends Payload = Payload> =
+  AuthenticatedActionDefinition<
+    [
+      _User,
+      _Agence,
+      _Invitation,
       _AuditLog,
-    ],
-    Input,
-    Output
-  >
-
-// PUBLIC API
-export type InviteAgent<Input extends Payload = never, Output extends Payload = Payload> = 
-  AuthenticatedActionDefinition<
-    [
-      _User,
-      _Agence,
-      _Entreprise,
-      _Invitation,
-    ],
-    Input,
-    Output
-  >
-
-// PUBLIC API
-export type RenvoyerInvitationAgent<Input extends Payload = never, Output extends Payload = Payload> = 
-  AuthenticatedActionDefinition<
-    [
-      _User,
-      _Agence,
-      _Invitation,
-      _AuditLog,
       _Entreprise,
     ],
     Input,
@@ -355,7 +368,7 @@ export type RenvoyerInvitationAgent<Input extends Payload = never, Output extend
   >
 
 // PUBLIC API
-export type DemanderReinitialisation<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DemanderReinitialisation<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -366,7 +379,7 @@ export type DemanderReinitialisation<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type ToggleCritereAgence<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ToggleCritereAgence<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _AgenceCritere,
@@ -379,7 +392,7 @@ export type ToggleCritereAgence<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type CreateCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+export type CreateCritere<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Critere,
@@ -394,7 +407,7 @@ export type CreateCritere<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type CreateService<Input extends Payload = never, Output extends Payload = Payload> = 
+export type CreateService<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Service,
@@ -406,7 +419,7 @@ export type CreateService<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type UpsertObjectif<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpsertObjectif<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Objectif,
@@ -420,7 +433,7 @@ export type UpsertObjectif<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type DeleteObjectif<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DeleteObjectif<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Objectif,
@@ -433,7 +446,7 @@ export type DeleteObjectif<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type CreateTacheCorrective<Input extends Payload = never, Output extends Payload = Payload> = 
+export type CreateTacheCorrective<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _TacheCorrective,
@@ -450,7 +463,7 @@ export type CreateTacheCorrective<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type UpdateStatutTache<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpdateStatutTache<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _TacheCorrective,
@@ -467,7 +480,7 @@ export type UpdateStatutTache<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type MarquerAlerteTraitee<Input extends Payload = never, Output extends Payload = Payload> = 
+export type MarquerAlerteTraitee<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Alerte,
@@ -482,7 +495,7 @@ export type MarquerAlerteTraitee<Input extends Payload = never, Output extends P
   >
 
 // PUBLIC API
-export type UpdateGuichetServices<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpdateGuichetServices<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Guichet,
@@ -496,7 +509,7 @@ export type UpdateGuichetServices<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type MoveCritereToService<Input extends Payload = never, Output extends Payload = Payload> = 
+export type MoveCritereToService<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _CritereService,
@@ -510,7 +523,7 @@ export type MoveCritereToService<Input extends Payload = never, Output extends P
   >
 
 // PUBLIC API
-export type RemoveCritereFromService<Input extends Payload = never, Output extends Payload = Payload> = 
+export type RemoveCritereFromService<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _CritereService,
@@ -524,7 +537,7 @@ export type RemoveCritereFromService<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type DeleteCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DeleteCritere<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Critere,
@@ -540,7 +553,7 @@ export type DeleteCritere<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type DuplicateCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DuplicateCritere<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Critere,
@@ -556,7 +569,7 @@ export type DuplicateCritere<Input extends Payload = never, Output extends Paylo
   >
 
 // PUBLIC API
-export type UpdateCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+export type UpdateCritere<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Critere,
@@ -568,7 +581,7 @@ export type UpdateCritere<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type ReorderCriteresInService<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ReorderCriteresInService<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _CritereService,
@@ -581,7 +594,7 @@ export type ReorderCriteresInService<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type ArchiverGuichet<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ArchiverGuichet<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Guichet,
@@ -594,7 +607,7 @@ export type ArchiverGuichet<Input extends Payload = never, Output extends Payloa
   >
 
 // PUBLIC API
-export type DesarchiverGuichet<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DesarchiverGuichet<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Guichet,
@@ -607,7 +620,7 @@ export type DesarchiverGuichet<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type ArchiverAgence<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ArchiverAgence<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Agence,
@@ -620,7 +633,7 @@ export type ArchiverAgence<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type DesarchiverAgence<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DesarchiverAgence<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Agence,
@@ -632,7 +645,7 @@ export type DesarchiverAgence<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type DefinirAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DefinirAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Agence,
@@ -644,7 +657,7 @@ export type DefinirAgencePilotee<Input extends Payload = never, Output extends P
   >
 
 // PUBLIC API
-export type RetirerAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> = 
+export type RetirerAgencePilotee<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -655,7 +668,7 @@ export type RetirerAgencePilotee<Input extends Payload = never, Output extends P
   >
 
 // PUBLIC API
-export type ArchiverAlerte<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ArchiverAlerte<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Alerte,
@@ -670,7 +683,7 @@ export type ArchiverAlerte<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type DesarchiverAlerte<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DesarchiverAlerte<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Alerte,
@@ -685,7 +698,7 @@ export type DesarchiverAlerte<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type ArchiverTache<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ArchiverTache<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _TacheCorrective,
@@ -701,7 +714,7 @@ export type ArchiverTache<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type DesarchiverTache<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DesarchiverTache<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _TacheCorrective,
@@ -717,7 +730,7 @@ export type DesarchiverTache<Input extends Payload = never, Output extends Paylo
   >
 
 // PUBLIC API
-export type ArchiverCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ArchiverCritere<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Critere,
@@ -729,7 +742,7 @@ export type ArchiverCritere<Input extends Payload = never, Output extends Payloa
   >
 
 // PUBLIC API
-export type DesarchiverCritere<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DesarchiverCritere<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Critere,
@@ -741,7 +754,7 @@ export type DesarchiverCritere<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type CreerEntreprise<Input extends Payload = never, Output extends Payload = Payload> = 
+export type CreerEntreprise<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Entreprise,
@@ -754,7 +767,7 @@ export type CreerEntreprise<Input extends Payload = never, Output extends Payloa
   >
 
 // PUBLIC API
-export type SuspendreEntreprise<Input extends Payload = never, Output extends Payload = Payload> = 
+export type SuspendreEntreprise<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Entreprise,
@@ -765,7 +778,7 @@ export type SuspendreEntreprise<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type ReactiverEntreprise<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ReactiverEntreprise<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Entreprise,
@@ -776,7 +789,7 @@ export type ReactiverEntreprise<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type ChangerLimitesEntreprise<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ChangerLimitesEntreprise<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Entreprise,
@@ -787,7 +800,7 @@ export type ChangerLimitesEntreprise<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type RenvoyerInvitation<Input extends Payload = never, Output extends Payload = Payload> = 
+export type RenvoyerInvitation<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Entreprise,
@@ -800,7 +813,7 @@ export type RenvoyerInvitation<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type InviterSuperAdmin<Input extends Payload = never, Output extends Payload = Payload> = 
+export type InviterSuperAdmin<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -812,7 +825,7 @@ export type InviterSuperAdmin<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type ActiverCompte<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ActiverCompte<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _Invitation,
@@ -824,7 +837,7 @@ export type ActiverCompte<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type ChangerPlatformRole<Input extends Payload = never, Output extends Payload = Payload> = 
+export type ChangerPlatformRole<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -835,7 +848,7 @@ export type ChangerPlatformRole<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type DesactiverComptePlatform<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DesactiverComptePlatform<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -846,7 +859,7 @@ export type DesactiverComptePlatform<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type Setup2fa<Input extends Payload = never, Output extends Payload = Payload> = 
+export type Setup2fa<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -857,7 +870,7 @@ export type Setup2fa<Input extends Payload = never, Output extends Payload = Pay
   >
 
 // PUBLIC API
-export type Activer2fa<Input extends Payload = never, Output extends Payload = Payload> = 
+export type Activer2fa<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -868,7 +881,7 @@ export type Activer2fa<Input extends Payload = never, Output extends Payload = P
   >
 
 // PUBLIC API
-export type Verifier2fa<Input extends Payload = never, Output extends Payload = Payload> = 
+export type Verifier2fa<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _User,
@@ -879,7 +892,7 @@ export type Verifier2fa<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type DeclencherAnalyseGlobale<Input extends Payload = never, Output extends Payload = Payload> = 
+export type DeclencherAnalyseGlobale<Input extends Payload = never, Output extends Payload = Payload> =
   AuthenticatedActionDefinition<
     [
       _GlobalExperienceAnalysis,

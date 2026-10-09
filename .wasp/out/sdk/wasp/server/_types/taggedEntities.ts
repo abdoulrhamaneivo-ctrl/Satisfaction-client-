@@ -27,11 +27,11 @@ import {
   type TacheCorrective,
   type TacheCorrectiveHistorique,
   type VoteAntiRejeu,
+  type ContactRappel,
   type File,
   type Logs,
   type Invitation,
   type AuditLog,
-  type BrandingConfig,
 } from 'wasp/entities'
 
 export type _User = WithName<User, "User">
@@ -55,11 +55,11 @@ export type _Alerte = WithName<Alerte, "Alerte">
 export type _TacheCorrective = WithName<TacheCorrective, "TacheCorrective">
 export type _TacheCorrectiveHistorique = WithName<TacheCorrectiveHistorique, "TacheCorrectiveHistorique">
 export type _VoteAntiRejeu = WithName<VoteAntiRejeu, "VoteAntiRejeu">
+export type _ContactRappel = WithName<ContactRappel, "ContactRappel">
 export type _File = WithName<File, "File">
 export type _Logs = WithName<Logs, "Logs">
 export type _Invitation = WithName<Invitation, "Invitation">
 export type _AuditLog = WithName<AuditLog, "AuditLog">
-export type _BrandingConfig = WithName<BrandingConfig, "BrandingConfig">
 
 export type _Entity = 
   | _User
@@ -83,11 +83,11 @@ export type _Entity =
   | _TacheCorrective
   | _TacheCorrectiveHistorique
   | _VoteAntiRejeu
+  | _ContactRappel
   | _File
   | _Logs
   | _Invitation
   | _AuditLog
-  | _BrandingConfig
   | never
 
 type WithName<E extends Entity, Name extends EntityName> = 

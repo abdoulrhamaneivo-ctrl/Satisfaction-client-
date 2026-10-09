@@ -26,11 +26,11 @@ declare module "@wasp.sh/spec" {
       TacheCorrective: "TacheCorrective";
       TacheCorrectiveHistorique: "TacheCorrectiveHistorique";
       VoteAntiRejeu: "VoteAntiRejeu";
+      ContactRappel: "ContactRappel";
       File: "File";
       Logs: "Logs";
       Invitation: "Invitation";
       AuditLog: "AuditLog";
-      BrandingConfig: "BrandingConfig";
     }
   }
 }

@@ -1,331 +1,149 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from 'wasp/client/auth';
-import { useQuery, useAction, getAIStatus, getBranding, updateBranding } from 'wasp/client/operations';
+import { useState } from 'react';
+import { useAction, useQuery, getAIStatus, testerConnexionIA } from 'wasp/client/operations';
 import { motion } from 'framer-motion';
+import { Activity, AlertTriangle, CheckCircle2, Cpu, Loader2, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
 import { MotionCard } from '../components/MotionCard';
 import { AmbientBackground } from '../components/AmbientBackground';
 import { PageHeader } from '../components/PageHeader';
 import { RequireAuth } from '../components/RequireAuth';
-import { RequireEnterpriseRole } from "../components/RequireEnterpriseRole";
+import { RequireEnterpriseRole } from '../components/RequireEnterpriseRole';
 import { useToast } from '../hooks/use-toast';
-import { Cpu, CheckCircle2, AlertTriangle, Sparkles, Activity, RefreshCw, Palette, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 
 export const SettingsPage = () => {
   const { data: aiStatus, isLoading, refetch } = useQuery(getAIStatus);
+  const tester = useAction(testerConnexionIA);
+  const { toast } = useToast();
+  const [probeEnCours, setProbeEnCours] = useState(false);
+  const verifie = Boolean(aiStatus?.configured && aiStatus?.lastProbeStatus === 'success');
+  const probeEchec = aiStatus?.lastProbeStatus === 'failed';
+  const pret = Boolean(aiStatus?.configured && aiStatus?.modelIsFree);
+
+  async function verifierConnexion() {
+    if (probeEnCours) return;
+    setProbeEnCours(true);
+    try {
+      await tester({});
+      await refetch();
+      toast({ variant: 'success', title: 'Connexion vérifiée', description: 'Le modèle gratuit répond sous les règles de confidentialité configurées.' });
+    } catch (error: any) {
+      await refetch();
+      toast({ variant: 'destructive', title: 'IA indisponible', description: error?.message || 'Aucun modèle compatible ne répond.' });
+    } finally {
+      setProbeEnCours(false);
+    }
+  }
 
   return (
     <RequireEnterpriseRole>
       <RequireAuth>
-      <AmbientBackground>
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="mx-auto max-w-7xl p-6 lg:p-10 space-y-8"
-        >
-          <PageHeader
-            icon={Cpu}
-            eyebrow="Paramètres & Intégrations"
-            title="Paramètres"
-            description="Configurez le moteur d'analyse IA (DeepSeek) et sa clé API."
-            actions={
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-                className="gap-2 border-border/80 bg-card/60 "
-              >
-                <RefreshCw className="size-4" />
-                Actualiser les statistiques
-              </Button>
-            }
-          />
+        <AmbientBackground>
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="mx-auto max-w-7xl space-y-8 p-6 lg:p-10"
+          >
+            <PageHeader
+              icon={Cpu}
+              eyebrow="Paramètres & intégrations"
+              title="Paramètres"
+              description="Vérifiez l’analyse IA gratuite et ses règles de confidentialité."
+              actions={
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 border-border/80 bg-card/60">
+                  <RefreshCw className="size-4" aria-hidden /> Actualiser
+                </Button>
+              }
+            />
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-44 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
-              ))}
-            </div>
-          ) : (
-            <>
-              {/* Statut Global du Moteur IA */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <MotionCard className="p-6 space-y-3 relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut Clé API</span>
-                    {aiStatus?.configured ? (
-                      <span className="flex items-center gap-1 text-xs font-bold text-success bg-success/10 px-2.5 py-1 rounded-full border border-success/20">
-                        <CheckCircle2 className="size-3.5" /> Opérationnel
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs font-bold text-warning bg-warning/10 px-2.5 py-1 rounded-full border border-warning/20">
-                        <AlertTriangle className="size-3.5" /> Clé manquante
-                      </span>
-                    )}
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground">
-                    {aiStatus?.configured ? `${aiStatus?.provider} connecté` : 'Non configurée'}
-                  </h2>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {aiStatus?.configured
-                      ? 'Les avis soumis avec commentaires sont automatiquement analysés par le modèle IA.'
-                      : 'Veuillez ajouter OPENROUTER_API_KEY dans vos variables d’environnement Render pour activer le traitement.'}
-                  </p>
-                </MotionCard>
-
-                <MotionCard className="p-6 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fournisseur & Modèle</span>
-                    <Sparkles className="size-4 text-primary" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground">{aiStatus?.provider}</h2>
-                  <p className="text-xs font-mono text-primary/90 bg-primary/10 p-2 rounded-lg truncate">
-                    {aiStatus?.model}
-                  </p>
-                </MotionCard>
-
-                <MotionCard className="p-6 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Volumétrie Analysée</span>
-                    <Activity className="size-4 text-success" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-foreground">{aiStatus?.stats?.done || 0}</span>
-                    <span className="text-xs text-muted-foreground">/ {aiStatus?.stats?.total || 0} avis analysés</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
-                    <span className="text-warning font-medium">⌛ {aiStatus?.stats?.pending || 0} en attente</span>
-                    <span className="text-destructive font-medium">❌ {aiStatus?.stats?.failed || 0} échecs</span>
-                  </div>
-                </MotionCard>
+            {isLoading ? (
+              <div className="grid gap-6 md:grid-cols-3" aria-label="Chargement du statut IA">
+                {[0, 1, 2].map((item) => <div key={item} className="h-44 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />)}
               </div>
+            ) : (
+              <>
+                <div className="grid gap-6 md:grid-cols-3">
+                  <MotionCard className="space-y-4 p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">État du service</span>
+                      {verifie ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 py-1 text-xs font-bold text-success-strong">
+                          <CheckCircle2 className="size-3.5" aria-hidden /> Vérifié
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-1 text-xs font-bold text-warning-strong">
+                          <AlertTriangle className="size-3.5" aria-hidden /> {probeEchec ? 'Échec du test' : pret ? 'À vérifier' : 'Indisponible'}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-2xl font-bold text-foreground">{verifie ? 'Opérationnel' : probeEchec ? 'Endpoint indisponible' : pret ? 'Non vérifié' : 'Non configuré'}</h2>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      {verifie
+                        ? aiStatus?.verifiedAt ? `Dernière vérification réussie : ${new Date(aiStatus.verifiedAt).toLocaleString('fr-FR')}.` : 'La vérification synthétique a réussi.'
+                        : probeEchec ? 'Le fournisseur a refusé ou ne peut pas respecter les contraintes gratuites et de confidentialité.'
+                          : 'Une clé présente ne suffit pas : lancez une vérification synthétique avant de considérer l’IA disponible.'}
+                    </p>
+                  </MotionCard>
 
-              {/* Le « Guide de déploiement » vivait ici : retiré — il est
-                  désormais réservé au SUPER_ADMIN dans /platform/securite.
-                  Les 3 cartes IA ci-dessus restent pour la DIRECTION. */}
-              <SectionPersonnalisation />
-            </>
-          )}
-        </motion.div>
-      </AmbientBackground>
-    </RequireAuth>
-      </RequireEnterpriseRole>
+                  <MotionCard className="space-y-4 p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fournisseur et modèle</span>
+                      <Sparkles className="size-4 text-primary" aria-hidden />
+                    </div>
+                    <h2 className="text-2xl font-bold text-foreground">{aiStatus?.provider || 'OpenRouter'}</h2>
+                    <code className="block break-all rounded-xl bg-primary/10 p-3 text-sm text-primary-strong">{aiStatus?.model || 'nvidia/nemotron-3.5-lightning:free'}</code>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {aiStatus?.modelIsFree ? 'Modèle déclaré gratuit (:free).' : 'Le modèle configuré n’a pas de suffixe :free et sera refusé.'}
+                    </p>
+                  </MotionCard>
+
+                  <MotionCard className="space-y-4 p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Analyses de l’agence</span>
+                      <Activity className="size-4 text-success-strong" aria-hidden />
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-foreground">{aiStatus?.stats?.done ?? 0}</span>
+                      <span className="text-xs text-muted-foreground">/ {aiStatus?.stats?.total ?? 0} traitées</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>{aiStatus?.stats?.pending ?? 0} en attente</span>
+                      <span>{aiStatus?.stats?.failed ?? 0} en échec</span>
+                    </div>
+                  </MotionCard>
+                </div>
+
+                <MotionCard className="space-y-5 p-6 sm:p-8">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                      <ShieldCheck className="size-5" aria-hidden />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-bold text-foreground">Règles appliquées à chaque requête</h2>
+                      <p className="text-sm leading-6 text-muted-foreground">Le test utilise uniquement un texte synthétique. Les réponses réelles restent soumises aux mêmes limites.</p>
+                    </div>
+                  </div>
+                  <ul className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+                    <li>• Modèles gratuits uniquement, coût maximal demandé : 0.</li>
+                    <li>• Refus de collecte, demande de traitement sans conservation et aucune bascule fournisseur.</li>
+                    <li>• Noms d’agents, d’agences et de guichets exclus des prompts.</li>
+                    <li>• Téléphones, courriels et URL usuels masqués avant envoi.</li>
+                  </ul>
+                  <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+                      Si le fournisseur refuse ces contraintes ou ne propose aucun modèle gratuit compatible, l’IA reste indisponible et aucun modèle payant n’est essayé.
+                    </p>
+                    <Button type="button" onClick={verifierConnexion} disabled={!pret || probeEnCours} className="min-h-11 shrink-0 gap-2">
+                      {probeEnCours ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
+                      {probeEnCours ? 'Vérification…' : 'Vérifier gratuitement'}
+                    </Button>
+                  </div>
+                </MotionCard>
+              </>
+            )}
+          </motion.div>
+        </AmbientBackground>
+      </RequireAuth>
+    </RequireEnterpriseRole>
   );
 };
-
-/**
- * Personnalisation de l'expérience client (FIX 05/09 — la table existait
- * mais sans écriture ni interface). DIRECTION uniquement : formulaires de
- * collecte, kits QR (slogan, style, couleurs) et identité. Les champs vides
- * retombent sur les défauts Yéba.
- */
-function SectionPersonnalisation() {
-  const { data: user } = useAuth();
-  const { toast } = useToast();
-  const { data: branding, isLoading, refetch } = useQuery(getBranding);
-  const sauvegarder = useAction(updateBranding);
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [envoi, setEnvoi] = useState(false);
-  const [initialise, setInitialise] = useState(false);
-  // Vérification de l'URL du logo : une page de partage (Drive, Facebook…)
-  // à la place d'une image directe est l'erreur la plus courante — le logo
-  // ne s'afficherait nulle part. null = non testée, true/false = résultat.
-  const [logoValide, setLogoValide] = useState<boolean | null>(null);
-
-  const testerLogoUrl = (url: string): Promise<boolean> =>
-    new Promise((resolve) => {
-      const v = url.trim();
-      if (!v) {
-        setLogoValide(null);
-        resolve(true);
-        return;
-      }
-      if (!/^https?:\/\/.+\..+/.test(v)) {
-        setLogoValide(false);
-        resolve(false);
-        return;
-      }
-      const img = new Image();
-      let termine = false;
-      const fini = (ok: boolean) => {
-        if (termine) return;
-        termine = true;
-        setLogoValide(ok);
-        resolve(ok);
-      };
-      img.onload = () => fini(true);
-      img.onerror = () => fini(false);
-      img.src = v;
-      // Sécurité : une URL qui pend ne doit pas bloquer le formulaire —
-      // on laisse passer (le rendu a son propre repli, voir BrandLogo).
-      setTimeout(() => fini(true), 8000);
-    });
-
-  useEffect(() => {
-    if (branding && !initialise) {
-      const f: Record<string, string> = {};
-      for (const k of ['nom_affiche', 'logo_url', 'form_title', 'form_subtitle', 'form_thank_you', 'qr_slogan', 'qr_style', 'qr_frame', 'qr_color', 'qr_bg_color']) {
-        f[k] = (branding as any)?.[k] ?? '';
-      }
-      f.hide = (branding as any)?.hide_yeba_branding ? '1' : '';
-      setForm(f);
-      setInitialise(true);
-    }
-  }, [branding, initialise]);
-
-  if (user?.role !== 'DIRECTION') return null;
-
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-
-  async function soumettre(e: React.FormEvent) {
-    e.preventDefault();
-    if (envoi) return;
-    setEnvoi(true);
-    try {
-      // Le logo cassé est l'erreur la plus courante (page de partage au
-      // lieu d'image directe) : on bloque l'enregistrement avec un message
-      // clair plutôt qu'un logo invisible partout.
-      const logoOk = await testerLogoUrl(form.logo_url || '');
-      if (!logoOk) {
-        toast({
-          variant: 'destructive',
-          title: 'Logo invalide',
-          description: "Cette URL ne charge aucune image. Collez le lien DIRECT d'une image (.png, .jpg, .svg), pas une page de partage (Drive, Facebook…).",
-        });
-        return;
-      }
-      await sauvegarder({
-        nom_affiche: form.nom_affiche || undefined,
-        logo_url: form.logo_url || undefined,
-        form_title: form.form_title || undefined,
-        form_subtitle: form.form_subtitle || undefined,
-        form_thank_you: form.form_thank_you || undefined,
-        qr_slogan: form.qr_slogan || undefined,
-        qr_style: form.qr_style || undefined,
-        qr_frame: form.qr_frame || undefined,
-        qr_color: form.qr_color || undefined,
-        qr_bg_color: form.qr_bg_color || undefined,
-        hide_yeba_branding: form.hide === '1',
-      });
-      await refetch();
-      toast({ variant: 'success', title: 'Personnalisation enregistrée', description: 'Visible sur les formulaires et kits QR.' });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erreur', description: err?.message || 'Enregistrement impossible.' });
-    } finally {
-      setEnvoi(false);
-    }
-  }
-
-  const champ = (id: string, label: string, placeholder: string, max?: number) => (
-    <div className="space-y-1.5">
-      <Label htmlFor={`brand-${id}`}>{label}</Label>
-      <Input id={`brand-${id}`} value={form[id] ?? ''} maxLength={max} onChange={(e) => set(id, e.target.value)} placeholder={placeholder} className="h-10 rounded-xl border-border/80" />
-    </div>
-  );
-
-  return (
-    <MotionCard className="p-6 sm:p-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="size-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-          <Palette className="size-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-foreground">Personnalisation client</h2>
-          <p className="text-xs text-muted-foreground">Formulaires de collecte, kits QR et slogan. Vide = défaut Yéba.</p>
-        </div>
-      </div>
-      {isLoading ? (
-        <div className="h-32 animate-pulse rounded-2xl border border-border/70 bg-card-subtle/50" />
-      ) : (
-        <form onSubmit={soumettre} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {champ('nom_affiche', "Nom affiché", 'Ex. La Poste CI', 80)}
-          <div className="space-y-1.5">
-            <Label htmlFor="brand-logo_url">Logo (URL directe d'image)</Label>
-            <div className="flex items-center gap-2">
-              {form.logo_url?.trim() ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={form.logo_url.trim()}
-                  alt="Aperçu du logo"
-                  className="size-10 shrink-0 rounded-xl border border-border/80 bg-white object-contain p-1"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }}
-                  onLoad={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'visible'; }}
-                />
-              ) : null}
-              <Input
-                id="brand-logo_url"
-                value={form.logo_url ?? ''}
-                maxLength={500}
-                onChange={(e) => { set('logo_url', e.target.value); setLogoValide(null); }}
-                onBlur={(e) => { if (e.target.value.trim()) testerLogoUrl(e.target.value); }}
-                placeholder="https://…/logo.png"
-                className="h-10 rounded-xl border-border/80"
-                aria-invalid={logoValide === false}
-                aria-describedby="brand-logo_url-aide"
-              />
-            </div>
-            <p id="brand-logo_url-aide" className="text-[11px] text-muted-foreground">
-              Collez le lien <strong>direct</strong> de l'image (se terminant par .png, .jpg ou .svg),
-              pas une page de partage. Vide = logo Yeba par défaut.
-            </p>
-            {logoValide === false && (
-              <p className="text-xs font-medium text-destructive">Cette URL ne charge aucune image vérifiable.</p>
-            )}
-          </div>
-          {champ('form_title', 'Titre du formulaire', 'Ex. Votre avis compte', 120)}
-          {champ('form_subtitle', 'Sous-titre', 'Ex. 1 minute pour nous aider', 200)}
-          {champ('form_thank_you', 'Message de remerciement', 'Ex. Merci !', 120)}
-          {/* Slogan masqué (09/2026) : l'affiche QR est épurée (titre + QR
-              uniquement), ce réglage n'est plus rendu — conservé en base. */}
-          <div className="space-y-1.5">
-            <Label htmlFor="brand-qr_style">Style du QR</Label>
-            <select id="brand-qr_style" value={form.qr_style || 'CLASSIQUE'} onChange={(e) => set('qr_style', e.target.value)} className="h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm">
-              {['CLASSIQUE', 'MODERNE', 'PREMIUM'].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="brand-qr_frame">Cadre du QR</Label>
-            <select id="brand-qr_frame" value={form.qr_frame || 'SIMPLE'} onChange={(e) => set('qr_frame', e.target.value)} className="h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm">
-              {['AUCUN', 'SIMPLE', 'PREMIUM'].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="brand-qr_color">Couleur du QR (#RRGGBB)</Label>
-            <div className="flex gap-2">
-              <input id="brand-qr_color" type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.qr_color || '') ? form.qr_color : '#000000'} onChange={(e) => set('qr_color', e.target.value)} className="h-10 w-12 rounded-xl border border-border/80 bg-background p-1" aria-label="Couleur du QR (sélecteur)" />
-              <Input value={form.qr_color ?? ''} onChange={(e) => set('qr_color', e.target.value)} placeholder="#000000" className="h-10 rounded-xl border-border/80" aria-invalid={!!form.qr_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_color)} aria-describedby="brand-qr_color-erreur" />
-            </div>
-            {form.qr_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_color) && (
-              <p id="brand-qr_color-erreur" className="text-xs font-medium text-destructive">Format attendu : #RRGGBB (ex. #111111). Le QR garde le noir en attendant.</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="brand-qr_bg_color">Fond du QR (#RRGGBB)</Label>
-            <div className="flex gap-2">
-              <input id="brand-qr_bg_color" type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.qr_bg_color || '') ? form.qr_bg_color : '#ffffff'} onChange={(e) => set('qr_bg_color', e.target.value)} className="h-10 w-12 rounded-xl border border-border/80 bg-background p-1" aria-label="Fond du QR (sélecteur)" />
-              <Input value={form.qr_bg_color ?? ''} onChange={(e) => set('qr_bg_color', e.target.value)} placeholder="#ffffff" className="h-10 rounded-xl border-border/80" aria-invalid={!!form.qr_bg_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_bg_color)} aria-describedby="brand-qr_bg_color-erreur" />
-            </div>
-            {form.qr_bg_color && !/^#[0-9a-fA-F]{6}$/.test(form.qr_bg_color) && (
-              <p id="brand-qr_bg_color-erreur" className="text-xs font-medium text-destructive">Format attendu : #RRGGBB (ex. #ffffff). Le QR garde le fond blanc en attendant.</p>
-            )}
-          </div>
-          <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer md:col-span-2">
-            <input type="checkbox" checked={form.hide === '1'} onChange={(e) => set('hide', e.target.checked ? '1' : '')} className="size-4 accent-primary" />
-            Masquer le branding Yéba (plan ENTERPRISE uniquement)
-          </label>
-          <div className="md:col-span-2 flex justify-end">
-            <Button type="submit" disabled={envoi} className="rounded-xl font-bold">
-              {envoi ? <><Loader2 className="size-4 animate-spin" /> Enregistrement…</> : <><CheckCircle2 className="size-4" /> Enregistrer</>}
-            </Button>
-          </div>
-        </form>
-      )}
-    </MotionCard>
-  );
-}
-
-export default SettingsPage;

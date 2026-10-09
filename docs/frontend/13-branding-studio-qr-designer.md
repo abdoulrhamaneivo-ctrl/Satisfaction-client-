@@ -1,5 +1,7 @@
-# YEBA PLATFORM — Branding Studio & QR Designer
+# ARCHIVE — YEBA PLATFORM — Branding Studio & QR Designer
 ## Doc 13 — Personnalisation par entreprise (logo, charte, messages, QR)
+
+> **Archive, ne pas implémenter** : la personnalisation de marque par entreprise ou agence ne fait pas partie du produit actuel. La charte et les styles QR sont définis dans le code ; `BrandingConfig` et son interface sont retirés. Voir `docs/branding-white-label.md`.
 
 > **Prérequis** : Doc 11 (tenant, `platformRole`), Doc 12 (console).
 > **Principe sécurité** : l'entreprise personnalise des **valeurs contrôlées** (couleurs HEX validées, textes bornés, fichiers validés) — **jamais de CSS libre, jamais de HTML/JS injecté**. Le design system Yeba reste la seule source de structure.

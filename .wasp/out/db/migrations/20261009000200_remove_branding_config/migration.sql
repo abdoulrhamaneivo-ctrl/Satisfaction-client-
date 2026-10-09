@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "BrandingConfig";
+DROP TABLE IF EXISTS "BrandConfig";

@@ -36,4 +36,8 @@ export const serverEnvValidationSchema = defineEnvValidationSchema(z.object({
     // Sans sel, hachage prévisible → ré-identification + contournement anti-rejeu.
     ANTI_REPLAY_SALT: secretFort('ANTI_REPLAY_SALT'),
     ANTI_REPLAY_SALT_PREVIOUS: z.string().min(32).optional(),
+    // Facultative au démarrage pour ne pas interrompre le service.
+    // Le rappel téléphonique QR reste désactivé tant que cette clé
+    // dédiée de 32 octets n'est pas définie sur l'environnement.
+    CALLBACK_PHONE_ENCRYPTION_KEY: z.preprocess((value) => typeof value === 'string' && value.trim() === '' ? undefined : value, z.string().regex(/^[\da-fA-F]{64}$/, 'CALLBACK_PHONE_ENCRYPTION_KEY doit être une clé hexadécimale de 32 octets.').optional()),
 }));

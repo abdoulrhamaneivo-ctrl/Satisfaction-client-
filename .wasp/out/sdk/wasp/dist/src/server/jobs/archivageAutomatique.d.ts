@@ -2,5 +2,6 @@ export declare const archiverElementsResolusAnciens: (_args: unknown, _context: 
     alertesArchivees: number;
     tachesArchivees: number;
     antiRejeuPurge: number;
+    contactsRappelPurge: number;
 }>;
 //# sourceMappingURL=archivageAutomatique.d.ts.map

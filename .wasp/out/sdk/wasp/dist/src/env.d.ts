@@ -7,6 +7,7 @@ export declare const serverEnvValidationSchema: z.ZodObject<{
     REDIS_URL: z.ZodOptional<z.ZodString>;
     ANTI_REPLAY_SALT: z.ZodString;
     ANTI_REPLAY_SALT_PREVIOUS: z.ZodOptional<z.ZodString>;
+    CALLBACK_PHONE_ENCRYPTION_KEY: z.ZodPreprocess<z.ZodOptional<z.ZodString>>;
     AWS_S3_REGION: z.ZodOptional<z.ZodString>;
     AWS_S3_IAM_ACCESS_KEY: z.ZodOptional<z.ZodString>;
     AWS_S3_IAM_SECRET_KEY: z.ZodOptional<z.ZodString>;

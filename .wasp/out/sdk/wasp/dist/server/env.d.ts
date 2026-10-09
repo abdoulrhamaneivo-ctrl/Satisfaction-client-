@@ -7,6 +7,7 @@ export declare const env: {
     TOTP_ENCRYPTION_KEY_PREVIOUS?: string | undefined;
     REDIS_URL?: string | undefined;
     ANTI_REPLAY_SALT_PREVIOUS?: string | undefined;
+    CALLBACK_PHONE_ENCRYPTION_KEY?: string | undefined;
     AWS_S3_REGION?: string | undefined;
     AWS_S3_IAM_ACCESS_KEY?: string | undefined;
     AWS_S3_IAM_SECRET_KEY?: string | undefined;

@@ -1,32 +1,18 @@
 # Yeba — outil interne
 
-Yeba est un outil interne de collecte et de pilotage de la satisfaction
-client (formulaires accessibles via QR code sur des guichets physiques).
-C'est un déploiement **mono-agence** : une seule entreprise, une seule
-agence pour l'instant, sans facturation ni inscription publique.
+Yeba est un outil interne de collecte et de pilotage de la satisfaction client par QR code. Le déploiement concerne une entreprise cliente avec une à N agences, gérées par le rôle `DIRECTION`. Il n’y a ni facturation, ni inscription publique, ni personnalisation multi-entreprise.
 
-Construit avec [Wasp](https://wasp.sh) (React + Node.js + Prisma), à partir
-du template Open SaaS — dont toute la partie produit commercial (paiement,
-landing page marketing, inscription publique, analytics marketing,
-personnalisation multi-tenant) a été retirée. Ne pas réintroduire ces
-éléments sans une décision produit explicite.
+Construit avec Wasp (React, Node.js, Prisma) à partir du template Open SaaS, dont les fonctionnalités de produit commercial ont été retirées. Ne pas les réintroduire sans décision produit explicite.
 
-## Repères du projet
+## Repères
 
-- `main.wasp.ts` : point d'entrée Wasp (routes, actions, queries, jobs).
-- `schema.prisma` : modèle de données. Hiérarchie `Entreprise → Agence →
-  Guichet/User`. Le modèle `Entreprise → Agence` est volontairement gardé
-  en base (même en mono-agence) pour permettre un agrandissement futur.
-- `src/server/permissions.ts` a été supprimé : le seul module de
-  permissions/RLS canonique est `src/server/middleware/rowLevelSecurity.ts`.
-- `src/server/scripts/dbSeeds.ts` : seed unique (Entreprise, Agence, compte
-  `CHEF_AGENCE`) — remplace l'ancien onboarding multi-tenant.
-- `src/shared/branding.ts` : charte graphique figée en dur (plus de
-  `BrandConfig` en base ni d'écran de configuration).
-- Comptes créés uniquement par invitation (action `inviteAgent`), jamais par
-  inscription publique.
+- `main.wasp.ts` : routes, actions, queries et jobs Wasp.
+- `schema.prisma` : hiérarchie `Entreprise → Agence → Guichet/User`, avec plusieurs agences prises en charge.
+- `src/server/middleware/rowLevelSecurity.ts` : module unique canonique de permissions et RLS.
+- `src/server/scripts/dbSeeds.ts` : seed initial de l’entreprise, de la première agence et du compte `CHEF_AGENCE`.
+- `src/shared/branding.ts` : charte Yéba fixe ; aucune configuration de marque en base ni écran de personnalisation.
+- Les comptes du personnel sont créés par invitation (`inviteAgent`), jamais par inscription publique.
+- Le numéro QR n’est conservé pour rappel qu’avec accord explicite, chiffré et visible au chef de l’agence concernée.
+- L’IA est gratuite uniquement : OpenRouter, modèle `:free`, contraintes de coût et confidentialité obligatoires, aucun fallback payant.
 
-## Documentation Wasp
-
-Si les docs internes ne suffisent pas pour une question de framework,
-consulter l'index [LLMs.txt de Wasp](https://wasp.sh/llms.txt).
+Le déploiement actuel est un service Docker Render avec PostgreSQL Neon. Voir `DEPLOIEMENT.md`. Pour les questions Wasp, consulter l’index [LLMs.txt](https://wasp.sh/llms.txt) si les docs locales ne suffisent pas.

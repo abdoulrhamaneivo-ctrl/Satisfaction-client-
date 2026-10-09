@@ -31,7 +31,7 @@ export { getFormDefinitionForGuichet } from './queries/index.js'
 
 export { getServices } from './queries/index.js'
 
-export { getBranding } from './queries/index.js'
+export { getContactRappel } from './queries/index.js'
 
 export { getRadarStats } from './queries/index.js'
 
@@ -141,7 +141,9 @@ export { reactivateAgent } from './actions/index.js'
 
 export { promouvoirAgent } from './actions/index.js'
 
-export { updateBranding } from './actions/index.js'
+export { marquerContactRappelTraite } from './actions/index.js'
+
+export { testerConnexionIA } from './actions/index.js'
 
 export { inviteAgent } from './actions/index.js'
 

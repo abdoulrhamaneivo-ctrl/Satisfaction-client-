@@ -229,10 +229,7 @@ export const CollectePage = () => {
     { enabled: !!codePublic }
   );
   const { brandConfig } = useBrand();
-  // Personnalisation du guichet (FIX 05/09) : la page publique n'est pas
-  // connectée donc le contexte garde les défauts — on prend la marque
-  // fusionnée du guichet (entreprise → défaut Yéba) quand elle existe.
-  const marque: any = (formDef as any)?.brandConfig ?? brandConfig;
+  const marque = brandConfig;
 
   const [step, setStep] = useState<'SERVICE_SELECT' | 'QUESTIONS' | 'COMMENT_STEP' | 'SUCCESS'>('SERVICE_SELECT');
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
@@ -245,8 +242,11 @@ export const CollectePage = () => {
   // Task 2 : verbatim de l'option « Autre (précisez) » (QCM ou CASES).
   const [autreTexteCourant, setAutreTexteCourant] = useState('');
   const [telephone, setTelephone] = useState('');
+  const [consentementRappel, setConsentementRappel] = useState(false);
   // T1 (notes) et T2 (commentaire) : états séparés, jamais de bouton bloquant.
   const [t1, setT1] = useState<EtatT1>({ etat: 'attente', erreur: null });
+  const t1Ref = useRef(t1);
+  t1Ref.current = t1;
   const [t2, setT2] = useState<EtatT2>({ etat: 'idle', erreur: null });
   const soumissionIdRef = useRef<string | null>(null);
   const dernierSaveT2Ref = useRef<string | null>(null);
@@ -262,8 +262,10 @@ export const CollectePage = () => {
   // nettoyage de l'onglet (le handler de démontage est capturé une fois).
   const commentaireRef = useRef('');
   const telephoneRef = useRef('');
+  const consentementRappelRef = useRef(false);
   commentaireRef.current = commentaire;
   telephoneRef.current = telephone;
+  consentementRappelRef.current = consentementRappel;
 
   const annulerDelais = () => {
     for (const r of [delaiRef, autosaveRef, avanceRef, resetRef]) {
@@ -295,11 +297,13 @@ export const CollectePage = () => {
       clearTimeout(autosaveRef.current);
       const texte = commentaireRef.current.trim();
       const tel = telephoneRef.current.trim();
-      if ((texte || tel) && t1.etat === 'envoye') {
+      const avecConsentement = consentementRappelRef.current && !!tel;
+      if ((texte || avecConsentement || dernierSaveT2Ref.current) && t1Ref.current.etat === 'envoye') {
         void completerSoumission({
           id_soumission: soumissionIdRef.current ?? undefined,
           ...(texte ? { commentaire: texte } : {}),
-          ...(tel ? { telephone: normaliserTelephone(tel) } : {}),
+          telephone: avecConsentement ? normaliserTelephone(tel) : '',
+          consentementRappel: avecConsentement,
         }).catch(() => undefined);
       }
     }
@@ -359,10 +363,13 @@ export const CollectePage = () => {
     if (autosaveRef.current) clearTimeout(autosaveRef.current);
     const texte = commentaire.trim();
     const tel = telephone.trim();
-    if (!texte && !tel) return;
+    const avecConsentement = consentementRappel && !!tel;
+    const signature = JSON.stringify([texte, avecConsentement ? tel : '', avecConsentement]);
+    if (signature === dernierSaveT2Ref.current) return;
+    if (!texte && !avecConsentement && !dernierSaveT2Ref.current) return;
     autosaveRef.current = setTimeout(() => {
       autosaveRef.current = null;
-      void sauvegarderT2(texte, tel);
+      void sauvegarderT2(texte, tel, consentementRappel);
     }, DELAI_AUTOSAVE_T2_MS);
     return () => {
       if (autosaveRef.current) {
@@ -371,7 +378,7 @@ export const CollectePage = () => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commentaire, telephone, step, t1.etat]);
+  }, [commentaire, telephone, consentementRappel, step, t1.etat]);
 
   // Borne partagée : reset automatique après Merci pour le client suivant.
   useEffect(() => {
@@ -439,6 +446,7 @@ export const CollectePage = () => {
     setTexteReponseCourante('');
     setCasesSelectionnes([]);
     setTelephone('');
+    setConsentementRappel(false);
     soumissionIdRef.current = null;
     dernierSaveT2Ref.current = null;
     setT1({ etat: 'attente', erreur: null });
@@ -541,18 +549,21 @@ export const CollectePage = () => {
   // Retourne `true` si le commentaire est persisté (ou s'il n'y avait rien à
   // envoyer) — le retour permet à « Passer » de ne pas avancer si l'envoi a
   // échoué, plutôt que de perdre la saisie.
-  async function sauvegarderT2(texte: string, tel: string): Promise<boolean> {
+  async function sauvegarderT2(texte: string, tel: string, avecAccordRappel: boolean): Promise<boolean> {
     const idSoumission = soumissionIdRef.current;
     if (!idSoumission || t1.etat !== 'envoye') return true;
-    const signature = JSON.stringify([texte, tel]);
+    const telephoneConsentis = avecAccordRappel && !!tel ? tel : '';
+    const demanderRappel = Boolean(telephoneConsentis);
+    const signature = JSON.stringify([texte, telephoneConsentis, demanderRappel]);
     if (dernierSaveT2Ref.current === signature) return true;
-    if (!texte && !tel) return true;
+    if (!texte && !demanderRappel && !dernierSaveT2Ref.current) return true;
     setT2({ etat: 'saving', erreur: null });
     try {
       await completerSoumission({
         id_soumission: idSoumission,
         ...(texte ? { commentaire: texte } : {}),
-        ...(tel ? { telephone: normaliserTelephone(tel) } : {}),
+        telephone: demanderRappel ? normaliserTelephone(telephoneConsentis) : '',
+        consentementRappel: demanderRappel,
       });
       dernierSaveT2Ref.current = signature;
       setT2({ etat: 'saved', erreur: null });
@@ -644,6 +655,7 @@ export const CollectePage = () => {
   const passerAuMerci = async () => {
     const texte = commentaire.trim();
     const tel = telephone.trim();
+    const demanderRappel = consentementRappel && !!tel;
     if (autosaveRef.current) {
       clearTimeout(autosaveRef.current);
       autosaveRef.current = null;
@@ -652,10 +664,10 @@ export const CollectePage = () => {
       clearTimeout(avanceRef.current);
       avanceRef.current = null;
     }
-    if (texte || tel) {
+    if (texte || demanderRappel || dernierSaveT2Ref.current) {
       // Échec de cet envoi : on reste sur l'étape commentaire avec le
       // message d'erreur — jamais de passage à « Merci » en perdant le texte.
-      const ok = await sauvegarderT2(texte, tel);
+      const ok = await sauvegarderT2(texte, tel, consentementRappel);
       if (!ok) return;
     }
     if (avanceRef.current) {
@@ -726,7 +738,7 @@ export const CollectePage = () => {
 
                   <div className="inline-flex items-center gap-2 rounded-full border border-secondary/25 bg-secondary/10 px-3 py-1.5 text-[11px] font-bold text-secondary mx-auto">
                     <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
-                    Avis anonyme · données protégées
+                    Avis confidentiel · contact facultatif
                   </div>
 
                   <div className="flex flex-col gap-3 pt-2">
@@ -1339,7 +1351,25 @@ export const CollectePage = () => {
                         className="h-12 rounded-2xl px-4 text-base border-border/80"
                       />
                       <p id="avis-telephone-aide" className="text-[11px] text-muted-foreground leading-tight font-medium">
-                        Facultatif — votre numéro sera haché (SHA-256) pour éviter les doublons et ne sera jamais partagé.
+                        Facultatif — indiquez un numéro uniquement si vous souhaitez être rappelé.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-border/70 bg-muted/30 p-3 text-left">
+                      <label htmlFor="avis-rappel-consentement" className="flex cursor-pointer items-start gap-3 text-xs leading-relaxed text-foreground">
+                        <input
+                          id="avis-rappel-consentement"
+                          type="checkbox"
+                          checked={consentementRappel}
+                          onChange={(e) => setConsentementRappel(e.target.checked)}
+                          className="mt-0.5 size-4 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          aria-describedby="avis-rappel-aide"
+                        />
+                        <span>Si je laisse un numéro, j’accepte que le Chef de cette agence me rappelle au sujet de cet avis.</span>
+                      </label>
+                      <p id="avis-rappel-aide" className="mt-2 pl-7 text-[11px] leading-relaxed text-muted-foreground">
+                        Le numéro est chiffré et visible uniquement par le Chef de l’agence. Il est effacé dès que le rappel est marqué traité, sinon après 90 jours (purge quotidienne, jusqu’à 24 h après l’échéance). Sans accord coché, il n’est pas transmis.{' '}
+                        <a href="/confidentialite" className="font-semibold text-primary-strong underline underline-offset-2">Détails sur vos données</a>
                       </p>
                     </div>
 
@@ -1363,7 +1393,7 @@ export const CollectePage = () => {
                             onClick={() => {
                               dernierSaveT2Ref.current = null;
                               setT2({ etat: 'idle', erreur: null });
-                              void sauvegarderT2(commentaire.trim(), telephone.trim());
+                              void sauvegarderT2(commentaire.trim(), telephone.trim(), consentementRappel);
                             }}
                             className="mt-1 inline-flex min-h-11 items-center rounded-xl px-3 underline underline-offset-2 hover:bg-accent/60"
                           >
@@ -1404,6 +1434,11 @@ export const CollectePage = () => {
                     <p className="text-sm text-muted-foreground max-w-[280px] mx-auto font-medium">
                       Votre retour précieux nous aide à améliorer constamment votre expérience au guichet.
                     </p>
+                    {consentementRappel && telephone.trim() && (
+                      <p className="mx-auto max-w-sm text-xs font-semibold text-success-strong">
+                        Votre demande de rappel a été transmise au Chef de l’agence.
+                      </p>
+                    )}
                   </div>
                   {/* Récapitulatif : note quand elle existe, ✓ sinon. */}
                   {answers.filter((a) => a && a.critereId !== undefined).length > 0 && (

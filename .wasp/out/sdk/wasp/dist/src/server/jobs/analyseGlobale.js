@@ -49,7 +49,7 @@ async function assurerProgrammee(idEntreprise, periode, debut, fin) {
         },
     });
 }
-async function traiterLigne(row, entrepriseNom, budget) {
+async function traiterLigne(row, budget) {
     const debut = new Date(row.debut);
     const fin = new Date(row.fin);
     const agregats = await calculerAgregats(prisma, {
@@ -147,7 +147,7 @@ async function traiterLigne(row, entrepriseNom, budget) {
             : row.periode === 'PERSONNALISEE'
                 ? `période du ${debut.toLocaleDateString('fr-FR')} au ${fin.toLocaleDateString('fr-FR')}`
                 : `mois de ${debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
-        const prompt = construirePromptSynthese(entrepriseNom, periodeLabel, agregats, irritants);
+        const prompt = construirePromptSynthese('organisation cliente', periodeLabel, agregats, irritants);
         const { synthese, provider, model } = await AIService.syntheseGlobale(prompt);
         /* Vague 5, P10 — la priorité DÉTERMINISTE fait foi, sans exception.
            Le code précédent conservait la priorité du modèle pour tout thème
@@ -212,7 +212,7 @@ export async function analyserGlobaleJob(_args, _context) {
     const mois = moisPrecedent(maintenant);
     const entreprises = await prisma.entreprise.findMany({
         where: { status: 'ACTIVE' },
-        select: { id: true, nom_entreprise: true },
+        select: { id: true },
     });
     for (const e of entreprises) {
         await assurerProgrammee(e.id, 'SEMAINE', semaine.debut, semaine.fin);
@@ -240,7 +240,6 @@ export async function analyserGlobaleJob(_args, _context) {
         },
         orderBy: { createdAt: 'asc' },
         take: budget * 3,
-        include: { entreprise: { select: { nom_entreprise: true } } },
     });
     const files = [...candidats].sort(comparerParPriorite).slice(0, budget);
     let traitees = 0;
@@ -248,7 +247,7 @@ export async function analyserGlobaleJob(_args, _context) {
     for (const row of files) {
         if (budgetAtteint)
             break;
-        const res = await traiterLigne(row, row.entreprise?.nom_entreprise || 'Entreprise', budget);
+        const res = await traiterLigne(row, budget);
         if (res === 'budget')
             budgetAtteint = true;
         else

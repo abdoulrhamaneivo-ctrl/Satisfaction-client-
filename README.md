@@ -1,36 +1,24 @@
-# Yeba
+# Yéba
 
-Outil interne de collecte et de pilotage de la satisfaction client (QR code
-sur des guichets physiques). Application mono-agence, réservée à une seule
-entreprise, sans inscription publique ni facturation.
+Yéba est un outil interne de collecte et de pilotage de la satisfaction client par QR code sur des guichets physiques. Le déploiement actuel concerne une entreprise cliente avec une ou plusieurs agences. Il n’y a ni facturation, ni inscription publique, ni personnalisation multi-entreprise.
 
-Construit avec [Wasp](https://wasp.sh) (React + Node.js + Prisma), à partir
-du template [Open SaaS](https://opensaas.sh) — dont ont été retirés tout ce
-qui relevait du produit commercial (paiement, landing page marketing,
-inscription publique, personnalisation multi-tenant, analytics marketing).
+L’application utilise [Wasp](https://wasp.sh), React, Node.js et Prisma. Elle est déployée en un service Docker sur Render avec PostgreSQL sur Neon.
 
 ## Développement local
 
-- Copier `.env.client.example` → `.env.client` et `.env.server.example` (si
-  présent) → `.env.server`, et renseigner les valeurs nécessaires (SMTP,
-  stockage fichiers, etc. — voir `src/env.ts`).
-- Démarrer la base de données : `wasp start db` (laisser tourner).
-- Démarrer l'application : `wasp start` (laisser tourner).
-- Première exécution, ou après une modification de `schema.prisma` :
-  `wasp db migrate-dev`.
-- Le seed (`wasp db seed`, ou automatique selon la config) crée
-  l'Entreprise, l'Agence unique et le premier compte `CHEF_AGENCE` — voir
-  `src/server/scripts/dbSeeds.ts` pour les identifiants générés au premier
-  lancement (affichés une seule fois en console).
+1. Copier `.env.example` vers `.env.server` et renseigner les secrets locaux nécessaires.
+2. Lancer la base locale avec `wasp start db`.
+3. Lancer l’application avec `wasp start`.
+4. Après un changement du schéma, créer et appliquer la migration locale avec `wasp db migrate-dev`.
 
-## Déploiement
+Le seed unique initialise l’entreprise, la première agence et un compte Chef d’agence. Les comptes du personnel sont ensuite créés par invitation.
 
-Déploiement conteneurisé via `Dockerfile` / `railway.json` (Railway) :
-`node server/bundle/server.js` comme commande de démarrage.
+## Avant une mise à jour Render
 
-## Contact technique
+- Compiler les artefacts Render avec `REACT_APP_API_URL="https://<url-render>" npm run build`, puis relire les changements générés sous `.wasp/out`.
+- Ne pas committer de clé, d’URL Neon complète ni de secret.
+- Les mises à jour de la branche suivie peuvent déclencher le déploiement automatique Render. Le conteneur lance les migrations Prisma au démarrage ; ne pas lancer une migration manuelle en parallèle.
+- Le rappel QR requiert `CALLBACK_PHONE_ENCRYPTION_KEY` dans l’environnement Render. L’IA n’utilise que les modèles gratuits compatibles avec les règles de confidentialité ; sa disponibilité doit être vérifiée dans Paramètres.
+- Les pages Conditions et Confidentialité sont accessibles publiquement. Leurs champs juridiques signalés « à renseigner » ainsi que les durées/régions manquantes doivent être complétés avant publication définitive.
 
-Pour toute question de maintenance (accès `isAdmin`, incidents, évolutions),
-contacter le responsable technique de la plateforme Yeba au sein de
-l'entreprise.
-# Satisfaction-client-
+Voir [`DEPLOIEMENT.md`](DEPLOIEMENT.md) pour le fonctionnement Render + Neon et [`docs/branding-white-label.md`](docs/branding-white-label.md) pour la charte visuelle fixe.
