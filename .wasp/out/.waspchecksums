@@ -11,7 +11,7 @@
             "file",
             "Dockerfile"
         ],
-        "11dd70eef0b1da245dd9263d40a63b4057b0e972ffb0d98dc0a832a5505d0c60"
+        "928159ed51645ccf04a26e0473413debf2406fa87c78b30c6b3d860dba44218a"
     ],
     [
         [
@@ -1117,7 +1117,7 @@
             "file",
             "sdk/wasp/src/auth/email-and-pass/emails.ts"
         ],
-        "8849a861d19bce35e73f320d4d4404585e4187b2a0e461ec9e9d778ff64c1953"
+        "6766696e1a07a532b6f6e9b7f88f8ec367150853dcabd59aa053474991ed5596"
     ],
     [
         [

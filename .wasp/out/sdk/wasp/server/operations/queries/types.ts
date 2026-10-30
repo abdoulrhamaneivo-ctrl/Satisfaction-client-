@@ -28,7 +28,7 @@ import {
 } from 'wasp/server/_types'
 
 // PUBLIC API
-export type GetAllFilesByUser<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAllFilesByUser<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _User,
@@ -39,7 +39,7 @@ export type GetAllFilesByUser<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type GetDownloadFileSignedURL<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetDownloadFileSignedURL<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _User,
@@ -50,7 +50,7 @@ export type GetDownloadFileSignedURL<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type GetGuichets<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetGuichets<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Guichet,
@@ -64,7 +64,7 @@ export type GetGuichets<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type GetAgents<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAgents<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _User,
@@ -76,7 +76,7 @@ export type GetAgents<Input extends Payload = never, Output extends Payload = Pa
   >
 
 // PUBLIC API
-export type GetReponses<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetReponses<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -92,7 +92,7 @@ export type GetReponses<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type GetAvisGroupes<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAvisGroupes<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -108,7 +108,7 @@ export type GetAvisGroupes<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type GetStatsFiltrees<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetStatsFiltrees<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -121,7 +121,7 @@ export type GetStatsFiltrees<Input extends Payload = never, Output extends Paylo
   >
 
 // PUBLIC API
-export type GetAgentsByAgence<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAgentsByAgence<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _User,
@@ -133,7 +133,7 @@ export type GetAgentsByAgence<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type GetAgences<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAgences<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Agence,
@@ -145,7 +145,7 @@ export type GetAgences<Input extends Payload = never, Output extends Payload = P
   >
 
 // PUBLIC API
-export type GetAlertes<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAlertes<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Alerte,
@@ -160,7 +160,7 @@ export type GetAlertes<Input extends Payload = never, Output extends Payload = P
   >
 
 // PUBLIC API
-export type GetCriteres<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetCriteres<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Critere,
@@ -172,7 +172,7 @@ export type GetCriteres<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type GetAgenceCriteres<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAgenceCriteres<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _AgenceCritere,
@@ -185,7 +185,7 @@ export type GetAgenceCriteres<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type GetFormDefinitionForGuichet<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetFormDefinitionForGuichet<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Guichet,
@@ -200,7 +200,7 @@ export type GetFormDefinitionForGuichet<Input extends Payload = never, Output ex
   >
 
 // PUBLIC API
-export type GetServices<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetServices<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Service,
@@ -212,7 +212,7 @@ export type GetServices<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type GetContactRappel<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetContactRappel<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _ContactRappel,
@@ -226,7 +226,7 @@ export type GetContactRappel<Input extends Payload = never, Output extends Paylo
   >
 
 // PUBLIC API
-export type GetRadarStats<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetRadarStats<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _User,
@@ -243,7 +243,7 @@ export type GetRadarStats<Input extends Payload = never, Output extends Payload 
   >
 
 // PUBLIC API
-export type GetObjectifs<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetObjectifs<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Objectif,
@@ -258,7 +258,7 @@ export type GetObjectifs<Input extends Payload = never, Output extends Payload =
   >
 
 // PUBLIC API
-export type GetObjectifsParAgence<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetObjectifsParAgence<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Objectif,
@@ -273,7 +273,7 @@ export type GetObjectifsParAgence<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type GetTachesCorrectives<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetTachesCorrectives<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _TacheCorrective,
@@ -289,7 +289,7 @@ export type GetTachesCorrectives<Input extends Payload = never, Output extends P
   >
 
 // PUBLIC API
-export type GetTacheHistorique<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetTacheHistorique<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _TacheCorrective,
@@ -306,7 +306,7 @@ export type GetTacheHistorique<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type ExportAvisGroupes<Input extends Payload = never, Output extends Payload = Payload> =
+export type ExportAvisGroupes<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -322,7 +322,7 @@ export type ExportAvisGroupes<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type GetAffectationsDuJour<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAffectationsDuJour<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _AffectationGuichet,
@@ -336,7 +336,7 @@ export type GetAffectationsDuJour<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type GetModelesHoraires<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetModelesHoraires<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _ModeleHoraire,
@@ -350,7 +350,7 @@ export type GetModelesHoraires<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type SuggererPlanning<Input extends Payload = never, Output extends Payload = Payload> =
+export type SuggererPlanning<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _AffectationGuichet,
@@ -365,7 +365,7 @@ export type SuggererPlanning<Input extends Payload = never, Output extends Paylo
   >
 
 // PUBLIC API
-export type GetTendanceMensuelle<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetTendanceMensuelle<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -378,7 +378,7 @@ export type GetTendanceMensuelle<Input extends Payload = never, Output extends P
   >
 
 // PUBLIC API
-export type GetStatsByAgent<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetStatsByAgent<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _User,
@@ -391,7 +391,7 @@ export type GetStatsByAgent<Input extends Payload = never, Output extends Payloa
   >
 
 // PUBLIC API
-export type GetStatsByGuichet<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetStatsByGuichet<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Guichet,
@@ -405,7 +405,7 @@ export type GetStatsByGuichet<Input extends Payload = never, Output extends Payl
   >
 
 // PUBLIC API
-export type GetActionsPrioritaires<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetActionsPrioritaires<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Alerte,
@@ -422,7 +422,7 @@ export type GetActionsPrioritaires<Input extends Payload = never, Output extends
   >
 
 // PUBLIC API
-export type GetKPIsPeriode<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetKPIsPeriode<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -435,7 +435,7 @@ export type GetKPIsPeriode<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type GetCriteresParOperation<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetCriteresParOperation<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Service,
@@ -451,7 +451,7 @@ export type GetCriteresParOperation<Input extends Payload = never, Output extend
   >
 
 // PUBLIC API
-export type GetHeatmapReponses<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetHeatmapReponses<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -464,7 +464,7 @@ export type GetHeatmapReponses<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type GetComparaisonAgences<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetComparaisonAgences<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Agence,
@@ -477,7 +477,7 @@ export type GetComparaisonAgences<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type GetTempsTraitement<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetTempsTraitement<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Alerte,
@@ -493,7 +493,7 @@ export type GetTempsTraitement<Input extends Payload = never, Output extends Pay
   >
 
 // PUBLIC API
-export type GetRechercheGlobale<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetRechercheGlobale<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Agence,
@@ -507,7 +507,7 @@ export type GetRechercheGlobale<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type GetArchives<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetArchives<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Guichet,
@@ -523,7 +523,7 @@ export type GetArchives<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type GetAIStatus<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAIStatus<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _AnalyseAvisIA,
@@ -534,7 +534,7 @@ export type GetAIStatus<Input extends Payload = never, Output extends Payload = 
   >
 
 // PUBLIC API
-export type GetThemesStats<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetThemesStats<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _AnalyseAvisIA,
@@ -547,7 +547,7 @@ export type GetThemesStats<Input extends Payload = never, Output extends Payload
   >
 
 // PUBLIC API
-export type GetIndicateursExperience<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetIndicateursExperience<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -564,7 +564,7 @@ export type GetIndicateursExperience<Input extends Payload = never, Output exten
   >
 
 // PUBLIC API
-export type GetMoyennesParCritere<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetMoyennesParCritere<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -580,7 +580,7 @@ export type GetMoyennesParCritere<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type GetRepartitionOptions<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetRepartitionOptions<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -596,7 +596,7 @@ export type GetRepartitionOptions<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type GetTendanceParCritere<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetTendanceParCritere<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Reponse,
@@ -612,7 +612,7 @@ export type GetTendanceParCritere<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type GetAnalysesGlobales<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetAnalysesGlobales<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _GlobalExperienceAnalysis,
@@ -623,7 +623,7 @@ export type GetAnalysesGlobales<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type GetPlatformOverview<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetPlatformOverview<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Entreprise,
@@ -635,7 +635,7 @@ export type GetPlatformOverview<Input extends Payload = never, Output extends Pa
   >
 
 // PUBLIC API
-export type GetPlatformEntreprises<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetPlatformEntreprises<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Entreprise,
@@ -646,7 +646,7 @@ export type GetPlatformEntreprises<Input extends Payload = never, Output extends
   >
 
 // PUBLIC API
-export type GetPlatformEntreprise<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetPlatformEntreprise<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _Entreprise,
@@ -662,7 +662,7 @@ export type GetPlatformEntreprise<Input extends Payload = never, Output extends 
   >
 
 // PUBLIC API
-export type GetPlatformAudit<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetPlatformAudit<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _AuditLog,
@@ -673,7 +673,7 @@ export type GetPlatformAudit<Input extends Payload = never, Output extends Paylo
   >
 
 // PUBLIC API
-export type GetPlatformMe<Input extends Payload = never, Output extends Payload = Payload> =
+export type GetPlatformMe<Input extends Payload = never, Output extends Payload = Payload> = 
   AuthenticatedQueryDefinition<
     [
       _User,

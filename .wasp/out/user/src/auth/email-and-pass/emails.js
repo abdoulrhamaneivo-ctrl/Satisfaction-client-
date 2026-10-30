@@ -1,16 +1,13 @@
 // ============================================================================
-// CORRECTIF LIENS EMAILS (03/09) : les liens d'authentification étaient
-// construits avec config.clientUrl = WASP_WEB_CLIENT_URL. Cette variable
-// pointait encore vers l'ancien domaine Railway (yeba-server.onrender.com,
-// désormais mort → 404 « Not Found » pour l'utilisateur). Ce fichier est le
-// SEUL endroit où Wasp 0.24 laisse personnaliser le contenu des emails
-// d'auth : on y RÉÉCRIT le domaine des liens vers le domaine client actuel
-// (yebaproject.onrender.com), quelle que soit la valeur de l'env var.
-// Quand l'env var Render sera corrigée, cette garde reste inoffensive
-// (même domaine).
+// Wasp construit les liens d'auth avec WASP_WEB_CLIENT_URL. On corrige ici
+// les anciens domaines de déploiement vers le domaine configuré actuellement,
+// afin qu'un transfert Render ne laisse pas les emails pointer vers l'ancien
+// service.
 // ============================================================================
-const DOMAINE_CLIENT = 'https://yebaproject.onrender.com';
+const DOMAINE_CLIENT = (process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
 const DOMAINES_OBSOLETES = [
+    'https://yebaproject.onrender.com',
+    'http://yebaproject.onrender.com',
     'https://yeba-server.onrender.com',
     'http://yeba-server.onrender.com',
 ];

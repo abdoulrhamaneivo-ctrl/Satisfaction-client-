@@ -341,7 +341,7 @@ function normalizeProviderUserId(providerName, providerUserId) {
           Users can't extend this function because it is private.
           If there is an unknown `providerName` in runtime, we'll
           return the `providerUserId` as is.
-
+    
           We want to still have explicit OAuth providers listed
           so that we get a type error if we forget to add a new provider
           to the switch statement.
@@ -11662,8 +11662,10 @@ const getEmailUserFields = defineUserSignupFields({
   }
 });
 
-const DOMAINE_CLIENT = "https://yebaproject.onrender.com";
+const DOMAINE_CLIENT = (process.env.WASP_WEB_CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/+$/, "");
 const DOMAINES_OBSOLETES = [
+  "https://yebaproject.onrender.com",
+  "http://yebaproject.onrender.com",
   "https://yeba-server.onrender.com",
   "http://yeba-server.onrender.com"
 ];
@@ -12413,7 +12415,7 @@ const relancerTachesEnRetard = async (_args, _context) => {
     </div>
     <div style="background: #f9fafb; padding: 16px 32px; border-top: 1px solid #e5e7eb;">
       <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-        Yeba \u2014 Plateforme de satisfaction client \xB7
+        Yeba \u2014 Plateforme de satisfaction client \xB7 
         <a href="${FRONTEND_URL$1}" style="color: #c47a20; text-decoration: none;">yeba.ci</a>
       </p>
     </div>
@@ -12520,7 +12522,7 @@ function genererHtmlRapport(stats, periodeLabel, contexte) {
 
   <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 32px rgba(0,0,0,0.1);">
 
-
+    
 
     <!-- En-t\xEAte -->
 
@@ -12569,7 +12571,7 @@ function genererHtmlRapport(stats, periodeLabel, contexte) {
 
     <div style="padding: 32px 40px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
 
-
+      
 
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; text-align: center;">
 
