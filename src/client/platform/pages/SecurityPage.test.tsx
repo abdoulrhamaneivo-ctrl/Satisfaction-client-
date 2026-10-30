@@ -75,7 +75,9 @@ describe('guide de déploiement réservé au SUPER_ADMIN', () => {
     monter();
     await laisserCharger();
     expect(screen.getByRole('heading', { name: /guide de déploiement/i })).toBeDefined();
-    expect(screen.getByText(/OPENROUTER_API_KEY/)).toBeDefined();
+    expect(screen.getAllByText(/OPENROUTER_API_KEY/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/AI_TEST_RENDER_SERVICE_ID/)).toBeDefined();
+    expect(screen.getByText(/avis fictifs uniquement/i)).toBeDefined();
   });
 
   test('SUPPORT → le guide est masqué, le reste de la page reste', async () => {

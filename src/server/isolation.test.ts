@@ -117,14 +117,20 @@ test('cumul : getReponses refuse la direction pure mais pas la cumulée', async 
 });
 
 test('getAIStatus : le modèle NVIDIA par défaut est supporté', async () => {
-  const precedent = process.env.AI_PROVIDER;
+  const vars = ['AI_PROVIDER', 'AI_TEST_MODE', 'AI_TEST_RENDER_SERVICE_ID', 'RENDER_SERVICE_ID'] as const;
+  const previous = Object.fromEntries(vars.map((name) => [name, process.env[name]]));
   process.env.AI_PROVIDER = 'nvidia';
+  process.env.AI_TEST_MODE = 'true';
+  process.env.RENDER_SERVICE_ID = 'srv-yeba-test';
+  process.env.AI_TEST_RENDER_SERVICE_ID = 'srv-yeba-test';
   try {
     const statut = await getAIStatus(undefined, ctx(directionA, [directionA]) as any);
-    expect(statut.provider).toBe('Nvidia');
+    expect(statut.provider).toBe('NVIDIA (test)');
     expect(statut.model).toBe('mistralai/mistral-nemotron');
   } finally {
-    if (precedent === undefined) delete process.env.AI_PROVIDER;
-    else process.env.AI_PROVIDER = precedent;
+    for (const name of vars) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
   }
 });

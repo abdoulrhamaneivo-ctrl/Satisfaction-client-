@@ -25,7 +25,13 @@ export const SettingsPage = () => {
     try {
       await tester({});
       await refetch();
-      toast({ variant: 'success', title: 'Connexion vérifiée', description: 'Le modèle gratuit répond sous les règles de confidentialité configurées.' });
+      toast({
+        variant: 'success',
+        title: 'Connexion vérifiée',
+        description: aiStatus?.testMode
+          ? 'Le test synthétique répond. Le mode NVIDIA reste réservé aux données fictives.'
+          : 'Le modèle OpenRouter gratuit répond sous les règles de confidentialité configurées.',
+      });
     } catch (error: any) {
       await refetch();
       toast({ variant: 'destructive', title: 'IA indisponible', description: error?.message || 'Aucun modèle compatible ne répond.' });
@@ -62,6 +68,14 @@ export const SettingsPage = () => {
               </div>
             ) : (
               <>
+                {aiStatus?.testMode && (
+                  <div role="alert" className="rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm leading-6 text-foreground">
+                    <strong>Instance de test IA :</strong> utilise uniquement des avis fictifs, jamais des avis réels ni des données personnelles.
+                    <span className="mt-1 block">
+                      Secours {aiStatus.fallbackProvider || 'non défini'} : {aiStatus.fallbackConfigured ? 'configuré' : 'non configuré'}.
+                    </span>
+                  </div>
+                )}
                 <div className="grid gap-6 md:grid-cols-3">
                   <MotionCard className="space-y-4 p-6">
                     <div className="flex items-center justify-between gap-3">
@@ -79,7 +93,9 @@ export const SettingsPage = () => {
                     <h2 className="text-2xl font-bold text-foreground">{verifie ? 'Opérationnel' : probeEchec ? 'Endpoint indisponible' : pret ? 'Non vérifié' : 'Non configuré'}</h2>
                     <p className="text-sm leading-6 text-muted-foreground">
                       {verifie
-                        ? aiStatus?.verifiedAt ? `Dernière vérification réussie : ${new Date(aiStatus.verifiedAt).toLocaleString('fr-FR')}.` : 'La vérification synthétique a réussi.'
+                        ? aiStatus?.verifiedAt
+                          ? `Dernière vérification réussie via ${aiStatus.lastProbeProvider || aiStatus.provider} : ${new Date(aiStatus.verifiedAt).toLocaleString('fr-FR')}.`
+                          : 'La vérification synthétique a réussi.'
                         : probeEchec ? 'Le fournisseur a refusé ou ne peut pas respecter les contraintes gratuites et de confidentialité.'
                           : 'Une clé présente ne suffit pas : lancez une vérification synthétique avant de considérer l’IA disponible.'}
                     </p>
@@ -93,7 +109,9 @@ export const SettingsPage = () => {
                     <h2 className="text-2xl font-bold text-foreground">{aiStatus?.provider || 'OpenRouter'}</h2>
                     <code className="block break-all rounded-xl bg-primary/10 p-3 text-sm text-primary-strong">{aiStatus?.model || 'nvidia/nemotron-3.5-lightning:free'}</code>
                     <p className="text-xs leading-5 text-muted-foreground">
-                      {aiStatus?.modelIsFree ? 'Modèle déclaré gratuit (:free).' : 'Le modèle configuré n’a pas de suffixe :free et sera refusé.'}
+                      {aiStatus?.testMode && aiStatus.provider === 'NVIDIA (test)'
+                        ? 'NVIDIA est limité au test gratuit. N’utilisez que des données fictives.'
+                        : aiStatus?.modelIsFree ? 'Modèle OpenRouter déclaré gratuit (:free).' : 'Le modèle configuré n’a pas de suffixe :free et sera refusé.'}
                     </p>
                   </MotionCard>
 
@@ -124,8 +142,11 @@ export const SettingsPage = () => {
                     </div>
                   </div>
                   <ul className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
-                    <li>• Modèles gratuits uniquement, coût maximal demandé : 0.</li>
-                    <li>• Refus de collecte, demande de traitement sans conservation et aucune bascule fournisseur.</li>
+                    <li>• OpenRouter : modèles gratuits uniquement, coût maximal demandé : 0.</li>
+                    <li>• {aiStatus?.testMode
+                      ? `Test : ${aiStatus.provider} puis repli ${aiStatus.fallbackProvider || 'indisponible'}.`
+                      : 'Production : OpenRouter uniquement, sans bascule vers NVIDIA.'}</li>
+                    <li>• OpenRouter refuse la collecte et demande un traitement sans conservation, sans fournisseur secondaire.</li>
                     <li>• Noms d’agents, d’agences et de guichets exclus des prompts.</li>
                     <li>• Téléphones, courriels et URL usuels masqués avant envoi.</li>
                   </ul>
@@ -135,7 +156,7 @@ export const SettingsPage = () => {
                     </p>
                     <Button type="button" onClick={verifierConnexion} disabled={!pret || probeEnCours} className="min-h-11 shrink-0 gap-2">
                       {probeEnCours ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />}
-                      {probeEnCours ? 'Vérification…' : 'Vérifier gratuitement'}
+                      {probeEnCours ? 'Vérification…' : aiStatus?.testMode ? 'Tester le mode test' : 'Vérifier gratuitement'}
                     </Button>
                   </div>
                 </MotionCard>

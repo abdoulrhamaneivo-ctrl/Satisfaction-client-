@@ -20,7 +20,7 @@ vi.mock('openai', () => ({
   }),
 }));
 
-const ENV_VARS = ['NVIDIA_API_KEY', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY'] as const;
+const ENV_VARS = ['NVIDIA_API_KEY', 'NVIDIA_BASE_URL', 'OPENROUTER_API_KEY', 'DEEPSEEK_API_KEY'] as const;
 let sauvegarde: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -56,5 +56,14 @@ describe('clés API trimées à la construction', () => {
     new OpenRouterProvider();
     new DeepseekProvider();
     expect(mocks.constructeur).not.toHaveBeenCalled();
+  });
+
+  test('NVIDIA utilise toujours le endpoint officiel du programme développeur', () => {
+    process.env.NVIDIA_API_KEY = 'nvapi-test-cle';
+    process.env.NVIDIA_BASE_URL = 'https://endpoint-payant.example/v1';
+
+    new NvidiaProvider();
+
+    expect(mocks.constructeur.mock.calls[0][0].baseURL).toBe('https://integrate.api.nvidia.com/v1');
   });
 });
