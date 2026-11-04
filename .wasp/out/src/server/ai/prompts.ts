@@ -1,6 +1,6 @@
 // src/server/ai/prompts.ts
 // ============================================================================
-// OpenRouter uniquement : un prompt et un budget de tokens communs.
+// Production OpenRouter; NVIDIA est réservé au service Render isolé de test.
 //
 // AVANT
 // Le fragment `CHAMPS_ETENDUS_PROMPT` reste partagé par le prompt et les
@@ -34,6 +34,9 @@ export const MAX_TOKENS_ANALYSE = 1500;
  * plusieurs opérations et doit pouvoir citer plusieurs problèmes.
  */
 export const MAX_TOKENS_SYNTHESE = 2000;
+
+/** Plafond minimal pour la vérification synthétique « OK ». */
+export const MAX_TOKENS_TEST_CONNEXION = 8;
 
 /**
  * Prompt système de l'analyse d'un avis.

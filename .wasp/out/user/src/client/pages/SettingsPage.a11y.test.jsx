@@ -48,4 +48,21 @@ describe('A4 — audit axe-core de la page Réglages', () => {
         expect(screen.getAllByText(/OpenRouter/).length).toBeGreaterThan(0);
         await auditerPage('page Réglages — état chargé');
     });
+    test('le mode NVIDIA affiche un avertissement test et le secours OpenRouter', async () => {
+        vi.mocked(getAIStatus).mockResolvedValue({
+            configured: true,
+            modelIsFree: true,
+            provider: 'NVIDIA (test)',
+            model: 'mistralai/mistral-nemotron',
+            testMode: true,
+            fallbackProvider: 'OpenRouter',
+            fallbackConfigured: true,
+            stats: { total: 0, done: 0, pending: 0, failed: 0 },
+        });
+        monter();
+        const notice = await screen.findByRole('alert');
+        expect(notice.textContent).toContain('uniquement des avis fictifs');
+        expect(notice.textContent).toContain('OpenRouter');
+        expect(notice.textContent).toContain('configuré');
+    });
 });

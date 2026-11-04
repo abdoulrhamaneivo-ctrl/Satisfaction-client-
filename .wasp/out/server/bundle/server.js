@@ -255,7 +255,7 @@ const auth$1 = new Lucia(prismaAdapter, {
 });
 
 const defineHandler = (middleware) => middleware;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep$1 = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PASSWORD_FIELD = "password";
 const EMAIL_FIELD = "email";
@@ -413,7 +413,7 @@ async function deleteUserByAuthId(authId) {
 }
 async function doFakeWork() {
   const timeToWork = Math.floor(Math.random() * 1e3) + 1e3;
-  return sleep(timeToWork);
+  return sleep$1(timeToWork);
 }
 function rethrowPossibleAuthError(e) {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -1774,6 +1774,7 @@ le sch\xE9ma demand\xE9. N'ajoute aucun texte en dehors du JSON.`;
 
 const MAX_TOKENS_ANALYSE = 1500;
 const MAX_TOKENS_SYNTHESE = 2e3;
+const MAX_TOKENS_TEST_CONNEXION = 8;
 const SYSTEM_PROMPT = `Tu es le moteur d'analyse des avis clients de YEBA.
 
 Ta mission est uniquement d'analyser le texte d'un avis client.
@@ -1818,6 +1819,166 @@ La NOTE (1-5) et le TEXTE du commentaire sont deux signaux ind\xE9pendants. Tu r
 ${CHAMPS_ETENDUS_PROMPT}
 
 N'ajoute aucun texte en dehors du JSON.`;
+
+const DEFAULT_MODEL = "mistralai/mistral-nemotron";
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function estErreurRateLimit(err) {
+  const status = err?.status ?? err?.response?.status;
+  if (status === 429) return true;
+  const msg = String(err?.message ?? "").toLowerCase();
+  return msg.includes("429") || msg.includes("rate limit") || msg.includes("too many requests");
+}
+class NvidiaProvider {
+  /** Modèle effectif (traçabilité Phase F). */
+  nomModele() {
+    return this.model;
+  }
+  name = "nvidia";
+  client = null;
+  model;
+  constructor() {
+    this.model = process.env.NVIDIA_MODEL || DEFAULT_MODEL;
+    const apiKey = process.env.NVIDIA_API_KEY;
+    if (apiKey && apiKey.trim().length > 0) {
+      this.client = new OpenAI({
+        // Endpoint fixe du programme NVIDIA Developer; aucune URL de service
+        // payant ou tierce ne peut être introduite par configuration.
+        baseURL: "https://integrate.api.nvidia.com/v1",
+        apiKey: apiKey.trim(),
+        // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
+        timeout: 25e3
+      });
+    }
+  }
+  /** Vérification sans donnée réelle, réservée au test de disponibilité. */
+  async testerConnexion() {
+    if (!this.client) {
+      throw new Error("NVIDIA_API_KEY non configur\xE9e dans les variables d\u2019environnement (build.nvidia.com).");
+    }
+    const response = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: "system", content: "R\xE9ponds uniquement par le mot OK." },
+        { role: "user", content: "V\xE9rification technique synth\xE9tique, aucune donn\xE9e r\xE9elle." }
+      ],
+      temperature: 0,
+      max_tokens: MAX_TOKENS_TEST_CONNEXION
+    });
+    const message = response.choices[0]?.message;
+    const content = message?.content || message?.reasoning_content || message?.reasoning;
+    if (typeof content !== "string" || !content.trim()) {
+      throw new Error("R\xE9ponse vide du mod\xE8le NVIDIA pendant le test synth\xE9tique.");
+    }
+  }
+  async analyserAvis(commentaire, contexte) {
+    if (!this.client) {
+      throw new Error("NVIDIA_API_KEY non configur\xE9e dans les variables d\u2019environnement (build.nvidia.com).");
+    }
+    const textePrepare = anonymiserTextePourAnalyse(commentaire);
+    if (!textePrepare) throw new Error("AI_EMPTY_REDACTED_COMMENT");
+    const promptUtilisateur = `Analyse cet avis client.
+
+NOTE :
+${contexte?.score !== void 0 && contexte?.score !== null ? contexte.score : "Non fournie"}
+
+AVIS :
+${textePrepare}
+
+Retourne exclusivement le JSON demand\xE9.`;
+    const tenter = () => this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: promptUtilisateur }
+      ],
+      temperature: 0.1,
+      max_tokens: MAX_TOKENS_ANALYSE
+    });
+    let response;
+    try {
+      response = await tenter();
+    } catch (err) {
+      if (String(err?.message ?? "").includes("reasoning")) {
+        response = await tenter();
+      } else if (estErreurRateLimit(err)) {
+        const retryAfter = Number(err?.headers?.["retry-after"] ?? err?.response?.headers?.["retry-after"]);
+        await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1e3, 1e4) : 2e3);
+        try {
+          response = await tenter();
+        } catch (retryErr) {
+          throw new Error(
+            `Limite NVIDIA NIM atteinte (~40 req/min, free tier). R\xE9essaie dans quelques secondes. D\xE9tail: ${retryErr?.message ?? err?.message}`
+          );
+        }
+      } else {
+        throw err;
+      }
+    }
+    const msg = response.choices[0]?.message;
+    let content = msg?.content;
+    if (!content && typeof msg?.reasoning_content === "string" && msg.reasoning_content.trim()) {
+      content = msg.reasoning_content;
+    }
+    if (!content && typeof msg?.reasoning === "string" && msg.reasoning.trim()) {
+      content = msg.reasoning;
+    }
+    if (!content) {
+      const fin = response.choices[0]?.finish_reason ?? "?";
+      throw new Error(`R\xE9ponse vide du mod\xE8le NVIDIA (${this.model}, fin=${fin}).`);
+    }
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+    }
+    let rawJson;
+    try {
+      rawJson = JSON.parse(jsonStr);
+    } catch {
+      const debut = jsonStr.indexOf("{");
+      const fin = jsonStr.lastIndexOf("}");
+      if (debut === -1 || fin <= debut) {
+        throw new Error(`JSON malform\xE9 retourn\xE9 par l'IA NVIDIA (aucun objet d\xE9tect\xE9).`);
+      }
+      try {
+        rawJson = JSON.parse(jsonStr.slice(debut, fin + 1));
+      } catch (err) {
+        throw new Error(`JSON malform\xE9 retourn\xE9 par l'IA NVIDIA: ${err?.message}`);
+      }
+    }
+    const parseResult = AnalyseResultSchema.safeParse(rawJson);
+    if (!parseResult.success) {
+      throw new Error(`Sch\xE9ma JSON invalide retourn\xE9 par l'IA NVIDIA: ${parseResult.error.message}`);
+    }
+    return parseResult.data;
+  }
+  /**
+   * Synthèse globale (vague 1, Phase G) : verbalise des agrégats DÉJÀ
+   * calculés — ne mesure rien. Tentative unique (le service bascule de
+   * provider en cas d'échec).
+   */
+  async syntheseGlobale(promptAgregats) {
+    if (!this.client) {
+      throw new Error("NVIDIA_API_KEY non configur\xE9e dans les variables d\u2019environnement (build.nvidia.com). non configur\xE9e.");
+    }
+    const response = await this.client.chat.completions.create({
+      model: this.model,
+      messages: [
+        { role: "system", content: PROMPT_SYNTHESE_SYSTEM },
+        { role: "user", content: promptAgregats }
+      ],
+      temperature: 0.1,
+      max_tokens: MAX_TOKENS_SYNTHESE
+    });
+    const msg = response.choices[0]?.message;
+    const brut = extraireObjetJson(
+      `synth\xE8se ${this.name}`,
+      msg?.content || msg?.reasoning_content || msg?.reasoning
+    );
+    return validerReponseJson(`synth\xE8se ${this.name}`, SyntheseGlobaleSchema, brut);
+  }
+}
 
 class OpenRouterProvider {
   /** Modèle effectif (traçabilité Phase F). */
@@ -1962,64 +2123,112 @@ Retourne exclusivement le JSON demand\xE9.`;
 class AIServiceManager {
   lastProbeAt = null;
   lastProbeStatus = null;
-  provider() {
-    return new OpenRouterProvider();
+  lastProbeProvider = null;
+  lastProbeModel = null;
+  testMode() {
+    if (process.env.AI_TEST_MODE?.trim().toLowerCase() !== "true") return false;
+    const serviceId = process.env.RENDER_SERVICE_ID?.trim();
+    const allowedTestServiceId = process.env.AI_TEST_RENDER_SERVICE_ID?.trim();
+    return Boolean(serviceId && allowedTestServiceId && serviceId === allowedTestServiceId);
   }
-  model() {
+  primaryProviderName() {
+    if (this.testMode() && process.env.AI_PROVIDER?.trim().toLowerCase() === "nvidia") {
+      return "nvidia";
+    }
+    return "openrouter";
+  }
+  providerOrder() {
+    if (!this.testMode()) return ["openrouter"];
+    return this.primaryProviderName() === "nvidia" ? ["nvidia", "openrouter"] : ["openrouter", "nvidia"];
+  }
+  providerConfigured(name) {
+    if (name === "nvidia") {
+      return this.testMode() && Boolean(process.env.NVIDIA_API_KEY?.trim());
+    }
+    return Boolean(process.env.OPENROUTER_API_KEY?.trim()) && this.modelIsFree("openrouter");
+  }
+  availableProviders() {
+    return this.providerOrder().filter((name) => this.providerConfigured(name));
+  }
+  createProvider(name) {
+    return name === "nvidia" ? new NvidiaProvider() : new OpenRouterProvider();
+  }
+  modelFor(name) {
+    if (name === "nvidia") return process.env.NVIDIA_MODEL?.trim() || "mistralai/mistral-nemotron";
     return process.env.OPENROUTER_MODEL?.trim() || "nvidia/nemotron-3.5-lightning:free";
   }
-  modelIsFree() {
-    return this.model().endsWith(":free");
+  model() {
+    return this.modelFor(this.primaryProviderName());
+  }
+  modelIsFree(name = this.primaryProviderName()) {
+    if (name === "nvidia") return this.testMode();
+    return this.modelFor("openrouter").endsWith(":free");
   }
   isConfigured() {
-    return Boolean(process.env.OPENROUTER_API_KEY?.trim()) && this.modelIsFree();
+    return this.availableProviders().length > 0;
   }
   nomProviderEffectif() {
-    return "OpenRouter";
+    return this.primaryProviderName() === "nvidia" ? "NVIDIA (test)" : "OpenRouter";
   }
   status() {
+    const primary = this.primaryProviderName();
+    const fallbackName = this.testMode() ? primary === "nvidia" ? "openrouter" : "nvidia" : null;
+    const fallbackProvider = fallbackName === "nvidia" ? "NVIDIA (test)" : fallbackName === "openrouter" ? "OpenRouter" : null;
     return {
       configured: this.isConfigured(),
-      modelIsFree: this.modelIsFree(),
-      provider: "OpenRouter",
-      model: this.model(),
-      baseUrl: "https://openrouter.ai/api/v1",
+      modelIsFree: this.modelIsFree(primary),
+      provider: primary === "nvidia" ? "NVIDIA (test)" : "OpenRouter",
+      model: this.modelFor(primary),
+      baseUrl: primary === "nvidia" ? "https://integrate.api.nvidia.com/v1" : "https://openrouter.ai/api/v1",
+      testMode: this.testMode(),
+      fallbackProvider,
+      fallbackConfigured: fallbackName ? this.providerConfigured(fallbackName) : false,
       verifiedAt: this.lastProbeAt,
-      lastProbeStatus: this.lastProbeStatus
+      lastProbeStatus: this.lastProbeStatus,
+      lastProbeProvider: this.lastProbeProvider,
+      lastProbeModel: this.lastProbeModel
     };
   }
+  async runWithFallback(operation) {
+    const candidates = this.availableProviders();
+    if (!candidates.length) throw new Error("AI_NOT_CONFIGURED_OR_NOT_FREE");
+    for (const name of candidates) {
+      try {
+        const provider = this.createProvider(name);
+        return { result: await operation(provider), provider };
+      } catch {
+      }
+    }
+    throw new Error("AI_PROVIDER_UNAVAILABLE_OR_POLICY_REJECTED");
+  }
   async testerConnexion() {
-    if (!this.isConfigured()) throw new Error("AI_NOT_CONFIGURED_OR_NOT_FREE");
     try {
-      await this.provider().testerConnexion();
+      const { provider } = await this.runWithFallback((instance) => instance.testerConnexion());
       this.lastProbeAt = (/* @__PURE__ */ new Date()).toISOString();
       this.lastProbeStatus = "success";
-      return { verifiedAt: this.lastProbeAt, lastProbeStatus: "success" };
-    } catch {
+      this.lastProbeProvider = provider.name === "nvidia" ? "NVIDIA (test)" : "OpenRouter";
+      this.lastProbeModel = provider.nomModele();
+      return {
+        verifiedAt: this.lastProbeAt,
+        lastProbeStatus: "success",
+        provider: this.lastProbeProvider,
+        model: this.lastProbeModel
+      };
+    } catch (error) {
       this.lastProbeAt = (/* @__PURE__ */ new Date()).toISOString();
       this.lastProbeStatus = "failed";
-      throw new Error("AI_PROVIDER_UNAVAILABLE_OR_POLICY_REJECTED");
+      this.lastProbeProvider = null;
+      this.lastProbeModel = null;
+      throw error;
     }
   }
   async analyserAvis(commentaire, contexte) {
-    if (!this.isConfigured()) throw new Error("AI_NOT_CONFIGURED_OR_NOT_FREE");
-    try {
-      const instance = this.provider();
-      const result = await instance.analyserAvis(commentaire, contexte);
-      return { result, provider: instance.name, model: instance.nomModele() };
-    } catch {
-      throw new Error("AI_PROVIDER_UNAVAILABLE_OR_POLICY_REJECTED");
-    }
+    const { result, provider } = await this.runWithFallback((instance) => instance.analyserAvis(commentaire, contexte));
+    return { result, provider: provider.name, model: provider.nomModele() };
   }
   async syntheseGlobale(promptAgregats) {
-    if (!this.isConfigured()) throw new Error("AI_NOT_CONFIGURED_OR_NOT_FREE");
-    try {
-      const instance = this.provider();
-      const synthese = await instance.syntheseGlobale(promptAgregats);
-      return { synthese, provider: instance.name, model: instance.nomModele() };
-    } catch {
-      throw new Error("AI_PROVIDER_UNAVAILABLE_OR_POLICY_REJECTED");
-    }
+    const { result, provider } = await this.runWithFallback((instance) => instance.syntheseGlobale(promptAgregats));
+    return { synthese: result, provider: provider.name, model: provider.nomModele() };
   }
 }
 const AIService = new AIServiceManager();
@@ -3661,7 +3870,7 @@ const testerConnexionIA$2 = async (_args, context) => {
   try {
     return await AIService.testerConnexion();
   } catch (error) {
-    const message = error?.message === "AI_NOT_CONFIGURED_OR_NOT_FREE" ? "Configurez une cl\xE9 OpenRouter et un mod\xE8le dont l\u2019identifiant se termine par :free." : "Aucun endpoint gratuit compatible avec les r\xE8gles de confidentialit\xE9 ne r\xE9pond. L\u2019IA reste d\xE9sactiv\xE9e.";
+    const message = error?.message === "AI_NOT_CONFIGURED_OR_NOT_FREE" ? AIService.status().testMode ? "Configurez NVIDIA pour les tests et OpenRouter avec un mod\xE8le gratuit (:free) comme secours." : "Configurez une cl\xE9 OpenRouter et un mod\xE8le dont l\u2019identifiant se termine par :free." : "Aucun endpoint gratuit compatible avec les r\xE8gles de confidentialit\xE9 ne r\xE9pond. L\u2019IA reste d\xE9sactiv\xE9e.";
     throw new HttpError(503, message);
   }
 };
@@ -7534,11 +7743,13 @@ function indiceGlobalExperience(e) {
 
 function estCritereSatisfaction(critere) {
   const type = String(critere?.type_reponse || "").toUpperCase();
-  if (type === "TEXTE" || type === "QCM" || type === "CASES") return false;
+  const mode = String(critere?.scoring_mode || "").toUpperCase();
+  if (type === "TEXTE" || type === "CASES") return false;
+  if (type === "QCM" && mode !== "ORDINAL") return false;
   if (type === "NPS") return false;
   if (type === "CES") return false;
-  if (String(critere?.scoring_mode || "").toUpperCase() === "CES") return false;
-  if (String(critere?.scoring_mode || "").toUpperCase() === "FREE_TEXT") return false;
+  if (mode === "CES") return false;
+  if (mode === "FREE_TEXT") return false;
   return true;
 }
 function noteSur5(r) {
@@ -7547,6 +7758,9 @@ function noteSur5(r) {
   if (!estCritereSatisfaction(critere)) return null;
   const stocke = typeof r.score_normalise === "number" ? r.score_normalise : null;
   if (stocke !== null && Number.isFinite(stocke)) {
+    if (String(critere?.type_reponse || "").toUpperCase() === "QCM" && String(critere?.scoring_mode || "").toUpperCase() === "ORDINAL") {
+      return Math.max(1, Math.min(5, 1 + stocke / 100 * 4));
+    }
     return Math.max(1, Math.min(5, stocke / 20));
   }
   const brut = typeof r.score_brut === "number" ? r.score_brut : null;

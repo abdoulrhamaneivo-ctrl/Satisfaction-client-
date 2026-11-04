@@ -147,7 +147,7 @@ function ContactRappelPanel({ idSoumission }) {
             setMessageCopie('Copie indisponible sur cet appareil.');
         }
     }
-    return (<section className="rounded-2xl border border-border/70 bg-muted/20 p-3" aria-label="Coordonnées de rappel">
+    return (<div className="rounded-2xl border border-border/70 bg-muted/20 p-3">
       <button type="button" aria-expanded={ouvert} onClick={() => setOuvert((value) => !value)} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-primary-strong hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <PhoneCall className="size-4" aria-hidden/>
         {ouvert ? 'Masquer le rappel' : 'Vérifier une demande de rappel'}
@@ -178,7 +178,7 @@ function ContactRappelPanel({ idSoumission }) {
           {messageErreur ? <p role="alert" className="mt-2 text-xs font-semibold text-destructive-strong">{messageErreur}</p> : null}
           <p className="mt-2 text-xs text-muted-foreground">Accès réservé au Chef de l’agence. Le numéro n’est pas inclus dans les exports.</p>
         </div>)}
-    </section>);
+    </div>);
 }
 export const AvisPage = () => {
     const { data: user } = useAuth();

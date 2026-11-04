@@ -6,7 +6,7 @@ declare function ToastViewport({ className, position, ...props }: React.Componen
     position?: "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
 }): React.JSX.Element;
 declare const toastVariants: (props?: ({
-    variant?: "default" | "destructive" | "success" | "warning" | null | undefined;
+    variant?: "success" | "default" | "destructive" | "warning" | null | undefined;
 } & import("class-variance-authority/types").ClassProp) | undefined) => string;
 declare function Toast({ className, variant, ...props }: React.ComponentProps<typeof ToastPrimitives.Root> & VariantProps<typeof toastVariants>): React.JSX.Element;
 declare function ToastAction({ className, ...props }: React.ComponentProps<typeof ToastPrimitives.Action>): React.JSX.Element;

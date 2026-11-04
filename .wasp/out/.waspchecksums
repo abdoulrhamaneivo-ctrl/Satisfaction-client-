@@ -1187,7 +1187,7 @@
             "file",
             "sdk/wasp/src/client/__mocks__/waspClientOperations.ts"
         ],
-        "2fe1d34a7580de4e0035a698b43f87d326a8b503ea2d445e7e753d2251be44bf"
+        "88490b2eb9c335a42c1fe0d16d5ffa1b2a58603809cdef41ac1fdc49d143a708"
     ],
     [
         [
@@ -1894,7 +1894,7 @@
             "file",
             "sdk/wasp/src/client/pages/AvisPage.tsx"
         ],
-        "28da47a77420b2e5794a6d1d8cc930a5641f2d7c69844a7f6c6992bdb36fdd62"
+        "f80959b4e596029edbd26817b9036016a03e4017d5db4b048dda65bb15f24f9e"
     ],
     [
         [
@@ -2013,14 +2013,14 @@
             "file",
             "sdk/wasp/src/client/pages/SettingsPage.a11y.test.tsx"
         ],
-        "668cc4cd56475dbb3ca50512eeec89d4d5e71d5b5c4251d8f8c7a1bc5d91a598"
+        "c6ffbe978eb58ec440fc9a9df9cf9a8a9077d662cec328f77b88d912b247f53d"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/pages/SettingsPage.tsx"
         ],
-        "cef93fd051ba8d5874d492dc1e4de41222695eafda7dd0910536cf751df3f8b6"
+        "972c991bcd4a5a8a686e9044813430817c3e2b1874b461a28b5e4170383c26f4"
     ],
     [
         [
@@ -2090,14 +2090,14 @@
             "file",
             "sdk/wasp/src/client/platform/pages/SecurityPage.test.tsx"
         ],
-        "594529f557d41d1f457632bdeb5cc0b314585c6ff39727721ef808f42d9112db"
+        "88fb8f8873ac18dbed040c859d211e3c5cd8224fa549c43e0d07508dcab43cbe"
     ],
     [
         [
             "file",
             "sdk/wasp/src/client/platform/pages/SecurityPage.tsx"
         ],
-        "3071d6c4cd30a2afb0daf48fdbc25a047c3c3ddff49687b80922274d587e6f17"
+        "ae7720c9950edb3e8396d60defc4c2e740051cb3a2ba6ddec0e058e9c92c7d17"
     ],
     [
         [
@@ -2377,7 +2377,7 @@
             "file",
             "sdk/wasp/src/server/actions.ts"
         ],
-        "bab408272da3fe1d1d052b2fae696040dbb10620bf33aa6e708f1c07d6e2ad97"
+        "b506f96b2eb2f2ac63bf0a60f970d026c1a18cd52b8dab6072a0e58ca5fae42f"
     ],
     [
         [
@@ -2424,9 +2424,16 @@
     [
         [
             "file",
+            "sdk/wasp/src/server/ai/nvidiaProvider.test.ts"
+        ],
+        "230d68ab45aca4ae0cc4307847e730d18742c01c6f0b19d22555a4bf27e24f3c"
+    ],
+    [
+        [
+            "file",
             "sdk/wasp/src/server/ai/nvidiaProvider.ts"
         ],
-        "a7e4cff91fa3aee59a2b304416ff52721ed45fef3a8864ba2d3453e950b3e8db"
+        "ab93e225904616d8b669e9b199ac80b29d8d22041c3208f67b5c0185f9993490"
     ],
     [
         [
@@ -2447,21 +2454,28 @@
             "file",
             "sdk/wasp/src/server/ai/prompts.ts"
         ],
-        "0013bfc62175f4fdffc410f987ea6816799faa8eede47d9bdac9a3e35896c943"
+        "6ede902fbe193bcac8fdd00ce6690e9ebcf840233e28e7466d721605f3b974a5"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/ai/providers.test.ts"
         ],
-        "158847402b5a7ac6002985dca1fde927aca1daefecf5a29aa6c14c841ac9e620"
+        "58f3825f2c44087f8b9e170ba6d198abd1ac03bf60e3a017933703c781154420"
+    ],
+    [
+        [
+            "file",
+            "sdk/wasp/src/server/ai/service.test.ts"
+        ],
+        "40f2b951184c4310515fbf4a017f5c1ad7a27745c0ecdfb11793af2a7ed811ce"
     ],
     [
         [
             "file",
             "sdk/wasp/src/server/ai/service.ts"
         ],
-        "6bafe9a766f6f19035d03c8e3658abd9c0b886b0c25c50772553d523fe77569c"
+        "1c5e3417e158df136440200a96dc807e324a32600bce66c9f11f2f036c3277a3"
     ],
     [
         [
@@ -2580,7 +2594,7 @@
             "file",
             "sdk/wasp/src/server/isolation.test.ts"
         ],
-        "c84eecc3e77b54bb4d44a35e45be22fed94ac29c12f9dba68bdcdb80d9319878"
+        "5639dec6844fb074d4f7d84ae959656588d631e578d4504373d46e0c9edc1f5f"
     ],
     [
         [
@@ -2958,7 +2972,7 @@
             "file",
             "sdk/wasp/src/shared/noteSur5.ts"
         ],
-        "95712ae0777febe8841295ff29c4542f959490419254068f9a6542a81757bbad"
+        "2e043acf0978431ff9868c93dfd6a885579e29f5af0a8c5c75eb8248a9e6ea3f"
     ],
     [
         [

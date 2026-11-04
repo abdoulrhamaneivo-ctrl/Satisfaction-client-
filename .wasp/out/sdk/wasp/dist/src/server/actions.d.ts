@@ -77,6 +77,8 @@ export declare const marquerContactRappelTraite: (args: {
 export declare const testerConnexionIA: (_args: void, context: any) => Promise<{
     verifiedAt: string;
     lastProbeStatus: "success";
+    provider: string;
+    model: string;
 }>;
 /**
  * Wrapper public de `completerSoumission` (Vague 5, P11).

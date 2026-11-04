@@ -17,6 +17,14 @@ export declare const getAvisGroupes: import("vitest").Mock<() => Promise<{
     avis: never[];
     hasMore: boolean;
 }>>;
+export declare const getContactRappel: import("vitest").Mock<() => Promise<null>>;
+export declare const marquerContactRappelTraite: import("vitest").Mock<() => Promise<{
+    ok: boolean;
+    alreadyProcessed: boolean;
+}>>;
+export declare const exportAvisGroupes: import("vitest").Mock<() => Promise<{
+    avis: never[];
+}>>;
 export declare const getAgences: import("vitest").Mock<() => Promise<never[]>>;
 export declare const getCriteresParOperation: import("vitest").Mock<() => Promise<{
     operations: never[];

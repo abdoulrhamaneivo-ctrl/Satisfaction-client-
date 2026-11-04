@@ -38,11 +38,15 @@ export type ReponseSatisfaction = {
 /** Ce critère relève-t-il de la satisfaction moyenne ? */
 export function estCritereSatisfaction(critere: ReponseSatisfaction['critere']): boolean {
   const type = String(critere?.type_reponse || '').toUpperCase();
-  if (type === 'TEXTE' || type === 'QCM' || type === 'CASES') return false;
+  const mode = String(critere?.scoring_mode || '').toUpperCase();
+  if (type === 'TEXTE' || type === 'CASES') return false;
+  // Un QCM catégoriel ne mesure pas la satisfaction. Un QCM explicitement
+  // noté en ORDINAL (ex. la question de satisfaction globale) est notable.
+  if (type === 'QCM' && mode !== 'ORDINAL') return false;
   if (type === 'NPS') return false;               // métrique dédiée
   if (type === 'CES') return false;                // (type explicite, par sécurité)
-  if (String(critere?.scoring_mode || '').toUpperCase() === 'CES') return false;
-  if (String(critere?.scoring_mode || '').toUpperCase() === 'FREE_TEXT') return false;
+  if (mode === 'CES') return false;
+  if (mode === 'FREE_TEXT') return false;
   return true;
 }
 
@@ -60,6 +64,16 @@ export function noteSur5(r: ReponseSatisfaction | null | undefined): number | nu
   // comme un 0/100. Le test de type est donc explicite.
   const stocke = typeof r.score_normalise === 'number' ? r.score_normalise : null;
   if (stocke !== null && Number.isFinite(stocke)) {
+    // Les QCM ORDINAL sont normalisés par le moteur sur [0,100] selon les
+    // bornes réellement notées : 0 doit redevenir 1/5 et 100 redevenir 5/5.
+    // Le /20 historique reste utilisé pour les autres familles afin de ne
+    // pas réinterpréter leurs scores déjà stockés.
+    if (
+      String(critere?.type_reponse || '').toUpperCase() === 'QCM' &&
+      String(critere?.scoring_mode || '').toUpperCase() === 'ORDINAL'
+    ) {
+      return Math.max(1, Math.min(5, 1 + (stocke / 100) * 4));
+    }
     return Math.max(1, Math.min(5, stocke / 20));
   }
 

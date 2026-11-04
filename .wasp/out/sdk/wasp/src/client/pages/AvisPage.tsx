@@ -257,7 +257,7 @@ function ContactRappelPanel({ idSoumission }: { idSoumission: string }) {
   }
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-muted/20 p-3" aria-label="Coordonnées de rappel">
+    <div className="rounded-2xl border border-border/70 bg-muted/20 p-3">
       <button
         type="button"
         aria-expanded={ouvert}
@@ -301,7 +301,7 @@ function ContactRappelPanel({ idSoumission }: { idSoumission: string }) {
           <p className="mt-2 text-xs text-muted-foreground">Accès réservé au Chef de l’agence. Le numéro n’est pas inclus dans les exports.</p>
         </div>
       )}
-    </section>
+    </div>
   );
 }
 

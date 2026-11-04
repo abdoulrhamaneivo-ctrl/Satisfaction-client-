@@ -9,6 +9,8 @@ export declare const MAX_TOKENS_ANALYSE = 1500;
  * plusieurs opérations et doit pouvoir citer plusieurs problèmes.
  */
 export declare const MAX_TOKENS_SYNTHESE = 2000;
+/** Plafond minimal pour la vérification synthétique « OK ». */
+export declare const MAX_TOKENS_TEST_CONNEXION = 8;
 /**
  * Prompt système de l'analyse d'un avis.
  */

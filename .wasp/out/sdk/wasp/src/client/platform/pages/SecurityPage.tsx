@@ -292,6 +292,38 @@ function SecurityInner() {
               </div>
             </div>
 
+            <div className="space-y-3 rounded-xl border border-warning/40 bg-warning/5 p-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-warning-strong">
+                NVIDIA — instance de test isolée uniquement
+              </span>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Créez un service Render séparé avec une base Neon de test distincte. Utilisez des avis fictifs uniquement ; ne recopiez pas les secrets ni la base de production.
+              </p>
+              <div className="space-y-2 font-mono text-xs text-foreground">
+                <div className="rounded-lg border border-border/80 bg-card p-2.5">
+                  <span className="text-muted-foreground"># Même ID que RENDER_SERVICE_ID sur ce service Render de test</span>
+                  <br />
+                  <span className="font-semibold text-warning-strong">AI_TEST_MODE</span>=true
+                  <br />
+                  <span className="font-semibold text-warning-strong">AI_TEST_RENDER_SERVICE_ID</span>=&lt;ID_du_service_test&gt;
+                  <br />
+                  <span className="font-semibold text-primary">AI_PROVIDER</span>=nvidia
+                </div>
+                <div className="rounded-lg border border-border/80 bg-card p-2.5">
+                  <span className="text-muted-foreground"># Clé NVIDIA Developer + OpenRouter gratuit de secours</span>
+                  <br />
+                  <span className="font-semibold text-warning-strong">NVIDIA_API_KEY</span>=nvapi-…
+                  <br />
+                  <span className="font-semibold text-success">OPENROUTER_API_KEY</span>=sk-or-…
+                  <br />
+                  <span className="font-semibold text-primary">OPENROUTER_MODEL</span>=nvidia/nemotron-3.5-lightning:free
+                </div>
+              </div>
+              <p className="text-xs font-semibold leading-relaxed text-warning-strong">
+                NVIDIA Developer est réservé au prototypage et aux tests, pas au service d’utilisateurs réels. La production reste OpenRouter seule.
+              </p>
+            </div>
+
             <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-4">
               <span className="text-xs font-bold uppercase tracking-wider text-success">
                 Fonctionnalités IA de Yéba

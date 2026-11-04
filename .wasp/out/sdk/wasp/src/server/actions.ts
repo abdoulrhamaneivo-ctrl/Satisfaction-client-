@@ -1358,7 +1358,9 @@ export const testerConnexionIA = async (_args: void, context: any) => {
     return await AIService.testerConnexion();
   } catch (error: any) {
     const message = error?.message === 'AI_NOT_CONFIGURED_OR_NOT_FREE'
-      ? 'Configurez une clé OpenRouter et un modèle dont l’identifiant se termine par :free.'
+      ? AIService.status().testMode
+        ? 'Configurez NVIDIA pour les tests et OpenRouter avec un modèle gratuit (:free) comme secours.'
+        : 'Configurez une clé OpenRouter et un modèle dont l’identifiant se termine par :free.'
       : 'Aucun endpoint gratuit compatible avec les règles de confidentialité ne répond. L’IA reste désactivée.';
     throw new HttpError(503, message);
   }

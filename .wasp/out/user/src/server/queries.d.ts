@@ -240,8 +240,13 @@ export declare const getAIStatus: (_args: void, context: any) => Promise<{
     provider: string;
     model: string;
     baseUrl: string;
+    testMode: boolean;
+    fallbackProvider: string | null;
+    fallbackConfigured: boolean;
     verifiedAt: string | null;
     lastProbeStatus: "success" | "failed" | null;
+    lastProbeProvider: string | null;
+    lastProbeModel: string | null;
 }>;
 export declare const getThemesStats: (args: {
     nbJours?: number;

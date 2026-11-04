@@ -49,6 +49,9 @@ export const getCriteres = vi.fn(async () => ({ criteres: [], criteresEntreprise
 export const getServices = vi.fn(async () => []);
 export const getGuichets = vi.fn(async () => []);
 export const getAvisGroupes = vi.fn(async () => ({ avis: [], hasMore: false }));
+export const getContactRappel = vi.fn(async () => null);
+export const marquerContactRappelTraite = vi.fn(async () => ({ ok: true, alreadyProcessed: false }));
+export const exportAvisGroupes = vi.fn(async () => ({ avis: [] }));
 export const getAgences = vi.fn(async () => []);
 // Forme de retour réelle (`queries.ts:958`) : `operations` et `nonAssignees`.
 // Cette opération était ABSENTE du mock. `QuestionsParOperation` — rendue par

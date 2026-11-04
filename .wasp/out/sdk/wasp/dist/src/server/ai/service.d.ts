@@ -1,11 +1,19 @@
 import type { ContextAvis, AnalyseResult, SyntheseGlobale } from './types';
-type ProbeStatus = 'success' | 'failed' | null;
+type ProviderName = 'nvidia' | 'openrouter';
 declare class AIServiceManager {
     private lastProbeAt;
     private lastProbeStatus;
-    private provider;
+    private lastProbeProvider;
+    private lastProbeModel;
+    private testMode;
+    private primaryProviderName;
+    private providerOrder;
+    private providerConfigured;
+    private availableProviders;
+    private createProvider;
+    private modelFor;
     model(): string;
-    modelIsFree(): boolean;
+    modelIsFree(name?: ProviderName): boolean;
     isConfigured(): boolean;
     nomProviderEffectif(): string;
     status(): {
@@ -14,12 +22,20 @@ declare class AIServiceManager {
         provider: string;
         model: string;
         baseUrl: string;
+        testMode: boolean;
+        fallbackProvider: string | null;
+        fallbackConfigured: boolean;
         verifiedAt: string | null;
-        lastProbeStatus: ProbeStatus;
+        lastProbeStatus: "success" | "failed" | null;
+        lastProbeProvider: string | null;
+        lastProbeModel: string | null;
     };
+    private runWithFallback;
     testerConnexion(): Promise<{
         verifiedAt: string;
         lastProbeStatus: 'success';
+        provider: string;
+        model: string;
     }>;
     analyserAvis(commentaire: string, contexte?: ContextAvis): Promise<{
         result: AnalyseResult;

@@ -5,7 +5,8 @@
 // Prod = licence NVIDIA AI Enterprise. Voir docs : build.nvidia.com
 import OpenAI from 'openai';
 import { extraireObjetJson, validerReponseJson } from './chatJson';
-import { MAX_TOKENS_ANALYSE, MAX_TOKENS_SYNTHESE, SYSTEM_PROMPT } from './prompts';
+import { anonymiserTextePourAnalyse } from './dataMinimization';
+import { MAX_TOKENS_ANALYSE, MAX_TOKENS_SYNTHESE, MAX_TOKENS_TEST_CONNEXION, SYSTEM_PROMPT } from './prompts';
 import { AnalyseResultSchema, PROMPT_SYNTHESE_SYSTEM, SyntheseGlobaleSchema } from './types';
 // Modèle Mistral par défaut sur NIM. Testé le 08/09/2026 :
 // 'mistralai/mistral-large-2-instruct' a été RETIRÉ du catalogue (404) —
@@ -36,24 +37,49 @@ export class NvidiaProvider {
         const apiKey = process.env.NVIDIA_API_KEY;
         if (apiKey && apiKey.trim().length > 0) {
             this.client = new OpenAI({
-                baseURL: process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1',
+                // Endpoint fixe du programme NVIDIA Developer; aucune URL de service
+                // payant ou tierce ne peut être introduite par configuration.
+                baseURL: 'https://integrate.api.nvidia.com/v1',
                 apiKey: apiKey.trim(),
                 // Sans borne, un appel IA pendu bloquait le worker PgBoss (défaut SDK ~10 min).
                 timeout: 25000,
             });
         }
     }
+    /** Vérification sans donnée réelle, réservée au test de disponibilité. */
+    async testerConnexion() {
+        if (!this.client) {
+            throw new Error('NVIDIA_API_KEY non configurée dans les variables d’environnement (build.nvidia.com).');
+        }
+        const response = await this.client.chat.completions.create({
+            model: this.model,
+            messages: [
+                { role: 'system', content: 'Réponds uniquement par le mot OK.' },
+                { role: 'user', content: 'Vérification technique synthétique, aucune donnée réelle.' },
+            ],
+            temperature: 0,
+            max_tokens: MAX_TOKENS_TEST_CONNEXION,
+        });
+        const message = response.choices[0]?.message;
+        const content = message?.content || message?.reasoning_content || message?.reasoning;
+        if (typeof content !== 'string' || !content.trim()) {
+            throw new Error('Réponse vide du modèle NVIDIA pendant le test synthétique.');
+        }
+    }
     async analyserAvis(commentaire, contexte) {
         if (!this.client) {
             throw new Error('NVIDIA_API_KEY non configurée dans les variables d’environnement (build.nvidia.com).');
         }
+        const textePrepare = anonymiserTextePourAnalyse(commentaire);
+        if (!textePrepare)
+            throw new Error('AI_EMPTY_REDACTED_COMMENT');
         const promptUtilisateur = `Analyse cet avis client.
 
 NOTE :
 ${contexte?.score !== undefined && contexte?.score !== null ? contexte.score : 'Non fournie'}
 
 AVIS :
-${commentaire.trim()}
+${textePrepare}
 
 Retourne exclusivement le JSON demandé.`;
         const tenter = () => this.client.chat.completions.create({
