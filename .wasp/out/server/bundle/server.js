@@ -9344,7 +9344,9 @@ const getRadarStats$2 = async (args, context) => {
         { guichet: { id_agence: idAgence } },
         { reponse: { id_agence: idAgence } }
       ],
-      statut_alerte: { in: ["EN_COURS", "TRAITEE"] }
+      // Le domaine StatutAlerte ne contient que NOUVELLE et TRAITEE.
+      // Une alerte n'est donc prise en charge qu'une fois marquée TRAITEE.
+      statut_alerte: "TRAITEE"
     }
   });
   const surveillanceScore = totalAlertes > 0 ? Math.round(alertesPrisesEnCharge / totalAlertes * 100) : 100;
@@ -10365,7 +10367,7 @@ const getIndicateursExperience$2 = async (args, context) => {
   const filtre = await buildAgenceFilter(context, context.entities);
   const brut = filtre.id_agence;
   const idsAgences = typeof brut === "number" ? [brut] : Array.isArray(brut?.in) ? brut.in : void 0;
-  const agregats = await calculerAgregats(context.entities, {
+  const agregats = await calculerAgregats(dbClient, {
     id_entreprise: idEntreprise,
     debut,
     fin,

@@ -1,5 +1,5 @@
 // src/server/queries.ts
-import { HttpError } from 'wasp/server';
+import { HttpError, prisma } from 'wasp/server';
 import {
   requireAuth,
   requireRole,
@@ -1001,7 +1001,9 @@ export const getRadarStats = async (args: { id_agence?: number }, context: any) 
         { guichet: { id_agence: idAgence } },
         { reponse: { id_agence: idAgence } },
       ],
-      statut_alerte: { in: ['EN_COURS', 'TRAITEE'] },
+      // Le domaine StatutAlerte ne contient que NOUVELLE et TRAITEE.
+      // Une alerte n'est donc prise en charge qu'une fois marquée TRAITEE.
+      statut_alerte: 'TRAITEE',
     },
   });
   const surveillanceScore = totalAlertes > 0
@@ -2415,7 +2417,9 @@ export const getIndicateursExperience = async (args: { nbJours?: number }, conte
   const brut = (filtre as any).id_agence;
   const idsAgences = typeof brut === 'number' ? [brut] : Array.isArray(brut?.in) ? brut.in : undefined;
 
-  const agregats = await calculerAgregats(context.entities, {
+  // calculerAgregats attend le PrismaClient (modèles camelCase minuscules),
+  // alors que context.entities expose les entités Wasp en PascalCase.
+  const agregats = await calculerAgregats(prisma, {
     id_entreprise: idEntreprise,
     debut,
     fin,
